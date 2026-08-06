@@ -314,11 +314,14 @@ function Bar({ label, value, max, color }) {
 
 function RateField({ k, label, eff, defaults, ov, setOv, fmt: f, step }) {
   const edited = k in ov;
+  const ratio = defaults[k] > 0 ? eff[k] / defaults[k] : 1;
+  const unusual = ratio > 10 || (eff[k] > 0 && ratio < 0.1);
   return (
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderTop: `1px solid ${C.line}` }}>
       <div style={{ fontSize: 12, color: C.ink, paddingRight: 8 }}>
         {label}
         {edited && <span style={{ ...mono, fontSize: 9, color: "#CC0000", marginLeft: 5, border: "1px solid #CC0000", borderRadius: 3, padding: "0 4px" }}>EDITED</span>}
+        {unusual && <span style={{ ...mono, fontSize: 9, color: "#B4530A", marginLeft: 5, border: "1px solid #B4530A", borderRadius: 3, padding: "0 4px" }}>CHECK VALUE</span>}
         {edited && (
           <button onClick={() => { const n = { ...ov }; delete n[k]; setOv(n); }}
             style={{ ...mono, fontSize: 9, marginLeft: 5, color: C.sub, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
@@ -395,11 +398,20 @@ export default function App() {
   const editedCount = Object.keys(ov).length;
   const rateInfo = RATES[provider][gpuClass];
 
+  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct };
   const r = useMemo(
-    () => run({ bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct }, rc),
+    () => run(inputsObj, rc),
     [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, provider, ov]
   );
   const t = r.tot(horizon);
+  // Minimum viable spend: smallest monthly bill where on-prem beats cloud at the selected horizon, current settings (spend-based path)
+  const minViable = useMemo(() => {
+    for (let b = 20000; b <= 2000000; b *= 1.1) {
+      const rr = run({ ...inputsObj, bill: Math.round(b), tier3Hrs: 0 }, rc);
+      if (rr.tot(horizon).saveAdj > 0) return Math.round(b / 5000) * 5000;
+    }
+    return null;
+  }, [gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, retrofit, migration, dualRun, redundancy, residPct, computeShare, odShare, provider, ov, horizon]);
   const tier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
   const maxBar = Math.max(t.cloud, t.onAdj, t.onFlr, 1);
   const isSelf = facility !== "Equinix";
@@ -415,7 +427,7 @@ export default function App() {
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <img src={CDW_LOGO} alt="CDW" style={{ height: 30, width: "auto" }} />
-            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v1.7</div>
+            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v1.8</div>
           </div>
           <h1 style={{ ...disp, fontSize: 24, fontWeight: 700, margin: "4px 0 2px" }}>Cloud → On-Prem AI TCO</h1>
           <div style={{ fontSize: 13, color: C.sub }}>What your current AIaaS spend buys you if you owned it instead.</div>
@@ -458,11 +470,20 @@ export default function App() {
             </div>
             <div style={{ ...disp, fontSize: 21, fontWeight: 700, margin: "4px 0 2px" }}>Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}</div>
             <div style={{ fontSize: 12, color: C.sub, marginBottom: 12 }}>{new Date().toLocaleDateString()} · Confidence: {tier} · {provider} · {gpuClass} workloads</div>
-            <div style={{ background: C.greenSoft, borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
-              <div style={{ ...mono, fontSize: 11, color: C.green }}>{horizon}-YEAR PROJECTED SAVINGS</div>
-              <div style={{ ...mono, fontSize: 32, fontWeight: 600, color: C.green }}>{fmtM(t.saveAdj)}</div>
-              <div style={{ fontSize: 12, color: C.ink }}>vs. staying in cloud ({fmtM(t.cloud)}) · even with zero performance credit (floor case): {fmtM(t.saveFlr)}</div>
-            </div>
+            {t.saveAdj > 0 ? (
+              <div style={{ background: C.greenSoft, borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
+                <div style={{ ...mono, fontSize: 11, color: C.green }}>{horizon}-YEAR PROJECTED SAVINGS</div>
+                <div style={{ ...mono, fontSize: 32, fontWeight: 600, color: C.green }}>{fmtM(t.saveAdj)}</div>
+                <div style={{ fontSize: 12, color: C.ink }}>vs. staying in cloud ({fmtM(t.cloud)}) · even with zero performance credit (floor case): {fmtM(t.saveFlr)}</div>
+              </div>
+            ) : (
+              <div style={{ background: "#F1F1F1", borderLeft: "3px solid #CC0000", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
+                <div style={{ ...mono, fontSize: 11, color: C.ink }}>NO COST CROSSOVER AT THIS SPEND LEVEL</div>
+                <div style={{ fontSize: 12, color: C.ink, marginTop: 4 }}>
+                  At the stated consumption, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by {fmtM(-t.saveAdj)}. Fixed cluster overhead and transition costs dominate at this scale.{minViable && minViable > bill ? ` On-prem begins to pencil around ${fmtM(minViable)}/mo at these settings.` : ""}
+                </div>
+              </div>
+            )}
             <Row label={`Recommended build`} value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`} sub={`${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
             <Row label="Total capex + one-time transition" value={fmtM(r.adj.capex + r.oneTime)} sub={`incl. ${fmtM(r.oneTime)} migration, dual-run, and exit costs`} />
             <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
@@ -470,7 +491,42 @@ export default function App() {
             <Row label="Residual value credit" value={`−${fmt(r.adj.resid)}`} sub={`${Math.round(residPct * 100)}% of systems + storage capex at horizon`} />
             <Row label="Your current consumption (reconstructed)" value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`} sub={tier3Hrs > 0 ? "from your invoice" : `from spend at ${provider} ${gpuClass} list rates (${RATES_ASOF})`} />
             <div style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
-              Methodology: cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+              Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+            </div>
+            <div style={{ marginTop: 14 }}>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX — FULL INPUTS & OUTPUTS (for independent reproduction)</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 14px", fontSize: 11 }}>
+                {[
+                  ["Monthly cloud AI spend", `${fmt(bill)}/mo`],
+                  ["Provider / rented GPU class", `${provider} / ${gpuClass} (${RATES[provider][gpuClass].conf})`],
+                  ["On-prem target system", ownSys],
+                  ["Training / inference mix", `${Math.round(trainShare * 100)}% / ${Math.round((1 - trainShare) * 100)}%`],
+                  ["On-demand share", `${Math.round(odShare * 100)}%`],
+                  ["Compute share of bill", `${Math.round(computeShare * 100)}%`],
+                  ["Fast / bulk storage", `${fastPB.toFixed(2)} / ${bulkPB.toFixed(2)} PB`],
+                  ["Egress", `${Math.round(egressPct * 100)}%/mo`],
+                  ["Annual compute growth", `${Math.round(growth * 100)}%`],
+                  ["Facility", facility],
+                  ["Power rate", `$${powerRate}/kW-mo`],
+                  ["Target utilization", `${Math.round(util * 100)}%`],
+                  ["Factors net / sw / NVAIE", `${fNet.toFixed(2)}x / ${fSw.toFixed(2)}x / ${fNvaie.toFixed(2)}x`],
+                  ["Generational / NPF", `${r.genPF.toFixed(2)}x / ${r.npf.toFixed(2)}x`],
+                  ["Tier 3 GPU-hours", tier3Hrs > 0 ? tier3Hrs.toLocaleString() : "not provided"],
+                  ["Migration / dual-run / retrofit", `${fmtM(migration)} / ${dualRun}mo / ${facility === "Self-hosted (retrofit)" ? fmtM(retrofit) : "n/a"}`],
+                  ["Redundancy / residual", `${redundancy ? "N+1 on" : "off"} / ${Math.round(residPct * 100)}%`],
+                  ["Reconstructed GPU-hours", `${Math.round(r.gpuHrs).toLocaleString()}/mo`],
+                  ["Systems (adjusted / floor)", `${r.sysAdj} / ${r.sysFloor}`],
+                  ["Capex / one-time / residual credit", `${fmt(r.adj.capex)} / ${fmt(r.oneTime)} / −${fmt(r.adj.resid)}`],
+                  ["On-prem opex", `${fmt(r.adj.opex)}/mo`],
+                  [`Cloud vs on-prem (${horizon}yr)`, `${fmt(t.cloud)} vs ${fmt(t.onAdj)}`],
+                  ["Savings (adjusted / floor)", `${fmt(t.saveAdj)} / ${fmt(t.saveFlr)}`],
+                  ["Rate card overrides", editedCount > 0 ? Object.keys(ov).join(", ") : "none — all defaults"],
+                ].map(([k, v]) => (
+                  <div key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>
+                    <span style={{ color: C.sub }}>{k}</span><span style={{ ...mono }}>{v}</span>
+                  </div>
+                ))}
+              </div>
             </div>
             <div style={{ borderTop: `2px solid ${C.ink}`, marginTop: 14, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
               <div>
@@ -512,12 +568,24 @@ export default function App() {
               ))}
             </div>
           </div>
-          <div style={{ ...mono, fontSize: 40, fontWeight: 600, color: "#FFFFFF", margin: "6px 0 0", borderBottom: "3px solid #CC0000", display: "inline-block", paddingBottom: 2 }}>
-            {fmtM(t.saveAdj)}
-          </div>
-          <div style={{ fontSize: 12, color: "#D0D0D0", marginBottom: 10 }}>
-            {(t.cloud > 0 ? (t.saveAdj / t.cloud) * 100 : 0).toFixed(0)}% below cloud · floor case (no perf factors): <span style={{ ...mono, color: "#C9C9C9" }}>{fmtM(t.saveFlr)}</span>
-          </div>
+          {t.saveAdj > 0 ? (
+            <>
+              <div style={{ ...mono, fontSize: 40, fontWeight: 600, color: "#FFFFFF", margin: "6px 0 0", borderBottom: "3px solid #CC0000", display: "inline-block", paddingBottom: 2 }}>
+                {fmtM(t.saveAdj)}
+              </div>
+              <div style={{ fontSize: 12, color: "#D0D0D0", marginBottom: 10 }}>
+                {(t.cloud > 0 ? (t.saveAdj / t.cloud) * 100 : 0).toFixed(0)}% below cloud · floor case (no perf factors): <span style={{ ...mono, color: "#C9C9C9" }}>{fmtM(t.saveFlr)}</span>
+              </div>
+            </>
+          ) : (
+            <div style={{ background: "#3A3A3A", borderLeft: "3px solid #CC0000", borderRadius: 6, padding: "10px 12px", margin: "8px 0 10px" }}>
+              <div style={{ ...mono, fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>NO COST CROSSOVER AT THIS SPEND LEVEL</div>
+              <div style={{ fontSize: 12, color: "#D0D0D0", marginTop: 4 }}>
+                At these settings, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by {fmtM(-t.saveAdj)} — the fixed cluster overhead and transition costs outweigh the ownership advantage at this scale.
+                {minViable && minViable > bill ? ` On-prem starts to pencil around ${fmtM(minViable)}/mo at these settings.` : ""} An honest tool says so.
+              </div>
+            </div>
+          )}
           <div style={{ background: "#1F1F1F", borderRadius: 8, padding: "10px 12px" }}>
             <Bar label={`Stay in cloud (${horizon}yr)`} value={t.cloud} max={maxBar} color={"#8A8A8A"} />
             <Bar label={`Own it — adjusted (${r.sysAdj} × ${ownSys}${redundancy ? " incl. N+1" : ""})`} value={t.onAdj} max={maxBar} color={"#CC0000"} />
@@ -640,7 +708,7 @@ export default function App() {
               Reset all {editedCount} to defaults
             </button>
           )}
-          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "8px 0 2px", color: C.sub }}>CLOUD — {provider} {gpuClass} (8-GPU instance $/hr)</div>
+          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "8px 0 2px", color: C.sub }}>CLOUD — {provider} {gpuClass} ($/GPU-hr) · {rateInfo.conf} · as of {RATES_ASOF}</div>
           <RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="instOD" label="Cloud $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="nvaieRes" label="NVAIE support $/GPU-hr, reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
@@ -648,12 +716,12 @@ export default function App() {
           <RateField k="fastGB" label="Fast storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="bulkGB" label="Bulk storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="egressGB" label="Egress $/GB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
-          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>ON-PREM HARDWARE</div>
+          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>ON-PREM HARDWARE · NVIDIA TCO tool capture, Aug 2026</div>
           <RateField k="perSysCost" label={`${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`} eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
           <RateField k="cluster" label="Cluster mgmt nodes $ (fixed per cluster — amortizes across fleet)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="fastPB" label="Fast storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="bulkPB" label="Bulk storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
-          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>OPERATIONS</div>
+          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>OPERATIONS · NVIDIA TCO tool, Jul 2026 (Equinix bundle Aug 2026)</div>
           <RateField k="sysKw" label={`Power kW per ${ownSys} (avg load)`} eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.1} />
           <RateField k="equinixMo" label="Equinix bundle $/system/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={100} fmt={fmt} />
           <RateField k="adminRatio" label="Systems per admin FTE" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1} />
@@ -662,7 +730,10 @@ export default function App() {
         </Section>
 
         {/* LEDGER */}
-        <Section title="Assumption ledger" defaultOpen={false}>
+        <Section title="Methodology & assumptions" defaultOpen={false}>
+          <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.5, marginBottom: 8 }}>
+            <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED / NODE-NORM / EST / QUOTE); on-prem costs are NVIDIA DGX TCO tool captures (Jul–Aug 2026). Not modeled: hardware refresh cadence beyond the residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk, hybrid burst.
+          </div>
           <Row label="Reconstructed cloud GPU-hours" value={`${Math.round(r.gpuHrs).toLocaleString()}/mo`}
             sub={tier3Hrs > 0 ? "customer invoice" : `spend ÷ ${provider} ${gpuClass} blended rate $${r.blended.toFixed(2)}/instance-hr`} />
           <Row label={`GPU-hours one ${ownSys} supplies`} value={`${Math.round(r.perSysHrs).toLocaleString()}/mo`} sub={`${SYSTEMS[ownSys].gpus} GPUs × 730 hrs × ${Math.round(util * 100)}% utilization`} />
