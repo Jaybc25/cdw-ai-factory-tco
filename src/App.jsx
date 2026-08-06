@@ -9,17 +9,39 @@ const CDW_LOGO = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAACACAYAAAA1
    Reserved (1-yr) = 40% off list unless noted — matches AWS B200 exactly
    ($113.93 -> $68.36/instance in the NVIDIA TCO tool). */
 const RATES = {
-  AWS:       { A100:{od:4.10}, H100:{od:6.88}, H200:{od:10.00}, "B200-class":{od:14.24} },
-  Azure:     { A100:{od:3.40,est:1}, H100:{od:12.29}, H200:{od:10.60}, "B200-class":{od:27.04,note:"4-GPU config list"} },
-  GCP:       { A100:{od:3.28}, H100:{od:11.06}, H200:{od:10.60,est:1}, "B200-class":{od:18.53} },
-  OCI:       { A100:{od:3.05,est:1}, H100:{od:10.00}, H200:{od:10.30}, "B200-class":{od:15.00} },
-  CoreWeave: { A100:{od:2.70}, H100:{od:6.16}, H200:{od:6.50,est:1}, "B200-class":{od:8.60} },
+  /* conf tiers: LISTED > NODE-NORM > EST > QUOTE (QUOTE = verify with provider). Midpoints per rate-expansion spec Aug 2026. */
+  AWS:       { A100:{od:4.10,conf:"LISTED"}, H100:{od:6.88,conf:"LISTED"}, H200:{od:10.00,conf:"LISTED"}, "B200-class":{od:14.24,conf:"LISTED"}, B300:{od:17.80,conf:"NODE-NORM"}, GB200:{od:27.50,conf:"QUOTE"}, GB300:{od:30.00,conf:"QUOTE"} },
+  Azure:     { A100:{od:3.40,conf:"EST"}, H100:{od:12.29,conf:"LISTED"}, H200:{od:10.60,conf:"LISTED"}, "B200-class":{od:27.04,conf:"LISTED",note:"4-GPU config list"}, B300:{od:15.00,conf:"QUOTE"}, GB200:{od:27.00,conf:"LISTED"}, GB300:{od:40.00,conf:"QUOTE"} },
+  GCP:       { A100:{od:3.28,conf:"LISTED"}, H100:{od:11.06,conf:"LISTED"}, H200:{od:10.60,conf:"EST"}, "B200-class":{od:18.53,conf:"LISTED"}, B300:{od:15.00,conf:"QUOTE"}, GB200:{od:27.50,conf:"QUOTE"}, GB300:{od:30.00,conf:"QUOTE"} },
+  OCI:       { A100:{od:3.05,conf:"EST"}, H100:{od:10.00,conf:"LISTED"}, H200:{od:10.30,conf:"LISTED"}, "B200-class":{od:15.00,conf:"EST"}, B300:{od:5.00,conf:"EST"}, GB200:{od:16.00,conf:"LISTED"}, GB300:{od:30.00,conf:"QUOTE"} },
+  CoreWeave: { A100:{od:2.70,conf:"LISTED"}, H100:{od:6.16,conf:"LISTED"}, H200:{od:6.50,conf:"EST"}, "B200-class":{od:8.60,conf:"LISTED"}, B300:{od:8.00,conf:"EST"}, GB200:{od:10.50,conf:"LISTED"}, GB300:{od:12.00,conf:"EST"} },
 };
+
+/* Own-side registry — NVIDIA TCO tool loaded costs (Aug 2026 capture). perSys EXCLUDES the $600K
+   per-CLUSTER mgmt nodes and rack cost: cluster-level costs are fixed overhead that amortizes
+   across fleet size; racks are added per ceiling(n / perRack). */
+const SYSTEMS = {
+  "DGX H200":         { gpus: 8,  perSys: 549764,  kW: 10.2, perRack: 2, rackCost: 15000 },
+  "DGX B200":         { gpus: 8,  perSys: 744793,  kW: 14.4, perRack: 2, rackCost: 15000 },
+  "DGX B300":         { gpus: 8,  perSys: 846885,  kW: 14.4, perRack: 2, rackCost: 15000 },
+  "DGX GB200 NVL-72": { gpus: 72, perSys: 7841432, kW: 120,  perRack: 1, rackCost: 0 },
+  "DGX GB300 NVL-72": { gpus: 72, perSys: 8741432, kW: 120,  perRack: 1, rackCost: 0 },
+};
+const OWN_TARGETS = Object.keys(SYSTEMS);
+/* Per-GPU capability indices (B200 = 1.0). Established classes derived from MLPerf pairs;
+   Blackwell-Ultra/NVL entries are provisional (EST) pending NVIDIA-sourced factors. */
+const IDX = {
+  train: { A100: 0.227, H100: 0.455, H200: 0.667, "B200-class": 1.0, B300: 1.5, GB200: 1.4, GB300: 1.65 },
+  infer: { A100: 0.083, H100: 0.25,  H200: 0.345, "B200-class": 1.0, B300: 1.5, GB200: 1.4, GB300: 1.65 },
+};
+const SYS_CLASS = { "DGX H200": "H200", "DGX B200": "B200-class", "DGX B300": "B300", "DGX GB200 NVL-72": "GB200", "DGX GB300 NVL-72": "GB300" };
+const EST_IDX = ["B300", "GB200", "GB300"];
+
 const RES_MULT = 0.60; // 1-yr reserved = 40% off list (estimated for all; exact for AWS B200)
 const RATES_ASOF = "Jul–Aug 2026";
 
 const BASE_RC = {
-  nvaieOD: 8.0, nvaieRes: 2.88,
+  nvaieOD: 1.0, nvaieRes: 0.36,
   fastGB: 0.14, bulkGB: 0.02, egressGB: 0.05, egressPct: 0.05,
   cloudFTE: 189000, billingSW: 5000, cloudAdminFTE: 0.01, paasUplift: 0,
   gpusPerInstance: 8,
@@ -30,16 +52,12 @@ const BASE_RC = {
   adminRatio: 10, opFTE: 189000, equinixMo: 11387,
   hrsMo: 730, opsGrowth: 0.04, gpusPerSystem: 8,
 };
-function defaultsFor(provider, gpuClass) {
+function defaultsFor(provider, gpuClass, ownSys) {
   const r = RATES[provider][gpuClass];
-  return { ...BASE_RC, instOD: +(r.od * 8).toFixed(2), instRes: +(r.od * RES_MULT * 8).toFixed(2) };
+  const S = SYSTEMS[ownSys];
+  return { ...BASE_RC, instOD: +r.od.toFixed(2), instRes: +(r.od * RES_MULT).toFixed(2),
+    perSysCost: S.perSys, sysKw: S.kW };
 }
-const PF = {
-  A100: { train: 4.4, infer: 12.0 },
-  H100: { train: 2.2, infer: 4.0 },
-  H200: { train: 1.5, infer: 2.9 },
-  "B200-class": { train: 1.0, infer: 1.0 },
-};
 const PROVIDERS = Object.keys(RATES);
 const FACILITIES = ["Self-hosted (AI-ready)", "Self-hosted (retrofit)", "Equinix"];
 
@@ -62,6 +80,14 @@ const TIPS = {
   network: `Gain from the purpose-built networking inside a DGX cluster versus general-purpose cloud networking, which matters most when training runs span multiple GPUs and they wait on each other. Default 1.5x is NVIDIA's reference figure; use 1.05x if your workloads are mostly single-GPU jobs that rarely talk to each other.`,
   runai: `How much more of your GPUs' time does useful work when jobs are packed efficiently instead of sitting idle between tasks. Cloud GPU utilization is notoriously low; scheduling software recovers those wasted hours. Default 1.3x is conservative; teams with poor current utilization see far more.`,
   nvaie: `Gain from optimized inference engines and libraries that squeeze more throughput from the same GPU than off-the-shelf frameworks. Default 1.3x; most relevant if you run heavy inference workloads, closer to 1.1x if you're purely training with already-tuned code.`,
+  trainShare: `Roughly what percent of your GPU hours go to training models versus running them (inference). Training benefits most from new-generation hardware, so this gates the speedup math. If unsure, leave the default; most production shops are inference-heavy.`,
+  odShare: `What portion of your cloud GPUs are billed at on-demand rates versus cheaper 1-year reserved pricing. On-demand costs roughly 40 to 60% more per hour. Check your bill if you can; otherwise the default assumes mostly reserved, which is the conservative choice.`,
+  computeShare: `How much of your total monthly AI spend is GPU compute, as opposed to storage, networking, and platform fees. The 50% default is a typical decomposition; leave it unless you have your actual bill breakdown handy.`,
+  growth: `How fast your AI usage is growing year over year. This matters because owned hardware absorbs growth for free until you fill it, while cloud bills scale with every added hour. 25% is a moderate default; AI-first teams often run 50% or higher.`,
+  powerRate: `What you pay per kilowatt-month for data center power, including cooling overhead, not just the utility rate. The default reflects a typical enterprise fully-loaded cost; leave it unless your facilities team has given you a real number. NVIDIA's default is $300 (~$0.41/kWh); SLED and municipal power often lands $150–200.`,
+  util: `What percent of your owned systems' capacity you realistically expect to use, accounting for maintenance windows, scheduling gaps, and uneven demand. NVIDIA's math implicitly assumes 100%, which nobody hits; the 85% default is an honest de-rate. Lower it if your workloads are bursty; raising it above 90% is optimistic.`,
+  tier3: `If you have a real invoice showing GPU-hours consumed, enter it here and the tool uses your actual number instead of estimating it from spend, making everything downstream more accurate. This is optional; leave it at 'not provided' and the spend-based estimate stands. Ask your cloud admin for a usage report if you want this precision.`,
+  ownSys: `The NVIDIA system you'd buy to run these workloads yourself. Newer systems cost more per box but do far more work per GPU-hour, so the best value is often not the cheapest system. If unsure, DGX B200 is the proven mainstream pick.`,
 };
 
 function TipDot({ open, onClick }) {
@@ -91,9 +117,7 @@ function TipLabel({ text, tip, style }) {
 }
 
 
-/* Storage adapter: uses the chat-artifact storage API when present; falls back to
-   browser localStorage when deployed as a standalone site. Lead capture on the
-   production site should move to a real form endpoint / CRM webhook + email API. */
+/* Storage adapter: artifact storage API when present; localStorage fallback standalone. */
 const store = {
   async set(key, value) {
     if (typeof window !== "undefined" && window.storage) return window.storage.set(key, value, true);
@@ -118,13 +142,16 @@ function run(inp, RC) {
     (1 + RC.paasUplift);
   const computeSpend = inp.bill * inp.computeShare;
   const instHrs = blended > 0 ? computeSpend / blended : 0;
-  const gpuHrs = inp.tier3Hrs > 0 ? inp.tier3Hrs : instHrs * RC.gpusPerInstance;
+  const gpuHrs = inp.tier3Hrs > 0 ? inp.tier3Hrs : instHrs; // rates are per GPU-hr
 
-  const g = PF[inp.gpuClass];
-  const genPF = inp.trainShare * g.train + (1 - inp.trainShare) * g.infer;
+  const tgt = SYS_CLASS[inp.ownSys];
+  const genTrain = IDX.train[tgt] / IDX.train[inp.gpuClass];
+  const genInfer = IDX.infer[tgt] / IDX.infer[inp.gpuClass];
+  const genPF = inp.trainShare * genTrain + (1 - inp.trainShare) * genInfer;
   const npf = genPF * inp.fNet * inp.fSw * inp.fNvaie;
 
-  const perSysHrs = RC.gpusPerSystem * RC.hrsMo * inp.util;
+  const S = SYSTEMS[inp.ownSys];
+  const perSysHrs = S.gpus * RC.hrsMo * inp.util;
   const nPlus = inp.redundancy ? 1 : 0;
   const size = (h) => Math.max(1, Math.ceil(h / perSysHrs)) + nPlus;
   const sysAdj = gpuHrs > 0 ? size(gpuHrs / npf) : 0;
@@ -140,7 +167,7 @@ function run(inp, RC) {
     fast * 1e6 * RC.fastGB + bulk * 1e6 * RC.bulkGB +
     totPB * 1e6 * inp.egressPct * RC.egressGB;
 
-  const perSys = RC.sysCost + RC.swSuite + RC.fabricC + RC.fabricS + RC.fabricM + RC.profSvcs;
+  const perSys = RC.perSysCost; // loaded per-system cost (system + software + fabrics + prof svcs + CDU where applicable)
   const storCapex = fast * RC.fastPB + bulk * RC.bulkPB;
   const storSup = (fast * RC.fastSupPB + bulk * RC.bulkSupPB) / 12;
 
@@ -149,9 +176,9 @@ function run(inp, RC) {
     (isRetrofit ? inp.retrofit : 0) + inp.migration + inp.dualRun * inp.bill + exitEgress;
 
   const stack = (n) => {
-    const racks = Math.ceil(n / RC.sysPerRack);
-    const capex = n * perSys + RC.cluster + racks * RC.rack + storCapex;
-    const power = (n * RC.kwPerSys + totPB * RC.kwPerPB) * inp.powerRate;
+    const racks = Math.ceil(n / S.perRack);
+    const capex = n * perSys + RC.cluster + racks * S.rackCost + storCapex;
+    const power = (n * RC.sysKw + totPB * RC.kwPerPB) * inp.powerRate;
     const other = RC.netMo + (RC.setupRack * (racks + totPB * RC.racksPerPB)) / 36;
     const admin = ((n / RC.adminRatio) * RC.opFTE) / 12;
     const selfOpex = power + other + admin + storSup;
@@ -316,6 +343,7 @@ export default function App() {
   const [bill, setBill] = useState(105000);
   const [provider, setProvider] = useState("AWS");
   const [gpuClass, setGpuClass] = useState("H100");
+  const [ownSys, setOwnSys] = useState("DGX B200");
   const [trainShare, setTrainShare] = useState(0.5);
   const [odShare, setOdShare] = useState(0);
   const [fastPB, setFastPB] = useState(0.25);
@@ -362,14 +390,14 @@ export default function App() {
     setView("leads");
   }
 
-  const defaults = defaultsFor(provider, gpuClass);
+  const defaults = defaultsFor(provider, gpuClass, ownSys);
   const rc = { ...defaults, ...ov };
   const editedCount = Object.keys(ov).length;
   const rateInfo = RATES[provider][gpuClass];
 
   const r = useMemo(
-    () => run({ bill, computeShare, odShare, gpuClass, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct }, rc),
-    [bill, computeShare, odShare, gpuClass, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, provider, ov]
+    () => run({ bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct }, rc),
+    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, provider, ov]
   );
   const t = r.tot(horizon);
   const tier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
@@ -387,7 +415,7 @@ export default function App() {
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <img src={CDW_LOGO} alt="CDW" style={{ height: 30, width: "auto" }} />
-            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v1.6</div>
+            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v1.7</div>
           </div>
           <h1 style={{ ...disp, fontSize: 24, fontWeight: 700, margin: "4px 0 2px" }}>Cloud → On-Prem AI TCO</h1>
           <div style={{ fontSize: 13, color: C.sub }}>What your current AIaaS spend buys you if you owned it instead.</div>
@@ -435,7 +463,7 @@ export default function App() {
               <div style={{ ...mono, fontSize: 32, fontWeight: 600, color: C.green }}>{fmtM(t.saveAdj)}</div>
               <div style={{ fontSize: 12, color: C.ink }}>vs. staying in cloud ({fmtM(t.cloud)}) · even with zero performance credit (floor case): {fmtM(t.saveFlr)}</div>
             </div>
-            <Row label={`Recommended build`} value={`${r.sysAdj} × DGX B200${redundancy ? " (incl. N+1)" : ""}`} sub={`${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
+            <Row label={`Recommended build`} value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`} sub={`${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
             <Row label="Total capex + one-time transition" value={fmtM(r.adj.capex + r.oneTime)} sub={`incl. ${fmtM(r.oneTime)} migration, dual-run, and exit costs`} />
             <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
             <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub="capex + one-time vs. current monthly cloud bill" />
@@ -492,8 +520,8 @@ export default function App() {
           </div>
           <div style={{ background: "#1F1F1F", borderRadius: 8, padding: "10px 12px" }}>
             <Bar label={`Stay in cloud (${horizon}yr)`} value={t.cloud} max={maxBar} color={"#8A8A8A"} />
-            <Bar label={`Own it — adjusted (${r.sysAdj} × DGX B200${redundancy ? " incl. N+1" : ""})`} value={t.onAdj} max={maxBar} color={"#CC0000"} />
-            <Bar label={`Own it — floor case (${r.sysFloor} × DGX B200${redundancy ? " incl. N+1" : ""})`} value={t.onFlr} max={maxBar} color={"#C9C9C9"} />
+            <Bar label={`Own it — adjusted (${r.sysAdj} × ${ownSys}${redundancy ? " incl. N+1" : ""})`} value={t.onAdj} max={maxBar} color={"#CC0000"} />
+            <Bar label={`Own it — floor case (${r.sysFloor} × ${ownSys}${redundancy ? " incl. N+1" : ""})`} value={t.onFlr} max={maxBar} color={"#C9C9C9"} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 10 }}>
             {[
@@ -517,23 +545,24 @@ export default function App() {
           <TipLabel text="Primary provider" tip={TIPS.provider} />
           <Seg options={PROVIDERS} value={provider} onChange={setProvider} />
           <div style={{ fontSize: 11, color: C.green, background: C.greenSoft, borderRadius: 6, padding: "6px 9px" }}>
-            {provider} {gpuClass} list rate: ${rateInfo.od.toFixed(2)}/GPU-hr on-demand
-            {rateInfo.est ? " (estimated)" : ""}{rateInfo.note ? ` (${rateInfo.note})` : ""} · reserved = 40% off list (est.) · rates as of {RATES_ASOF}. Override any rate below.
+            {provider} {gpuClass}: ${rateInfo.od.toFixed(2)}/GPU-hr on-demand · confidence: {rateInfo.conf}
+            {rateInfo.conf === "QUOTE" ? " (estimate — verify with provider)" : ""}{rateInfo.note ? ` (${rateInfo.note})` : ""} · reserved = 40% off list (est.) · rates as of {RATES_ASOF}. Override any rate below.
           </div>
         </Section>
 
         {/* TIER 2 */}
         <Section title="Refine when known" badge="TIER 2" defaultOpen={false}>
           <TipLabel text="GPU class they rent today" tip={TIPS.gpuClass} style={{ fontSize: 13 }} />
-          <Seg options={Object.keys(PF)} value={gpuClass} onChange={setGpuClass} />
+          <Seg options={Object.keys(IDX.train)} value={gpuClass} onChange={setGpuClass} />
           <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
             Sets both the performance factor AND the rate used to reconstruct their GPU-hours from spend.
           </div>
+          <TipLabel text="On-prem target system" tip={TIPS.ownSys} />
+          <Seg options={OWN_TARGETS} value={ownSys} onChange={setOwnSys} />
           <Slider label="Workload mix — training share" value={trainShare} min={0} max={1} step={0.05}
-            onChange={setTrainShare} display={`${Math.round(trainShare * 100)}% train`}
-            hint="Gates the generational speedup: training and inference upgrade differently." />
+            onChange={setTrainShare} display={`${Math.round(trainShare * 100)}% train`} tip={TIPS.trainShare} />
           <Slider label="On-demand share of billing" value={odShare} min={0} max={1} step={0.05}
-            onChange={setOdShare} display={`${Math.round(odShare * 100)}% OD`} hint="Remainder priced at 1-yr reserved." />
+            onChange={setOdShare} display={`${Math.round(odShare * 100)}% OD`} tip={TIPS.odShare} />
           <Slider label="Fast storage" value={fastPB} min={0} max={3} step={0.05}
             onChange={setFastPB} display={`${fastPB.toFixed(2)} PB`} tip={TIPS.fastStorage} />
           <Slider label="Bulk storage" value={bulkPB} min={0} max={10} step={0.25}
@@ -541,9 +570,9 @@ export default function App() {
           <Slider label="Egress" value={egressPct} min={0} max={0.3} step={0.01}
             onChange={setEgressPct} display={`${Math.round(egressPct * 100)}% /mo`} tip={TIPS.egress} />
           <Slider label="Compute share of the bill" value={computeShare} min={0.2} max={0.9} step={0.05}
-            onChange={setComputeShare} display={`${Math.round(computeShare * 100)}%`} hint="Tier-1 decomposition default: 50%." />
+            onChange={setComputeShare} display={`${Math.round(computeShare * 100)}%`} tip={TIPS.computeShare} />
           <Slider label="Annual compute growth" value={growth} min={0} max={1} step={0.05}
-            onChange={setGrowth} display={`${Math.round(growth * 100)}%/yr`} />
+            onChange={setGrowth} display={`${Math.round(growth * 100)}%/yr`} tip={TIPS.growth} />
           <TipLabel text="Facility readiness" tip={TIPS.facility} />
           <Seg options={FACILITIES} value={facility} onChange={setFacility} />
           {facility === "Self-hosted (retrofit)" && (
@@ -553,11 +582,10 @@ export default function App() {
           )}
           {isSelf && (
             <Slider label="Power rate (fully loaded)" value={powerRate} min={100} max={450} step={25}
-              onChange={setPowerRate} display={`$${powerRate}/kW-mo`}
-              hint="NVIDIA default $300 (~$0.41/kWh). SLED muni power often lands $150–200." />
+              onChange={setPowerRate} display={`$${powerRate}/kW-mo`} tip={TIPS.powerRate} />
           )}
           <Slider label="Target on-prem utilization" value={util} min={0.5} max={1} step={0.05}
-            onChange={setUtil} display={`${Math.round(util * 100)}%`} hint="De-rated from NVIDIA's implicit 100%." />
+            onChange={setUtil} display={`${Math.round(util * 100)}%`} tip={TIPS.util} />
         </Section>
 
         {/* ONE-TIME & RESILIENCE */}
@@ -582,7 +610,7 @@ export default function App() {
         <Section title="Performance factors" badge="RANGE · DEFAULT · BREAKEVEN" defaultOpen={false}>
           <TipLabel text="What these factors are" tip={TIPS.factorsGroup} style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }} />
           <Row label="Generational (from lookup)" value={`${r.genPF.toFixed(2)}x`}
-            sub={`${gpuClass} → B200, weighted by workload mix · MLPerf-derived`} tip={TIPS.genSpeedup} />
+            sub={`${gpuClass} → ${ownSys}, weighted by workload mix · ${EST_IDX.includes(SYS_CLASS[ownSys]) || EST_IDX.includes(gpuClass) ? "provisional (EST) pending NVIDIA-sourced factors" : "MLPerf-derived"}`} tip={TIPS.genSpeedup} />
           <Slider label="Reference-architecture network" value={fNet} min={1} max={2.5} step={0.05}
             onChange={setFNet} display={`${fNet.toFixed(2)}x`} tip={TIPS.network} />
           <Slider label="AI Factory software (Run:ai / Mission Control)" value={fSw} min={1} max={3} step={0.05}
@@ -596,7 +624,7 @@ export default function App() {
         <Section title="Validated analysis" badge="TIER 3" defaultOpen={false}>
           <Slider label="Actual monthly GPU-hours (from invoice)" value={tier3Hrs} min={0} max={100000} step={500}
             onChange={setTier3Hrs} display={tier3Hrs > 0 ? tier3Hrs.toLocaleString() : "not provided"}
-            hint="When set, overrides the spend-based reconstruction entirely." />
+            tip={TIPS.tier3} />
         </Section>
 
         {/* RATE CARD */}
@@ -613,23 +641,20 @@ export default function App() {
             </button>
           )}
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "8px 0 2px", color: C.sub }}>CLOUD — {provider} {gpuClass} (8-GPU instance $/hr)</div>
-          <RateField k="instRes" label="Instance $/hr, 1-yr reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
-          <RateField k="instOD" label="Instance $/hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
-          <RateField k="nvaieRes" label="NVAIE support $/hr, reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
-          <RateField k="nvaieOD" label="NVAIE support $/hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="instOD" label="Cloud $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="nvaieRes" label="NVAIE support $/GPU-hr, reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="nvaieOD" label="NVAIE support $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="fastGB" label="Fast storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="bulkGB" label="Bulk storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="egressGB" label="Egress $/GB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>ON-PREM HARDWARE</div>
-          <RateField k="sysCost" label="DGX B200 system $" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
-          <RateField k="swSuite" label="AI SW suite $/system" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
-          <RateField k="cluster" label="Cluster mgmt nodes $ (fixed/cluster)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
-          <RateField k="profSvcs" label="Prof services $/system" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
-          <RateField k="rack" label="Rack + PDUs $" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={500} fmt={fmt} />
+          <RateField k="perSysCost" label={`${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`} eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
+          <RateField k="cluster" label="Cluster mgmt nodes $ (fixed per cluster — amortizes across fleet)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="fastPB" label="Fast storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="bulkPB" label="Bulk storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>OPERATIONS</div>
-          <RateField k="kwPerSys" label="Power kW per DGX (avg load)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.1} />
+          <RateField k="sysKw" label={`Power kW per ${ownSys} (avg load)`} eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.1} />
           <RateField k="equinixMo" label="Equinix bundle $/system/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={100} fmt={fmt} />
           <RateField k="adminRatio" label="Systems per admin FTE" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1} />
           <RateField k="opFTE" label="Admin FTE loaded $/yr" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
@@ -640,13 +665,13 @@ export default function App() {
         <Section title="Assumption ledger" defaultOpen={false}>
           <Row label="Reconstructed cloud GPU-hours" value={`${Math.round(r.gpuHrs).toLocaleString()}/mo`}
             sub={tier3Hrs > 0 ? "customer invoice" : `spend ÷ ${provider} ${gpuClass} blended rate $${r.blended.toFixed(2)}/instance-hr`} />
-          <Row label="GPU-hours one DGX B200 supplies" value={`${Math.round(r.perSysHrs).toLocaleString()}/mo`} sub={`8 GPUs × 730 hrs × ${Math.round(util * 100)}% utilization`} />
+          <Row label={`GPU-hours one ${ownSys} supplies`} value={`${Math.round(r.perSysHrs).toLocaleString()}/mo`} sub={`${SYSTEMS[ownSys].gpus} GPUs × 730 hrs × ${Math.round(util * 100)}% utilization`} />
           <Row label="One-time transition & exit" value={fmt(r.oneTime)}
             sub={`migration ${fmtM(migration)} + dual-run ${dualRun}mo × bill + exit egress ${fmt(r.exitEgress)}${facility === "Self-hosted (retrofit)" ? ` + retrofit ${fmtM(retrofit)}` : ""}`} />
           <Row label="Residual credit at horizon (adjusted fleet)" value={`−${fmt(r.adj.resid)}`}
             sub={`${Math.round(residPct * 100)}% of systems + storage capex · flat % simplification`} />
           <Row label="Cloud storage + egress that disappears" value={`${fmt(r.cloudStorage)}/mo`} sub="fast + bulk + egress at rate card prices" flag={"fastGB" in ov || "bulkGB" in ov || "egressGB" in ov} />
-          <Row label="On-prem opex" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix bundle + storage support" : "power + facility + admin + storage support"} flag={"equinixMo" in ov || "opFTE" in ov || "adminRatio" in ov} />
+          <Row label="On-prem opex" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? (SYSTEMS[ownSys].gpus > 8 ? "Equinix bundle + storage support — bundle rate calibrated for 8-GPU systems; NVL-72 colo pricing TBD" : "Equinix bundle + storage support") : "power + facility + admin + storage support"} flag={"equinixMo" in ov || "opFTE" in ov || "adminRatio" in ov} />
           <Row label="Fixed cluster cost in capex" value={fmt(rc.cluster)} sub="mgmt server nodes — why bigger bills pencil better" flag={"cluster" in ov} />
           <div style={{ fontSize: 11, color: C.sub, marginTop: 10 }}>
             {editedCount > 0
