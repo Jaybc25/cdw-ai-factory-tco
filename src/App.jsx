@@ -21,11 +21,11 @@ const RATES = {
    per-CLUSTER mgmt nodes and rack cost: cluster-level costs are fixed overhead that amortizes
    across fleet size; racks are added per ceiling(n / perRack). */
 const SYSTEMS = {
-  "DGX H200":         { gpus: 8,  perSys: 549764,  kW: 10.2, perRack: 2, rackCost: 15000, vram: 141, prof: 25000 },
-  "DGX B200":         { gpus: 8,  perSys: 744793,  kW: 14.4, perRack: 2, rackCost: 15000, vram: 192, prof: 25000 },
-  "DGX B300":         { gpus: 8,  perSys: 846885,  kW: 14.4, perRack: 2, rackCost: 15000, vram: 288, prof: 25000 },
-  "DGX GB200 NVL-72": { gpus: 72, perSys: 7841432, kW: 120,  perRack: 1, rackCost: 0, vram: 186, prof: 55558 },
-  "DGX GB300 NVL-72": { gpus: 72, perSys: 8741432, kW: 120,  perRack: 1, rackCost: 0, vram: 288, prof: 55558 },
+  "DGX H200":         { gpus: 8,  perSys: 549764,  kW: 10.2, perRack: 2, rackCost: 15000, vram: 141, prof: 25000, sw: 99000 },
+  "DGX B200":         { gpus: 8,  perSys: 744793,  kW: 14.4, perRack: 2, rackCost: 15000, vram: 192, prof: 25000, sw: 142800 },
+  "DGX B300":         { gpus: 8,  perSys: 846885,  kW: 14.4, perRack: 2, rackCost: 15000, vram: 288, prof: 25000, sw: 142800 },
+  "DGX GB200 NVL-72": { gpus: 72, perSys: 7841432, kW: 120,  perRack: 1, rackCost: 0, vram: 186, prof: 55558, sw: 1468800 },
+  "DGX GB300 NVL-72": { gpus: 72, perSys: 8741432, kW: 120,  perRack: 1, rackCost: 0, vram: 288, prof: 55558, sw: 1468800 },
 };
 const OWN_TARGETS = Object.keys(SYSTEMS);
 /* Per-GPU capability indices (B200 = 1.0). Established classes derived from MLPerf pairs;
@@ -215,7 +215,7 @@ function run(inp, RC) {
   const headroom = sysAdj > 0 ? 1 - gpuHrs / npf / (sysAdj * perSysHrs) : 0;
 
   // residual basis excludes professional services (no resale value — audit finding) and cluster/racks/one-time
-  const residAt = (T, n) => inp.residPct * (T[n - 1].sys * (perSys - S.prof) + storCapex);
+  const residAt = (T, n) => inp.residPct * (T[n - 1].sys * (perSys - S.prof - S.sw) + storCapex); // hardware only: prof svcs and SW subscriptions have no resale value
   const adj = { capex: adjT[0].capexAdd, opex: adjT[0].opexMo0, resid: residAt(adjT, inp.horizon) };
   const flr = { capex: flrT[0].capexAdd, opex: flrT[0].opexMo0, resid: residAt(flrT, inp.horizon) };
 
@@ -256,7 +256,8 @@ function run(inp, RC) {
     perUserCloud: ((TOK_PER_USER * 2628000) / 1e6) * RC.cloudTok,
     cloudPerM: RC.cloudTok, onPremMonthly,
   };
-  return { blended, gpuHrs, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, oneTime, exitEgress, tot, payback, exhaustYrs, perSysHrs, cap,
+  const storageBudget = inp.bill * (1 - inp.computeShare);
+  return { blended, gpuHrs, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, storageBudget, oneTime, exitEgress, tot, payback, exhaustYrs, perSysHrs, cap,
     fleetAdj: adjT.map((r2) => r2.sys), fleetFlr: flrT.map((r2) => r2.sys) };
 }
 
@@ -475,7 +476,7 @@ export default function App() {
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <img src={CDW_LOGO} alt="CDW" style={{ height: 30, width: "auto" }} />
-            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v2.0</div>
+            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v2.1</div>
           </div>
           <h1 style={{ ...disp, fontSize: 24, fontWeight: 700, margin: "4px 0 2px" }}>Cloud → On-Prem AI TCO</h1>
           <div style={{ fontSize: 13, color: C.sub }}>What your current AIaaS spend buys you if you owned it instead.</div>
@@ -540,7 +541,7 @@ export default function App() {
             {r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`} sub={`${modelSize} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
             <Row label="Your current consumption (reconstructed)" value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`} sub={tier3Hrs > 0 ? "from your invoice" : `from spend at ${provider} ${gpuClass} list rates (${RATES_ASOF})`} />
             <div style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
-              Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+              Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage inputs are reconciled against the non-compute share of the stated bill, with a visible warning on mismatch. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
             </div>
             <div style={{ marginTop: 14 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX — FULL INPUTS & OUTPUTS (for independent reproduction)</div>
@@ -573,6 +574,7 @@ export default function App() {
                   ["Model / quantization (capacity est.)", `${modelSize} / ${quant}`],
                   ["Est. users / $ per 1M tokens", r.cap.fits ? `${r.cap.users.toLocaleString()} / $${r.cap.perM.toFixed(2)} (vs API $${r.cap.cloudPerM.toFixed(2)})` : "model does not fit fleet"],
                   ["Rate card overrides", editedCount > 0 ? Object.keys(ov).join(", ") : "none — all defaults"],
+                  ["Spend/storage reconciliation", r.cloudStorage > r.storageBudget * 1.02 ? `MISMATCH: implies ${fmt(r.cloudStorage)}/mo vs ${fmt(r.storageBudget)}/mo non-compute` : "OK — consistent with stated bill"],
                   ["— APPLIED RATES (snapshot) —", ""],
                   ["Cloud $/GPU-hr OD / reserved", `$${rc.instOD} / $${rc.instRes} (${RATES[provider][gpuClass].conf})`],
                   ["NVAIE $/GPU-hr OD / reserved", `$${rc.nvaieOD} / $${rc.nvaieRes}`],
@@ -582,7 +584,7 @@ export default function App() {
                   ["Cluster fixed / Equinix bundle", `${fmt(rc.cluster)} / ${fmt(rc.equinixMo)}/sys/mo`],
                   ["On-prem storage fast / bulk $/PB", `${fmt(rc.fastPB)} / ${fmt(rc.bulkPB)}`],
                   ["Admin ratio / FTE / ops growth", `${rc.adminRatio}/FTE · ${fmt(rc.opFTE)} · ${Math.round(rc.opsGrowth * 100)}%/yr`],
-                  ["Engine version", "v2.0 (harmonic workload blend · dynamic fleet growth)"],
+                  ["Engine version", "v2.1 (harmonic blend · dynamic fleet growth · spend/storage reconciliation)"],
                 ].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>
                     <span style={{ color: C.sub }}>{k}</span><span style={{ ...mono }}>{v}</span>
@@ -699,6 +701,18 @@ export default function App() {
             onChange={setBulkPB} display={`${bulkPB.toFixed(2)} PB`} tip={TIPS.bulkStorage} />
           <Slider label="Egress" value={egressPct} min={0} max={0.3} step={0.01}
             onChange={setEgressPct} display={`${Math.round(egressPct * 100)}% /mo`} tip={TIPS.egress} />
+          {r.cloudStorage > r.storageBudget * 1.02 && (
+            <div style={{ fontSize: 12, color: "#B4530A", background: "#FBF3EC", borderRadius: 6, padding: "8px 10px", margin: "4px 0 8px" }}>
+              The entered storage implies {fmt(r.cloudStorage)}/mo of cloud storage + egress, but only {fmt(r.storageBudget)}/mo of the stated bill is non-compute. Reduce storage, raise the bill, or{" "}
+              <button onClick={() => {
+                const scale = r.cloudStorage > 0 ? r.storageBudget / r.cloudStorage : 1;
+                setFastPB(Math.max(0, Math.round((fastPB * scale) / 0.05) * 0.05));
+                setBulkPB(Math.max(0, Math.round((bulkPB * scale) / 0.25) * 0.25));
+              }} style={{ border: "1px solid #B4530A", background: "transparent", color: "#B4530A", borderRadius: 4, padding: "1px 8px", fontSize: 11, cursor: "pointer" }}>
+                fit storage to bill
+              </button>
+            </div>
+          )}
           <Slider label="Compute share of the bill" value={computeShare} min={0.2} max={0.9} step={0.05}
             onChange={setComputeShare} display={`${Math.round(computeShare * 100)}%`} tip={TIPS.computeShare} />
           <Slider label="Annual compute growth" value={growth} min={0} max={1} step={0.05}
@@ -817,7 +831,7 @@ export default function App() {
         {/* LEDGER */}
         <Section title="Methodology & assumptions" defaultOpen={false}>
           <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.5, marginBottom: 8 }}>
-            <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED / NODE-NORM / EST / QUOTE); on-prem costs are NVIDIA DGX TCO tool captures (Jul–Aug 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond the residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk, hybrid burst.
+            <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED / NODE-NORM / EST / QUOTE); on-prem costs are NVIDIA DGX TCO tool captures (Jul–Aug 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage inputs are reconciled against the non-compute share of the stated bill, with a visible warning on mismatch. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond the residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk, hybrid burst.
           </div>
           <Row label="Reconstructed cloud GPU-hours" value={`${Math.round(r.gpuHrs).toLocaleString()}/mo`}
             sub={tier3Hrs > 0 ? "customer invoice" : `spend ÷ ${provider} ${gpuClass} blended rate $${r.blended.toFixed(2)}/instance-hr`} />
