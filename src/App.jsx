@@ -1,0 +1,673 @@
+import { useState, useMemo } from "react";
+
+/* CDW logo — temporary approval for draft product artifact only (not website publication) */
+const CDW_LOGO = "data:image/png;base64,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";
+
+/* ============ CLOUD RATES: per-GPU-hour LIST prices, by provider x GPU class ============
+   Sources: provider pricing pages via trackers (gpucloudcost.com, Silicon Analysts,
+   Thunder Compute, Spheron, Jarvislabs), Jul-Aug 2026. est = estimated/interpolated.
+   Reserved (1-yr) = 40% off list unless noted — matches AWS B200 exactly
+   ($113.93 -> $68.36/instance in the NVIDIA TCO tool). */
+const RATES = {
+  AWS:       { A100:{od:4.10}, H100:{od:6.88}, H200:{od:10.00}, "B200-class":{od:14.24} },
+  Azure:     { A100:{od:3.40,est:1}, H100:{od:12.29}, H200:{od:10.60}, "B200-class":{od:27.04,note:"4-GPU config list"} },
+  GCP:       { A100:{od:3.28}, H100:{od:11.06}, H200:{od:10.60,est:1}, "B200-class":{od:18.53} },
+  OCI:       { A100:{od:3.05,est:1}, H100:{od:10.00}, H200:{od:10.30}, "B200-class":{od:15.00} },
+  CoreWeave: { A100:{od:2.70}, H100:{od:6.16}, H200:{od:6.50,est:1}, "B200-class":{od:8.60} },
+};
+const RES_MULT = 0.60; // 1-yr reserved = 40% off list (estimated for all; exact for AWS B200)
+const RATES_ASOF = "Jul–Aug 2026";
+
+const BASE_RC = {
+  nvaieOD: 8.0, nvaieRes: 2.88,
+  fastGB: 0.14, bulkGB: 0.02, egressGB: 0.05, egressPct: 0.05,
+  cloudFTE: 189000, billingSW: 5000, cloudAdminFTE: 0.01, paasUplift: 0,
+  gpusPerInstance: 8,
+  sysCost: 485000, swSuite: 142800, fabricC: 54323, fabricS: 23443, fabricM: 14227,
+  cluster: 600000, profSvcs: 25000, rack: 15000, sysPerRack: 2, kwPerSys: 14.4,
+  fastPB: 1200000, fastSupPB: 100000, bulkPB: 500000, bulkSupPB: 33333,
+  kwPerPB: 10, racksPerPB: 1, netMo: 3000, setupRack: 2000,
+  adminRatio: 10, opFTE: 189000, equinixMo: 11387,
+  hrsMo: 730, opsGrowth: 0.04, gpusPerSystem: 8,
+};
+function defaultsFor(provider, gpuClass) {
+  const r = RATES[provider][gpuClass];
+  return { ...BASE_RC, instOD: +(r.od * 8).toFixed(2), instRes: +(r.od * RES_MULT * 8).toFixed(2) };
+}
+const PF = {
+  A100: { train: 4.4, infer: 12.0 },
+  H100: { train: 2.2, infer: 4.0 },
+  H200: { train: 1.5, infer: 2.9 },
+  "B200-class": { train: 1.0, infer: 1.0 },
+};
+const PROVIDERS = Object.keys(RATES);
+const FACILITIES = ["Self-hosted (AI-ready)", "Self-hosted (retrofit)", "Equinix"];
+
+
+/* ============ v1.6 TOOLTIP COPY — approved batches from website thread (verbatim, pending laptop nitpicks) ============ */
+const TIPS = {
+  spend: `Your approximate total monthly bill for cloud AI: GPU compute, AI platform services (SageMaker, Azure ML, Vertex), and the storage supporting those workloads. When unsure whether something counts, include it. A rough number is fine, and if you only know the annual figure, divide by 12.`,
+  provider: `Where that spend currently goes: AWS, Azure, Google Cloud, Oracle, or CoreWeave. This matters because each provider charges different GPU rates, so it determines how much compute your dollars are actually buying. If spend is split across providers, pick the largest one.`,
+  gpuClass: `The generation of NVIDIA GPU behind your cloud instances: A100 (older), H100 (most common today), H200, or B200 (newest). Not sure? H100 is the safe assumption for most workloads running in 2026; it's the default. Your cloud bill or instance names (like p5, ND H100) reveal it if you want to check.`,
+  fastStorage: `High-performance storage feeding your GPUs during training and inference: your active datasets, model checkpoints, and working files. If unsure, leave the default; it's scaled to be typical for your spend level, and most teams overestimate how much of their data is truly 'fast.'`,
+  bulkStorage: `Everything else: archived datasets, older model versions, raw data waiting to be processed. It's far cheaper per terabyte than fast storage in both cloud and on-prem. If unsure, leave the default.`,
+  egress: `The share of your stored data that leaves the cloud each month, going to users, other systems, or your own facilities. Cloud providers charge for every gigabyte out; on-prem doesn't. The industry-typical default is 5% monthly, so leave it unless you know you're a heavy data mover.`,
+  facility: `Where the equipment would physically live. 'AI-ready' means you have a data center with power and cooling for high-density racks today. 'Retrofit' means you have space but it needs upgrades, which adds a one-time buildout cost. 'Equinix' means renting space in a ready facility with cooling and management bundled in. If unsure, Equinix is the conservative pick since it requires nothing from your building.`,
+  redundancy: `Adds one spare system beyond what the workload needs, so a hardware failure never stops your work. Cloud gives you this implicitly; buying it on-prem is a real cost this toggle makes visible. Turn it on if your AI workloads are production-critical, off if they're research and development that can tolerate a pause.`,
+  migration: `One-time cost of the engineering work to move workloads from cloud to your own systems: replatforming, testing, and cutover. The default of $100K represents a typical mid-size migration; complex environments with many custom pipelines run higher. If unsure, leave the default.`,
+  dualRun: `How many months you'd pay for both cloud and on-prem while migrating, since you can't switch off the cloud the day hardware arrives. Each month adds one full cloud bill to the transition cost. Typical is 2 to 3 months; leave the default unless you know your cutover will be unusually fast or slow.`,
+  exitEgress: `The one-time cost of downloading your data out of the cloud when you leave, charged per gigabyte by most providers. It's calculated automatically from your storage inputs at roughly $50K per petabyte. Note: some providers now waive exit fees entirely, which the tool reflects where applicable.`,
+  factorsGroup: `These factors adjust for on-prem hardware doing more work per hour than the cloud instances you're renting. They're the reason the adjusted estimate beats the floor case. Defaults are NVIDIA's published 'reasonable' values; drag any slider to 1.0 to assume zero benefit and stress-test the savings yourself.`,
+  genSpeedup: `How much faster a current DGX system runs your workloads than the cloud GPUs you're on today, mostly reflecting generation gap: if you're renting A100s, new B200s deliver several times the work per hour. The default of 3x is NVIDIA's typical cross-generation figure; set it near 1.2x if your cloud instances are already latest-generation.`,
+  network: `Gain from the purpose-built networking inside a DGX cluster versus general-purpose cloud networking, which matters most when training runs span multiple GPUs and they wait on each other. Default 1.5x is NVIDIA's reference figure; use 1.05x if your workloads are mostly single-GPU jobs that rarely talk to each other.`,
+  runai: `How much more of your GPUs' time does useful work when jobs are packed efficiently instead of sitting idle between tasks. Cloud GPU utilization is notoriously low; scheduling software recovers those wasted hours. Default 1.3x is conservative; teams with poor current utilization see far more.`,
+  nvaie: `Gain from optimized inference engines and libraries that squeeze more throughput from the same GPU than off-the-shelf frameworks. Default 1.3x; most relevant if you run heavy inference workloads, closer to 1.1x if you're purely training with already-tuned code.`,
+};
+
+function TipDot({ open, onClick }) {
+  return (
+    <button onClick={onClick} aria-label="What is this?"
+      style={{ width: 16, height: 16, borderRadius: 8, border: "1.5px solid #CC0000", background: open ? "#CC0000" : "transparent",
+        color: open ? "#fff" : "#CC0000", fontSize: 10, fontWeight: 700, lineHeight: "13px", padding: 0, marginLeft: 6,
+        cursor: "pointer", flexShrink: 0, fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }}>?</button>
+  );
+}
+function TipBox({ text }) {
+  return (
+    <div style={{ fontSize: 12, color: "#2D2D2D", background: "#FFF", border: "1px solid #DCDCDC", borderLeft: "3px solid #CC0000",
+      borderRadius: 6, padding: "8px 10px", margin: "6px 0 8px", lineHeight: 1.45 }}>{text}</div>
+  );
+}
+function TipLabel({ text, tip, style }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", ...(style || { fontSize: 13, marginTop: 6 }) }}>
+        <span>{text}</span>{tip && <TipDot open={open} onClick={() => setOpen(!open)} />}
+      </div>
+      {open && tip && <TipBox text={tip} />}
+    </div>
+  );
+}
+
+
+/* Storage adapter: uses the chat-artifact storage API when present; falls back to
+   browser localStorage when deployed as a standalone site. Lead capture on the
+   production site should move to a real form endpoint / CRM webhook + email API. */
+const store = {
+  async set(key, value) {
+    if (typeof window !== "undefined" && window.storage) return window.storage.set(key, value, true);
+    localStorage.setItem(key, value); return { key };
+  },
+  async list(prefix) {
+    if (typeof window !== "undefined" && window.storage) return window.storage.list(prefix, true);
+    return { keys: Object.keys(localStorage).filter((k) => k.startsWith(prefix)).sort() };
+  },
+  async get(key) {
+    if (typeof window !== "undefined" && window.storage) return window.storage.get(key, true);
+    const v = localStorage.getItem(key); if (v === null) throw new Error("not found");
+    return { key, value: v };
+  },
+};
+
+/* ============ ENGINE (mirrors validated spreadsheet Engine tab, v1.2 logic) ============ */
+function run(inp, RC) {
+  const blended =
+    (inp.odShare * (RC.instOD + RC.nvaieOD) +
+      (1 - inp.odShare) * (RC.instRes + RC.nvaieRes)) *
+    (1 + RC.paasUplift);
+  const computeSpend = inp.bill * inp.computeShare;
+  const instHrs = blended > 0 ? computeSpend / blended : 0;
+  const gpuHrs = inp.tier3Hrs > 0 ? inp.tier3Hrs : instHrs * RC.gpusPerInstance;
+
+  const g = PF[inp.gpuClass];
+  const genPF = inp.trainShare * g.train + (1 - inp.trainShare) * g.infer;
+  const npf = genPF * inp.fNet * inp.fSw * inp.fNvaie;
+
+  const perSysHrs = RC.gpusPerSystem * RC.hrsMo * inp.util;
+  const nPlus = inp.redundancy ? 1 : 0;
+  const size = (h) => Math.max(1, Math.ceil(h / perSysHrs)) + nPlus;
+  const sysAdj = gpuHrs > 0 ? size(gpuHrs / npf) : 0;
+  const sysFloor = gpuHrs > 0 ? size(gpuHrs) : 0;
+  const headroom = sysAdj > 0 ? 1 - gpuHrs / npf / (sysAdj * perSysHrs) : 0;
+
+  const isEquinix = inp.facility === "Equinix";
+  const isRetrofit = inp.facility === "Self-hosted (retrofit)";
+  const fast = inp.fastPB;
+  const bulk = inp.bulkPB;
+  const totPB = fast + bulk;
+  const cloudStorage =
+    fast * 1e6 * RC.fastGB + bulk * 1e6 * RC.bulkGB +
+    totPB * 1e6 * inp.egressPct * RC.egressGB;
+
+  const perSys = RC.sysCost + RC.swSuite + RC.fabricC + RC.fabricS + RC.fabricM + RC.profSvcs;
+  const storCapex = fast * RC.fastPB + bulk * RC.bulkPB;
+  const storSup = (fast * RC.fastSupPB + bulk * RC.bulkSupPB) / 12;
+
+  const exitEgress = totPB * 1e6 * RC.egressGB;
+  const oneTime =
+    (isRetrofit ? inp.retrofit : 0) + inp.migration + inp.dualRun * inp.bill + exitEgress;
+
+  const stack = (n) => {
+    const racks = Math.ceil(n / RC.sysPerRack);
+    const capex = n * perSys + RC.cluster + racks * RC.rack + storCapex;
+    const power = (n * RC.kwPerSys + totPB * RC.kwPerPB) * inp.powerRate;
+    const other = RC.netMo + (RC.setupRack * (racks + totPB * RC.racksPerPB)) / 36;
+    const admin = ((n / RC.adminRatio) * RC.opFTE) / 12;
+    const selfOpex = power + other + admin + storSup;
+    const eqOpex = n * RC.equinixMo + storSup;
+    const resid = inp.residPct * (n * perSys + storCapex);
+    return { capex, opex: isEquinix ? eqOpex : selfOpex, resid };
+  };
+  const adj = stack(sysAdj);
+  const flr = stack(sysFloor);
+
+  const years = [0, 1, 2, 3, 4].map((y) => ({
+    cloud:
+      12 *
+      (inp.bill * inp.computeShare * Math.pow(1 + inp.growth, y) +
+        inp.bill * (1 - inp.computeShare) * Math.pow(1 + RC.opsGrowth, y)),
+    opexAdj: 12 * adj.opex * Math.pow(1 + RC.opsGrowth, y),
+    opexFlr: 12 * flr.opex * Math.pow(1 + RC.opsGrowth, y),
+  }));
+  const cum = (n, k) => years.slice(0, n).reduce((s, y) => s + y[k], 0);
+  const tot = (n) => {
+    const cloud = cum(n, "cloud");
+    const onAdj = adj.capex + oneTime - adj.resid + cum(n, "opexAdj");
+    const onFlr = flr.capex + oneTime - flr.resid + cum(n, "opexFlr");
+    return { cloud, onAdj, onFlr, saveAdj: cloud - onAdj, saveFlr: cloud - onFlr };
+  };
+  const payback =
+    inp.bill - adj.opex > 0 ? (adj.capex + oneTime) / (inp.bill - adj.opex) : null;
+  const exhaustYrs =
+    inp.growth > 0 && headroom > 0 && headroom < 1
+      ? Math.log(1 / (1 - headroom)) / Math.log(1 + inp.growth)
+      : null;
+
+  return { blended, gpuHrs, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, oneTime, exitEgress, tot, payback, exhaustYrs, perSysHrs };
+}
+
+/* ============ UI ============ */
+const fmtM = (v) =>
+  Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1000)}K`;
+const fmt = (v) => `$${Math.round(v).toLocaleString()}`;
+
+const C = {
+  // CDW palette: red #CC0000 (digital core red), white, charcoal
+  bg: "#F5F5F5", ink: "#2D2D2D", sub: "#6B6B6B", line: "#DCDCDC",
+  panel: "#FFFFFF", green: "#CC0000", greenSoft: "#FBEAEA",
+  slate: "#7A7A7A", amber: "#5A5A5A", amberSoft: "#EFEFEF",
+};
+const mono = { fontFamily: "'IBM Plex Mono', ui-monospace, Menlo, monospace" };
+const disp = { fontFamily: "'Space Grotesk', 'Avenir Next', system-ui, sans-serif" };
+
+function Section({ title, children, defaultOpen = true, badge, badgeColor }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, marginBottom: 12 }}>
+      <button onClick={() => setOpen(!open)}
+        style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "12px 14px", background: "none", border: "none", cursor: "pointer" }}>
+        <span style={{ ...disp, fontWeight: 600, fontSize: 14, color: C.ink, letterSpacing: 0.2, textAlign: "left" }}>
+          {title}{badge && <span style={{ ...mono, fontSize: 10, color: badgeColor || C.sub, marginLeft: 8, border: `1px solid ${badgeColor || C.line}`, borderRadius: 4, padding: "1px 5px" }}>{badge}</span>}
+        </span>
+        <span style={{ color: C.sub, fontSize: 12 }}>{open ? "−" : "+"}</span>
+      </button>
+      {open && <div style={{ padding: "2px 14px 14px" }}>{children}</div>}
+    </div>
+  );
+}
+
+function Row({ label, value, sub, flag, tip }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ padding: "7px 0", borderTop: `1px solid ${C.line}` }}>
+    <div style={{ display: "flex", justifyContent: "space-between" }}>
+      <div>
+        <div style={{ fontSize: 13, color: C.ink }}>{label}{flag && <span style={{ ...mono, fontSize: 9, color: "#CC0000", marginLeft: 6, border: "1px solid #CC0000", borderRadius: 3, padding: "0 4px" }}>EDITED</span>}</div>
+        {sub && <div style={{ fontSize: 11, color: C.sub }}>{sub}</div>}
+      </div>
+      <div style={{ display: "flex", alignItems: "flex-start" }}>
+        <div style={{ ...mono, fontSize: 13, color: C.ink, textAlign: "right", whiteSpace: "nowrap", marginLeft: 10 }}>{value}</div>
+        {tip && <TipDot open={open} onClick={() => setOpen(!open)} />}
+      </div>
+    </div>
+    {open && tip && <TipBox text={tip} />}
+    </div>
+  );
+}
+
+function Slider({ label, value, min, max, step, onChange, display, hint, tip }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{ margin: "10px 0" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+        <span style={{ fontSize: 13, color: C.ink, display: "flex", alignItems: "center" }}>{label}{tip && <TipDot open={open} onClick={() => setOpen(!open)} />}</span>
+        <span style={{ ...mono, fontSize: 13, color: C.green, fontWeight: 600 }}>{display}</span>
+      </div>
+      {open && tip && <TipBox text={tip} />}
+      <input type="range" min={min} max={max} step={step} value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        style={{ width: "100%", accentColor: C.green }} aria-label={label} />
+      {hint && <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>{hint}</div>}
+    </div>
+  );
+}
+
+function Seg({ options, value, onChange }) {
+  return (
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0" }}>
+      {options.map((o) => (
+        <button key={o} onClick={() => onChange(o)}
+          style={{ ...mono, fontSize: 12, padding: "7px 11px", borderRadius: 7, cursor: "pointer",
+            border: `1px solid ${value === o ? C.green : C.line}`,
+            background: value === o ? C.greenSoft : C.panel,
+            color: value === o ? C.green : C.sub, fontWeight: value === o ? 700 : 400 }}>
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function Bar({ label, value, max, color }) {
+  const w = max > 0 ? Math.max(2, (value / max) * 100) : 0;
+  return (
+    <div style={{ margin: "8px 0" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+        <span style={{ color: "#B5B5B5" }}>{label}</span>
+        <span style={{ ...mono, color: "#FFFFFF", fontWeight: 600 }}>{fmtM(value)}</span>
+      </div>
+      <div style={{ height: 14, background: "#151515", borderRadius: 4, overflow: "hidden" }}>
+        <div style={{ width: `${w}%`, height: "100%", background: color, borderRadius: 4, transition: "width .3s" }} />
+      </div>
+    </div>
+  );
+}
+
+function RateField({ k, label, eff, defaults, ov, setOv, fmt: f, step }) {
+  const edited = k in ov;
+  return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderTop: `1px solid ${C.line}` }}>
+      <div style={{ fontSize: 12, color: C.ink, paddingRight: 8 }}>
+        {label}
+        {edited && <span style={{ ...mono, fontSize: 9, color: "#CC0000", marginLeft: 5, border: "1px solid #CC0000", borderRadius: 3, padding: "0 4px" }}>EDITED</span>}
+        {edited && (
+          <button onClick={() => { const n = { ...ov }; delete n[k]; setOv(n); }}
+            style={{ ...mono, fontSize: 9, marginLeft: 5, color: C.sub, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+            reset ({f ? f(defaults[k]) : defaults[k]})
+          </button>
+        )}
+      </div>
+      <input type="number" value={eff[k]} step={step || 1} inputMode="decimal"
+        onChange={(e) => {
+          const v = parseFloat(e.target.value);
+          if (!Number.isNaN(v) && v >= 0) setOv({ ...ov, [k]: v });
+        }}
+        style={{ ...mono, fontSize: 12, width: 96, padding: "5px 7px", borderRadius: 6, textAlign: "right",
+          border: `1px solid ${edited ? "#CC0000" : C.line}`, background: edited ? "#FBEAEA" : "#FAFAFA", color: C.ink }}
+        aria-label={label} />
+    </div>
+  );
+}
+
+export default function App() {
+  const [ov, setOv] = useState({});
+  const [bill, setBill] = useState(105000);
+  const [provider, setProvider] = useState("AWS");
+  const [gpuClass, setGpuClass] = useState("H100");
+  const [trainShare, setTrainShare] = useState(0.5);
+  const [odShare, setOdShare] = useState(0);
+  const [fastPB, setFastPB] = useState(0.25);
+  const [bulkPB, setBulkPB] = useState(0.75);
+  const [egressPct, setEgressPct] = useState(0.05);
+  const [computeShare, setComputeShare] = useState(0.5);
+  const [growth, setGrowth] = useState(0.25);
+  const [facility, setFacility] = useState("Self-hosted (AI-ready)");
+  const [powerRate, setPowerRate] = useState(300);
+  const [util, setUtil] = useState(0.85);
+  const [fNet, setFNet] = useState(1.0);
+  const [fSw, setFSw] = useState(1.3);
+  const [fNvaie, setFNvaie] = useState(1.3);
+  const [tier3Hrs, setTier3Hrs] = useState(0);
+  const [horizon, setHorizon] = useState(3);
+  const [retrofit, setRetrofit] = useState(300000);
+  const [migration, setMigration] = useState(100000);
+  const [dualRun, setDualRun] = useState(2);
+  const [redundancy, setRedundancy] = useState(false);
+  const [residPct, setResidPct] = useState(0.15);
+  const [view, setView] = useState("calc"); // calc | gate | report | leads
+  const [lead, setLead] = useState({ name: "", company: "", email: "" });
+  const [leadStatus, setLeadStatus] = useState("");
+  const [leads, setLeads] = useState(null);
+
+  async function submitLead() {
+    if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
+    setLeadStatus("");
+    try {
+      const key = "leads:" + Date.now();
+      await store.set(key, JSON.stringify({ ...lead, at: new Date().toISOString(), bill, provider, gpuClass, horizon }));
+    } catch (e) { /* storage is best-effort in the prototype */ }
+    setView("report");
+  }
+  async function loadLeads() {
+    try {
+      const res = await store.list("leads:");
+      const out = [];
+      for (const k of (res?.keys || []).slice(-50)) {
+        try { const item = await store.get(k); out.push(JSON.parse(item.value)); } catch (e) {}
+      }
+      setLeads(out.reverse());
+    } catch (e) { setLeads([]); }
+    setView("leads");
+  }
+
+  const defaults = defaultsFor(provider, gpuClass);
+  const rc = { ...defaults, ...ov };
+  const editedCount = Object.keys(ov).length;
+  const rateInfo = RATES[provider][gpuClass];
+
+  const r = useMemo(
+    () => run({ bill, computeShare, odShare, gpuClass, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct }, rc),
+    [bill, computeShare, odShare, gpuClass, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, provider, ov]
+  );
+  const t = r.tot(horizon);
+  const tier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
+  const maxBar = Math.max(t.cloud, t.onAdj, t.onFlr, 1);
+  const isSelf = facility !== "Equinix";
+
+  return (
+    <div style={{ background: C.bg, minHeight: "100vh", color: C.ink }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+        input[type=range]{height:22px} button:focus-visible{outline:2px solid ${C.green};outline-offset:2px}
+        input[type=number]::-webkit-inner-spin-button{opacity:1}
+        @media print { .no-print{display:none!important} body{background:#fff} }`}</style>
+      <div style={{ maxWidth: 560, margin: "0 auto", padding: "18px 14px 60px" }}>
+
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <img src={CDW_LOGO} alt="CDW" style={{ height: 30, width: "auto" }} />
+            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v1.6</div>
+          </div>
+          <h1 style={{ ...disp, fontSize: 24, fontWeight: 700, margin: "4px 0 2px" }}>Cloud → On-Prem AI TCO</h1>
+          <div style={{ fontSize: 13, color: C.sub }}>What your current AIaaS spend buys you if you owned it instead.</div>
+        </div>
+
+
+        {view === "gate" && (
+          <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, marginBottom: 14 }}>
+            <div style={{ ...disp, fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Get the full TCO report</div>
+            <div style={{ fontSize: 12, color: C.sub, marginBottom: 10 }}>
+              The report includes the fleet build, full assumption ledger with sources, and the floor-case analysis. On the production site this will also be emailed to you as a PDF.
+            </div>
+            {["name", "company", "email"].map((f) => (
+              <input key={f} placeholder={f === "name" ? "Full name" : f === "company" ? "Company" : "Work email"}
+                value={lead[f]} type={f === "email" ? "email" : "text"}
+                onChange={(e) => setLead({ ...lead, [f]: e.target.value })}
+                style={{ width: "100%", boxSizing: "border-box", fontSize: 14, padding: "11px 12px", marginBottom: 8,
+                  borderRadius: 8, border: `1px solid ${C.line}`, background: "#FAFBF9", color: C.ink }} />
+            ))}
+            {leadStatus && <div style={{ fontSize: 12, color: C.amber, marginBottom: 6 }}>{leadStatus}</div>}
+            <div style={{ fontSize: 10, color: C.sub, marginBottom: 10 }}>
+              Prototype note: submissions are stored in this demo app's shared storage so the CDW team can follow up — use demo data, not sensitive information. The production site will handle contact data properly.
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={submitLead} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 14, padding: "12px", borderRadius: 8, border: "none", cursor: "pointer", background: C.green, color: "#fff" }}>View my report</button>
+              <button onClick={() => setView("calc")} style={{ ...disp, fontSize: 14, padding: "12px 14px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: C.panel, color: C.sub }}>Back</button>
+            </div>
+          </div>
+        )}
+
+        {view === "report" && (
+          <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
+            <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button onClick={() => window.print()} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 13, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: C.ink, color: "#fff" }}>Print / Save as PDF</button>
+              <button onClick={() => setView("calc")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.sub }}>Back to calculator</button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <img src={CDW_LOGO} alt="CDW" style={{ height: 34, width: "auto" }} />
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: C.sub }}>AI FACTORY · CLOUD-TO-ON-PREM AI TCO ANALYSIS</div>
+            </div>
+            <div style={{ ...disp, fontSize: 21, fontWeight: 700, margin: "4px 0 2px" }}>Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}</div>
+            <div style={{ fontSize: 12, color: C.sub, marginBottom: 12 }}>{new Date().toLocaleDateString()} · Confidence: {tier} · {provider} · {gpuClass} workloads</div>
+            <div style={{ background: C.greenSoft, borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
+              <div style={{ ...mono, fontSize: 11, color: C.green }}>{horizon}-YEAR PROJECTED SAVINGS</div>
+              <div style={{ ...mono, fontSize: 32, fontWeight: 600, color: C.green }}>{fmtM(t.saveAdj)}</div>
+              <div style={{ fontSize: 12, color: C.ink }}>vs. staying in cloud ({fmtM(t.cloud)}) · even with zero performance credit (floor case): {fmtM(t.saveFlr)}</div>
+            </div>
+            <Row label={`Recommended build`} value={`${r.sysAdj} × DGX B200${redundancy ? " (incl. N+1)" : ""}`} sub={`${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
+            <Row label="Total capex + one-time transition" value={fmtM(r.adj.capex + r.oneTime)} sub={`incl. ${fmtM(r.oneTime)} migration, dual-run, and exit costs`} />
+            <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
+            <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub="capex + one-time vs. current monthly cloud bill" />
+            <Row label="Residual value credit" value={`−${fmt(r.adj.resid)}`} sub={`${Math.round(residPct * 100)}% of systems + storage capex at horizon`} />
+            <Row label="Your current consumption (reconstructed)" value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`} sub={tier3Hrs > 0 ? "from your invoice" : `from spend at ${provider} ${gpuClass} list rates (${RATES_ASOF})`} />
+            <div style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
+              Methodology: cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+            </div>
+            <div style={{ borderTop: `2px solid ${C.ink}`, marginTop: 14, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ ...disp, fontWeight: 700, fontSize: 13 }}>Jay B. Carlile</div>
+                <div style={{ fontSize: 11, color: C.sub }}>AI Solutions Executive · CDW AI Factory</div>
+              </div>
+              <div style={{ fontSize: 11, color: C.sub, textAlign: "right" }}>Next step: bring your cloud invoice<br/>for a validated analysis</div>
+            </div>
+          </div>
+        )}
+
+        {view === "leads" && (
+          <div className="no-print" style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, marginBottom: 14 }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+              <div style={{ ...disp, fontWeight: 700, fontSize: 16 }}>Captured leads</div>
+              <button onClick={() => setView("calc")} style={{ ...disp, fontSize: 13, padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: C.panel, color: C.sub }}>Back</button>
+            </div>
+            {leads === null && <div style={{ fontSize: 13, color: C.sub }}>Loading…</div>}
+            {leads && leads.length === 0 && <div style={{ fontSize: 13, color: C.sub }}>No submissions yet. Leads appear here when someone requests a report.</div>}
+            {leads && leads.map((L, i) => (
+              <Row key={i} label={`${L.name} · ${L.company}`} value={fmtM(L.bill) + "/mo"} sub={`${L.email} · ${L.provider} ${L.gpuClass} · ${new Date(L.at).toLocaleString()}`} />
+            ))}
+          </div>
+        )}
+
+        {view === "calc" && (<div>
+        {/* RESULTS */}
+        <div style={{ background: "#262626", borderRadius: 12, padding: "16px 16px 12px", marginBottom: 14, color: "#FFFFFF" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: "#ABABAB" }}>
+              {horizon}-YEAR SAVINGS · {tier}{editedCount > 0 ? ` · ${editedCount} RATE${editedCount > 1 ? "S" : ""} EDITED` : ""}
+            </span>
+            <div style={{ display: "flex", gap: 4 }}>
+              {[1, 3, 5].map((h) => (
+                <button key={h} onClick={() => setHorizon(h)}
+                  style={{ ...mono, fontSize: 11, padding: "3px 8px", borderRadius: 5, cursor: "pointer",
+                    border: "1px solid #3A4A46", background: horizon === h ? "#3A3A3A" : "transparent",
+                    color: horizon === h ? "#FF8080" : "#ABABAB" }}>{h}yr</button>
+              ))}
+            </div>
+          </div>
+          <div style={{ ...mono, fontSize: 40, fontWeight: 600, color: "#FFFFFF", margin: "6px 0 0", borderBottom: "3px solid #CC0000", display: "inline-block", paddingBottom: 2 }}>
+            {fmtM(t.saveAdj)}
+          </div>
+          <div style={{ fontSize: 12, color: "#D0D0D0", marginBottom: 10 }}>
+            {(t.cloud > 0 ? (t.saveAdj / t.cloud) * 100 : 0).toFixed(0)}% below cloud · floor case (no perf factors): <span style={{ ...mono, color: "#C9C9C9" }}>{fmtM(t.saveFlr)}</span>
+          </div>
+          <div style={{ background: "#1F1F1F", borderRadius: 8, padding: "10px 12px" }}>
+            <Bar label={`Stay in cloud (${horizon}yr)`} value={t.cloud} max={maxBar} color={"#8A8A8A"} />
+            <Bar label={`Own it — adjusted (${r.sysAdj} × DGX B200${redundancy ? " incl. N+1" : ""})`} value={t.onAdj} max={maxBar} color={"#CC0000"} />
+            <Bar label={`Own it — floor case (${r.sysFloor} × DGX B200${redundancy ? " incl. N+1" : ""})`} value={t.onFlr} max={maxBar} color={"#C9C9C9"} />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 10 }}>
+            {[
+              ["FLEET", `${r.sysAdj} sys`, `${Math.round(r.headroom * 100)}% headroom`],
+              ["CAPEX + 1-TIME", fmtM(r.adj.capex + r.oneTime), `${fmtM(r.oneTime)} transition`],
+              ["PAYBACK", r.payback ? `${r.payback.toFixed(0)} mo` : "—", r.exhaustYrs ? `${r.exhaustYrs.toFixed(1)}yr runway` : "flat growth"],
+            ].map(([k, v, s]) => (
+              <div key={k} style={{ background: "#1F1F1F", borderRadius: 8, padding: "8px 10px" }}>
+                <div style={{ ...mono, fontSize: 9, letterSpacing: 1.2, color: "#ABABAB" }}>{k}</div>
+                <div style={{ ...mono, fontSize: 15, fontWeight: 600, color: "#FFFFFF" }}>{v}</div>
+                <div style={{ fontSize: 10, color: "#ABABAB" }}>{s}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* TIER 1 */}
+        <Section title="Start here" badge="TIER 1">
+          <Slider label="Monthly cloud AI spend" value={bill} min={20000} max={2000000} step={5000}
+            onChange={setBill} display={fmtM(bill) + "/mo"} tip={TIPS.spend} />
+          <TipLabel text="Primary provider" tip={TIPS.provider} />
+          <Seg options={PROVIDERS} value={provider} onChange={setProvider} />
+          <div style={{ fontSize: 11, color: C.green, background: C.greenSoft, borderRadius: 6, padding: "6px 9px" }}>
+            {provider} {gpuClass} list rate: ${rateInfo.od.toFixed(2)}/GPU-hr on-demand
+            {rateInfo.est ? " (estimated)" : ""}{rateInfo.note ? ` (${rateInfo.note})` : ""} · reserved = 40% off list (est.) · rates as of {RATES_ASOF}. Override any rate below.
+          </div>
+        </Section>
+
+        {/* TIER 2 */}
+        <Section title="Refine when known" badge="TIER 2" defaultOpen={false}>
+          <TipLabel text="GPU class they rent today" tip={TIPS.gpuClass} style={{ fontSize: 13 }} />
+          <Seg options={Object.keys(PF)} value={gpuClass} onChange={setGpuClass} />
+          <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
+            Sets both the performance factor AND the rate used to reconstruct their GPU-hours from spend.
+          </div>
+          <Slider label="Workload mix — training share" value={trainShare} min={0} max={1} step={0.05}
+            onChange={setTrainShare} display={`${Math.round(trainShare * 100)}% train`}
+            hint="Gates the generational speedup: training and inference upgrade differently." />
+          <Slider label="On-demand share of billing" value={odShare} min={0} max={1} step={0.05}
+            onChange={setOdShare} display={`${Math.round(odShare * 100)}% OD`} hint="Remainder priced at 1-yr reserved." />
+          <Slider label="Fast storage" value={fastPB} min={0} max={3} step={0.05}
+            onChange={setFastPB} display={`${fastPB.toFixed(2)} PB`} tip={TIPS.fastStorage} />
+          <Slider label="Bulk storage" value={bulkPB} min={0} max={10} step={0.25}
+            onChange={setBulkPB} display={`${bulkPB.toFixed(2)} PB`} tip={TIPS.bulkStorage} />
+          <Slider label="Egress" value={egressPct} min={0} max={0.3} step={0.01}
+            onChange={setEgressPct} display={`${Math.round(egressPct * 100)}% /mo`} tip={TIPS.egress} />
+          <Slider label="Compute share of the bill" value={computeShare} min={0.2} max={0.9} step={0.05}
+            onChange={setComputeShare} display={`${Math.round(computeShare * 100)}%`} hint="Tier-1 decomposition default: 50%." />
+          <Slider label="Annual compute growth" value={growth} min={0} max={1} step={0.05}
+            onChange={setGrowth} display={`${Math.round(growth * 100)}%/yr`} />
+          <TipLabel text="Facility readiness" tip={TIPS.facility} />
+          <Seg options={FACILITIES} value={facility} onChange={setFacility} />
+          {facility === "Self-hosted (retrofit)" && (
+            <Slider label="Facility retrofit (one-time)" value={retrofit} min={0} max={2000000} step={50000}
+              onChange={setRetrofit} display={fmtM(retrofit)}
+              hint="2 DGX/rack = ~29 kW/rack, beyond most legacy DCs. Typical buildout $10-15K per kW of new capacity." />
+          )}
+          {isSelf && (
+            <Slider label="Power rate (fully loaded)" value={powerRate} min={100} max={450} step={25}
+              onChange={setPowerRate} display={`$${powerRate}/kW-mo`}
+              hint="NVIDIA default $300 (~$0.41/kWh). SLED muni power often lands $150–200." />
+          )}
+          <Slider label="Target on-prem utilization" value={util} min={0.5} max={1} step={0.05}
+            onChange={setUtil} display={`${Math.round(util * 100)}%`} hint="De-rated from NVIDIA's implicit 100%." />
+        </Section>
+
+        {/* ONE-TIME & RESILIENCE */}
+        <Section title="Transition & resilience" badge="v1.2" defaultOpen={false}>
+          <Slider label="Migration engineering (one-time)" value={migration} min={0} max={500000} step={25000}
+            onChange={setMigration} display={fmtM(migration)} tip={TIPS.migration} />
+          <Slider label="Dual-run period" value={dualRun} min={0} max={6} step={1}
+            onChange={setDualRun} display={`${dualRun} mo`} tip={TIPS.dualRun} />
+          <TipLabel text="N+1 redundancy" tip={TIPS.redundancy} />
+          <Seg options={["Off", "On (+1 system)"]} value={redundancy ? "On (+1 system)" : "Off"}
+            onChange={(v) => setRedundancy(v !== "Off")} />
+          <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
+            A 1-system fleet has zero failover; cloud embeds redundancy in its price. Alternative: cloud-burst fallback (hybrid conversation).
+          </div>
+          <Row label="Cloud exit egress (auto)" value={fmt(r.exitEgress)} sub="computed from your storage inputs" tip={TIPS.exitEgress} />
+          <Slider label="Residual value at horizon" value={residPct} min={0} max={0.4} step={0.05}
+            onChange={setResidPct} display={`${Math.round(residPct * 100)}%`}
+            hint="Credit on systems + storage capex at horizon end. Flat % simplification; partial answer to the refresh objection." />
+        </Section>
+
+        {/* FACTORS */}
+        <Section title="Performance factors" badge="RANGE · DEFAULT · BREAKEVEN" defaultOpen={false}>
+          <TipLabel text="What these factors are" tip={TIPS.factorsGroup} style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }} />
+          <Row label="Generational (from lookup)" value={`${r.genPF.toFixed(2)}x`}
+            sub={`${gpuClass} → B200, weighted by workload mix · MLPerf-derived`} tip={TIPS.genSpeedup} />
+          <Slider label="Reference-architecture network" value={fNet} min={1} max={2.5} step={0.05}
+            onChange={setFNet} display={`${fNet.toFixed(2)}x`} tip={TIPS.network} />
+          <Slider label="AI Factory software (Run:ai / Mission Control)" value={fSw} min={1} max={3} step={0.05}
+            onChange={setFSw} display={`${fSw.toFixed(2)}x`} tip={TIPS.runai} />
+          <Slider label="NVAIE / NIMs" value={fNvaie} min={1} max={5} step={0.05}
+            onChange={setFNvaie} display={`${fNvaie.toFixed(2)}x`} tip={TIPS.nvaie} />
+          <Row label="Net Performance Factor" value={`${r.npf.toFixed(2)}x`} sub="Your cloud GPU-hours ÷ NPF = on-prem hours needed" />
+        </Section>
+
+        {/* TIER 3 */}
+        <Section title="Validated analysis" badge="TIER 3" defaultOpen={false}>
+          <Slider label="Actual monthly GPU-hours (from invoice)" value={tier3Hrs} min={0} max={100000} step={500}
+            onChange={setTier3Hrs} display={tier3Hrs > 0 ? tier3Hrs.toLocaleString() : "not provided"}
+            hint="When set, overrides the spend-based reconstruction entirely." />
+        </Section>
+
+        {/* RATE CARD */}
+        <Section title="Rate card" badge={editedCount > 0 ? `${editedCount} EDITED` : "EDITABLE"}
+          badgeColor={editedCount > 0 ? "#CC0000" : undefined} defaultOpen={false}>
+          <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>
+            Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem defaults = NVIDIA DGX TCO tool (Jul 2026). Edits stick until reset, including across provider switches.
+          </div>
+          {editedCount > 0 && (
+            <button onClick={() => setOv({})}
+              style={{ ...mono, fontSize: 11, padding: "7px 12px", borderRadius: 7, cursor: "pointer",
+                border: "1px solid #CC0000", background: "#FBEAEA", color: "#CC0000", marginBottom: 8, fontWeight: 700 }}>
+              Reset all {editedCount} to defaults
+            </button>
+          )}
+          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "8px 0 2px", color: C.sub }}>CLOUD — {provider} {gpuClass} (8-GPU instance $/hr)</div>
+          <RateField k="instRes" label="Instance $/hr, 1-yr reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="instOD" label="Instance $/hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="nvaieRes" label="NVAIE support $/hr, reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="nvaieOD" label="NVAIE support $/hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="fastGB" label="Fast storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="bulkGB" label="Bulk storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="egressGB" label="Egress $/GB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>ON-PREM HARDWARE</div>
+          <RateField k="sysCost" label="DGX B200 system $" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
+          <RateField k="swSuite" label="AI SW suite $/system" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
+          <RateField k="cluster" label="Cluster mgmt nodes $ (fixed/cluster)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
+          <RateField k="profSvcs" label="Prof services $/system" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
+          <RateField k="rack" label="Rack + PDUs $" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={500} fmt={fmt} />
+          <RateField k="fastPB" label="Fast storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
+          <RateField k="bulkPB" label="Bulk storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
+          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>OPERATIONS</div>
+          <RateField k="kwPerSys" label="Power kW per DGX (avg load)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.1} />
+          <RateField k="equinixMo" label="Equinix bundle $/system/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={100} fmt={fmt} />
+          <RateField k="adminRatio" label="Systems per admin FTE" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1} />
+          <RateField k="opFTE" label="Admin FTE loaded $/yr" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
+          <RateField k="netMo" label="Network/VPN/firewall $/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={100} fmt={fmt} />
+        </Section>
+
+        {/* LEDGER */}
+        <Section title="Assumption ledger" defaultOpen={false}>
+          <Row label="Reconstructed cloud GPU-hours" value={`${Math.round(r.gpuHrs).toLocaleString()}/mo`}
+            sub={tier3Hrs > 0 ? "customer invoice" : `spend ÷ ${provider} ${gpuClass} blended rate $${r.blended.toFixed(2)}/instance-hr`} />
+          <Row label="GPU-hours one DGX B200 supplies" value={`${Math.round(r.perSysHrs).toLocaleString()}/mo`} sub={`8 GPUs × 730 hrs × ${Math.round(util * 100)}% utilization`} />
+          <Row label="One-time transition & exit" value={fmt(r.oneTime)}
+            sub={`migration ${fmtM(migration)} + dual-run ${dualRun}mo × bill + exit egress ${fmt(r.exitEgress)}${facility === "Self-hosted (retrofit)" ? ` + retrofit ${fmtM(retrofit)}` : ""}`} />
+          <Row label="Residual credit at horizon (adjusted fleet)" value={`−${fmt(r.adj.resid)}`}
+            sub={`${Math.round(residPct * 100)}% of systems + storage capex · flat % simplification`} />
+          <Row label="Cloud storage + egress that disappears" value={`${fmt(r.cloudStorage)}/mo`} sub="fast + bulk + egress at rate card prices" flag={"fastGB" in ov || "bulkGB" in ov || "egressGB" in ov} />
+          <Row label="On-prem opex" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix bundle + storage support" : "power + facility + admin + storage support"} flag={"equinixMo" in ov || "opFTE" in ov || "adminRatio" in ov} />
+          <Row label="Fixed cluster cost in capex" value={fmt(rc.cluster)} sub="mgmt server nodes — why bigger bills pencil better" flag={"cluster" in ov} />
+          <div style={{ fontSize: 11, color: C.sub, marginTop: 10 }}>
+            {editedCount > 0
+              ? `Running on a modified rate card (${editedCount} value${editedCount > 1 ? "s" : ""} edited).`
+              : `Running on list rates (${provider} ${gpuClass}, ${RATES_ASOF}) + NVIDIA TCO tool on-prem defaults (Jul 2026) + MLPerf-derived factors.`}
+            {" "}OCI note: egress is $0 on OCI as of Feb 2026 — zero the egress rate when modeling OCI exits. Still excluded: refresh cadence beyond residual, NPV, commitment early-termination, stranded capacity, hybrid burst. Saved rate profiles and auto-scaling fleet: v2.
+          </div>
+        </Section>
+
+        <button onClick={() => setView("gate")}
+          style={{ ...disp, width: "100%", fontWeight: 700, fontSize: 15, padding: "14px", borderRadius: 10,
+            border: "none", cursor: "pointer", background: C.green, color: "#fff", marginBottom: 10 }}>
+          Get the full report (PDF)
+        </button>
+        <button onClick={loadLeads}
+          style={{ ...mono, width: "100%", fontSize: 11, padding: "8px", borderRadius: 8, cursor: "pointer",
+            border: `1px solid ${C.line}`, background: "transparent", color: C.sub }}>
+          View captured leads (demo admin)
+        </button>
+        </div>)}
+      </div>
+    </div>
+  );
+}
