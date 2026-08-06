@@ -21,11 +21,11 @@ const RATES = {
    per-CLUSTER mgmt nodes and rack cost: cluster-level costs are fixed overhead that amortizes
    across fleet size; racks are added per ceiling(n / perRack). */
 const SYSTEMS = {
-  "DGX H200":         { gpus: 8,  perSys: 549764,  kW: 10.2, perRack: 2, rackCost: 15000 },
-  "DGX B200":         { gpus: 8,  perSys: 744793,  kW: 14.4, perRack: 2, rackCost: 15000 },
-  "DGX B300":         { gpus: 8,  perSys: 846885,  kW: 14.4, perRack: 2, rackCost: 15000 },
-  "DGX GB200 NVL-72": { gpus: 72, perSys: 7841432, kW: 120,  perRack: 1, rackCost: 0 },
-  "DGX GB300 NVL-72": { gpus: 72, perSys: 8741432, kW: 120,  perRack: 1, rackCost: 0 },
+  "DGX H200":         { gpus: 8,  perSys: 549764,  kW: 10.2, perRack: 2, rackCost: 15000, vram: 141 },
+  "DGX B200":         { gpus: 8,  perSys: 744793,  kW: 14.4, perRack: 2, rackCost: 15000, vram: 192 },
+  "DGX B300":         { gpus: 8,  perSys: 846885,  kW: 14.4, perRack: 2, rackCost: 15000, vram: 288 },
+  "DGX GB200 NVL-72": { gpus: 72, perSys: 7841432, kW: 120,  perRack: 1, rackCost: 0, vram: 186 },
+  "DGX GB300 NVL-72": { gpus: 72, perSys: 8741432, kW: 120,  perRack: 1, rackCost: 0, vram: 288 },
 };
 const OWN_TARGETS = Object.keys(SYSTEMS);
 /* Per-GPU capability indices (B200 = 1.0). Established classes derived from MLPerf pairs;
@@ -36,6 +36,14 @@ const IDX = {
 };
 const SYS_CLASS = { "DGX H200": "H200", "DGX B200": "B200-class", "DGX B300": "B300", "DGX GB200 NVL-72": "GB200", "DGX GB300 NVL-72": "GB300" };
 const EST_IDX = ["B300", "GB200", "GB300"];
+
+
+/* v1.9 capacity layer constants — rule-of-thumb serving math, all EST and disclosed in-app */
+const QUANT = { "FP16": { bytes: 2, mult: 1.0 }, "FP8": { bytes: 1, mult: 1.6 }, "FP4": { bytes: 0.5, mult: 2.4 } };
+const MODELS = { "8B": 8, "70B": 70, "405B": 405, "671B": 671 };
+const BASE_TOK = 300;         // tok/s per GPU, 70B @ FP16 on B200-class (EST anchor)
+const KV_OVERHEAD = 1.2;      // memory overhead for KV cache / activations (EST)
+const TOK_PER_USER = 10;      // sustained tok/s per concurrent interactive user (EST)
 
 const RES_MULT = 0.60; // 1-yr reserved = 40% off list (estimated for all; exact for AWS B200)
 const RATES_ASOF = "Jul–Aug 2026";
@@ -51,6 +59,7 @@ const BASE_RC = {
   kwPerPB: 10, racksPerPB: 1, netMo: 3000, setupRack: 2000,
   adminRatio: 10, opFTE: 189000, equinixMo: 11387,
   hrsMo: 730, opsGrowth: 0.04, gpusPerSystem: 8,
+  cloudTok: 8.00, // managed-API blended $/1M tokens (EST — editable)
 };
 function defaultsFor(provider, gpuClass, ownSys) {
   const r = RATES[provider][gpuClass];
@@ -87,6 +96,9 @@ const TIPS = {
   powerRate: `What you pay per kilowatt-month for data center power, including cooling overhead, not just the utility rate. The default reflects a typical enterprise fully-loaded cost; leave it unless your facilities team has given you a real number. NVIDIA's default is $300 (~$0.41/kWh); SLED and municipal power often lands $150–200.`,
   util: `What percent of your owned systems' capacity you realistically expect to use, accounting for maintenance windows, scheduling gaps, and uneven demand. NVIDIA's math implicitly assumes 100%, which nobody hits; the 85% default is an honest de-rate. Lower it if your workloads are bursty; raising it above 90% is optimistic.`,
   tier3: `If you have a real invoice showing GPU-hours consumed, enter it here and the tool uses your actual number instead of estimating it from spend, making everything downstream more accurate. This is optional; leave it at 'not provided' and the spend-based estimate stands. Ask your cloud admin for a usage report if you want this precision.`,
+  modelSize: `The largest AI model you plan to serve, in parameters. Bigger models need more GPU memory per copy and produce fewer tokens per second, so this drives the capacity estimates below. If unsure, 70B is the common enterprise workhorse.`,
+  quant: `The numeric precision the model runs at. Lower precision (FP8, FP4) halves memory and boosts speed with modest quality trade-offs; most 2026 production serving runs FP8. If unsure, leave FP8.`,
+  capGroup: `Rule-of-thumb serving math, clearly estimated: model memory determines GPUs per copy, published throughput classes determine tokens per second, and your fleet cost divides across that capacity. Use it for direction and conversation, not capacity planning — a real sizing exercise comes with the CDW engagement.`,
   ownSys: `The NVIDIA system you'd buy to run these workloads yourself. Newer systems cost more per box but do far more work per GPU-hour, so the best value is often not the cheapest system. If unsure, DGX B200 is the proven mainstream pick.`,
 };
 
@@ -211,7 +223,26 @@ function run(inp, RC) {
       ? Math.log(1 / (1 - headroom)) / Math.log(1 + inp.growth)
       : null;
 
-  return { blended, gpuHrs, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, oneTime, exitEgress, tot, payback, exhaustYrs, perSysHrs };
+  // v1.9 capacity & unit economics (rule-of-thumb, EST)
+  const q = QUANT[inp.quant];
+  const modelB = MODELS[inp.modelSize];
+  const gpusPerReplica = Math.max(1, Math.ceil((modelB * q.bytes * KV_OVERHEAD) / S.vram));
+  const totalGPUs = sysAdj * S.gpus;
+  const replicas = Math.floor(totalGPUs / gpusPerReplica);
+  const tokPerGPU = BASE_TOK * IDX.infer[SYS_CLASS[inp.ownSys]] * q.mult * (70 / modelB);
+  const fleetTokSec = replicas * gpusPerReplica * tokPerGPU * inp.util;
+  const monthlyTokM = (fleetTokSec * 2628000) / 1e6; // 730 hrs × 3600 s, in millions of tokens
+  const onPremMonthly = (adj.capex + oneTime - adj.resid) / (inp.horizon * 12) + adj.opex;
+  const cap = {
+    gpusPerReplica, replicas, fits: replicas > 0,
+    users: Math.floor(fleetTokSec / TOK_PER_USER),
+    monthlyTokM,
+    perM: monthlyTokM > 0 ? onPremMonthly / monthlyTokM : null,
+    perUserOn: fleetTokSec >= TOK_PER_USER ? onPremMonthly / Math.floor(fleetTokSec / TOK_PER_USER) : null,
+    perUserCloud: ((TOK_PER_USER * 2628000) / 1e6) * RC.cloudTok,
+    cloudPerM: RC.cloudTok, onPremMonthly,
+  };
+  return { blended, gpuHrs, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, oneTime, exitEgress, tot, payback, exhaustYrs, perSysHrs, cap };
 }
 
 /* ============ UI ============ */
@@ -367,6 +398,8 @@ export default function App() {
   const [dualRun, setDualRun] = useState(2);
   const [redundancy, setRedundancy] = useState(false);
   const [residPct, setResidPct] = useState(0.15);
+  const [modelSize, setModelSize] = useState("70B");
+  const [quant, setQuant] = useState("FP8");
   const [view, setView] = useState("calc"); // calc | gate | report | leads
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
@@ -398,10 +431,10 @@ export default function App() {
   const editedCount = Object.keys(ov).length;
   const rateInfo = RATES[provider][gpuClass];
 
-  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct };
+  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelSize, quant, horizon };
   const r = useMemo(
     () => run(inputsObj, rc),
-    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, provider, ov]
+    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelSize, quant, horizon, provider, ov]
   );
   const t = r.tot(horizon);
   // Minimum viable spend: smallest monthly bill where on-prem beats cloud at the selected horizon, current settings (spend-based path)
@@ -427,7 +460,7 @@ export default function App() {
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <img src={CDW_LOGO} alt="CDW" style={{ height: 30, width: "auto" }} />
-            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v1.8</div>
+            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v1.9</div>
           </div>
           <h1 style={{ ...disp, fontSize: 24, fontWeight: 700, margin: "4px 0 2px" }}>Cloud → On-Prem AI TCO</h1>
           <div style={{ fontSize: 13, color: C.sub }}>What your current AIaaS spend buys you if you owned it instead.</div>
@@ -489,9 +522,10 @@ export default function App() {
             <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
             <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub="capex + one-time vs. current monthly cloud bill" />
             <Row label="Residual value credit" value={`−${fmt(r.adj.resid)}`} sub={`${Math.round(residPct * 100)}% of systems + storage capex at horizon`} />
+            {r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`} sub={`${modelSize} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
             <Row label="Your current consumption (reconstructed)" value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`} sub={tier3Hrs > 0 ? "from your invoice" : `from spend at ${provider} ${gpuClass} list rates (${RATES_ASOF})`} />
             <div style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
-              Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+              Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
             </div>
             <div style={{ marginTop: 14 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX — FULL INPUTS & OUTPUTS (for independent reproduction)</div>
@@ -520,6 +554,8 @@ export default function App() {
                   ["On-prem opex", `${fmt(r.adj.opex)}/mo`],
                   [`Cloud vs on-prem (${horizon}yr)`, `${fmt(t.cloud)} vs ${fmt(t.onAdj)}`],
                   ["Savings (adjusted / floor)", `${fmt(t.saveAdj)} / ${fmt(t.saveFlr)}`],
+                  ["Model / quantization (capacity est.)", `${modelSize} / ${quant}`],
+                  ["Est. users / $ per 1M tokens", r.cap.fits ? `${r.cap.users.toLocaleString()} / $${r.cap.perM.toFixed(2)} (vs API $${r.cap.cloudPerM.toFixed(2)})` : "model does not fit fleet"],
                   ["Rate card overrides", editedCount > 0 ? Object.keys(ov).join(", ") : "none — all defaults"],
                 ].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>
@@ -595,7 +631,7 @@ export default function App() {
             {[
               ["FLEET", `${r.sysAdj} sys`, `${Math.round(r.headroom * 100)}% headroom`],
               ["CAPEX + 1-TIME", fmtM(r.adj.capex + r.oneTime), `${fmtM(r.oneTime)} transition`],
-              ["PAYBACK", r.payback ? `${r.payback.toFixed(0)} mo` : "—", r.exhaustYrs ? `${r.exhaustYrs.toFixed(1)}yr runway` : "flat growth"],
+              ["PAYBACK", r.payback ? `${r.payback.toFixed(0)} mo` : "—", `${t.onAdj > 0 ? Math.round((t.saveAdj / t.onAdj) * 100) : 0}% ROI · ${r.exhaustYrs ? `${r.exhaustYrs.toFixed(1)}yr runway` : "flat growth"}`],
             ].map(([k, v, s]) => (
               <div key={k} style={{ background: "#1F1F1F", borderRadius: 8, padding: "8px 10px" }}>
                 <div style={{ ...mono, fontSize: 9, letterSpacing: 1.2, color: "#ABABAB" }}>{k}</div>
@@ -688,6 +724,28 @@ export default function App() {
           <Row label="Net Performance Factor" value={`${r.npf.toFixed(2)}x`} sub="Your cloud GPU-hours ÷ NPF = on-prem hours needed" />
         </Section>
 
+        {/* CAPACITY & UNIT ECONOMICS (v1.9) */}
+        <Section title="Capacity & unit economics" badge="EST" defaultOpen={false}>
+          <TipLabel text="How these estimates work" tip={TIPS.capGroup} style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }} />
+          <TipLabel text="Model size" tip={TIPS.modelSize} style={{ fontSize: 13 }} />
+          <Seg options={Object.keys(MODELS)} value={modelSize} onChange={setModelSize} />
+          <TipLabel text="Quantization" tip={TIPS.quant} style={{ fontSize: 13 }} />
+          <Seg options={Object.keys(QUANT)} value={quant} onChange={setQuant} />
+          {!r.cap.fits ? (
+            <div style={{ fontSize: 12, color: "#B4530A", background: "#FBF3EC", borderRadius: 6, padding: "8px 10px", marginTop: 6 }}>
+              A {modelSize} model at {quant} needs {r.cap.gpusPerReplica} GPUs per copy, but the current fleet has {r.sysAdj * SYSTEMS[ownSys].gpus}. Add systems, pick a smaller model, or lower the precision.
+            </div>
+          ) : (
+            <>
+              <Row label="GPUs per model copy / copies in fleet" value={`${r.cap.gpusPerReplica} / ${r.cap.replicas}`} sub={`${modelSize} @ ${quant} on ${ownSys} (${SYSTEMS[ownSys].vram} GB/GPU, ×${KV_OVERHEAD} overhead)`} />
+              <Row label="Concurrent interactive users (est.)" value={r.cap.users.toLocaleString()} sub={`at ${TOK_PER_USER} tok/s per user, ${Math.round(util * 100)}% utilization`} />
+              <Row label="Token throughput (est.)" value={`${r.cap.monthlyTokM >= 1000 ? (r.cap.monthlyTokM / 1000).toFixed(1) + "B" : Math.round(r.cap.monthlyTokM) + "M"} tokens/mo`} sub="fleet-wide at target utilization" />
+              <Row label="Cost per 1M tokens" value={`$${r.cap.perM.toFixed(2)} vs $${r.cap.cloudPerM.toFixed(2)}`} sub="on-prem all-in vs managed-API blended list (editable in Rate card)" />
+              <Row label="Cost per user / month" value={`$${Math.round(r.cap.perUserOn).toLocaleString()} vs $${Math.round(r.cap.perUserCloud).toLocaleString()}`} sub="on-prem vs cloud API at the same usage" />
+            </>
+          )}
+        </Section>
+
         {/* TIER 3 */}
         <Section title="Validated analysis" badge="TIER 3" defaultOpen={false}>
           <Slider label="Actual monthly GPU-hours (from invoice)" value={tier3Hrs} min={0} max={100000} step={500}
@@ -715,6 +773,7 @@ export default function App() {
           <RateField k="nvaieOD" label="NVAIE support $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="fastGB" label="Fast storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="bulkGB" label="Bulk storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="cloudTok" label="Managed API blended $/1M tokens (EST)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.5} fmt={(v)=>`$${v}`} />
           <RateField k="egressGB" label="Egress $/GB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>ON-PREM HARDWARE · NVIDIA TCO tool capture, Aug 2026</div>
           <RateField k="perSysCost" label={`${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`} eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
@@ -732,7 +791,7 @@ export default function App() {
         {/* LEDGER */}
         <Section title="Methodology & assumptions" defaultOpen={false}>
           <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.5, marginBottom: 8 }}>
-            <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED / NODE-NORM / EST / QUOTE); on-prem costs are NVIDIA DGX TCO tool captures (Jul–Aug 2026). Not modeled: hardware refresh cadence beyond the residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk, hybrid burst.
+            <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED / NODE-NORM / EST / QUOTE); on-prem costs are NVIDIA DGX TCO tool captures (Jul–Aug 2026). Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond the residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk, hybrid burst.
           </div>
           <Row label="Reconstructed cloud GPU-hours" value={`${Math.round(r.gpuHrs).toLocaleString()}/mo`}
             sub={tier3Hrs > 0 ? "customer invoice" : `spend ÷ ${provider} ${gpuClass} blended rate $${r.blended.toFixed(2)}/instance-hr`} />
