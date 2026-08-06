@@ -1,4 +1,4 @@
-# CDW AI Factory — Cloud → On-Prem AI TCO Calculator (v1.9)
+# CDW AI Factory — Cloud → On-Prem AI TCO Calculator (v2.0)
 
 Reverse TCO tool: starts from a customer's current cloud AIaaS spend and outputs
 the on-prem NVIDIA fleet required to absorb it, with cost of ownership vs. staying
