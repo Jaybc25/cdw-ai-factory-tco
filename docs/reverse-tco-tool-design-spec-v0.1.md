@@ -243,3 +243,15 @@ All values editable, all carry effective dates. Sources: NVIDIA DGX TCO tool def
 4. Default Tier 1 spend-decomposition splits: validate 50/45/5 against real customer bills as engagements accumulate.
 5. Generational performance factor lookup table: SEEDED from public sources 2026-08. Training (MLPerf audited): B200 vs H100 = 2.0–2.2x; H200 vs H100 = 1.4–1.47x. Inference: B200 vs H100 = 4x (MLPerf) to 15x (NVIDIA best-case FP4); GB200 vs H200 = 2.86x per chip (Llama 3.1 405B, MLPerf v5.0); H100 vs A100 = up to 4.5x (MLPerf debut). Design rule confirmed: defaults = MLPerf-audited values (note these run BELOW NVIDIA's 3x TCO-tool default for training); NVIDIA marketing claims define range upper bounds only. Remaining work: fill missing pairs (B300/GB300 rows as MLPerf rounds publish), formalize per-workload gating. NVIDIA PDM materials now optional polish, not blocking.
 6. Form factor for v1: spreadsheet (fastest to internal demo), web calculator (customer-facing), or both in sequence.
+
+---
+
+## Addendum (v2.2, Aug 2026) — conventions fixed by external audit rounds 3–4
+
+**Growth convention (both engines):** cloud compute spend grows at the selected demand-growth rate; cloud non-compute spend and all on-prem opex grow at the 4%/yr operations rate. This supersedes any earlier wording implying demand growth compounds the full cloud bill.
+
+**Crossover convention:** the crossover conclusion is computed from cumulative monthly cash flows (capex and one-time charged when incurred, residual excluded until exit), not from static payback. Static payback remains a labeled secondary metric.
+
+**Redundancy convention:** the N+1 spare is excluded from growth-headroom and exhaustion math; it is failover capacity, not expansion room. Full system count still drives capex, power, support and facility costs.
+
+**Scope statement:** the Excel workbook is the auditable reference implementation for the core sizing and TCO formulas. The deployed web application extends it with dynamic fleet growth under demand, five-provider rate routing, capacity/unit-economics estimates and interface-level validation. End-to-end parity is asserted only after the automated Excel-to-JavaScript fixture suite runs (deploy-phase item).

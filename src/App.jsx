@@ -212,7 +212,8 @@ function run(inp, RC) {
   const flrT = traj(1);
   const sysAdj = adjT[0].sys;
   const sysFloor = flrT[0].sys;
-  const headroom = sysAdj > 0 ? 1 - gpuHrs / npf / (sysAdj * perSysHrs) : 0;
+  const prodSys = Math.max(1, sysAdj - nPlus); // productive systems: the N+1 spare is failover, not growth capacity (audit round 4)
+  const headroom = sysAdj > 0 ? 1 - gpuHrs / npf / (prodSys * perSysHrs) : 0;
 
   // residual basis excludes professional services (no resale value — audit finding) and cluster/racks/one-time
   const residAt = (T, n) => inp.residPct * (T[n - 1].sys * (perSys - S.prof - S.sw) + storCapex); // hardware only: prof svcs and SW subscriptions have no resale value
@@ -231,7 +232,20 @@ function run(inp, RC) {
     return { cloud, onAdj, onFlr, saveAdj: cloud - onAdj, saveFlr: cloud - onFlr };
   };
   const payback =
-    inp.bill - adj.opex > 0 ? (adj.capex + oneTime) / (inp.bill - adj.opex) : null;
+    inp.bill - adj.opex > 0 ? (adj.capex + oneTime) / (inp.bill - adj.opex) : null; // SECONDARY static metric
+  // v2.2: crossover from cumulative monthly cash flows (audit round 4) — capex charged at the
+  // start of the year it's incurred (incl. growth-driven fleet additions); residual excluded
+  let crossoverMo = null;
+  {
+    let cc = 0, oc = oneTime;
+    for (let m = 1; m <= 60 && !crossoverMo; m++) {
+      const y = Math.floor((m - 1) / 12);
+      if (m === y * 12 + 1) oc += adjT[y].capexAdd;
+      cc += cloudYears[y] / 12;
+      oc += adjT[y].opexYr / 12;
+      if (cc >= oc) crossoverMo = m;
+    }
+  }
   const exhaustYrs =
     inp.growth > 0 && headroom > 0 && headroom < 1
       ? Math.log(1 / (1 - headroom)) / Math.log(1 + inp.growth)
@@ -257,7 +271,7 @@ function run(inp, RC) {
     cloudPerM: RC.cloudTok, onPremMonthly,
   };
   const storageBudget = inp.bill * (1 - inp.computeShare);
-  return { blended, gpuHrs, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, storageBudget, oneTime, exitEgress, tot, payback, exhaustYrs, perSysHrs, cap,
+  return { blended, gpuHrs, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, storageBudget, oneTime, exitEgress, tot, payback, crossoverMo, exhaustYrs, perSysHrs, cap,
     fleetAdj: adjT.map((r2) => r2.sys), fleetFlr: flrT.map((r2) => r2.sys) };
 }
 
@@ -476,7 +490,7 @@ export default function App() {
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <img src={CDW_LOGO} alt="CDW" style={{ height: 30, width: "auto" }} />
-            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v2.1</div>
+            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v2.2</div>
           </div>
           <h1 style={{ ...disp, fontSize: 24, fontWeight: 700, margin: "4px 0 2px" }}>Cloud → On-Prem AI TCO</h1>
           <div style={{ fontSize: 13, color: C.sub }}>What your current AIaaS spend buys you if you owned it instead.</div>
@@ -529,7 +543,7 @@ export default function App() {
               <div style={{ background: "#F1F1F1", borderLeft: "3px solid #CC0000", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
                 <div style={{ ...mono, fontSize: 11, color: C.ink }}>{`NO COST CROSSOVER WITHIN THE SELECTED ${horizon}-YEAR HORIZON`}</div>
                 <div style={{ fontSize: 12, color: C.ink, marginTop: 4 }}>
-                  At the stated consumption, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by {fmtM(-t.saveAdj)}. Fixed cluster overhead and transition costs dominate at this scale and horizon; a longer horizon may still cross.{minViable && minViable > bill ? ` On-prem begins to pencil around ${fmtM(minViable)}/mo at these settings.` : ""}
+                  At the stated consumption, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by {fmtM(-t.saveAdj)}. Fixed cluster overhead and transition costs dominate at this scale and horizon; a longer horizon may still cross{r.crossoverMo && r.crossoverMo > horizon * 12 ? ` (projected around month ${r.crossoverMo})` : ""}.{minViable && minViable > bill ? ` On-prem begins to pencil around ${fmtM(minViable)}/mo at these settings.` : ""}
                 </div>
               </div>
             )}
@@ -541,7 +555,7 @@ export default function App() {
             {r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`} sub={`${modelSize} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
             <Row label="Your current consumption (reconstructed)" value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`} sub={tier3Hrs > 0 ? "from your invoice" : `from spend at ${provider} ${gpuClass} list rates (${RATES_ASOF})`} />
             <div style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
-              Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage inputs are reconciled against the non-compute share of the stated bill, with a visible warning on mismatch. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+              Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage inputs are reconciled against the non-compute share of the stated bill, with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
             </div>
             <div style={{ marginTop: 14 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX — FULL INPUTS & OUTPUTS (for independent reproduction)</div>
@@ -574,7 +588,8 @@ export default function App() {
                   ["Model / quantization (capacity est.)", `${modelSize} / ${quant}`],
                   ["Est. users / $ per 1M tokens", r.cap.fits ? `${r.cap.users.toLocaleString()} / $${r.cap.perM.toFixed(2)} (vs API $${r.cap.cloudPerM.toFixed(2)})` : "model does not fit fleet"],
                   ["Rate card overrides", editedCount > 0 ? Object.keys(ov).join(", ") : "none — all defaults"],
-                  ["Spend/storage reconciliation", r.cloudStorage > r.storageBudget * 1.02 ? `MISMATCH: implies ${fmt(r.cloudStorage)}/mo vs ${fmt(r.storageBudget)}/mo non-compute` : "OK — consistent with stated bill"],
+                  ["Spend/storage reconciliation", `${fmt(r.cloudStorage)}/mo implied vs ${fmt(r.storageBudget)}/mo non-compute budget — ${r.cloudStorage > r.storageBudget * 1.02 ? `OVERALLOCATED by ${fmt(r.cloudStorage - r.storageBudget)}` : "within tolerance"}`],
+                  ["Crossover (cumulative) / static payback", `${r.crossoverMo ? `month ${r.crossoverMo}` : "none ≤60mo"} / ${r.payback ? r.payback.toFixed(0) + " mo" : "n/a"}`],
                   ["— APPLIED RATES (snapshot) —", ""],
                   ["Cloud $/GPU-hr OD / reserved", `$${rc.instOD} / $${rc.instRes} (${RATES[provider][gpuClass].conf})`],
                   ["NVAIE $/GPU-hr OD / reserved", `$${rc.nvaieOD} / $${rc.nvaieRes}`],
@@ -584,7 +599,7 @@ export default function App() {
                   ["Cluster fixed / Equinix bundle", `${fmt(rc.cluster)} / ${fmt(rc.equinixMo)}/sys/mo`],
                   ["On-prem storage fast / bulk $/PB", `${fmt(rc.fastPB)} / ${fmt(rc.bulkPB)}`],
                   ["Admin ratio / FTE / ops growth", `${rc.adminRatio}/FTE · ${fmt(rc.opFTE)} · ${Math.round(rc.opsGrowth * 100)}%/yr`],
-                  ["Engine version", "v2.1 (harmonic blend · dynamic fleet growth · spend/storage reconciliation)"],
+                  ["Engine version", "v2.2 (cumulative crossover · N+1-preserving headroom · reconciled spend)"],
                 ].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>
                     <span style={{ color: C.sub }}>{k}</span><span style={{ ...mono }}>{v}</span>
@@ -645,7 +660,7 @@ export default function App() {
             <div style={{ background: "#3A3A3A", borderLeft: "3px solid #CC0000", borderRadius: 6, padding: "10px 12px", margin: "8px 0 10px" }}>
               <div style={{ ...mono, fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>{`NO COST CROSSOVER WITHIN THE SELECTED ${horizon}-YEAR HORIZON`}</div>
               <div style={{ fontSize: 12, color: "#D0D0D0", marginTop: 4 }}>
-                At these settings, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by {fmtM(-t.saveAdj)} — the fixed cluster overhead and transition costs outweigh the ownership advantage at this scale and horizon. A longer horizon may still cross — check the 3yr and 5yr views.
+                At these settings, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by {fmtM(-t.saveAdj)} — the fixed cluster overhead and transition costs outweigh the ownership advantage at this scale and horizon. A longer horizon may still cross — check the 3yr and 5yr views.{r.crossoverMo && r.crossoverMo > horizon * 12 ? ` Cumulative cash flows project crossover around month ${r.crossoverMo}.` : ""}
                 {minViable && minViable > bill ? ` On-prem starts to pencil around ${fmtM(minViable)}/mo at these settings.` : ""} An honest tool says so.
               </div>
             </div>
@@ -659,7 +674,7 @@ export default function App() {
             {[
               ["FLEET", `${r.sysAdj} sys`, r.fleetAdj[horizon - 1] > r.sysAdj ? `${Math.round(r.headroom * 100)}% headroom → ${r.fleetAdj[horizon - 1]} sys by yr ${horizon}` : `${Math.round(r.headroom * 100)}% headroom`],
               ["CAPEX + 1-TIME", fmtM(r.adj.capex + r.oneTime), `${fmtM(r.oneTime)} transition`],
-              ["PAYBACK", r.payback ? `${r.payback.toFixed(0)} mo` : "—", `${t.onAdj > 0 ? Math.round((t.saveAdj / t.onAdj) * 100) : 0}% ROI · ${r.exhaustYrs ? `${r.exhaustYrs.toFixed(1)}yr runway` : "flat growth"}`],
+              ["CROSSOVER", r.crossoverMo ? `mo ${r.crossoverMo}` : "none ≤60mo", `static payback ${r.payback ? r.payback.toFixed(0) + "mo" : "n/a"} · ${t.onAdj > 0 ? Math.round((t.saveAdj / t.onAdj) * 100) : 0}% ROI`],
             ].map(([k, v, s]) => (
               <div key={k} style={{ background: "#1F1F1F", borderRadius: 8, padding: "8px 10px" }}>
                 <div style={{ ...mono, fontSize: 9, letterSpacing: 1.2, color: "#ABABAB" }}>{k}</div>
@@ -831,7 +846,7 @@ export default function App() {
         {/* LEDGER */}
         <Section title="Methodology & assumptions" defaultOpen={false}>
           <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.5, marginBottom: 8 }}>
-            <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED / NODE-NORM / EST / QUOTE); on-prem costs are NVIDIA DGX TCO tool captures (Jul–Aug 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage inputs are reconciled against the non-compute share of the stated bill, with a visible warning on mismatch. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond the residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk, hybrid burst.
+            <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED / NODE-NORM / EST / QUOTE); on-prem costs are NVIDIA DGX TCO tool captures (Jul–Aug 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage inputs are reconciled against the non-compute share of the stated bill, with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond the residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk, hybrid burst.
           </div>
           <Row label="Reconstructed cloud GPU-hours" value={`${Math.round(r.gpuHrs).toLocaleString()}/mo`}
             sub={tier3Hrs > 0 ? "customer invoice" : `spend ÷ ${provider} ${gpuClass} blended rate $${r.blended.toFixed(2)}/instance-hr`} />
