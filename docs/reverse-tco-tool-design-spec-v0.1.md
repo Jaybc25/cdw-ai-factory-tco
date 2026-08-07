@@ -255,3 +255,13 @@ All values editable, all carry effective dates. Sources: NVIDIA DGX TCO tool def
 **Redundancy convention:** the N+1 spare is excluded from growth-headroom and exhaustion math; it is failover capacity, not expansion room. Full system count still drives capex, power, support and facility costs.
 
 **Scope statement:** the Excel workbook is the auditable reference implementation for the core sizing and TCO formulas. The deployed web application extends it with dynamic fleet growth under demand, five-provider rate routing, capacity/unit-economics estimates and interface-level validation. End-to-end parity is asserted only after the automated Excel-to-JavaScript fixture suite runs (deploy-phase item).
+
+## Addendum (v2.4, Aug 2026) — round-6 audit refinements
+
+**Tier-1 decomposition (supersedes the 50/45/5 wording):** Tier 1 assumes 50% of the stated bill is compute; the remaining 50% is reconstructed into storage + egress + admin, with admin as a rate-card constant and storage auto-derived to consume the rest (≈ 50 / 49.45 / 0.55 at defaults). This makes the two-input model self-reconciling by construction.
+
+**B300 scope split (deliberate):** the reference workbook blocks B300 on the rent side (data validation) pending a benchmark-derived B300→B200 performance factor — no silent estimation in the auditable artifact. The web calculator offers B300 with confidence-tiered rates and a provisional capability index explicitly flagged EST, because the product's design language for uncertainty is disclosure, not prohibition. Reference blocks; product discloses.
+
+**Rate provenance:** each cloud price carries its own confidence label (on-demand: LISTED via tracker; 1-yr: EST derived from a 40%-off assumption; NVIDIA-snapshot rows: SNAPSHOT), reflecting that on-demand, savings plans and capacity blocks are distinct purchasing constructs.
+
+**Provider guard:** the workbook hard-stops (NA) for any non-AWS provider selection with a visible guard message, preventing AWS-based results from being captured under another provider's name.
