@@ -498,7 +498,7 @@ export default function App() {
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
             <img src={CDW_LOGO} alt="CDW" style={{ height: 30, width: "auto" }} />
-            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v2.5</div>
+            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v2.7</div>
           </div>
           <h1 style={{ ...disp, fontSize: 24, fontWeight: 700, margin: "4px 0 2px" }}>Cloud → On-Prem AI TCO</h1>
           <div style={{ fontSize: 13, color: C.sub }}>What your current AIaaS spend buys you if you owned it instead.</div>
@@ -607,7 +607,7 @@ export default function App() {
                   ["Cluster fixed / Equinix bundle", `${fmt(rc.cluster)} / ${fmt(rc.equinixMo)}/sys/mo`],
                   ["On-prem storage fast / bulk $/PB", `${fmt(rc.fastPB)} / ${fmt(rc.bulkPB)}`],
                   ["Admin ratio / FTE / ops growth", `${rc.adminRatio}/FTE · ${fmt(rc.opFTE)} · ${Math.round(rc.opsGrowth * 100)}%/yr`],
-                  ["Engine version", "v2.5 (engine unchanged from v2.3; workbook hardening release — this app models fleet growth dynamically, so horizon totals remain valid where the reference workbook suppresses them)"],
+                  ["Engine version", "v2.7 (engine unchanged from v2.3; reference workbook audit-complete after 9 external rounds — see docs/ for the audited xlsx and spec)"],
                 ].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>
                     <span style={{ color: C.sub }}>{k}</span><span style={{ ...mono }}>{v}</span>

@@ -133,7 +133,7 @@ Cloud storage spend (or stated volume) converts to PB. On-prem: fast PB and bulk
 **Financing view (optional module):** Default presentation is the capex view. Financing is an optional runtime input: the user may enter day-of lease rate factor and term (e.g., 36/48/60 months) at analysis time to generate a leased monthly comparison. No rates are stored as defaults; the NVIDIA 0.0281 3-yr factor is retained in documentation only as a worked example. This keeps the tool current with whatever CDW financing offers on the day of the customer conversation.
 
 ### Step 6: Build the cloud trajectory
-`Cloud monthly cost = current bill` (Tier 3) or reconstructed (Tier 1/2), grown at the customer's growth rate annually. Ops/admin growth default 4%/yr on both sides. Critically: compute growth compounds the full cloud bill, but on-prem growth only adds marginal systems once headroom is exhausted.
+`Cloud monthly cost = current bill` (Tier 3) or reconstructed (Tier 1/2), grown at the customer's growth rate annually. Ops/admin growth default 4%/yr on both sides. Critically (v2.2 convention, stated here in place): cloud COMPUTE spend grows at the selected demand-growth rate while cloud non-compute and all on-prem opex grow at the operations rate; on-prem growth only adds marginal systems once headroom is exhausted (dynamic in the web engine; disclosed-and-suppressed in the workbook).
 
 ### Step 7: Compare and find breakevens
 Outputs over 1 / 3 / 5 years:
@@ -185,7 +185,7 @@ All values editable, all carry effective dates. Sources: NVIDIA DGX TCO tool def
 ### Cloud (AWS example; replicate per provider)
 | Key | Value | Notes |
 |---|---|---|
-| B200/B300-class 8-GPU instance, on-demand | $113.93/hr | p6-class |
+| B200 8-GPU instance, on-demand (B300 is a separate instance/rate; blocked in the reference workbook since v2.4, offered EST-flagged in the web app) | $113.93/hr | p6-b200 |
 | Same, 1-yr reserved | $68.36/hr | |
 | NVAIE support per instance-hr | $8.00 OD / $2.88 reserved | Applied to cloud side |
 | Fast storage | $0.14/GB/mo | Parallel FS class |
@@ -240,7 +240,7 @@ All values editable, all carry effective dates. Sources: NVIDIA DGX TCO tool def
 1. ~~Equinix Private AI assumption set~~ RESOLVED 2026-08: bundled $11,387/system/mo; see Section 5.
 2. ~~Confirm AWS instance naming~~ RESOLVED 2026-08: NVIDIA tool label bug. $113.93/hr is the p6-b200.48xlarge rate; p6-b300.48xlarge is a real, separate instance (8× B300, ~$142.42/hr on-demand us-east-1, GA Nov 2025). Rate card math stands; our tool must pair labels and rates from provider pricing sources directly.
 3. ~~CDW financing rates~~ RESOLVED BY DESIGN 2026-08: financing is an optional runtime input (rate factor + term entered day-of), not a stored default. No sourcing needed until a specific deal.
-4. Default Tier 1 spend-decomposition splits: validate 50/45/5 against real customer bills as engagements accumulate.
+4. Default Tier 1 spend decomposition: validate the self-reconciling 50% compute / remainder-reconstructed approach (≈ 50 / 49.45 / 0.55 at defaults) against real customer bills as engagements accumulate.
 5. Generational performance factor lookup table: SEEDED from public sources 2026-08. Training (MLPerf audited): B200 vs H100 = 2.0–2.2x; H200 vs H100 = 1.4–1.47x. Inference: B200 vs H100 = 4x (MLPerf) to 15x (NVIDIA best-case FP4); GB200 vs H200 = 2.86x per chip (Llama 3.1 405B, MLPerf v5.0); H100 vs A100 = up to 4.5x (MLPerf debut). Design rule confirmed: defaults = MLPerf-audited values (note these run BELOW NVIDIA's 3x TCO-tool default for training); NVIDIA marketing claims define range upper bounds only. Remaining work: fill missing pairs (B300/GB300 rows as MLPerf rounds publish), formalize per-workload gating. NVIDIA PDM materials now optional polish, not blocking.
 6. Form factor for v1: spreadsheet (fastest to internal demo), web calculator (customer-facing), or both in sequence.
 
@@ -273,3 +273,11 @@ All values editable, all carry effective dates. Sources: NVIDIA DGX TCO tool def
 **Defense in depth on inputs:** Excel data validation blocks normal entry of unsupported values; formula-level guards (provider and GPU class) catch pasted or programmatic values that bypass validation, and headline conclusions short-circuit to guard messages rather than interpreting error-state economics.
 
 **Registry completeness:** GPU count per cloud instance is read from the CloudRates registry row (not a legacy shared constant), and rack-setup amortization months is an editable RateCard field — completing the principle that instance specifications and calculation assumptions live in data, not formulas.
+
+## Addendum (v2.7, Aug 2026) — final input-hardening pass (audit round 9)
+
+**Complete master guard:** every editable input that affects a calculation is now covered by the master guard with an explicit ISNUMBER check plus its valid range — including power rate (≥ 0), the three performance factors at their documented NVIDIA ranges (1–2.5× / 1–10× / 1–5×, so guard and documentation agree), Tier-3 GPU-hours (≥ 0), and lease factor/term (positive when populated). Excel compares text as greater than any number, so range checks without ISNUMBER are not guards; every numeric condition carries both.
+
+**Error-free presentation under any input state:** every visible Results cell — the TCO table, the annual detail rows, and all key-figure rows — short-circuits to "N/A — see input guard" when the master guard fails. An invalid pasted input produces zero raw Excel errors anywhere on the Results sheet.
+
+With this pass, the Excel reference model is considered audit-complete for its stated scope (nine external audit rounds, from "cannot validate" to 9.7/10 core arithmetic). Remaining assurance work shifts to the automated Excel-to-JavaScript parity suite against the production engine.
