@@ -63,7 +63,7 @@ Required:
 2. Primary provider (AWS / Azure / GCP / OCI / CoreWeave / other-neocloud)
 
 Everything else defaulted:
-- Spend decomposition: default split of 50% compute / 45% storage / 5% admin-egress (seeded from NVIDIA Test 1; refine with real engagement data over time)
+- Spend decomposition (updated v2.4-v2.5, supersedes the earlier 50/45/5 split): 50% compute; the remaining 50% is reconstructed into storage + egress + admin, with admin as a rate-card constant and storage auto-derived to consume the rest (≈ 50 / 49.45 / 0.55 at defaults) — self-reconciling by construction. Refine with real engagement data over time.
 - GPU class: default H100 (the most common installed cloud fleet as of 2026)
 - Commitment: default 1-yr reserved rates
 - Storage mix: default 25% fast / 75% bulk
@@ -265,3 +265,11 @@ All values editable, all carry effective dates. Sources: NVIDIA DGX TCO tool def
 **Rate provenance:** each cloud price carries its own confidence label (on-demand: LISTED via tracker; 1-yr: EST derived from a 40%-off assumption; NVIDIA-snapshot rows: SNAPSHOT), reflecting that on-demand, savings plans and capacity blocks are distinct purchasing constructs.
 
 **Provider guard:** the workbook hard-stops (NA) for any non-AWS provider selection with a visible guard message, preventing AWS-based results from being captured under another provider's name.
+
+## Addendum (v2.5, Aug 2026) — round-7 audit hardening
+
+**Capacity-aware output suppression:** horizon totals for either case (adjusted or floor) display an explicit "N/A — capacity exhausted yr X.X; use web model" instead of precise dollar values whenever the static workbook fleet is known-insufficient before that horizon. A disclosed warning next to a precise number is weaker than refusing to print the number; the floor case is the credibility anchor, so it gets the same treatment.
+
+**Defense in depth on inputs:** Excel data validation blocks normal entry of unsupported values; formula-level guards (provider and GPU class) catch pasted or programmatic values that bypass validation, and headline conclusions short-circuit to guard messages rather than interpreting error-state economics.
+
+**Registry completeness:** GPU count per cloud instance is read from the CloudRates registry row (not a legacy shared constant), and rack-setup amortization months is an editable RateCard field — completing the principle that instance specifications and calculation assumptions live in data, not formulas.
