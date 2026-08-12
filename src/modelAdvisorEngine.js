@@ -122,16 +122,29 @@ export const METRIC_LABELS = {
 };
 
 // ---------------------------------------------------------------------------
-// Step 4 -- Per-metric quality margins. Derived from live data gaps/clusters
-// on 2026-08-12, tagged tentative beta calibration per the spec. NOT a fixed
-// percentage formula -- verified against the real distribution for each metric.
-// intelligence_index: n=10. coding_index: n=6. agentic_index: n=4 (thin, treat
-// as a placeholder -- revisit as coverage grows).
+// Step 4 -- Per-metric quality margins. Derived from live data gaps/clusters,
+// tagged tentative beta calibration per the spec -- NOT a fixed percentage
+// formula, verified against the real distribution for each metric.
+//
+// RECALIBRATED 2026-08-12 (same day as original calibration): adding Muse
+// Glimmer (Meta, released 2 days prior) as an 11th model made the original
+// margins non-functional. It scores far above every other tracked model on
+// all three metrics (35.1 vs previous top 20.4 on intelligence, 49 vs 23 on
+// coding, 22.9 vs 1.6 on agentic) -- the original margins, sized for a
+// catalog without that outlier, no longer reached ANY second-place model.
+// All three quality tiers were silently collapsing to the identical
+// single-model result regardless of which one the customer selected. This
+// is exactly the "catalog grows materially" trigger the spec's own
+// calibration-metadata section anticipated -- caught by re-running the same
+// real-data verification used for the original calibration, not assumed
+// safe just because it worked before.
+// intelligence_index: n=11. coding_index: n=7. agentic_index: n=5 (still
+// thin -- treat as a placeholder, revisit again as coverage grows).
 // ---------------------------------------------------------------------------
 export const MARGINS = {
-  intelligence_index: { "frontier-like": 1.0, strong: 7.0, economical: 13.0 },
-  coding_index: { "frontier-like": 1.0, strong: 8.0, economical: 14.0 },
-  agentic_index: { "frontier-like": 0.1, strong: 0.45, economical: 1.3 },
+  intelligence_index: { "frontier-like": 1.0, strong: 21.0, economical: 28.0 },
+  coding_index: { "frontier-like": 1.0, strong: 33.0, economical: 41.0 },
+  agentic_index: { "frontier-like": 0.1, strong: 21.5, economical: 23.0 },
 };
 
 // ---------------------------------------------------------------------------
