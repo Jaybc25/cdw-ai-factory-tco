@@ -1,0 +1,32 @@
+name: Sync NIM compatibility (NVIDIA) — MANUAL ONLY, NOT PRODUCTION-BACKED
+
+# BETA CONDITION: this workflow has NO schedule trigger, on purpose.
+# sync_nim_compatibility.py's endpoint is UNCONFIRMED — no documented
+# catalog-wide bulk API was found for NVIDIA's NIM catalog during review.
+# Do not add a schedule: block here until someone with NGC/build.nvidia.com
+# access has confirmed the real endpoint and this has run successfully
+# against live data at least once.
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install requests
+      - name: Run sync (will very likely fail until the endpoint is confirmed)
+        run: python3 sync_nim_compatibility.py
+      - name: Commit updated snapshot and discovery log
+        run: |
+          git config user.name "model-advisor-bot"
+          git config user.email "actions@github.com"
+          git add data/nim_compatibility.json data/nim_discovery_candidates.json
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "chore: sync nim_compatibility.json ($(date -u +%Y-%m-%d)) [manual]"
+          git push
