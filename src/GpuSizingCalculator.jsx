@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Cpu, Zap, TrendingDown, TrendingUp, Info, ChevronDown, X } from "lucide-react";
+import cdwLogo from "./cdw-logo.png";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -510,7 +511,7 @@ export default function GPUSizingCalculator() {
     <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       {/* Header */}
       <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
-        <div className="border border-dashed border-gray-300 rounded px-3 py-1 text-xs text-gray-400">LOGO</div>
+        <img src={cdwLogo} alt="CDW" className="h-9 w-auto flex-shrink-0" />
         <div>
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>GPU Sizing Tool</div>
