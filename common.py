@@ -28,6 +28,16 @@ STALENESS_THRESHOLDS_DAYS = {
     "nim_compatibility.json": 14,
 }
 
+# Registries that are intentionally not required in the current phase.
+# NIM is disabled for beta per the pre-build/deployment review — its
+# endpoint is unconfirmed, its workflow deliberately has no schedule (see
+# sync-nim-compatibility-MANUAL-ONLY.yml), and it has never synced BY
+# DESIGN. A missing snapshot for an optional registry is an expected fact
+# to report, not a blocking failure — treating it as blocking would make
+# reconciliation permanently red for a condition we chose on purpose.
+# Remove an entry here once that registry is actually enabled.
+OPTIONAL_REGISTRIES = {"nim_compatibility.json"}
+
 # How far record count is allowed to drop between syncs before a snapshot
 # is rejected outright. Protects against pagination bugs or an upstream API
 # quietly changing shape and returning a technically-valid but hollow response.
@@ -160,37 +170,57 @@ def safe_fetch(
 
 def check_staleness(output_dir: Path):
     """
-    Report which snapshots are past their staleness threshold. Intended to
-    run as its own CI/cron step, separate from the sync scripts themselves.
+    Report which snapshots are past their staleness threshold, split into
+    blocking (required registries) and informational (registries in
+    OPTIONAL_REGISTRIES, e.g. NIM disabled for beta) so a caller can fail
+    on the former and merely report the latter.
+
+    Returns (blocking, informational) — each a list of (filename, reason).
     """
-    stale = []
+    blocking = []
+    informational = []
     for filename, max_age_days in STALENESS_THRESHOLDS_DAYS.items():
         path = output_dir / filename
         snapshot = load_snapshot(path)
+        is_optional = filename in OPTIONAL_REGISTRIES
+
         if snapshot is None:
-            stale.append((filename, "missing entirely"))
+            reason = "missing entirely"
+            if is_optional:
+                informational.append((filename, f"{reason} (expected — registry disabled by design, see OPTIONAL_REGISTRIES)"))
+            else:
+                blocking.append((filename, reason))
             continue
+
         synced_at = datetime.fromisoformat(snapshot["synced_at"])
         age_days = (datetime.now(timezone.utc) - synced_at).days
         if age_days > max_age_days:
-            stale.append((filename, f"{age_days}d old (threshold {max_age_days}d)"))
-    return stale
+            reason = f"{age_days}d old (threshold {max_age_days}d)"
+            (informational if is_optional else blocking).append((filename, reason))
+
+    return blocking, informational
 
 
 def get_confidence_state(path: Path):
     """
     The app-facing confidence signal for a registry: 'current', 'degraded',
-    or 'missing'. This is the contract the app should read rather than
-    silently serving an arbitrarily old snapshot as if it were fresh.
+    'missing', or 'disabled'. This is the contract the app should read
+    rather than silently serving an arbitrarily old snapshot as if it were
+    fresh.
 
     'degraded' means: keep serving the last-known-good data (don't break),
     but the app should visibly flag that rankings may not be current,
     per the agreed staleness-degrades-not-fails behavior.
+
+    'disabled' means: this registry is intentionally not synced in the
+    current phase (see OPTIONAL_REGISTRIES) — the app should show
+    something like "integration pending", never imply the data was
+    checked and came back empty.
     """
     filename = path.name
     snapshot = load_snapshot(path)
     if snapshot is None:
-        return "missing"
+        return "disabled" if filename in OPTIONAL_REGISTRIES else "missing"
     max_age_days = STALENESS_THRESHOLDS_DAYS.get(filename)
     if max_age_days is None:
         return "current"  # unknown file, no threshold configured

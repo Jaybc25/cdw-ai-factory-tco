@@ -60,6 +60,10 @@ def main():
         elif state == "degraded":
             info_notes.append(f"DEGRADED (non-blocking): {filename} is past its staleness threshold; "
                                f"app should visibly flag reduced confidence, not fail")
+        elif state == "disabled":
+            info_notes.append(f"DISABLED (non-blocking, expected): {filename} is intentionally not "
+                               f"synced in the current phase — see common.OPTIONAL_REGISTRIES. App "
+                               f"should show 'integration pending', not imply the data was checked.")
 
     # --- Coverage drift (bidirectional) ---
     specs = load_snapshot(DATA_DIR / "model_specs.json")
