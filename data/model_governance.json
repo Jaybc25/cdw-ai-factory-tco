@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-12",
+  "note": "No public API tracks developer-organization country or approved-vendor-family status as structured data. This registry is manually maintained and manually reviewed, not synced. developer_country is the country of the DEVELOPING ORGANIZATION's headquarters (derived from published model cards and org HQ) \u2014 it is a company-domicile proxy, not a claim about where the actual training or development work took place. A 'developer-organization country only' governance requirement should be defined against this field explicitly, since it is not the same claim as 'this model was developed in country X'. verified_at should be updated whenever an entry is re-checked, not just when it's first added.",
+  "entries": [
+    {
+      "canonical_model_id": "llama-3.1-8b",
+      "approved_vendor_family": "meta",
+      "source": "manual review of Meta's published model card and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual",
+      "developer_country": "us"
+    },
+    {
+      "canonical_model_id": "llama-3.1-70b",
+      "approved_vendor_family": "meta",
+      "source": "manual review of Meta's published model card and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual",
+      "developer_country": "us"
+    },
+    {
+      "canonical_model_id": "llama-3.1-405b",
+      "approved_vendor_family": "meta",
+      "source": "manual review of Meta's published model card and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual",
+      "developer_country": "us"
+    },
+    {
+      "canonical_model_id": "llama-3.3-70b",
+      "approved_vendor_family": "meta",
+      "source": "manual review of Meta's published model card and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual",
+      "developer_country": "us"
+    },
+    {
+      "canonical_model_id": "llama-4-scout",
+      "approved_vendor_family": "meta",
+      "source": "manual review of Meta's published model card and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual",
+      "developer_country": "us"
+    },
+    {
+      "canonical_model_id": "llama-4-maverick",
+      "approved_vendor_family": "meta",
+      "source": "manual review of Meta's published model card and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual",
+      "developer_country": "us"
+    },
+    {
+      "canonical_model_id": "gemma-3-27b",
+      "approved_vendor_family": "google",
+      "source": "manual review of Google's published model card and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual",
+      "developer_country": "us"
+    },
+    {
+      "canonical_model_id": "mixtral-8x7b",
+      "approved_vendor_family": "mistral-ai",
+      "source": "manual review of Mistral AI's published model card and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual",
+      "developer_country": "fr"
+    },
+    {
+      "canonical_model_id": "deepseek-v3",
+      "approved_vendor_family": "deepseek",
+      "source": "manual review of DeepSeek's published model card and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual",
+      "developer_country": "cn"
+    },
+    {
+      "canonical_model_id": "deepseek-r1",
+      "approved_vendor_family": "deepseek",
+      "source": "manual review of DeepSeek's published model card and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual",
+      "developer_country": "cn"
+    }
+  ]
+}

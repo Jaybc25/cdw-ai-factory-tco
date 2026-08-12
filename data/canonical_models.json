@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-12",
+  "note": "Manually maintained. Aliases are explicit mappings, never resolved by fuzzy name matching at sync time. New models are added here deliberately, not auto-discovered. Every alias_notes field records how confident that alias actually is \u2014 'confirmed' means verified against a live page or external citation, 'follows the pattern' or 'UNCERTAIN' means it has not been confirmed against a real API response and should not be trusted blindly on first real sync.",
+  "models": [
+    {
+      "canonical_model_id": "llama-3.1-8b",
+      "display_name": "Llama 3.1 8B",
+      "model_family": "llama-3.1",
+      "model_variant": "8b",
+      "developer": "Meta",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "meta-llama/Llama-3.1-8B",
+        "artificial_analysis_slug": "llama-3-1-instruct-8b",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "artificial_analysis_slug follows the confirmed llama-3.1-70b naming pattern (llama-{ver}-instruct-{size}) but is not independently confirmed for this size \u2014 re-confirm on first real sync"
+    },
+    {
+      "canonical_model_id": "llama-3.1-70b",
+      "display_name": "Llama 3.1 70B",
+      "model_family": "llama-3.1",
+      "model_variant": "70b",
+      "developer": "Meta",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "meta-llama/Llama-3.1-70B",
+        "artificial_analysis_slug": "llama-3-1-instruct-70b",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "artificial_analysis_slug confirmed via external citation linking directly to artificialanalysis.ai/models/llama-3-1-instruct-70b"
+    },
+    {
+      "canonical_model_id": "llama-3.1-405b",
+      "display_name": "Llama 3.1 405B",
+      "model_family": "llama-3.1",
+      "model_variant": "405b",
+      "developer": "Meta",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "meta-llama/Llama-3.1-405B",
+        "artificial_analysis_slug": "llama-3-1-instruct-405b",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "artificial_analysis_slug follows the confirmed llama-3.1-70b naming pattern but is not independently confirmed for this size \u2014 re-confirm on first real sync"
+    },
+    {
+      "canonical_model_id": "llama-3.3-70b",
+      "display_name": "Llama 3.3 70B",
+      "model_family": "llama-3.3",
+      "model_variant": "70b",
+      "developer": "Meta",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "meta-llama/Llama-3.3-70B",
+        "artificial_analysis_slug": "llama-3-3-instruct-70b",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "artificial_analysis_slug follows the confirmed llama-3.1-70b naming pattern (llama-3-3-instruct-70b) but is not independently confirmed \u2014 re-confirm on first real sync"
+    },
+    {
+      "canonical_model_id": "mixtral-8x7b",
+      "display_name": "Mixtral 8x7B",
+      "model_family": "mixtral",
+      "model_variant": "8x7b",
+      "developer": "Mistral AI",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "mistralai/Mixtral-8x7B-v0.1",
+        "artificial_analysis_slug": "mixtral-8x7b-instruct",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "artificial_analysis_slug confirmed via Artificial Analysis's own model page (artificialanalysis.ai/models/mixtral-8x7b-instruct)"
+    },
+    {
+      "canonical_model_id": "llama-4-scout",
+      "display_name": "Llama 4 Scout",
+      "model_family": "llama-4",
+      "model_variant": "scout",
+      "developer": "Meta",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "meta-llama/Llama-4-Scout",
+        "artificial_analysis_slug": "llama-4-scout",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "artificial_analysis_slug confirmed via public model page (artificialanalysis.ai/models/llama-4-scout), not yet verified against a live authenticated API response \u2014 re-confirm on first real sync"
+    },
+    {
+      "canonical_model_id": "llama-4-maverick",
+      "display_name": "Llama 4 Maverick",
+      "model_family": "llama-4",
+      "model_variant": "maverick",
+      "developer": "Meta",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "meta-llama/Llama-4-Maverick",
+        "artificial_analysis_slug": "llama-4-maverick",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "artificial_analysis_slug confirmed via public model page (artificialanalysis.ai/models/llama-4-maverick), not yet verified against a live authenticated API response \u2014 re-confirm on first real sync"
+    },
+    {
+      "canonical_model_id": "deepseek-v3",
+      "display_name": "DeepSeek V3",
+      "model_family": "deepseek",
+      "model_variant": "v3",
+      "developer": "DeepSeek",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "deepseek-ai/DeepSeek-V3",
+        "artificial_analysis_slug": "deepseek-v3",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "UNCERTAIN: search evidence suggests Artificial Analysis tracks DeepSeek by dated release (e.g. deepseek-v3-1, deepseek-v3-2-exp) rather than a bare 'deepseek-v3' slug \u2014 this may resolve to a superseded/missing entry. Confirm exact current slug before first real sync, do not trust as-is"
+    },
+    {
+      "canonical_model_id": "deepseek-r1",
+      "display_name": "DeepSeek R1",
+      "model_family": "deepseek",
+      "model_variant": "r1",
+      "developer": "DeepSeek",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "deepseek-ai/DeepSeek-R1",
+        "artificial_analysis_slug": "deepseek-r1",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "UNCERTAIN: search evidence suggests Artificial Analysis tracks this by dated release (e.g. 'DeepSeek R1 0528 (May '25)') rather than a bare 'deepseek-r1' slug \u2014 this may resolve to a superseded/missing entry. Confirm exact current slug before first real sync, do not trust as-is"
+    },
+    {
+      "canonical_model_id": "gemma-3-27b",
+      "display_name": "Gemma 3 27B",
+      "model_family": "gemma-3",
+      "model_variant": "27b",
+      "developer": "Google",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "google/gemma-3-27b",
+        "artificial_analysis_slug": "gemma-3-27b",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "artificial_analysis_slug confirmed via public model page (artificialanalysis.ai/models/gemma-3-27b), not yet verified against a live authenticated API response \u2014 re-confirm on first real sync"
+    }
+  ]
+}

@@ -20,10 +20,10 @@ const TOOLS = [
     path: "/gpu-sizing",
   },
   {
-    key: "next",
-    name: "Next tool",
-    desc: "Reserved",
-    status: "empty",
+    key: "model-advisor",
+    name: "Open-Weight\nModel Advisor",
+    desc: "Recommends open-weight models by workload, then hands off to GPU sizing.",
+    status: "building",
     path: null,
   },
 ];

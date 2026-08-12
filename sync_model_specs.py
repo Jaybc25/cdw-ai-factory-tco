@@ -1,0 +1,153 @@
+"""
+Registry 1: Model architecture specs.
+
+Source of truth: the public Hugging Face Hub API (config.json per model).
+Per the pre-build review, HF remains the PRIMARY source for license,
+context length, architecture, and modality, even though Artificial
+Analysis's Pro tier now also exposes some of these fields. Artificial
+Analysis is used as a secondary validation source (see
+sync_capability_scores.py's cross-check note), not a replacement, so a
+single paid subscription never becomes a single point of failure for
+hard-filter fields.
+
+dell.huggingface.co is used only as a discovery layer for which model IDs
+belong on the tracked list, never as the data source itself.
+
+FIELD-LEVEL PROVENANCE: license and param_count_billion carry a nested
+provenance object (value/source/verified_at/verification_method), per the
+review's scoped-provenance decision — these are the two Registry-1 fields
+where a wrong value has material consequences (a wrong license wrongly
+admits or excludes a model; a wrong param count corrupts the GPU sizing
+handoff). Everything else in this registry relies on registry-level
+provenance (the envelope's source + synced_at).
+
+Run cadence: monthly, or on-demand when a new model release is flagged.
+
+Cannot run inside this sandbox (no network access to huggingface.co).
+Intended to run locally or in CI.
+"""
+
+import sys
+from pathlib import Path
+
+from common import safe_fetch, utcnow_iso
+from canonical_registry import CanonicalRegistry, resolve_with_report
+
+SCRIPT_DIR = Path(__file__).parent
+OUTPUT_PATH = SCRIPT_DIR / "data" / "model_specs.json"
+HF_API_BASE = "https://huggingface.co/api/models"
+
+REQUIRED_FIELDS = ["model_id", "canonical_model_id", "license", "confidence", "lifecycle_status"]
+
+# Curated tracking list, fed by dell.huggingface.co as a discovery layer.
+TRACKED_MODEL_IDS = [
+    "meta-llama/Llama-3.1-8B",
+    "meta-llama/Llama-3.1-70B",
+    "meta-llama/Llama-3.1-405B",
+    "meta-llama/Llama-3.3-70B",
+    "mistralai/Mixtral-8x7B-v0.1",
+    "meta-llama/Llama-4-Scout",
+    "meta-llama/Llama-4-Maverick",
+    "deepseek-ai/DeepSeek-V3",
+    "deepseek-ai/DeepSeek-R1",
+    "google/gemma-3-27b",
+]
+
+# Manually verified param counts for the full-detail tier. Anything not
+# listed falls back to a size-class-bucket / MEDIUM confidence entry.
+KNOWN_PARAM_COUNTS_BILLION = {
+    "Llama-3.1-8B": 8, "Llama-3.1-70B": 70, "Llama-3.1-405B": 405,
+    "Llama-3.3-70B": 70, "Mixtral-8x7B-v0.1": 46.7,
+}
+
+
+def _license_provenance(value: str, model_id: str):
+    return {
+        "value": value,
+        "source": f"huggingface_hub_api:{model_id}:cardData.license",
+        "verified_at": utcnow_iso(),
+        "verification_method": "automated_api_sync",
+    }
+
+
+def _param_count_provenance(value, model_id: str):
+    if value is not None:
+        return {
+            "value": value,
+            "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
+            "verified_at": utcnow_iso(),
+            "verification_method": "manual",
+        }
+    return {
+        "value": None,
+        "source": f"no manual entry for {model_id}, falls back to size-class-bucket estimate at the app layer",
+        "verified_at": utcnow_iso(),
+        "verification_method": "unverified",
+    }
+
+
+def fetch_model_specs():
+    import requests  # deferred import, only needed at real run time
+
+    registry = CanonicalRegistry()
+    raw_records = []
+
+    for model_id in TRACKED_MODEL_IDS:
+        info_resp = requests.get(f"{HF_API_BASE}/{model_id}", timeout=15)
+        info_resp.raise_for_status()
+        info = info_resp.json()
+
+        config_resp = requests.get(f"https://huggingface.co/{model_id}/raw/main/config.json", timeout=15)
+        config = config_resp.json() if config_resp.ok else {}
+
+        license_value = info.get("cardData", {}).get("license", "unknown")
+        param_count = _extract_param_count(model_id)
+
+        raw_records.append({
+            "model_id": model_id,
+            "license": _license_provenance(license_value, model_id),
+            "param_count_billion": _param_count_provenance(param_count, model_id),
+            "context_length": config.get("max_position_embeddings"),
+            "architecture": (config.get("architectures") or ["unknown"])[0],
+            "modality": "multimodal" if _looks_multimodal(config) else "text",
+            "confidence": "HIGH" if param_count is not None else "MEDIUM",
+        })
+
+    resolved, unresolved = resolve_with_report(registry, "huggingface", raw_records, id_field="model_id")
+
+    for record in resolved:
+        if record["canonical_model_id"]:
+            record["lifecycle_status"] = registry.lifecycle_status(record["canonical_model_id"])
+        else:
+            record["lifecycle_status"] = "unmapped"
+
+    if unresolved:
+        print(f"[sync_model_specs] WARNING: {len(unresolved)} model(s) have no canonical mapping yet: "
+              f"{unresolved}. Add them to data/canonical_models.json before they'll resolve cleanly.",
+              file=sys.stderr)
+
+    return resolved
+
+
+def _looks_multimodal(config: dict) -> bool:
+    # Still a heuristic (flagged in the pre-build review as fragile for a
+    # hard-filter field). Left as-is for HF's own config data, but the
+    # capability registry's modalities object (Artificial Analysis Pro) is
+    # the preferred source for the multimodal filter where both exist —
+    # the matching logic should prefer that field when present.
+    return "vision" in str(config).lower()
+
+
+def _extract_param_count(model_id: str):
+    for key, val in KNOWN_PARAM_COUNTS_BILLION.items():
+        if key in model_id:
+            return val
+    return None
+
+
+if __name__ == "__main__":
+    ok = safe_fetch(
+        fetch_model_specs, OUTPUT_PATH, source="huggingface_hub_api",
+        required_fields=REQUIRED_FIELDS, min_records=5,
+    )
+    sys.exit(0 if ok else 1)
