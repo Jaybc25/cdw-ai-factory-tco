@@ -82,6 +82,14 @@
       "verified_at": "2026-08-12",
       "verification_method": "manual",
       "developer_country": "cn"
+    },
+    {
+      "canonical_model_id": "muse-glimmer-30b",
+      "developer_country": "us",
+      "approved_vendor_family": "meta",
+      "source": "manual review of Meta Superintelligence Labs published launch materials and org HQ",
+      "verified_at": "2026-08-12",
+      "verification_method": "manual"
     }
   ]
 }

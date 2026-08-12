@@ -152,6 +152,21 @@
         "nvidia_nim": null
       },
       "alias_notes": "artificial_analysis_slug confirmed via public model page (artificialanalysis.ai/models/gemma-3-27b), not yet verified against a live authenticated API response \u2014 re-confirm on first real sync"
+    },
+    {
+      "canonical_model_id": "muse-glimmer-30b",
+      "display_name": "Muse Glimmer 30B",
+      "model_family": "muse-glimmer",
+      "model_variant": "30b",
+      "developer": "Meta",
+      "lifecycle_status": "active",
+      "aliases": {
+        "huggingface": "meta-models/Muse-Glimmer-30B",
+        "artificial_analysis_slug": "muse-glimmer",
+        "artificial_analysis_id": null,
+        "nvidia_nim": null
+      },
+      "alias_notes": "Added 2026-08-12, two days after release (Aug 10, 2026). HF repo confirmed via huggingface.co/meta-models/Muse-Glimmer-30B and Meta/HF joint launch blog. AA slug confirmed via artificialanalysis.ai/models/muse-glimmer (Intelligence Index 35, dense 30B, Apache 2.0). Note: some AA coverage references a \"(high)\" reasoning-effort variant naming pattern seen on other models -- if the live sync does not resolve this slug, check for a variant suffix before assuming the model is untracked."
     }
   ]
 }
