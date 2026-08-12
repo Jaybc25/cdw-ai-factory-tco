@@ -84,10 +84,10 @@ KNOWN_PARAM_COUNTS_BILLION = {
     "DeepSeek-V3": 671, "DeepSeek-R1": 671, "gemma-3-27b-it": 27,
     # Added 2026-08-12 -- Muse Glimmer, released 2026-08-10 by Meta
     # Superintelligence Labs, first Meta open-weight release since Llama 4.
-    # 30B dense (not MoE), confirmed via multiple independent sources
+    # ~29.6B dense (not MoE) per Meta's own model card (rounds to 30B in most
     # (Meta/HF launch blog, MarkTechPost, Phoronix) plus Artificial
     # Analysis's own model page.
-    "Muse-Glimmer-30B": 30,
+    "Muse-Glimmer-30B": 29.6,
 }
 
 
