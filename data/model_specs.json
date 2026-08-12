@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "source": "huggingface_hub_api",
-  "synced_at": "2026-08-12T18:46:38.031062+00:00",
+  "synced_at": "2026-08-12T20:05:38.300450+00:00",
   "record_count": 10,
   "data": {
     "models": [
@@ -10,13 +10,13 @@
         "license": {
           "value": "llama3.1",
           "source": "huggingface_hub_api:meta-llama/Llama-3.1-8B:cardData.license",
-          "verified_at": "2026-08-12T18:46:35.837137+00:00",
+          "verified_at": "2026-08-12T20:05:36.439722+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 8,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T18:46:35.837155+00:00",
+          "verified_at": "2026-08-12T20:05:36.439736+00:00",
           "verification_method": "manual"
         },
         "context_length": 131072,
@@ -32,13 +32,13 @@
         "license": {
           "value": "llama3.1",
           "source": "huggingface_hub_api:meta-llama/Llama-3.1-70B:cardData.license",
-          "verified_at": "2026-08-12T18:46:36.129361+00:00",
+          "verified_at": "2026-08-12T20:05:36.641258+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 70,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T18:46:36.129375+00:00",
+          "verified_at": "2026-08-12T20:05:36.641268+00:00",
           "verification_method": "manual"
         },
         "context_length": 131072,
@@ -54,13 +54,13 @@
         "license": {
           "value": "llama3.1",
           "source": "huggingface_hub_api:meta-llama/Llama-3.1-405B:cardData.license",
-          "verified_at": "2026-08-12T18:46:36.443775+00:00",
+          "verified_at": "2026-08-12T20:05:36.874112+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 405,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T18:46:36.443786+00:00",
+          "verified_at": "2026-08-12T20:05:36.874122+00:00",
           "verification_method": "manual"
         },
         "context_length": 131072,
@@ -76,13 +76,13 @@
         "license": {
           "value": "llama3.3",
           "source": "huggingface_hub_api:meta-llama/Llama-3.3-70B-Instruct:cardData.license",
-          "verified_at": "2026-08-12T18:46:36.653840+00:00",
+          "verified_at": "2026-08-12T20:05:37.066408+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 70,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T18:46:36.653852+00:00",
+          "verified_at": "2026-08-12T20:05:37.066418+00:00",
           "verification_method": "manual"
         },
         "context_length": 131072,
@@ -98,13 +98,13 @@
         "license": {
           "value": "apache-2.0",
           "source": "huggingface_hub_api:mistralai/Mixtral-8x7B-v0.1:cardData.license",
-          "verified_at": "2026-08-12T18:46:36.882747+00:00",
+          "verified_at": "2026-08-12T20:05:37.281114+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 46.7,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T18:46:36.882757+00:00",
+          "verified_at": "2026-08-12T20:05:37.281122+00:00",
           "verification_method": "manual"
         },
         "context_length": 32768,
@@ -120,19 +120,19 @@
         "license": {
           "value": "other",
           "source": "huggingface_hub_api:meta-llama/Llama-4-Scout-17B-16E-Instruct:cardData.license",
-          "verified_at": "2026-08-12T18:46:37.098279+00:00",
+          "verified_at": "2026-08-12T20:05:37.487614+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
-          "value": null,
-          "source": "no manual entry for meta-llama/Llama-4-Scout-17B-16E-Instruct, falls back to size-class-bucket estimate at the app layer",
-          "verified_at": "2026-08-12T18:46:37.098294+00:00",
-          "verification_method": "unverified"
+          "value": 109,
+          "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
+          "verified_at": "2026-08-12T20:05:37.487623+00:00",
+          "verification_method": "manual"
         },
         "context_length": null,
         "architecture": "Llama4ForConditionalGeneration",
         "modality": "multimodal",
-        "confidence": "MEDIUM",
+        "confidence": "HIGH",
         "canonical_model_id": "llama-4-scout",
         "needs_alias_mapping": false,
         "lifecycle_status": "active"
@@ -142,19 +142,19 @@
         "license": {
           "value": "other",
           "source": "huggingface_hub_api:meta-llama/Llama-4-Maverick-17B-128E-Instruct:cardData.license",
-          "verified_at": "2026-08-12T18:46:37.370519+00:00",
+          "verified_at": "2026-08-12T20:05:37.689073+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
-          "value": null,
-          "source": "no manual entry for meta-llama/Llama-4-Maverick-17B-128E-Instruct, falls back to size-class-bucket estimate at the app layer",
-          "verified_at": "2026-08-12T18:46:37.370535+00:00",
-          "verification_method": "unverified"
+          "value": 402,
+          "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
+          "verified_at": "2026-08-12T20:05:37.689081+00:00",
+          "verification_method": "manual"
         },
         "context_length": null,
         "architecture": "Llama4ForConditionalGeneration",
         "modality": "multimodal",
-        "confidence": "MEDIUM",
+        "confidence": "HIGH",
         "canonical_model_id": "llama-4-maverick",
         "needs_alias_mapping": false,
         "lifecycle_status": "active"
@@ -164,19 +164,19 @@
         "license": {
           "value": "unknown",
           "source": "huggingface_hub_api:deepseek-ai/DeepSeek-V3:cardData.license",
-          "verified_at": "2026-08-12T18:46:37.595156+00:00",
+          "verified_at": "2026-08-12T20:05:37.910310+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
-          "value": null,
-          "source": "no manual entry for deepseek-ai/DeepSeek-V3, falls back to size-class-bucket estimate at the app layer",
-          "verified_at": "2026-08-12T18:46:37.595171+00:00",
-          "verification_method": "unverified"
+          "value": 671,
+          "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
+          "verified_at": "2026-08-12T20:05:37.910318+00:00",
+          "verification_method": "manual"
         },
         "context_length": 163840,
         "architecture": "DeepseekV3ForCausalLM",
         "modality": "text",
-        "confidence": "MEDIUM",
+        "confidence": "HIGH",
         "canonical_model_id": "deepseek-v3",
         "needs_alias_mapping": false,
         "lifecycle_status": "active"
@@ -186,19 +186,19 @@
         "license": {
           "value": "mit",
           "source": "huggingface_hub_api:deepseek-ai/DeepSeek-R1:cardData.license",
-          "verified_at": "2026-08-12T18:46:37.803752+00:00",
+          "verified_at": "2026-08-12T20:05:38.102875+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
-          "value": null,
-          "source": "no manual entry for deepseek-ai/DeepSeek-R1, falls back to size-class-bucket estimate at the app layer",
-          "verified_at": "2026-08-12T18:46:37.803764+00:00",
-          "verification_method": "unverified"
+          "value": 671,
+          "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
+          "verified_at": "2026-08-12T20:05:38.102883+00:00",
+          "verification_method": "manual"
         },
         "context_length": 163840,
         "architecture": "DeepseekV3ForCausalLM",
         "modality": "text",
-        "confidence": "MEDIUM",
+        "confidence": "HIGH",
         "canonical_model_id": "deepseek-r1",
         "needs_alias_mapping": false,
         "lifecycle_status": "active"
@@ -208,19 +208,19 @@
         "license": {
           "value": "gemma",
           "source": "huggingface_hub_api:google/gemma-3-27b-it:cardData.license",
-          "verified_at": "2026-08-12T18:46:38.029682+00:00",
+          "verified_at": "2026-08-12T20:05:38.299796+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
-          "value": null,
-          "source": "no manual entry for google/gemma-3-27b-it, falls back to size-class-bucket estimate at the app layer",
-          "verified_at": "2026-08-12T18:46:38.029697+00:00",
-          "verification_method": "unverified"
+          "value": 27,
+          "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
+          "verified_at": "2026-08-12T20:05:38.299805+00:00",
+          "verification_method": "manual"
         },
         "context_length": null,
         "architecture": "Gemma3ForConditionalGeneration",
         "modality": "multimodal",
-        "confidence": "MEDIUM",
+        "confidence": "HIGH",
         "canonical_model_id": "gemma-3-27b",
         "needs_alias_mapping": false,
         "lifecycle_status": "active"
