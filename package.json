@@ -1,7 +1,7 @@
 {
-  "name": "cdw-ai-factory-tco",
+  "name": "cdw-ai-factory-tools",
   "private": true,
-  "version": "2.7.0",
+  "version": "2.8.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
