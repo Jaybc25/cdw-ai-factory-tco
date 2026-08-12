@@ -1,7 +1,8 @@
 import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import LandingPage from "./LandingPage.jsx";
-import TcoCalculator from "./TcoCalculator.jsx"; // <-- this is your existing calculator, renamed (see README-NEXT-STEPS.md)
+import TcoCalculator from "./TcoCalculator.jsx";
+import GpuSizingCalculator from "./GpuSizingCalculator.jsx";
 
 export default function App() {
   return (
@@ -9,8 +10,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/tco" element={<TcoCalculator />} />
-        {/* Add a new <Route> here for each future tool, e.g.: */}
-        {/* <Route path="/gpu-sizing" element={<GpuSizingTool />} /> */}
+        <Route path="/gpu-sizing" element={<GpuSizingCalculator />} />
       </Routes>
     </BrowserRouter>
   );

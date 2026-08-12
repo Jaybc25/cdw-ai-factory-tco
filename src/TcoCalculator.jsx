@@ -107,7 +107,7 @@ function TipDot({ open, onClick }) {
     <button onClick={onClick} aria-label="What is this?"
       style={{ width: 16, height: 16, borderRadius: 8, border: "1.5px solid #CC0000", background: open ? "#CC0000" : "transparent",
         color: open ? "#fff" : "#CC0000", fontSize: 10, fontWeight: 700, lineHeight: "13px", padding: 0, marginLeft: 6,
-        cursor: "pointer", flexShrink: 0, fontFamily: "'IBM Plex Mono', ui-monospace, monospace" }}>?</button>
+        cursor: "pointer", flexShrink: 0, fontFamily: "'Inter', system-ui, sans-serif" }}>?</button>
   );
 }
 function TipBox({ text }) {
@@ -282,17 +282,17 @@ const fmt = (v) => `$${Math.round(v).toLocaleString()}`;
 
 const C = {
   // CDW palette: red #CC0000 (digital core red), white, charcoal
-  bg: "#F5F5F5", ink: "#2D2D2D", sub: "#6B6B6B", line: "#DCDCDC",
+  bg: "#FFFFFF", ink: "#2D2D2D", sub: "#6B6B6B", line: "#E5E7EB",
   panel: "#FFFFFF", green: "#CC0000", greenSoft: "#FBEAEA",
   slate: "#7A7A7A", amber: "#5A5A5A", amberSoft: "#EFEFEF",
 };
-const mono = { fontFamily: "'IBM Plex Mono', ui-monospace, Menlo, monospace" };
-const disp = { fontFamily: "'Space Grotesk', 'Avenir Next', system-ui, sans-serif" };
+const mono = { fontFamily: "'Inter', system-ui, sans-serif", fontVariantNumeric: "tabular-nums", letterSpacing: 0.2 };
+const disp = { fontFamily: "'Inter', system-ui, sans-serif" };
 
 function Section({ title, children, defaultOpen = true, badge, badgeColor }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 10, marginBottom: 12 }}>
+    <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, marginBottom: 12 }}>
       <button onClick={() => setOpen(!open)}
         style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
           padding: "12px 14px", background: "none", border: "none", cursor: "pointer" }}>
@@ -347,10 +347,11 @@ function Seg({ options, value, onChange }) {
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0" }}>
       {options.map((o) => (
         <button key={o} onClick={() => onChange(o)}
-          style={{ ...mono, fontSize: 12, padding: "7px 11px", borderRadius: 7, cursor: "pointer",
-            border: `1px solid ${value === o ? C.green : C.line}`,
-            background: value === o ? C.greenSoft : C.panel,
-            color: value === o ? C.green : C.sub, fontWeight: value === o ? 700 : 400 }}>
+          style={{ ...disp, fontSize: 13, padding: "9px 14px", borderRadius: 10, cursor: "pointer",
+            border: "none",
+            background: value === o ? C.green : "#F3F4F6",
+            color: value === o ? "#FFFFFF" : C.ink, fontWeight: 600,
+            transition: "background .15s" }}>
           {o}
         </button>
       ))}
@@ -395,8 +396,8 @@ function RateField({ k, label, eff, defaults, ov, setOv, fmt: f, step }) {
           const v = parseFloat(e.target.value);
           if (!Number.isNaN(v) && v >= 0) setOv({ ...ov, [k]: v });
         }}
-        style={{ ...mono, fontSize: 12, width: 96, padding: "5px 7px", borderRadius: 6, textAlign: "right",
-          border: `1px solid ${edited ? "#CC0000" : C.line}`, background: edited ? "#FBEAEA" : "#FAFAFA", color: C.ink }}
+        style={{ ...mono, fontSize: 12, width: 96, padding: "6px 8px", borderRadius: 8, textAlign: "right",
+          border: `1px solid ${edited ? "#CC0000" : "#D1D5DB"}`, background: edited ? "#FBEAEA" : "#FFFFFF", color: C.ink }}
         aria-label={label} />
     </div>
   );
@@ -488,20 +489,23 @@ export default function App() {
   const isSelf = facility !== "Equinix";
 
   return (
-    <div style={{ background: C.bg, minHeight: "100vh", color: C.ink }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+    <div style={{ background: C.bg, minHeight: "100vh", color: C.ink, fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         input[type=range]{height:22px} button:focus-visible{outline:2px solid ${C.green};outline-offset:2px}
         input[type=number]::-webkit-inner-spin-button{opacity:1}
         @media print { .no-print{display:none!important} body{background:#fff} }`}</style>
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "18px 14px 60px" }}>
 
-        <div style={{ marginBottom: 14 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
-            <img src={CDW_LOGO} alt="CDW" style={{ height: 30, width: "auto" }} />
-            <div style={{ ...mono, fontSize: 10, color: C.sub, letterSpacing: 1.5 }}>AI FACTORY · PROTOTYPE v2.7</div>
+        <div style={{ borderBottom: `1px solid ${C.line}`, paddingBottom: 14, marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <img src={CDW_LOGO} alt="CDW" style={{ height: 36, width: "auto", flexShrink: 0 }} />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: C.green, textTransform: "uppercase" }}>AI Factory Tools</div>
+              <h1 style={{ ...disp, fontSize: 20, fontWeight: 700, margin: 0, color: C.ink }}>Cloud vs On-Prem TCO Calculator</h1>
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 6, background: C.green, color: "#fff", whiteSpace: "nowrap" }}>PROTOTYPE v2.8</span>
           </div>
-          <h1 style={{ ...disp, fontSize: 24, fontWeight: 700, margin: "4px 0 2px" }}>Cloud → On-Prem AI TCO</h1>
-          <div style={{ fontSize: 13, color: C.sub }}>What your current AIaaS spend buys you if you owned it instead.</div>
+          <div style={{ fontSize: 13, color: C.sub, marginTop: 8 }}>What your current AIaaS spend buys you if you owned it instead.</div>
         </div>
 
 
@@ -516,7 +520,7 @@ export default function App() {
                 value={lead[f]} type={f === "email" ? "email" : "text"}
                 onChange={(e) => setLead({ ...lead, [f]: e.target.value })}
                 style={{ width: "100%", boxSizing: "border-box", fontSize: 14, padding: "11px 12px", marginBottom: 8,
-                  borderRadius: 8, border: `1px solid ${C.line}`, background: "#FAFBF9", color: C.ink }} />
+                  borderRadius: 8, border: "1px solid #D1D5DB", background: "#FFFFFF", color: C.ink }} />
             ))}
             {leadStatus && <div style={{ fontSize: 12, color: C.amber, marginBottom: 6 }}>{leadStatus}</div>}
             <div style={{ fontSize: 10, color: C.sub, marginBottom: 10 }}>
@@ -607,7 +611,7 @@ export default function App() {
                   ["Cluster fixed / Equinix bundle", `${fmt(rc.cluster)} / ${fmt(rc.equinixMo)}/sys/mo`],
                   ["On-prem storage fast / bulk $/PB", `${fmt(rc.fastPB)} / ${fmt(rc.bulkPB)}`],
                   ["Admin ratio / FTE / ops growth", `${rc.adminRatio}/FTE · ${fmt(rc.opFTE)} · ${Math.round(rc.opsGrowth * 100)}%/yr`],
-                  ["Engine version", "v2.7 (engine unchanged from v2.3; reference workbook audit-complete after 9 external rounds — see docs/ for the audited xlsx and spec)"],
+                  ["Engine version", "v2.8 (UI restyle only — engine unchanged from v2.3; reference workbook audit-complete after 9 external rounds — see docs/ for the audited xlsx and spec)"],
                 ].map(([k, v]) => (
                   <div key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>
                     <span style={{ color: C.sub }}>{k}</span><span style={{ ...mono }}>{v}</span>
@@ -641,7 +645,7 @@ export default function App() {
 
         {view === "calc" && (<div>
         {/* RESULTS */}
-        <div style={{ background: "#262626", borderRadius: 12, padding: "16px 16px 12px", marginBottom: 14, color: "#FFFFFF" }}>
+        <div style={{ background: C.ink, borderRadius: 14, padding: "16px 16px 12px", marginBottom: 14, color: "#FFFFFF" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: "#ABABAB" }}>
               {horizon}-YEAR SAVINGS · {tier}{editedCount > 0 ? ` · ${editedCount} RATE${editedCount > 1 ? "S" : ""} EDITED` : ""}
@@ -649,9 +653,9 @@ export default function App() {
             <div style={{ display: "flex", gap: 4 }}>
               {[1, 3, 5].map((h) => (
                 <button key={h} onClick={() => setHorizon(h)}
-                  style={{ ...mono, fontSize: 11, padding: "3px 8px", borderRadius: 5, cursor: "pointer",
-                    border: "1px solid #3A4A46", background: horizon === h ? "#3A3A3A" : "transparent",
-                    color: horizon === h ? "#FF8080" : "#ABABAB" }}>{h}yr</button>
+                  style={{ ...disp, fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
+                    border: horizon === h ? "none" : "1px solid #4A4A4A", background: horizon === h ? C.green : "transparent",
+                    color: horizon === h ? "#FFFFFF" : "#ABABAB" }}>{h}yr</button>
               ))}
             </div>
           </div>

@@ -16,8 +16,8 @@ const TOOLS = [
     key: "gpu-sizing",
     name: "GPU Sizing Tool",
     desc: "Right-size GPU class, count, and cluster shape for a target workload.",
-    status: "building",
-    path: null,
+    status: "live",
+    path: "/gpu-sizing",
   },
   {
     key: "next",
