@@ -1,0 +1,355 @@
+import React, { useState, useMemo } from "react";
+import { ChevronDown, X, ArrowRight } from "lucide-react";
+import cdwLogo from "./cdw-logo.png";
+import {
+  getCatalog, CATALOG_META, buildRecommendations, explainCard, explainVerificationCandidate,
+} from "./modelAdvisorEngine.js";
+
+const RED = "#CC0000";
+const CHARCOAL = "#2D2D2D";
+
+// ---------------------------------------------------------------------------
+// Tooltip copy -- same rubric as the TCO/GPU sizing tools: <=2 sentences
+// core, what-it-is -> why/if-unsure, always resolves to an action.
+// ---------------------------------------------------------------------------
+const TIPS = {
+  workload: "Which tasks you'll actually use this model for. Check every workload that matters, then tell us which one to prioritize below -- ranking is based on that one, since a model great at coding isn't necessarily great at everything else.",
+  primaryWorkload: "Of the workloads you checked, which matters most for this decision? We rank models using the benchmark that best matches this specific workload where one exists.",
+  qualityPriority: "How much you're willing to trade raw capability for a smaller, cheaper-to-run model. Frontier-like stays close to the top score; Economical allows a much wider range of models to qualify as \"efficient enough.\"",
+  contextWindow: "The largest amount of text (prompt + conversation history) the model needs to handle at once. If you're not sure, 32K covers most chat and document use cases comfortably.",
+  multimodal: "Whether you need the model to understand images, not just text. Leave as Text only unless your use case specifically involves image input.",
+  reasoningIntensity: "How much complex, multi-step reasoning your workload needs. This helps us understand your use case for future planning -- it doesn't currently affect which models are recommended, since no dedicated reasoning benchmark exists yet in our data.",
+  fineTuning: "Whether you plan to fine-tune the model on your own data. This helps inform future deployment planning -- it doesn't currently affect which models are recommended, since we don't yet track fine-tuning support per model.",
+  license: "Whether you need clear commercial-use rights, or research-only is fine. If a model's license can't be confidently classified, it's flagged for manual review rather than guessed at.",
+  governance: "Whether the model's developer needs to be headquartered in a specific country. This reflects the developing organization's HQ, not necessarily where training took place.",
+  dataSensitivity: "How sensitive the data this model will touch is. Regulated or air-gapped answers will prompt you to also set a governance requirement above, since those often go together but aren't automatically the same thing.",
+  optimizationPriority: "What matters most when we pick your single best-fit recommendation: raw capability, model size efficiency, or a balance of both.",
+};
+
+function TipDot({ tipKey }) {
+  const [open, setOpen] = useState(false);
+  const boxRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    function handleOutside(e) {
+      if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false);
+    }
+    function handleKey(e) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("pointerdown", handleOutside, true);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutside, true);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  if (!TIPS[tipKey]) return null;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="More info"
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full border text-[10px] font-bold leading-none ml-1.5 align-middle"
+        style={{ borderColor: RED, color: RED }}
+      >
+        ?
+      </button>
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(45,45,45,0.35)" }}>
+          <div ref={boxRef} className="w-full max-w-sm text-sm bg-white rounded-xl shadow-xl p-5" style={{ border: `1.5px solid ${RED}`, color: CHARCOAL }}>
+            <div className="flex justify-between items-center gap-3 mb-3">
+              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: RED }}>About this field</span>
+              <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 -mr-1">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div>{TIPS[tipKey]}</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function Field({ label, hint, tipKey, children }) {
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-semibold mb-1" style={{ color: CHARCOAL }}>
+        {label}
+        {tipKey && <TipDot tipKey={tipKey} />}
+      </label>
+      {children}
+      {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+function Select({ value, onChange, options }) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full appearance-none border border-gray-300 rounded-lg px-3 py-2 pr-9 text-sm bg-white focus:outline-none focus:ring-2"
+        style={{ "--tw-ring-color": RED }}
+      >
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>{o.label}</option>
+        ))}
+      </select>
+      <ChevronDown className="w-4 h-4 absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
+    </div>
+  );
+}
+
+const WORKLOAD_OPTIONS = [
+  { value: "chat", label: "General chat / assistant" },
+  { value: "rag", label: "RAG / knowledge retrieval" },
+  { value: "coding", label: "Coding" },
+  { value: "summarization", label: "Summarization" },
+  { value: "agentic", label: "Agentic / tool use" },
+  { value: "reasoning", label: "Reasoning" },
+  { value: "classification", label: "Classification" },
+];
+
+const QUALITY_OPTIONS = [
+  { value: "frontier-like", label: "Frontier-like (max capability)" },
+  { value: "strong", label: "Strong (moderate tradeoff)" },
+  { value: "economical", label: "Economical (widest tradeoff)" },
+];
+
+const CONTEXT_OPTIONS = [
+  { value: "none", label: "No specific requirement" },
+  { value: "8k", label: "8K tokens" },
+  { value: "32k", label: "32K tokens" },
+  { value: "128k+", label: "128K+ tokens" },
+];
+
+const MULTIMODAL_OPTIONS = [
+  { value: "none", label: "No preference" },
+  { value: "text-only", label: "Text only" },
+  { value: "image-text", label: "Image + text" },
+];
+
+const REASONING_OPTIONS = [
+  { value: "normal", label: "Normal" },
+  { value: "complex", label: "Complex reasoning" },
+  { value: "coding-reasoning", label: "Coding-and-reasoning intensive" },
+];
+
+const FINETUNE_OPTIONS = [
+  { value: "none", label: "No fine-tuning planned" },
+  { value: "lora-peft", label: "LoRA / PEFT" },
+  { value: "full", label: "Full fine-tune" },
+];
+
+const LICENSE_OPTIONS = [
+  { value: "need-to-check", label: "Not sure yet / need to check" },
+  { value: "permissive-commercial", label: "Permissive commercial use required" },
+  { value: "research-only-ok", label: "Research-only is fine" },
+];
+
+const GOVERNANCE_OPTIONS = [
+  { value: "none", label: "No restriction" },
+  { value: "us-only", label: "U.S.-developed only" },
+  { value: "approved-vendor-families", label: "Approved vendor families only" },
+];
+
+const SENSITIVITY_OPTIONS = [
+  { value: "general", label: "General" },
+  { value: "confidential", label: "Confidential" },
+  { value: "regulated", label: "Regulated" },
+  { value: "air-gapped", label: "Air-gapped" },
+];
+
+const OPTIMIZATION_OPTIONS = [
+  { value: "best-capability", label: "Best capability" },
+  { value: "balanced", label: "Balanced" },
+  { value: "infrastructure-efficiency", label: "Infrastructure efficiency" },
+];
+
+const CONFIDENCE_BADGE = {
+  HIGH: { label: "Verified spec", color: "#1a7a3c" },
+  MEDIUM: { label: "Size-class estimate", color: "#a66a00" },
+};
+
+function RecommendationCard({ card, ranking, inputs }) {
+  const model = card.model;
+  const conf = CONFIDENCE_BADGE[model.confidence] || CONFIDENCE_BADGE.MEDIUM;
+  return (
+    <div className="rounded-2xl border-2 p-5 flex flex-col gap-3" style={{ borderColor: RED, background: "white" }}>
+      <div className="flex flex-wrap gap-1.5">
+        {card.badges.map((b) => (
+          <span key={b} className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded" style={{ background: RED, color: "white" }}>{b}</span>
+        ))}
+      </div>
+      <div className="text-lg font-bold" style={{ color: CHARCOAL }}>{model.canonical_model_id}</div>
+      <div className="text-sm text-gray-600">{explainCard(card, ranking, inputs)}</div>
+      <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-1">
+        <span>{model.param_count_billion != null ? `${model.param_count_billion}B params` : "Param count unverified"}</span>
+        <span style={{ color: conf.color }} className="font-semibold">{conf.label}</span>
+        <span>{model.license || "License unverified"}</span>
+      </div>
+      <a
+        href="/gpu-sizing"
+        className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold justify-center py-2 rounded-lg"
+        style={{ background: CHARCOAL, color: "white" }}
+      >
+        Size infrastructure for this model <ArrowRight className="w-3.5 h-3.5" />
+      </a>
+    </div>
+  );
+}
+
+export default function ModelAdvisor() {
+  const catalog = useMemo(() => getCatalog(), []);
+
+  const [checkedWorkloads, setCheckedWorkloads] = useState(["chat"]);
+  const [primaryWorkload, setPrimaryWorkload] = useState("chat");
+  const [qualityPriority, setQualityPriority] = useState("strong");
+  const [contextWindow, setContextWindow] = useState("none");
+  const [multimodal, setMultimodal] = useState("none");
+  const [reasoningIntensity, setReasoningIntensity] = useState("normal");
+  const [fineTuning, setFineTuning] = useState("none");
+  const [license, setLicense] = useState("need-to-check");
+  const [governance, setGovernance] = useState("none");
+  const [dataSensitivity, setDataSensitivity] = useState("general");
+  const [optimizationPriority, setOptimizationPriority] = useState("balanced");
+
+  function toggleWorkload(w) {
+    setCheckedWorkloads((prev) => {
+      const next = prev.includes(w) ? prev.filter((x) => x !== w) : [...prev, w];
+      if (next.length === 0) return prev; // must keep at least one
+      if (!next.includes(primaryWorkload)) setPrimaryWorkload(next[0]);
+      return next;
+    });
+  }
+
+  const inputs = {
+    primaryWorkload, qualityPriority, contextWindow, multimodal,
+    license, governance, optimizationPriority,
+  };
+
+  const result = useMemo(
+    () => buildRecommendations(catalog, inputs),
+    [catalog, primaryWorkload, qualityPriority, contextWindow, multimodal, license, governance, optimizationPriority]
+  );
+
+  const showGovernanceNudge = (dataSensitivity === "regulated" || dataSensitivity === "air-gapped") && governance === "none";
+
+  return (
+    <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
+        <img src={cdwLogo} alt="CDW" className="h-9 w-auto flex-shrink-0" />
+        <div>
+          <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
+          <div className="text-lg font-bold" style={{ color: CHARCOAL }}>Open-Weight Model Advisor</div>
+        </div>
+        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.0</span>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-6 py-6">
+        <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#FFF8E6", border: "1px solid #F0C040", color: "#7A5A00" }}>
+          <strong>Beta</strong> -- model recommendations use periodically refreshed third-party benchmark and model metadata (specs synced {new Date(CATALOG_META.specsSyncedAt).toLocaleDateString()}, capability scores synced {new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()}). Verify licensing and deployment requirements before production use.
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Inputs */}
+          <div>
+            <Field label="Workloads you care about" tipKey="workload">
+              <div className="grid grid-cols-2 gap-2">
+                {WORKLOAD_OPTIONS.map((w) => (
+                  <label key={w.value} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={checkedWorkloads.includes(w.value)} onChange={() => toggleWorkload(w.value)} />
+                    {w.label}
+                  </label>
+                ))}
+              </div>
+            </Field>
+
+            <Field label="Primary workload (used for ranking)" tipKey="primaryWorkload">
+              <Select value={primaryWorkload} onChange={setPrimaryWorkload} options={WORKLOAD_OPTIONS.filter((w) => checkedWorkloads.includes(w.value))} />
+            </Field>
+
+            <Field label="Quality priority" tipKey="qualityPriority">
+              <Select value={qualityPriority} onChange={setQualityPriority} options={QUALITY_OPTIONS} />
+            </Field>
+
+            <Field label="Context window need" tipKey="contextWindow">
+              <Select value={contextWindow} onChange={setContextWindow} options={CONTEXT_OPTIONS} />
+            </Field>
+
+            <Field label="Multimodal need" tipKey="multimodal">
+              <Select value={multimodal} onChange={setMultimodal} options={MULTIMODAL_OPTIONS} />
+            </Field>
+
+            <Field label="Reasoning intensity" tipKey="reasoningIntensity" hint="Informational only in V1 -- does not affect ranking.">
+              <Select value={reasoningIntensity} onChange={setReasoningIntensity} options={REASONING_OPTIONS} />
+            </Field>
+
+            <Field label="Fine-tuning intent" tipKey="fineTuning" hint="Informational only in V1 -- does not affect ranking.">
+              <Select value={fineTuning} onChange={setFineTuning} options={FINETUNE_OPTIONS} />
+            </Field>
+
+            <Field label="License requirement" tipKey="license">
+              <Select value={license} onChange={setLicense} options={LICENSE_OPTIONS} />
+            </Field>
+
+            <Field label="Governance / origin restriction" tipKey="governance">
+              <Select value={governance} onChange={setGovernance} options={GOVERNANCE_OPTIONS} />
+            </Field>
+
+            <Field label="Data sensitivity" tipKey="dataSensitivity">
+              <Select value={dataSensitivity} onChange={setDataSensitivity} options={SENSITIVITY_OPTIONS} />
+            </Field>
+            {showGovernanceNudge && (
+              <div className="text-xs rounded-lg px-3 py-2 mb-4 -mt-2" style={{ background: "#FEECEC", color: "#8A1F1F" }}>
+                {dataSensitivity === "regulated" ? "Regulated" : "Air-gapped"} data often comes with a governance requirement -- consider setting one above if applicable to your deployment.
+              </div>
+            )}
+
+            <Field label="Optimization priority" tipKey="optimizationPriority">
+              <Select value={optimizationPriority} onChange={setOptimizationPriority} options={OPTIMIZATION_OPTIONS} />
+            </Field>
+          </div>
+
+          {/* Results */}
+          <div>
+            <div className="text-sm text-gray-500 mb-3">
+              {result.eligibleCount} of {result.totalCount} tracked models meet your stated requirements
+              {result.verificationCount > 0 && `, ${result.verificationCount} need verification`}.
+            </div>
+
+            {result.cards.length === 0 ? (
+              <div className="rounded-2xl border-2 border-dashed border-gray-300 p-6 text-center text-sm text-gray-500">
+                No models meet your stated requirements. Try relaxing the license, governance, or context window filters.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {result.cards.map((c) => (
+                  <RecommendationCard key={c.model.canonical_model_id} card={c} ranking={result.ranking} inputs={inputs} />
+                ))}
+              </div>
+            )}
+
+            {result.verificationCandidates.length > 0 && (
+              <div className="mt-6">
+                <div className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#8A5A00" }}>Potential match requiring verification</div>
+                {result.verificationCandidates.map((m) => (
+                  <div key={m.canonical_model_id} className="rounded-xl border border-amber-300 bg-amber-50 p-4 mb-2 text-sm">
+                    <div className="font-bold mb-1" style={{ color: CHARCOAL }}>{m.canonical_model_id}</div>
+                    <div className="text-gray-600">{explainVerificationCandidate(m)}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

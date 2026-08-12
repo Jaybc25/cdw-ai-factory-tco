@@ -23,8 +23,8 @@ const TOOLS = [
     key: "model-advisor",
     name: "Open-Weight\nModel Advisor",
     desc: "Recommends open-weight models by workload, then hands off to GPU sizing.",
-    status: "building",
-    path: null,
+    status: "live",
+    path: "/model-advisor",
   },
 ];
 
