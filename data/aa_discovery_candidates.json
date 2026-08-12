@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-12T18:48:28.522548+00:00",
+  "generated_at": "2026-08-12T20:46:30.614352+00:00",
   "note": "Models Artificial Analysis reports that aren't in canonical_models.json yet. Informational only \u2014 review and add deliberately, never auto-imported into the production registry. (Includes proprietary models too, since the free tier has no openness flag to pre-filter on \u2014 canonical registry membership is what actually restricts production data to open-weight models.)",
   "unresolved_aa_slugs": [
     "glm-4-5v",
@@ -208,7 +208,6 @@
     "gemini-2-5-flash-04-2025",
     "grok-4-fast-reasoning",
     "gpt-4o-chatgpt-03-25",
-    "muse-glimmer",
     "gpt-5-6-luna-medium",
     "qwen3-1.7b-instruct-reasoning",
     "gemini-3-1-flash-lite-preview",
