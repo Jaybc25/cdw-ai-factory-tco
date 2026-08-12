@@ -41,6 +41,7 @@ export default function LandingPage() {
   return (
     <div className="afl-wrap">
       <style>{`
+        .afl-wrap, .afl-wrap * { box-sizing: border-box; }
         .afl-wrap {
           --red: #CC0000;
           --red-dark: #A30000;
@@ -56,9 +57,9 @@ export default function LandingPage() {
         .afl-logo { height: 42px; width: auto; flex-shrink: 0; }
         .afl-eyebrow { font-size: 12px; font-weight: 700; color: var(--red); letter-spacing: 0.1em; text-transform: uppercase; }
         .afl-hero { margin: 28px 0 44px; max-width: 720px; }
-        .afl-hero h1 { font-weight: 800; font-size: clamp(26px, 3.6vw, 34px); line-height: 1.28; letter-spacing: -0.01em; margin-bottom: 14px; }
+        .afl-hero h1 { margin: 0 0 14px 0; font-weight: 800; font-size: clamp(26px, 3.6vw, 34px); line-height: 1.28; letter-spacing: -0.01em; }
         .afl-hero h1 span { color: var(--red); }
-        .afl-hero p { color: var(--gray); font-size: 15px; line-height: 1.6; max-width: 620px; }
+        .afl-hero p { margin: 0; color: var(--gray); font-size: 15px; line-height: 1.6; max-width: 620px; }
         .afl-bubbles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
         .afl-bubble {
           background: var(--red); border-radius: 26px; padding: 30px 24px; min-height: 168px;

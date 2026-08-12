@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LandingPage from "./LandingPage.jsx";
 import TcoCalculator from "./TcoCalculator.jsx";
 import GpuSizingCalculator from "./GpuSizingCalculator.jsx";
@@ -11,6 +11,7 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/tco" element={<TcoCalculator />} />
         <Route path="/gpu-sizing" element={<GpuSizingCalculator />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );

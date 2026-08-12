@@ -105,7 +105,7 @@ const TIPS = {
 function TipDot({ open, onClick }) {
   return (
     <button onClick={onClick} aria-label="What is this?"
-      style={{ width: 16, height: 16, borderRadius: 8, border: "1.5px solid #CC0000", background: open ? "#CC0000" : "transparent",
+      style={{ width: 16, height: 16, boxSizing: "border-box", borderRadius: 8, border: "1.5px solid #CC0000", background: open ? "#CC0000" : "transparent",
         color: open ? "#fff" : "#CC0000", fontSize: 10, fontWeight: 700, lineHeight: "13px", padding: 0, marginLeft: 6,
         cursor: "pointer", flexShrink: 0, fontFamily: "'Inter', system-ui, sans-serif" }}>?</button>
   );
@@ -146,7 +146,7 @@ const store = {
   },
 };
 
-/* ============ ENGINE (mirrors validated spreadsheet Engine tab, v1.2 logic) ============ */
+/* ============ ENGINE (mirrors validated spreadsheet Engine tab; v2.3-lineage, audit-complete after 9 external rounds) ============ */
 function run(inp, RC) {
   const blended =
     (inp.odShare * (RC.instOD + RC.nvaieOD) +
@@ -396,7 +396,7 @@ function RateField({ k, label, eff, defaults, ov, setOv, fmt: f, step }) {
           const v = parseFloat(e.target.value);
           if (!Number.isNaN(v) && v >= 0) setOv({ ...ov, [k]: v });
         }}
-        style={{ ...mono, fontSize: 12, width: 96, padding: "6px 8px", borderRadius: 8, textAlign: "right",
+        style={{ ...mono, fontSize: 12, width: 96, boxSizing: "border-box", padding: "6px 8px", borderRadius: 8, textAlign: "right",
           border: `1px solid ${edited ? "#CC0000" : "#D1D5DB"}`, background: edited ? "#FBEAEA" : "#FFFFFF", color: C.ink }}
         aria-label={label} />
     </div>
@@ -432,30 +432,19 @@ export default function App() {
   const [residPct, setResidPct] = useState(0.15);
   const [modelSize, setModelSize] = useState("70B");
   const [quant, setQuant] = useState("FP8");
-  const [view, setView] = useState("calc"); // calc | gate | report | leads
+  const [view, setView] = useState("calc"); // calc | gate | report
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
-  const [leads, setLeads] = useState(null);
 
   async function submitLead() {
     if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) { setLeadStatus("Please enter a valid email address."); return; }
     setLeadStatus("");
     try {
       const key = "leads:" + Date.now();
       await store.set(key, JSON.stringify({ ...lead, at: new Date().toISOString(), bill, provider, gpuClass, horizon }));
     } catch (e) { /* storage is best-effort in the prototype */ }
     setView("report");
-  }
-  async function loadLeads() {
-    try {
-      const res = await store.list("leads:");
-      const out = [];
-      for (const k of (res?.keys || []).slice(-50)) {
-        try { const item = await store.get(k); out.push(JSON.parse(item.value)); } catch (e) {}
-      }
-      setLeads(out.reverse());
-    } catch (e) { setLeads([]); }
-    setView("leads");
   }
 
   const defaults = defaultsFor(provider, gpuClass, ownSys);
@@ -491,7 +480,7 @@ export default function App() {
   return (
     <div style={{ background: C.bg, minHeight: "100vh", color: C.ink, fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-        input[type=range]{height:22px} button:focus-visible{outline:2px solid ${C.green};outline-offset:2px}
+        input[type=range]{height:22px} button:focus-visible{outline:2px solid ${C.green};outline-offset:2px;box-shadow:0 0 0 5px rgba(255,255,255,.85)}
         input[type=number]::-webkit-inner-spin-button{opacity:1}
         @media print { .no-print{display:none!important} body{background:#fff} }`}</style>
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "18px 14px 60px" }}>
@@ -524,7 +513,7 @@ export default function App() {
             ))}
             {leadStatus && <div style={{ fontSize: 12, color: C.amber, marginBottom: 6 }}>{leadStatus}</div>}
             <div style={{ fontSize: 10, color: C.sub, marginBottom: 10 }}>
-              Prototype note: submissions are stored in this demo app's shared storage so the CDW team can follow up — use demo data, not sensitive information. The production site will handle contact data properly.
+              Prototype note: in this demo, what you enter is saved only in your own browser — it is not sent to CDW and no one can retrieve it. Use demo data. The production site will submit securely to the CDW team.
             </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={submitLead} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 14, padding: "12px", borderRadius: 8, border: "none", cursor: "pointer", background: C.green, color: "#fff" }}>View my report</button>
@@ -629,19 +618,6 @@ export default function App() {
           </div>
         )}
 
-        {view === "leads" && (
-          <div className="no-print" style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, marginBottom: 14 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-              <div style={{ ...disp, fontWeight: 700, fontSize: 16 }}>Captured leads</div>
-              <button onClick={() => setView("calc")} style={{ ...disp, fontSize: 13, padding: "8px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: C.panel, color: C.sub }}>Back</button>
-            </div>
-            {leads === null && <div style={{ fontSize: 13, color: C.sub }}>Loading…</div>}
-            {leads && leads.length === 0 && <div style={{ fontSize: 13, color: C.sub }}>No submissions yet. Leads appear here when someone requests a report.</div>}
-            {leads && leads.map((L, i) => (
-              <Row key={i} label={`${L.name} · ${L.company}`} value={fmtM(L.bill) + "/mo"} sub={`${L.email} · ${L.provider} ${L.gpuClass} · ${new Date(L.at).toLocaleString()}`} />
-            ))}
-          </div>
-        )}
 
         {view === "calc" && (<div>
         {/* RESULTS */}
@@ -892,11 +868,6 @@ export default function App() {
           style={{ ...disp, width: "100%", fontWeight: 700, fontSize: 15, padding: "14px", borderRadius: 10,
             border: "none", cursor: "pointer", background: C.green, color: "#fff", marginBottom: 10 }}>
           Get the full report (PDF)
-        </button>
-        <button onClick={loadLeads}
-          style={{ ...mono, width: "100%", fontSize: 11, padding: "8px", borderRadius: 8, cursor: "pointer",
-            border: `1px solid ${C.line}`, background: "transparent", color: C.sub }}>
-          View captured leads (demo admin)
         </button>
         </div>)}
       </div>
