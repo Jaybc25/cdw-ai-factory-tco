@@ -56,7 +56,7 @@
       "developer": "Meta",
       "lifecycle_status": "active",
       "aliases": {
-        "huggingface": "meta-llama/Llama-3.3-70B",
+        "huggingface": "meta-llama/Llama-3.3-70B-Instruct",
         "artificial_analysis_slug": "llama-3-3-instruct-70b",
         "artificial_analysis_id": null,
         "nvidia_nim": null
@@ -86,7 +86,7 @@
       "developer": "Meta",
       "lifecycle_status": "active",
       "aliases": {
-        "huggingface": "meta-llama/Llama-4-Scout",
+        "huggingface": "meta-llama/Llama-4-Scout-17B-16E-Instruct",
         "artificial_analysis_slug": "llama-4-scout",
         "artificial_analysis_id": null,
         "nvidia_nim": null
@@ -101,7 +101,7 @@
       "developer": "Meta",
       "lifecycle_status": "active",
       "aliases": {
-        "huggingface": "meta-llama/Llama-4-Maverick",
+        "huggingface": "meta-llama/Llama-4-Maverick-17B-128E-Instruct",
         "artificial_analysis_slug": "llama-4-maverick",
         "artificial_analysis_id": null,
         "nvidia_nim": null
@@ -146,7 +146,7 @@
       "developer": "Google",
       "lifecycle_status": "active",
       "aliases": {
-        "huggingface": "google/gemma-3-27b",
+        "huggingface": "google/gemma-3-27b-it",
         "artificial_analysis_slug": "gemma-3-27b",
         "artificial_analysis_id": null,
         "nvidia_nim": null
