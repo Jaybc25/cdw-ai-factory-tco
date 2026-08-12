@@ -13,6 +13,15 @@ hard-filter fields.
 dell.huggingface.co is used only as a discovery layer for which model IDs
 belong on the tracked list, never as the data source itself.
 
+AUTHENTICATION REQUIRED: several tracked models (Llama, Gemma) are GATED on
+Hugging Face — Meta and Google require an authenticated request from an
+account that has accepted each model's license terms, even just to read
+basic model info. Anonymous requests fail with a 401. Set HF_TOKEN
+(a Hugging Face access token, read-only scope is enough) as an environment
+variable / GitHub secret. Before the token will actually work, the account
+that created it must visit each gated model's page while logged in and
+accept the license (usually instant, sometimes requires filling out a form).
+
 FIELD-LEVEL PROVENANCE: license and param_count_billion carry a nested
 provenance object (value/source/verified_at/verification_method), per the
 review's scoped-provenance decision — these are the two Registry-1 fields
@@ -27,6 +36,7 @@ Cannot run inside this sandbox (no network access to huggingface.co).
 Intended to run locally or in CI.
 """
 
+import os
 import sys
 from pathlib import Path
 
@@ -44,13 +54,13 @@ TRACKED_MODEL_IDS = [
     "meta-llama/Llama-3.1-8B",
     "meta-llama/Llama-3.1-70B",
     "meta-llama/Llama-3.1-405B",
-    "meta-llama/Llama-3.3-70B",
+    "meta-llama/Llama-3.3-70B-Instruct",
     "mistralai/Mixtral-8x7B-v0.1",
-    "meta-llama/Llama-4-Scout",
-    "meta-llama/Llama-4-Maverick",
+    "meta-llama/Llama-4-Scout-17B-16E-Instruct",
+    "meta-llama/Llama-4-Maverick-17B-128E-Instruct",
     "deepseek-ai/DeepSeek-V3",
     "deepseek-ai/DeepSeek-R1",
-    "google/gemma-3-27b",
+    "google/gemma-3-27b-it",
 ]
 
 # Manually verified param counts for the full-detail tier. Anything not
@@ -89,15 +99,29 @@ def _param_count_provenance(value, model_id: str):
 def fetch_model_specs():
     import requests  # deferred import, only needed at real run time
 
+    hf_token = os.environ.get("HF_TOKEN")
+    if not hf_token:
+        raise RuntimeError(
+            "HF_TOKEN environment variable not set. Several tracked models "
+            "(Llama, Gemma) are GATED on Hugging Face — reading even basic "
+            "model info requires an authenticated request from an account "
+            "that has accepted each model's license terms. Anonymous "
+            "requests get a 401. See README for how to create a token and "
+            "accept the gated licenses."
+        )
+    headers = {"Authorization": f"Bearer {hf_token}"}
+
     registry = CanonicalRegistry()
     raw_records = []
 
     for model_id in TRACKED_MODEL_IDS:
-        info_resp = requests.get(f"{HF_API_BASE}/{model_id}", timeout=15)
+        info_resp = requests.get(f"{HF_API_BASE}/{model_id}", headers=headers, timeout=15)
         info_resp.raise_for_status()
         info = info_resp.json()
 
-        config_resp = requests.get(f"https://huggingface.co/{model_id}/raw/main/config.json", timeout=15)
+        config_resp = requests.get(
+            f"https://huggingface.co/{model_id}/raw/main/config.json", headers=headers, timeout=15
+        )
         config = config_resp.json() if config_resp.ok else {}
 
         license_value = info.get("cardData", {}).get("license", "unknown")
