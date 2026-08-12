@@ -61,6 +61,7 @@ TRACKED_MODEL_IDS = [
     "deepseek-ai/DeepSeek-V3",
     "deepseek-ai/DeepSeek-R1",
     "google/gemma-3-27b-it",
+    "meta-models/Muse-Glimmer-30B",
 ]
 
 # Manually verified param counts for the full-detail tier. Anything not
@@ -81,6 +82,12 @@ KNOWN_PARAM_COUNTS_BILLION = {
     # - Gemma 3 27B: 27B total (dense, not MoE) — stated directly in the model name/card
     "Llama-4-Scout-17B-16E-Instruct": 109, "Llama-4-Maverick-17B-128E-Instruct": 402,
     "DeepSeek-V3": 671, "DeepSeek-R1": 671, "gemma-3-27b-it": 27,
+    # Added 2026-08-12 -- Muse Glimmer, released 2026-08-10 by Meta
+    # Superintelligence Labs, first Meta open-weight release since Llama 4.
+    # 30B dense (not MoE), confirmed via multiple independent sources
+    # (Meta/HF launch blog, MarkTechPost, Phoronix) plus Artificial
+    # Analysis's own model page.
+    "Muse-Glimmer-30B": 30,
 }
 
 
