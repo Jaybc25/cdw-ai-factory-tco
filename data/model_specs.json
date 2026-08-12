@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "source": "huggingface_hub_api",
-  "synced_at": "2026-08-12T20:05:38.300450+00:00",
-  "record_count": 10,
+  "synced_at": "2026-08-12T20:45:49.438257+00:00",
+  "record_count": 11,
   "data": {
     "models": [
       {
@@ -10,13 +10,13 @@
         "license": {
           "value": "llama3.1",
           "source": "huggingface_hub_api:meta-llama/Llama-3.1-8B:cardData.license",
-          "verified_at": "2026-08-12T20:05:36.439722+00:00",
+          "verified_at": "2026-08-12T20:45:47.246522+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 8,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T20:05:36.439736+00:00",
+          "verified_at": "2026-08-12T20:45:47.246544+00:00",
           "verification_method": "manual"
         },
         "context_length": 131072,
@@ -32,13 +32,13 @@
         "license": {
           "value": "llama3.1",
           "source": "huggingface_hub_api:meta-llama/Llama-3.1-70B:cardData.license",
-          "verified_at": "2026-08-12T20:05:36.641258+00:00",
+          "verified_at": "2026-08-12T20:45:47.464693+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 70,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T20:05:36.641268+00:00",
+          "verified_at": "2026-08-12T20:45:47.464709+00:00",
           "verification_method": "manual"
         },
         "context_length": 131072,
@@ -54,13 +54,13 @@
         "license": {
           "value": "llama3.1",
           "source": "huggingface_hub_api:meta-llama/Llama-3.1-405B:cardData.license",
-          "verified_at": "2026-08-12T20:05:36.874112+00:00",
+          "verified_at": "2026-08-12T20:45:47.688222+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 405,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T20:05:36.874122+00:00",
+          "verified_at": "2026-08-12T20:45:47.688240+00:00",
           "verification_method": "manual"
         },
         "context_length": 131072,
@@ -76,13 +76,13 @@
         "license": {
           "value": "llama3.3",
           "source": "huggingface_hub_api:meta-llama/Llama-3.3-70B-Instruct:cardData.license",
-          "verified_at": "2026-08-12T20:05:37.066408+00:00",
+          "verified_at": "2026-08-12T20:45:47.916555+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 70,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T20:05:37.066418+00:00",
+          "verified_at": "2026-08-12T20:45:47.916573+00:00",
           "verification_method": "manual"
         },
         "context_length": 131072,
@@ -98,13 +98,13 @@
         "license": {
           "value": "apache-2.0",
           "source": "huggingface_hub_api:mistralai/Mixtral-8x7B-v0.1:cardData.license",
-          "verified_at": "2026-08-12T20:05:37.281114+00:00",
+          "verified_at": "2026-08-12T20:45:48.128874+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 46.7,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T20:05:37.281122+00:00",
+          "verified_at": "2026-08-12T20:45:48.128891+00:00",
           "verification_method": "manual"
         },
         "context_length": 32768,
@@ -120,13 +120,13 @@
         "license": {
           "value": "other",
           "source": "huggingface_hub_api:meta-llama/Llama-4-Scout-17B-16E-Instruct:cardData.license",
-          "verified_at": "2026-08-12T20:05:37.487614+00:00",
+          "verified_at": "2026-08-12T20:45:48.345832+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 109,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T20:05:37.487623+00:00",
+          "verified_at": "2026-08-12T20:45:48.345848+00:00",
           "verification_method": "manual"
         },
         "context_length": null,
@@ -142,13 +142,13 @@
         "license": {
           "value": "other",
           "source": "huggingface_hub_api:meta-llama/Llama-4-Maverick-17B-128E-Instruct:cardData.license",
-          "verified_at": "2026-08-12T20:05:37.689073+00:00",
+          "verified_at": "2026-08-12T20:45:48.559241+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 402,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T20:05:37.689081+00:00",
+          "verified_at": "2026-08-12T20:45:48.559257+00:00",
           "verification_method": "manual"
         },
         "context_length": null,
@@ -164,13 +164,13 @@
         "license": {
           "value": "unknown",
           "source": "huggingface_hub_api:deepseek-ai/DeepSeek-V3:cardData.license",
-          "verified_at": "2026-08-12T20:05:37.910310+00:00",
+          "verified_at": "2026-08-12T20:45:48.777211+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 671,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T20:05:37.910318+00:00",
+          "verified_at": "2026-08-12T20:45:48.777229+00:00",
           "verification_method": "manual"
         },
         "context_length": 163840,
@@ -186,13 +186,13 @@
         "license": {
           "value": "mit",
           "source": "huggingface_hub_api:deepseek-ai/DeepSeek-R1:cardData.license",
-          "verified_at": "2026-08-12T20:05:38.102875+00:00",
+          "verified_at": "2026-08-12T20:45:48.998792+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 671,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T20:05:38.102883+00:00",
+          "verified_at": "2026-08-12T20:45:48.998809+00:00",
           "verification_method": "manual"
         },
         "context_length": 163840,
@@ -208,13 +208,13 @@
         "license": {
           "value": "gemma",
           "source": "huggingface_hub_api:google/gemma-3-27b-it:cardData.license",
-          "verified_at": "2026-08-12T20:05:38.299796+00:00",
+          "verified_at": "2026-08-12T20:45:49.223565+00:00",
           "verification_method": "automated_api_sync"
         },
         "param_count_billion": {
           "value": 27,
           "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
-          "verified_at": "2026-08-12T20:05:38.299805+00:00",
+          "verified_at": "2026-08-12T20:45:49.223581+00:00",
           "verification_method": "manual"
         },
         "context_length": null,
@@ -222,6 +222,28 @@
         "modality": "multimodal",
         "confidence": "HIGH",
         "canonical_model_id": "gemma-3-27b",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      },
+      {
+        "model_id": "meta-models/Muse-Glimmer-30B",
+        "license": {
+          "value": "apache-2.0",
+          "source": "huggingface_hub_api:meta-models/Muse-Glimmer-30B:cardData.license",
+          "verified_at": "2026-08-12T20:45:49.436319+00:00",
+          "verification_method": "automated_api_sync"
+        },
+        "param_count_billion": {
+          "value": 29.6,
+          "source": "manually verified, see KNOWN_PARAM_COUNTS_BILLION in this script",
+          "verified_at": "2026-08-12T20:45:49.436334+00:00",
+          "verification_method": "manual"
+        },
+        "context_length": null,
+        "architecture": "MuseGlimmerForConditionalGeneration",
+        "modality": "multimodal",
+        "confidence": "HIGH",
+        "canonical_model_id": "muse-glimmer-30b",
         "needs_alias_mapping": false,
         "lifecycle_status": "active"
       }
