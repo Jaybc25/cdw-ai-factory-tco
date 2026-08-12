@@ -26,6 +26,13 @@ const TOOLS = [
     status: "live",
     path: "/model-advisor",
   },
+  {
+    key: "use-cases",
+    name: "AI Use Case\nExplorer",
+    desc: "Match your industry's use cases to NVIDIA Blueprints CDW can execute.",
+    status: "live",
+    path: "/use-cases",
+  },
 ];
 
 export default function LandingPage() {
@@ -60,7 +67,9 @@ export default function LandingPage() {
         .afl-hero h1 { margin: 0 0 14px 0; font-weight: 800; font-size: clamp(26px, 3.6vw, 34px); line-height: 1.28; letter-spacing: -0.01em; }
         .afl-hero h1 span { color: var(--red); }
         .afl-hero p { margin: 0; color: var(--gray); font-size: 15px; line-height: 1.6; max-width: 620px; }
-        .afl-bubbles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+        /* 4 tools = 2x2. Capped so bubbles don't stretch too wide at two columns.
+           When a 5th lands, 3-over-2; at 6, two rows of three. */
+        .afl-bubbles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; max-width: 760px; }
         .afl-bubble {
           background: var(--red); border-radius: 26px; padding: 30px 24px; min-height: 168px;
           display: flex; flex-direction: column; align-items: center; justify-content: center;
