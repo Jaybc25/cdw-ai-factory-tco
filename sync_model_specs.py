@@ -68,6 +68,19 @@ TRACKED_MODEL_IDS = [
 KNOWN_PARAM_COUNTS_BILLION = {
     "Llama-3.1-8B": 8, "Llama-3.1-70B": 70, "Llama-3.1-405B": 405,
     "Llama-3.3-70B": 70, "Mixtral-8x7B-v0.1": 46.7,
+    # Added after the initial build — these 5 were previously unverified
+    # (param_count_billion.value = null in production), which turned out to
+    # affect HALF the tracked catalog and made the Most Efficient Qualifying
+    # Model / Balanced slots unusable for any of them. All figures are TOTAL
+    # parameter count (matching the Mixtral convention above), verified
+    # against each model's technical report / official model card:
+    # - Llama 4 Scout: 109B total, 17B active (MoE) — Meta's Llama 4 blog
+    # - Llama 4 Maverick: 402B total, 17B active (MoE) — Meta's Llama 4 blog
+    # - DeepSeek V3: 671B total, 37B active (MoE) — DeepSeek-V3 Technical Report
+    # - DeepSeek R1: 671B total, 37B active (MoE, same base arch as V3) — DeepSeek-R1 paper
+    # - Gemma 3 27B: 27B total (dense, not MoE) — stated directly in the model name/card
+    "Llama-4-Scout-17B-16E-Instruct": 109, "Llama-4-Maverick-17B-128E-Instruct": 402,
+    "DeepSeek-V3": 671, "DeepSeek-R1": 671, "gemma-3-27b-it": 27,
 }
 
 
