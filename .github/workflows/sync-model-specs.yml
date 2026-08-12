@@ -16,6 +16,8 @@ jobs:
       - name: Install dependencies
         run: pip install requests
       - name: Run sync
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: python3 sync_model_specs.py
       - name: Commit updated snapshot
         run: |
