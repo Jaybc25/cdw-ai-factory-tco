@@ -102,6 +102,14 @@ const MODELS = [
   { id: "llama31-405b", label: "Llama 3.1 405B Instruct", totalParamsB: 405, layers: 126, kvHeads: 8, headDim: 128, status: "VERIFIED" },
   { id: "llama33-70b", label: "Llama 3.3 70B Instruct", totalParamsB: 70.6, layers: 80, kvHeads: 8, headDim: 128, status: "VERIFIED" },
   { id: "mixtral-8x7b", label: "Mixtral 8x7B Instruct", totalParamsB: 46.7, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  // Meta Muse Glimmer 30B (released Aug 10 2026, meta-models/Muse-Glimmer-30B) --
+  // dense text decoder specs confirmed via NVIDIA NIM model card + vLLM recipes
+  // page: 29.6B params, 52 layers, hidden 6656, 8 KV heads, head_dim 128, 128K
+  // context. Ships with a separate ~1.8B ViT-G/14 vision encoder not counted
+  // here (this tool sizes the text decoder, same simplification as every other
+  // entry) and a small DFlash speculative-decoding drafter, a serving detail,
+  // not a sizing input.
+  { id: "muse-glimmer-30b", label: "Meta Muse Glimmer 30B", totalParamsB: 29.6, layers: 52, kvHeads: 8, headDim: 128, status: "VERIFIED" },
   { id: "custom", label: "Custom model...", totalParamsB: null, layers: null, kvHeads: null, headDim: null, status: "CUSTOM" },
 ];
 
@@ -575,7 +583,7 @@ export default function GPUSizingCalculator() {
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>GPU Sizing Tool</div>
         </div>
-        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.9</span>
+        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.10</span>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
