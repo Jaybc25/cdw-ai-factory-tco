@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import {
   DEFAULT_INPUTS, BOUNDS, validateInputs, computeEngine,
-  PAYBACK_GUARD_TEXT, NA_TEXT,
+  PAYBACK_GUARD_TEXT, NA_TEXT, excelRound,
 } from "./engine";
 
 // ---------------------------------------------------------------------------
@@ -358,9 +358,9 @@ function Field({
 // Formatting helpers
 // ---------------------------------------------------------------------------
 const fmtCurrency = (v) => v == null ? NA_TEXT :
-  `$${Math.round(v).toLocaleString("en-US")}`;
+  `$${excelRound(v, 0).toLocaleString("en-US")}`;
 const fmtHours = (v) => v == null ? NA_TEXT :
-  `${Math.round(v).toLocaleString("en-US")} hrs/yr`;
+  `${excelRound(v, 0).toLocaleString("en-US")} hrs/yr`;
 const fmtPercent = (v) => v == null ? NA_TEXT : `${(v * 100).toFixed(1)}%`;
 const fmtMonths = (v) => v == null ? PAYBACK_GUARD_TEXT : `${v.toFixed(1)} months`;
 const fmtFte = (v) => v == null ? NA_TEXT : `~${v.toFixed(1)} FTE-years`;
@@ -472,9 +472,17 @@ export default function RoiCalculator() {
                   Capacity Created — Operational Result
                 </div>
                 <div style={{ marginTop: 10 }}>
-                  <span style={styles.headlineValue}>{fmtHours(engine.redeployableCapacity)}</span>
+                  <span style={styles.headlineValue}>{fmtHours(engine.grossCapacity)}</span>
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
-                    of redeployable capacity, from {fmtHours(engine.grossCapacity)} created
+                    gross capacity created — the operationally established result
+                  </div>
+                </div>
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.15)" }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>
+                    {fmtHours(engine.redeployableCapacity)}
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
+                    productively redeployable, after a {fmtPercent(inputs.realizationPct)} realization assumption
                   </div>
                 </div>
                 <button style={styles.expandToggle} onClick={() => setShowFte(!showFte)}>
