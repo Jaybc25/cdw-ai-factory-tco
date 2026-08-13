@@ -386,7 +386,9 @@ export default function RoiCalculator() {
   return (
     <div style={styles.page}>
       <div style={styles.header}>
-        <span style={styles.logoWordmark}>CDW</span>
+        <a href="/" style={{ textDecoration: "none" }} aria-label="AI Factory Tools home">
+          <span style={styles.logoWordmark}>CDW</span>
+        </a>
         <div>
           <div style={styles.eyebrow}>AI Factory Tools</div>
           <h1 style={styles.title}>AI Use Case ROI Calculator</h1>

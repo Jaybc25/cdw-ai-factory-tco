@@ -398,11 +398,13 @@ export default function UseCaseExplorer() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <img
-            src={cdwLogo}
-            alt="CDW"
-            style={{ height: 36, width: "auto", flexShrink: 0 }}
-          />
+          <a href="/" aria-label="AI Factory Tools home" style={{ flexShrink: 0, display: "flex" }}>
+            <img
+              src={cdwLogo}
+              alt="CDW"
+              style={{ height: 36, width: "auto" }}
+            />
+          </a>
           <div style={{ minWidth: 0 }}>
             <div
               style={{

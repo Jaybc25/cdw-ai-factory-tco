@@ -487,7 +487,9 @@ export default function App() {
 
         <div style={{ borderBottom: `1px solid ${C.line}`, paddingBottom: 14, marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <img src={CDW_LOGO} alt="CDW" style={{ height: 36, width: "auto", flexShrink: 0 }} />
+            <a href="/" aria-label="AI Factory Tools home" style={{ flexShrink: 0, display: "flex" }}>
+              <img src={CDW_LOGO} alt="CDW" style={{ height: 36, width: "auto" }} />
+            </a>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: C.green, textTransform: "uppercase" }}>AI Factory Tools</div>
               <h1 style={{ ...disp, fontSize: 20, fontWeight: 700, margin: 0, color: C.ink }}>Cloud vs On-Prem TCO Calculator</h1>

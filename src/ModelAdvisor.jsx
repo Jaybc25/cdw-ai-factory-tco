@@ -270,7 +270,9 @@ export default function ModelAdvisor() {
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
       <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
-        <img src={cdwLogo} alt="CDW" className="h-9 w-auto flex-shrink-0" />
+        <a href="/" className="flex-shrink-0" aria-label="AI Factory Tools home">
+          <img src={cdwLogo} alt="CDW" className="h-9 w-auto" />
+        </a>
         <div>
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>Open-Weight Model Advisor</div>
