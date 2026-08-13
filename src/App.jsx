@@ -5,7 +5,7 @@ import TcoCalculator from "./TcoCalculator.jsx";
 import GpuSizingCalculator from "./GpuSizingCalculator.jsx";
 import ModelAdvisor from "./ModelAdvisor.jsx";
 import UseCaseExplorer from "./UseCaseExplorer.jsx";
-
+import RoiCalculator from "./RoiCalculator.jsx";
 export default function App() {
   return (
     <BrowserRouter>
@@ -15,6 +15,7 @@ export default function App() {
         <Route path="/gpu-sizing" element={<GpuSizingCalculator />} />
         <Route path="/model-advisor" element={<ModelAdvisor />} />
         <Route path="/use-cases" element={<UseCaseExplorer />} />
+        <Route path="/roi" element={<RoiCalculator />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
