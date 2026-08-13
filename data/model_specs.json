@@ -129,7 +129,7 @@
           "verified_at": "2026-08-12T20:45:48.345848+00:00",
           "verification_method": "manual"
         },
-        "context_length": null,
+        "context_length": 10485760,
         "architecture": "Llama4ForConditionalGeneration",
         "modality": "multimodal",
         "confidence": "HIGH",
@@ -151,7 +151,7 @@
           "verified_at": "2026-08-12T20:45:48.559257+00:00",
           "verification_method": "manual"
         },
-        "context_length": null,
+        "context_length": 1048576,
         "architecture": "Llama4ForConditionalGeneration",
         "modality": "multimodal",
         "confidence": "HIGH",
@@ -217,7 +217,7 @@
           "verified_at": "2026-08-12T20:45:49.223581+00:00",
           "verification_method": "manual"
         },
-        "context_length": null,
+        "context_length": 131072,
         "architecture": "Gemma3ForConditionalGeneration",
         "modality": "multimodal",
         "confidence": "HIGH",
@@ -239,7 +239,7 @@
           "verified_at": "2026-08-12T20:45:49.436334+00:00",
           "verification_method": "manual"
         },
-        "context_length": null,
+        "context_length": 131072,
         "architecture": "MuseGlimmerForConditionalGeneration",
         "modality": "multimodal",
         "confidence": "HIGH",
