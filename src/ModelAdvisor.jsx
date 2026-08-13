@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { ChevronDown, X, ArrowRight } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
 import {
-  getCatalog, CATALOG_META, buildRecommendations, explainCard, explainVerificationCandidate,
+  getCatalog, CATALOG_META, buildRecommendations, explainCard, explainVerificationCandidate, explainOtherEligible,
 } from "./modelAdvisorEngine.js";
 
 const RED = "#CC0000";
@@ -205,6 +205,32 @@ function RecommendationCard({ card, ranking, inputs }) {
   );
 }
 
+// Lighter-weight card for eligible models that didn't win a slot -- same
+// core info (params, confidence, license, sizing link) as the featured
+// cards, but no badge row, so it reads as "also qualifies" rather than
+// implying it's a top pick.
+function OtherEligibleCard({ model, ranking }) {
+  const conf = CONFIDENCE_BADGE[model.confidence] || CONFIDENCE_BADGE.MEDIUM;
+  return (
+    <div className="rounded-xl border border-gray-200 p-4 flex flex-col gap-2" style={{ background: "white" }}>
+      <div className="text-base font-bold" style={{ color: CHARCOAL }}>{model.canonical_model_id}</div>
+      <div className="text-sm text-gray-600">{explainOtherEligible(model, ranking)}</div>
+      <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-1">
+        <span>{model.param_count_billion != null ? `${model.param_count_billion}B params` : "Param count unverified"}</span>
+        <span style={{ color: conf.color }} className="font-semibold">{conf.label}</span>
+        <span>{model.license || "License unverified"}</span>
+      </div>
+      <a
+        href="/gpu-sizing"
+        className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold justify-center py-2 rounded-lg border"
+        style={{ borderColor: CHARCOAL, color: CHARCOAL }}
+      >
+        Size infrastructure for this model <ArrowRight className="w-3.5 h-3.5" />
+      </a>
+    </div>
+  );
+}
+
 export default function ModelAdvisor() {
   const catalog = useMemo(() => getCatalog(), []);
 
@@ -249,7 +275,7 @@ export default function ModelAdvisor() {
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>Open-Weight Model Advisor</div>
         </div>
-        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.0</span>
+        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.1</span>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-6">
@@ -333,6 +359,19 @@ export default function ModelAdvisor() {
                 {result.cards.map((c) => (
                   <RecommendationCard key={c.model.canonical_model_id} card={c} ranking={result.ranking} inputs={inputs} />
                 ))}
+              </div>
+            )}
+
+            {result.otherEligible.length > 0 && (
+              <div className="mt-6">
+                <div className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: CHARCOAL, opacity: 0.7 }}>
+                  Other models meeting your requirements
+                </div>
+                <div className="flex flex-col gap-3">
+                  {result.otherEligible.map((m) => (
+                    <OtherEligibleCard key={m.canonical_model_id} model={m} ranking={result.ranking} />
+                  ))}
+                </div>
               </div>
             )}
 

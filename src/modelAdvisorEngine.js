@@ -159,6 +159,18 @@ function tieBreakSort(list) {
   });
 }
 
+// Sorts a list by the given metric, descending, with models missing that
+// metric placed after all models that have it (each group internally
+// tie-broken the same deterministic way). Used for the "other eligible
+// models" list, where there's no margin/slot logic -- just a plain,
+// explainable ordering of everyone who passed the hard filters.
+function sortByMetricDesc(list, metric) {
+  const withMetric = tieBreakSort(list.filter((m) => m[metric] != null))
+    .sort((a, b) => (b[metric] ?? 0) - (a[metric] ?? 0));
+  const withoutMetric = tieBreakSort(list.filter((m) => m[metric] == null));
+  return [...withMetric, ...withoutMetric];
+}
+
 // Floating point tolerance for margin threshold comparisons -- JS arithmetic
 // (e.g. 1.6 - 1.3 = 0.30000000000000004) can otherwise wrongly exclude a
 // model whose score sits exactly at the qualifying threshold.
@@ -259,6 +271,17 @@ export function explainVerificationCandidate(model) {
   return `May be a strong candidate, but ${reasons.join(" and ")}. Excluded from the recommendation ranking until confirmed.`;
 }
 
+// Explanation line for the "other models meeting your requirements" list --
+// same rule as explainCard: name the actual metric and value, never a
+// generic "also a good fit" line.
+export function explainOtherEligible(model, ranking) {
+  const metricLabel = METRIC_LABELS[ranking.metric];
+  if (model[ranking.metric] != null) {
+    return `Meets your stated requirements. ${metricLabel}: ${model[ranking.metric]}.`;
+  }
+  return `Meets your stated requirements. ${metricLabel} not available for this model.`;
+}
+
 // ---------------------------------------------------------------------------
 // Step 5 -- Fill up to 3 output slots, dedupe into combined badges.
 // ---------------------------------------------------------------------------
@@ -303,12 +326,23 @@ export function buildRecommendations(catalog, inputs) {
 
   const cards = order.map((id) => cardsByModel[id]);
 
+  // Every eligible model NOT already featured in a slot card, so a single
+  // model sweeping all three slots (e.g. one clear best-in-class release)
+  // doesn't make the rest of the eligible pool disappear from view. Capped
+  // at 3 -- enough to give a seller real alternatives to present without
+  // turning this into a full re-listing of everyone who passed the filters.
+  const featuredIds = new Set(order);
+  const otherEligible = sortByMetricDesc(
+    eligible.filter((m) => !featuredIds.has(m.canonical_model_id)),
+    metric
+  ).slice(0, 3);
+
   const verificationCandidates = tieBreakSort(
     verificationPool.filter((m) => m[metric] != null)
   ).sort((a, b) => (b[metric] ?? 0) - (a[metric] ?? 0)).slice(0, 2);
 
   return {
-    cards, verificationCandidates, metric, ranking,
+    cards, otherEligible, verificationCandidates, metric, ranking,
     eligibleCount: eligible.length, totalCount: catalog.length,
     verificationCount: verificationPool.length,
   };
