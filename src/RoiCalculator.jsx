@@ -399,61 +399,61 @@ export default function RoiCalculator() {
         <div>
           <div style={styles.section}>
             <div style={styles.sectionHeader}>Workload (current state)</div>
-            <Field id="people" label="People performing this task" unit="count"
+            <Field id="people" openTipId={openTipId} setOpenTipId={setOpenTipId} label="People performing this task" unit="count"
               value={inputs.people} onChange={set("people")} error={errors.people}
               tip="Employees whose work includes this task today." />
-            <Field id="tasksPerDay" label="Tasks per person per working day" unit="tasks/day"
+            <Field id="tasksPerDay" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Tasks per person per working day" unit="tasks/day"
               value={inputs.tasksPerDay} onChange={set("tasksPerDay")} error={errors.tasksPerDay}
               tip="Average, not peak." />
-            <Field id="workingDays" label="Working days per year" unit="days" step="1"
+            <Field id="workingDays" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Working days per year" unit="days" step="1"
               value={inputs.workingDays} onChange={set("workingDays")} error={errors.workingDays}
               tip="Excludes weekends/holidays/PTO if you want a realistic base." />
-            <Field id="minutesPerTask" label="End-to-end minutes per task (before AI)" unit="minutes"
+            <Field id="minutesPerTask" openTipId={openTipId} setOpenTipId={setOpenTipId} label="End-to-end minutes per task (before AI)" unit="minutes"
               value={inputs.minutesPerTask} onChange={set("minutesPerTask")} error={errors.minutesPerTask}
               tip="Total time for the whole task today, start to finish." />
-            <Field id="loadedCost" label="Loaded cost per hour" unit="$/hr"
+            <Field id="loadedCost" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Loaded cost per hour" unit="$/hr"
               value={inputs.loadedCost} onChange={set("loadedCost")} error={errors.loadedCost}
               tip="Fully loaded (salary + benefits + overhead), not base wage alone." />
           </div>
 
           <div style={styles.section}>
             <div style={styles.sectionHeader}>AI Impact</div>
-            <Field id="reductionPct" label="AI time reduction" unit="%" isPercent
+            <Field id="reductionPct" openTipId={openTipId} setOpenTipId={setOpenTipId} label="AI time reduction" unit="%" isPercent
               value={inputs.reductionPct} onChange={set("reductionPct")} error={errors.reductionPct}
               tip="The % drop in the TOTAL task time, start to finish — not just the AI-assisted sub-step. A 50% faster research step inside a 30-minute task is not a 50% faster task; convert to end-to-end % first." />
-            <Field id="adoptionPct" label="Adoption rate" unit="%" isPercent
+            <Field id="adoptionPct" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Adoption rate" unit="%" isPercent
               value={inputs.adoptionPct} onChange={set("adoptionPct")} error={errors.adoptionPct}
               tip="Share of this task's volume actually run through the AI workflow." />
-            <Field id="realizationPct" label="Productive redeployment realization" unit="%" isPercent
+            <Field id="realizationPct" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Productive redeployment realization" unit="%" isPercent
               value={inputs.realizationPct} onChange={set("realizationPct")} error={errors.realizationPct}
               tip="Of the capacity created, the % expected to be productively used elsewhere (vs. absorbed as slack). One combined field by design." />
-            <Field id="rampPct" label="Year 1 benefit realization / ramp" unit="%" isPercent
+            <Field id="rampPct" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Year 1 benefit realization / ramp" unit="%" isPercent
               value={inputs.rampPct} onChange={set("rampPct")} error={errors.rampPct}
               tip="Share of steady-state benefit actually realized in Year 1, to account for implementation and rollout time. Default 100% = no ramp assumed. Years 2+ are always full steady state." />
           </div>
 
           <div style={styles.section}>
             <div style={styles.sectionHeader}>AI Cost</div>
-            <Field id="initialCost" label="Initial implementation cost" unit="$"
+            <Field id="initialCost" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Initial implementation cost" unit="$"
               value={inputs.initialCost} onChange={set("initialCost")} error={errors.initialCost}
               tip="One-time: integration, deployment, change management." />
-            <Field id="recurringCost" label="Annual recurring AI cost" unit="$/yr"
+            <Field id="recurringCost" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Annual recurring AI cost" unit="$/yr"
               value={inputs.recurringCost} onChange={set("recurringCost")} error={errors.recurringCost}
               tip="Licensing, API/compute spend, ongoing support/ops." />
           </div>
 
           <div style={styles.section}>
             <div style={styles.sectionHeader}>Optional / Advanced</div>
-            <Field id="upliftPerHr" label="Redeployment value uplift (illustrative only)" unit="$/hr"
+            <Field id="upliftPerHr" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Redeployment value uplift (illustrative only)" unit="$/hr"
               value={inputs.upliftPerHr} onChange={set("upliftPerHr")} error={errors.upliftPerHr}
               tip="Value differential if redeployed time moves to higher-value work. Defaults to $0 and stays out of the headline ROI. Softest number in the model — don't let it carry the pitch." />
           </div>
 
           <div style={styles.section}>
             <div style={styles.sectionHeader}>Analysis Settings</div>
-            <Field id="horizonYears" label="Analysis horizon" unit="years" step="1"
+            <Field id="horizonYears" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Analysis horizon" unit="years" step="1"
               value={inputs.horizonYears} onChange={set("horizonYears")} error={errors.horizonYears} />
-            <Field id="hoursPerWorkday" label="Hours per workday (FTE basis)" unit="hrs/day"
+            <Field id="hoursPerWorkday" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Hours per workday (FTE basis)" unit="hrs/day"
               value={inputs.hoursPerWorkday} onChange={set("hoursPerWorkday")} error={errors.hoursPerWorkday}
               tip="Used only to express capacity as an FTE-equivalent (secondary detail), never as a staffing recommendation." />
           </div>
