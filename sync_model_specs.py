@@ -90,6 +90,20 @@ KNOWN_PARAM_COUNTS_BILLION = {
     "Muse-Glimmer-30B": 29.6,
 }
 
+# Manual context-length overrides for models whose OWN config.json states
+# max_position_embeddings NOWHERE (checked both top-level and text_config
+# via _extract_context_length) -- this is a last resort for a value that
+# genuinely isn't discoverable by reading the file, not a shortcut around
+# checking it first. Only add an entry after confirming that.
+KNOWN_CONTEXT_LENGTH = {
+    # Gemma 3 27B's own config.json (fetched 2026-08-13) sets no explicit
+    # max_position_embeddings anywhere -- it silently inherits the
+    # Gemma3TextConfig class default (131,072) at load time in the
+    # transformers library, which a raw JSON read can never see. Confirmed
+    # against Google's own model card (128K context window).
+    "gemma-3-27b-it": 131072,
+}
+
 
 def _license_provenance(value: str, model_id: str):
     return {
@@ -114,6 +128,36 @@ def _param_count_provenance(value, model_id: str):
         "verified_at": utcnow_iso(),
         "verification_method": "unverified",
     }
+
+
+def _extract_context_length(config: dict):
+    # Multimodal model configs (Llama4ForConditionalGeneration,
+    # Gemma3ForConditionalGeneration, MuseGlimmerForConditionalGeneration,
+    # etc.) nest the text decoder's settings, including
+    # max_position_embeddings, inside a "text_config" sub-object rather
+    # than at the top level. A plain config.get("max_position_embeddings")
+    # silently returns None for every multimodal model on the tracked
+    # list, even though the real value is one level down. Confirmed
+    # against each affected model's own production config.json
+    # (2026-08-13): Llama 4 Scout 10,485,760; Llama 4 Maverick 1,048,576;
+    # Gemma 3 27B 131,072; Muse Glimmer 30B 131,072 -- all present under
+    # text_config, none at the top level. Text-only models (Llama 3.x,
+    # Mixtral, DeepSeek V3/R1) keep working via the top-level field, so
+    # this checks both rather than switching to text_config-only.
+    top_level = config.get("max_position_embeddings")
+    if top_level is not None:
+        return top_level
+    return config.get("text_config", {}).get("max_position_embeddings")
+
+
+def _extract_known_context_length(model_id: str):
+    # Fallback for models whose real config.json omits the field entirely
+    # (see KNOWN_CONTEXT_LENGTH above) -- checked only after
+    # _extract_context_length comes back empty for the live config.
+    for key, val in KNOWN_CONTEXT_LENGTH.items():
+        if key in model_id:
+            return val
+    return None
 
 
 def fetch_model_specs():
@@ -146,12 +190,15 @@ def fetch_model_specs():
 
         license_value = info.get("cardData", {}).get("license", "unknown")
         param_count = _extract_param_count(model_id)
+        context_length = _extract_context_length(config)
+        if context_length is None:
+            context_length = _extract_known_context_length(model_id)
 
         raw_records.append({
             "model_id": model_id,
             "license": _license_provenance(license_value, model_id),
             "param_count_billion": _param_count_provenance(param_count, model_id),
-            "context_length": config.get("max_position_embeddings"),
+            "context_length": context_length,
             "architecture": (config.get("architectures") or ["unknown"])[0],
             "modality": "multimodal" if _looks_multimodal(config) else "text",
             "confidence": "HIGH" if param_count is not None else "MEDIUM",
