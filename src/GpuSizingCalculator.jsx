@@ -110,6 +110,29 @@ const MODELS = [
   // entry) and a small DFlash speculative-decoding drafter, a serving detail,
   // not a sizing input.
   { id: "muse-glimmer-30b", label: "Meta Muse Glimmer 30B", totalParamsB: 29.6, layers: 52, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  // Llama 4 Scout (meta-llama/Llama-4-Scout-17B-16E-Instruct) -- 109B total /
+  // 17B active (MoE, 16 experts). Standard GQA text decoder, confirmed
+  // directly from the model's own config.json (text_config block, fetched
+  // 2026-08-13): 48 layers, 8 KV heads, head_dim 128. Vision encoder (34
+  // layers, separate config block) not counted, same simplification as the
+  // other multimodal entries in this list.
+  { id: "llama4-scout", label: "Llama 4 Scout 17B-16E", totalParamsB: 109, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  // Llama 4 Maverick (meta-llama/Llama-4-Maverick-17B-128E-Instruct) -- 402B
+  // total / 17B active (MoE, 128 experts). Same text-decoder architecture
+  // shape as Scout, confirmed directly from config.json (text_config block,
+  // fetched 2026-08-13): 48 layers, 8 KV heads, head_dim 128.
+  { id: "llama4-maverick", label: "Llama 4 Maverick 17B-128E", totalParamsB: 402, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  // Gemma 3 27B (google/gemma-3-27b-it) -- dense text decoder. Confirmed
+  // directly from config.json (text_config block, fetched 2026-08-13): 62
+  // layers, 16 KV heads, head_dim 128. Vision encoder (SigLIP, separate
+  // config block) not counted, same simplification as other entries.
+  { id: "gemma3-27b", label: "Gemma 3 27B", totalParamsB: 27, layers: 62, kvHeads: 16, headDim: 128, status: "VERIFIED" },
+  // DeepSeek V3/R1 intentionally NOT added yet -- both use Multi-head Latent
+  // Attention (MLA), not standard GQA. Their KV cache is a shared compressed
+  // latent (kv_lora_rank 512 + qk_rope_head_dim 64), not per-head K/V, so the
+  // layers/kvHeads/headDim formula below would badly overstate their memory
+  // footprint. Needs its own MLA-aware calculation before being added --
+  // tracked as a follow-on, not force-fit into this schema.
   { id: "custom", label: "Custom model...", totalParamsB: null, layers: null, kvHeads: null, headDim: null, status: "CUSTOM" },
 ];
 
@@ -583,7 +606,7 @@ export default function GPUSizingCalculator() {
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>GPU Sizing Tool</div>
         </div>
-        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.10</span>
+        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.11</span>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
