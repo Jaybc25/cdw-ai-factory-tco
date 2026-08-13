@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   DEFAULT_INPUTS, BOUNDS, validateInputs, computeEngine,
   PAYBACK_GUARD_TEXT, NA_TEXT,
@@ -298,7 +299,7 @@ function TipDot({ id, text, openTipId, setOpenTipId }) {
       >
         ?
       </button>
-      {isOpen && (
+      {isOpen && typeof document !== "undefined" && createPortal(
         <div style={styles.tipBackdrop}>
           <div ref={cardRef} style={styles.tipCard}>
             <button
@@ -311,7 +312,8 @@ function TipDot({ id, text, openTipId, setOpenTipId }) {
             </button>
             <div style={styles.tipText}>{text}</div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
