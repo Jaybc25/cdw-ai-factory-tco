@@ -1,4 +1,4 @@
-// ROI Calculator engine — ported line-for-line from roi-calculator-model-v1.2.xlsx's
+// ROI Calculator engine — ported line-for-line from roi-calculator-model-v1.3.xlsx's
 // Engine tab. This is the single source of truth: RoiCalculator.jsx and the Node
 // cross-check script both import this file, so there is no second hand-copy of the
 // formulas to drift out of sync. Cell references from the workbook are noted inline.
@@ -6,11 +6,17 @@
 // Excel's ROUND() rounds half away from zero; JS Math.round rounds half up, which
 // only differs from Excel for negative halves. Every value we ROUND() in the
 // workbook (payback, FTE-equivalent) is non-negative in every real scenario, so
-// Math.round is safe here — but we use this helper so that stays true by
-// construction rather than by accident.
-function excelRound(value, decimals) {
+// that sign difference doesn't bite here. The more common practical gap: IEEE-754
+// binary floats can represent an intended exact half (e.g. 2.35) as a value
+// infinitesimally below it (2.3499999999999996), which would make a naive
+// Math.round(value * 10) / 10 round down when Excel rounds up. A tiny epsilon,
+// scaled to the magnitude of the value being rounded, corrects for that without
+// perturbing any value that isn't actually sitting on a rounding boundary.
+export function excelRound(value, decimals) {
   const factor = Math.pow(10, decimals);
-  return Math.sign(value) * Math.round(Math.abs(value) * factor) / factor;
+  const scaled = value * factor;
+  const epsilon = Math.sign(scaled) * Math.max(Math.abs(scaled) * 1e-9, 1e-9);
+  return Math.round(scaled + epsilon) / factor;
 }
 
 export const DEFAULT_INPUTS = {
