@@ -23,6 +23,7 @@ const TIPS = {
   datasetTokensB: "The size of your training dataset, in billions of tokens. If you're not sure, 10-50B tokens is a common range for a domain-specific fine-tune; pretraining runs are far larger (trillions).",
   targetDays: "How quickly the training run needs to finish. Shorter deadlines need more GPUs working in parallel -- if there's no hard deadline, a few weeks is a reasonable default to size against.",
   mfu: "Model FLOPs Utilization -- how much of a GPU's theoretical peak speed your training run actually achieves. 40% is a well-supported real-world default (Meta's Llama 3 paper reports 38-43% at scale).",
+  workingDayHours: "How many hours a day this deployment actually sees business-hours load. Outside this window, demand is assumed to drop off -- capacity during those hours is either idle or available for other work.",
 };
 
 function TipDot({ tipKey }) {
@@ -151,24 +152,49 @@ const MODELS = [
 ];
 
 // order matters: index 0 = lowest VRAM class, last = highest -- used for
-// "lower-cost" and "higher-growth" alternative picks, same as the workbook
+// "lower-cost" and "higher-growth" alternative picks, same as the workbook.
+// nodeSize = GPUs per smallest deployable unit -- 8 for standard DGX nodes,
+// 72 for GB200 NVL72 (a real rack-scale system, not divisible smaller).
+// This must match the TCO Calculator's SYSTEMS registry (src/TcoCalculator.jsx)
+// exactly, since GB200 is sold/deployed as one 72-GPU rack, not 9 nodes of 8.
 const GPU_SPECS = [
-  { id: "A100", vram: 80, bf16: 312, fp8: null, anchor: 615, anchorPrecision: "BF16", confidence: "EST", source: "Derived from peak-FLOPS ratio vs H100; no official MLPerf Llama-2-70B submission exists for A100" },
-  { id: "H100", vram: 80, bf16: 989, fp8: 1979, anchor: 3902, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, Dell PowerEdge XE9680 8xH100 (entry 5.0-0020): 31,216.8 tok/s offline / 8" },
-  { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8" },
-  { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)" },
-  { id: "GB200 NVL72", vram: 192, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified" },
-  { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%" },
+  { id: "A100", vram: 80, bf16: 312, fp8: null, anchor: 615, anchorPrecision: "BF16", confidence: "EST", source: "Derived from peak-FLOPS ratio vs H100; no official MLPerf Llama-2-70B submission exists for A100", nodeSize: 8 },
+  { id: "H100", vram: 80, bf16: 989, fp8: 1979, anchor: 3902, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, Dell PowerEdge XE9680 8xH100 (entry 5.0-0020): 31,216.8 tok/s offline / 8", nodeSize: 8 },
+  { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8", nodeSize: 8 },
+  { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)", nodeSize: 8 },
+  { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified", nodeSize: 72 },
+  { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%", nodeSize: 8 },
 ];
 
+// Budgetary pricing -- SINGLE SOURCE OF TRUTH with the TCO Calculator.
+// H200/B200/B300/GB200 figures are computed directly from the TCO tool's
+// SYSTEMS registry (src/TcoCalculator.jsx: perSys / gpus), the same NVIDIA
+// DGX TCO capture used there -- fully loaded (system + software suite +
+// fabrics + professional services), NOT bare hardware. Update both files
+// together if either changes; there is currently no shared module, so this
+// is a manually-synced duplicate of TCO's numbers, not an independent source.
+// A100/H100 aren't in TCO's registry at all -- NVIDIA's current DGX line
+// starts at H200, and per Jay, A100/H100 are essentially legacy/GPUaaS-only
+// at this point, not something CDW sells new. Kept as rough EST for
+// completeness since some clients still ask, clearly flagged as such.
+const GPU_PRICE_USD = {
+  A100: { amount: 18000, confidence: "EST", source: "Legacy generation -- not part of CDW's current DGX purchase line (starts at H200); rough estimate only, relevant mainly for GPUaaS/rental comparisons" },
+  H100: { amount: 40000, confidence: "EST", source: "Legacy-adjacent -- not in the TCO Calculator's SYSTEMS registry; rough estimate only, relevant mainly for GPUaaS/rental comparisons" },
+  H200: { amount: 68721, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX H200 $549,764 / 8 GPUs (NVIDIA DGX TCO tool capture)" },
+  B200: { amount: 93099, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX B200 $744,793 / 8 GPUs (NVIDIA DGX TCO tool capture)" },
+  "GB200 NVL72": { amount: 108909, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX GB200 NVL-72 $7,841,432 / 72 GPUs (NVIDIA DGX TCO tool capture)" },
+  B300: { amount: 105861, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX B300 $846,885 / 8 GPUs (NVIDIA DGX TCO tool capture)" },
+};
+
 const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
-const NODE_SIZE = 8; // GPUs per deployable node/system
 
 // RTX-class workstation GPU is not a candidate in the main auto-recommend
 // fork -- it's only ever surfaced as a conditional alternative for small,
 // non-production workloads. No MLPerf datacenter submission exists for it
 // (workstation cards aren't submitted to that category), so its anchor is
-// derived, not listed, and it stays capped at MEDIUM confidence.
+// derived, not listed, and it stays capped at MEDIUM confidence. Not in
+// TCO's SYSTEMS registry either (workstation, not a DGX system) -- kept
+// as an independent citation.
 const RTX_SPEC = {
   id: "RTX PRO 6000 Blackwell",
   vram: 96,
@@ -176,6 +202,7 @@ const RTX_SPEC = {
   anchorPrecision: "FP8",
   source: "EST, derived from memory-bandwidth ratio vs H100 -- no MLPerf datacenter submission exists for workstation-class GPUs; community vLLM benchmarks (CloudRift, Oct 2025) confirm the same bandwidth-bound scaling pattern on smaller models",
   maxWorkstationGPUs: 4, // PCIe-only, no NVLink domain -- stops making sense past a small card count
+  price: { amount: 8500, confidence: "LISTED", source: "StorageReview.com RTX PRO 6000 Workstation review, listed retail price" },
 };
 
 function ceilDiv(a, b) {
@@ -205,6 +232,7 @@ function validateInference(inputs) {
   if (!(inputs.kvBytesPerElement > 0)) errors.push("KV cache precision (bytes/element) must be greater than 0.");
   if (!(inputs.overheadPct >= 0)) errors.push("Runtime/activation overhead % can't be negative.");
   if (inputs.overheadPct > 2) errors.push("Runtime/activation overhead % over 200% is almost certainly a typo -- check the value.");
+  if (!(inputs.workingDayHours > 0) || inputs.workingDayHours > 24) errors.push("Length of working day must be between 0 and 24 hours.");
   return errors;
 }
 
@@ -281,17 +309,67 @@ function computeInference(inputs) {
     overCap: rtxWorkload > RTX_SPEC.maxWorkstationGPUs,
   };
 
+  // ---- Budgetary estimate ----------------------------------------------
+  // Same pricing basis as the TCO Calculator (see GPU_PRICE_USD comment):
+  // fully-loaded system cost x deployed count. Not a quote -- see UI
+  // disclaimer. Node-rounding uses each class's own deployable unit size
+  // (72 for GB200 NVL72, 8 for everything else) -- must match, or this
+  // tool would round a rack-scale system to the wrong increment.
+  function budgetFor(gpuId, deployedCount) {
+    const price = GPU_PRICE_USD[gpuId];
+    if (!price) return null;
+    return { amount: deployedCount * price.amount, confidence: price.confidence, source: price.source };
+  }
+  const recommendedCount = Math.ceil(selected.gpusWorkload / selected.nodeSize) * selected.nodeSize;
+  const lowerCostCount = Math.ceil(lowerCost.gpusWorkload / lowerCost.nodeSize) * lowerCost.nodeSize;
+  const higherGrowthCount = Math.ceil(higherGrowth.gpusWorkload / higherGrowth.nodeSize) * higherGrowth.nodeSize;
+  const budget = {
+    recommended: budgetFor(selected.id, recommendedCount),
+    lowerCost: budgetFor(lowerCost.id, lowerCostCount),
+    higherGrowth: budgetFor(higherGrowth.id, higherGrowthCount),
+  };
+
+  // ---- Utilization --------------------------------------------------
+  // Two distinct things the SME asked for:
+  // (1) class-comparison utilization -- for a fixed workload, how full does
+  //     each candidate class run once deployed at its node-rounded count.
+  //     A bigger/newer class sized for the same demand runs LESS utilized,
+  //     which is the visual for "this buys growth headroom" vs "right-sized."
+  // (2) a working-day utilization curve -- business-hours demand vs
+  //     after-hours idle capacity, so idle GPU-hours can be named and
+  //     pointed at other uses (batch jobs, resale, etc).
+  function utilizationFor(gpuAnchor, deployedCount) {
+    const capacity = deployedCount * gpuAnchor;
+    return capacity > 0 ? Math.min(totalThroughputNeeded / capacity, 1) : 0;
+  }
+  const utilization = {
+    recommended: utilizationFor(selected.anchor, recommendedCount),
+    lowerCost: utilizationFor(lowerCost.anchor, lowerCostCount),
+    higherGrowth: utilizationFor(higherGrowth.anchor, higherGrowthCount),
+  };
+  const workingDayHours = inputs.workingDayHours;
+  const afterHours = 24 - workingDayHours;
+  const idleGpuHoursAfterHours = recommendedCount * afterHours;
+  const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;
+
   return {
     totalMemoryGB,
     totalThroughputNeeded,
     candidates,
     selectedClass: selected.id,
+    selectedNodeSize: selected.nodeSize,
     minTechnical: selected.gpusWorkload,
-    recommended: Math.ceil(selected.gpusWorkload / NODE_SIZE) * NODE_SIZE,
-    lowerCost: { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: Math.ceil(lowerCost.gpusWorkload / NODE_SIZE) * NODE_SIZE },
-    higherGrowth: { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: Math.ceil(higherGrowth.gpusWorkload / NODE_SIZE) * NODE_SIZE },
+    recommended: recommendedCount,
+    lowerCost: { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount },
+    higherGrowth: { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount },
     confidence,
     rtxAlt,
+    budget,
+    utilization,
+    workingDayHours,
+    afterHours,
+    idleGpuHoursAfterHours,
+    headroomGpuHoursDuringDay,
   };
 }
 
@@ -330,16 +408,32 @@ function computeTraining(inputs) {
       ? { level: "LOW", note: "Model architecture not yet verified (custom entry)" }
       : { level: "MEDIUM-HIGH", note: "Architecture verified; FLOPs are NVIDIA published spec-sheet values, MFU default sourced from Meta's Llama 3 paper" };
 
+  const recommendedCount = Math.ceil(selected.gpusWorkload / selected.nodeSize) * selected.nodeSize;
+  const lowerCostCount = Math.ceil(lowerCost.gpusWorkload / lowerCost.nodeSize) * lowerCost.nodeSize;
+  const higherGrowthCount = Math.ceil(higherGrowth.gpusWorkload / higherGrowth.nodeSize) * higherGrowth.nodeSize;
+  function budgetFor(gpuId, deployedCount) {
+    const price = GPU_PRICE_USD[gpuId];
+    if (!price) return null;
+    return { amount: deployedCount * price.amount, confidence: price.confidence, source: price.source };
+  }
+  const budget = {
+    recommended: budgetFor(selected.id, recommendedCount),
+    lowerCost: budgetFor(lowerCost.id, lowerCostCount),
+    higherGrowth: budgetFor(higherGrowth.id, higherGrowthCount),
+  };
+
   return {
     trainingMemoryGB,
     flopsRequired,
     candidates,
     selectedClass: selected.id,
+    selectedNodeSize: selected.nodeSize,
     minTechnical: selected.gpusWorkload,
-    recommended: Math.ceil(selected.gpusWorkload / NODE_SIZE) * NODE_SIZE,
-    lowerCost: { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: Math.ceil(lowerCost.gpusWorkload / NODE_SIZE) * NODE_SIZE },
-    higherGrowth: { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: Math.ceil(higherGrowth.gpusWorkload / NODE_SIZE) * NODE_SIZE },
+    recommended: recommendedCount,
+    lowerCost: { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount },
+    higherGrowth: { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount },
     confidence,
+    budget,
   };
 }
 
@@ -468,8 +562,15 @@ function CopySummaryButton({ mode, result, modelLabel }) {
       `Higher-growth alternative: ${result.higherGrowth.recommended} x ${result.higherGrowth.class}`,
       `Confidence: ${result.confidence.level} -- ${result.confidence.note}`,
     ];
+    if (result.budget?.recommended) {
+      lines.push(`Estimated hardware budget: ${fmtUsdPlain(result.budget.recommended.amount)} (same pricing basis as the TCO Calculator, not a quote)`);
+    }
     if (mode === "Inference" && result.rtxAlt?.eligible) {
       lines.push(`Workstation alternative: ${result.rtxAlt.gpus} x ${result.rtxAlt.class}`);
+    }
+    if (mode === "Inference" && result.utilization) {
+      lines.push(`Estimated utilization at recommended config: ${Math.round(result.utilization.recommended * 100)}%`);
+      lines.push(`Idle GPU-hours/day after ${result.workingDayHours}h working day: ${result.idleGpuHoursAfterHours.toFixed(0)}`);
     }
     lines.push("", "Directional sizing estimate -- not a final BOM. Confirm with a CDW AI Factory specialist.");
     return lines.join("\n");
@@ -544,6 +645,148 @@ function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent }) {
   );
 }
 
+function fmtUsd(n) {
+  if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
+  return `$${Math.round(n / 1000)}K`;
+}
+function fmtUsdPlain(n) {
+  return `$${Math.round(n).toLocaleString()}`;
+}
+
+function BudgetPanel({ budget }) {
+  if (!budget?.recommended) return null;
+  const legacyClass = budget.recommended.confidence === "EST";
+  return (
+    <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-gray-50">
+      <div className="flex items-center justify-between mb-1">
+        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Estimated budget</span>
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">{budget.recommended.confidence}</span>
+      </div>
+      <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>
+        {fmtUsd(budget.recommended.amount)}
+      </div>
+      <p className="text-xs text-gray-500">
+        {legacyClass
+          ? "Rough estimate only -- this class isn't part of CDW's current DGX purchase line, so there's no matching TCO Calculator figure to anchor to."
+          : "Same pricing basis as the Cloud vs On-Prem TCO Calculator (system + software suite + fabrics + professional services)."}{" "}
+        Excludes cluster management nodes, racks, power/cooling, and ongoing operations -- not a quote. See the
+        TCO Calculator for full lifecycle cost, or confirm with a CDW AI Factory specialist.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Utilization -- two SME-requested views:
+// (1) a compact per-candidate comparison (right-sizing vs growth headroom)
+// (2) a 24-hour business-hours-vs-idle curve for the recommended config
+// ---------------------------------------------------------------------------
+function UtilizationBar({ label, gpuClass, pct }) {
+  const pctDisplay = Math.round(pct * 100);
+  const color = pct > 0.85 ? "#B00000" : pct > 0.5 ? RED : "#999";
+  return (
+    <div className="mb-2">
+      <div className="flex justify-between text-xs mb-1">
+        <span className="font-semibold" style={{ color: CHARCOAL }}>{label} <span className="font-normal text-gray-500">({gpuClass})</span></span>
+        <span className="font-bold" style={{ color }}>{pctDisplay}%</span>
+      </div>
+      <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: `${Math.max(pctDisplay, 2)}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function DayCurve({ workingDayHours, utilizationPct }) {
+  const hours = Array.from({ length: 24 }, (_, h) => h);
+  // simple business-hours-centered window, e.g. 10 working hours -> 7am-5pm
+  const startHour = Math.max(0, Math.round(12 - workingDayHours / 2));
+  const endHour = Math.min(24, startHour + workingDayHours);
+  const barW = 100 / 24;
+  return (
+    <svg viewBox="0 0 240 60" className="w-full h-14" preserveAspectRatio="none">
+      {hours.map((h) => {
+        const isBusinessHour = h >= startHour && h < endHour;
+        const heightPct = isBusinessHour ? Math.max(utilizationPct, 0.04) : 0.03;
+        const barHeight = heightPct * 52;
+        const x = h * (240 / 24);
+        return (
+          <rect
+            key={h}
+            x={x + 0.5}
+            y={56 - barHeight}
+            width={240 / 24 - 1}
+            height={barHeight}
+            fill={isBusinessHour ? RED : "#D9D9D9"}
+            rx={1}
+          />
+        );
+      })}
+      <line x1="0" y1="56" x2="240" y2="56" stroke="#E5E5E5" strokeWidth="1" />
+    </svg>
+  );
+}
+
+function UtilizationPanel({ result, workingDayHours, onWorkingDayHoursChange }) {
+  const u = result.utilization;
+  if (!u) return null;
+  return (
+    <div className="mb-6 rounded-xl p-4 border border-gray-200">
+      <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-3">Utilization</div>
+
+      <UtilizationBar label="Recommended" gpuClass={result.selectedClass} pct={u.recommended} />
+      <UtilizationBar label="Lower-cost alt" gpuClass={result.lowerCost.class} pct={u.lowerCost} />
+      <UtilizationBar label="Higher-growth alt" gpuClass={result.higherGrowth.class} pct={u.higherGrowth} />
+      <p className="text-xs text-gray-500 mt-2 mb-4">
+        Same estimated workload, different classes -- a lower utilization % at a higher-growth class isn't
+        waste, it's headroom bought on purpose. A right-sized class runs closer to full.
+      </p>
+
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-semibold" style={{ color: CHARCOAL }}>Length of working day</span>
+        <div className="flex items-center gap-1">
+          <input
+            type="number"
+            value={workingDayHours}
+            min={0}
+            max={24}
+            step={1}
+            onChange={(e) => onWorkingDayHoursChange(parseFloat(e.target.value) || 0)}
+            className="w-14 border border-gray-300 rounded px-1.5 py-1 text-xs text-right"
+          />
+          <span className="text-xs text-gray-500">hrs/day</span>
+          <TipDot tipKey="workingDayHours" />
+        </div>
+      </div>
+      <DayCurve workingDayHours={result.workingDayHours} utilizationPct={u.recommended} />
+      <p className="text-xs text-gray-500 mt-2">
+        Red = business hours at ~{Math.round(u.recommended * 100)}% utilization. Gray = after-hours, effectively
+        idle. At the recommended config that's <strong>{result.idleGpuHoursAfterHours.toFixed(0)} GPU-hours/day</strong>{" "}
+        of after-hours capacity, plus <strong>{result.headroomGpuHoursDuringDay.toFixed(0)} GPU-hours/day</strong> of
+        within-hours headroom -- time that could run batch jobs, accelerate other workloads, or be resold.
+      </p>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Pod Sizing handoff -- reserved spot for a future, separate tool (full
+// deployment build-out: networking, storage, power). Not built yet -- this
+// SME explicitly called it "its own tool, a much grander effort." Mirrors
+// how the Model Advisor hands off into this tool.
+// ---------------------------------------------------------------------------
+function PodSizingHandoff() {
+  return (
+    <div className="mb-6 rounded-xl p-4 border border-dashed border-gray-300 bg-gray-50 flex items-center justify-between gap-3">
+      <div>
+        <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Next: Pod Sizing</div>
+        <div className="text-xs text-gray-500">Full deployment build-out -- networking, storage, power. Coming soon.</div>
+      </div>
+      <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-200 text-gray-500 flex-shrink-0">Coming soon</span>
+    </div>
+  );
+}
+
 export default function GPUSizingCalculator() {
   const [mode, setMode] = useState("Inference");
   const [pathLevel, setPathLevel] = useState("simple");
@@ -563,6 +806,7 @@ export default function GPUSizingCalculator() {
   const [customLayers, setCustomLayers] = useState(80);
   const [customKvHeads, setCustomKvHeads] = useState(8);
   const [customHeadDim, setCustomHeadDim] = useState(128);
+  const [workingDayHours, setWorkingDayHours] = useState(10);
 
   // training state
   const [trainModel, setTrainModel] = useState(MODELS[1]);
@@ -588,6 +832,7 @@ export default function GPUSizingCalculator() {
     customLayers,
     customKvHeads,
     customHeadDim,
+    workingDayHours,
   };
   const trainInputs = {
     model: trainModel,
@@ -601,12 +846,12 @@ export default function GPUSizingCalculator() {
     customParamsB,
   };
 
-  const infErrors = useMemo(() => validateInference(infInputs), [infModel, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, customParamsB, customLayers, customKvHeads, customHeadDim]);
+  const infErrors = useMemo(() => validateInference(infInputs), [infModel, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours]);
   const trainErrors = useMemo(() => validateTraining(trainInputs), [trainModel, datasetTokensB, targetDays, mfu, customParamsB]);
 
   const inferenceResult = useMemo(
     () => (infErrors.length ? null : computeInference(infInputs)),
-    [infModel, quant, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride, environment, customParamsB, customLayers, customKvHeads, customHeadDim, infErrors]
+    [infModel, quant, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride, environment, customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours, infErrors]
   );
 
   const trainingResult = useMemo(
@@ -626,7 +871,7 @@ export default function GPUSizingCalculator() {
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>GPU Sizing Tool</div>
         </div>
-        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.13</span>
+        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.14</span>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
@@ -771,6 +1016,12 @@ export default function GPUSizingCalculator() {
               <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} />
             </div>
 
+            <BudgetPanel budget={result.budget} />
+
+            {mode === "Inference" && (
+              <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />
+            )}
+
             {mode === "Inference" && environment === "Dev/Test/POC" && (
               <div className="mb-4">
                 {result.rtxAlt.eligible ? (
@@ -798,12 +1049,14 @@ export default function GPUSizingCalculator() {
               </div>
             )}
 
-            <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg">
+            <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4">
               <strong>Methodology:</strong> {mode === "Inference"
-                ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + KV cache + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. GPU count = max(memory-bound, performance-bound), rounded to an ${NODE_SIZE}-GPU node.`
-                : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to an ${NODE_SIZE}-GPU node.`}
-              {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes.
+                ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + KV cache + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
+                : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}
+              {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).
             </div>
+
+            <PodSizingHandoff />
 
             <CopySummaryButton mode={mode} result={result} modelLabel={mode === "Inference" ? infModel.label : trainModel.label} />
             </>
