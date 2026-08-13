@@ -104,12 +104,17 @@ const MODELS = [
   { id: "mixtral-8x7b", label: "Mixtral 8x7B Instruct", totalParamsB: 46.7, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
   // Meta Muse Glimmer 30B (released Aug 10 2026, meta-models/Muse-Glimmer-30B) --
   // dense text decoder specs confirmed via NVIDIA NIM model card + vLLM recipes
-  // page: 29.6B params, 52 layers, hidden 6656, 8 KV heads, head_dim 128, 128K
-  // context. Ships with a separate ~1.8B ViT-G/14 vision encoder not counted
+  // page: 29.6B params, 52 layers, hidden 6656, head_dim 128, 128K context.
+  // kvHeads CORRECTED 2026-08-13: originally shipped as 8 (from the NIM/vLLM
+  // secondary sources above), but the model's own production config.json
+  // (fetched directly) states num_key_value_heads: 2 -- the secondary
+  // sources either didn't surface this or got it wrong. The 8 value had
+  // been overstating this model's KV cache by roughly 4x since v1.10.
+  // Ships with a separate ~1.8B ViT-G/14 vision encoder not counted
   // here (this tool sizes the text decoder, same simplification as every other
   // entry) and a small DFlash speculative-decoding drafter, a serving detail,
   // not a sizing input.
-  { id: "muse-glimmer-30b", label: "Meta Muse Glimmer 30B", totalParamsB: 29.6, layers: 52, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "muse-glimmer-30b", label: "Meta Muse Glimmer 30B", totalParamsB: 29.6, layers: 52, kvHeads: 2, headDim: 128, status: "VERIFIED" },
   // Llama 4 Scout (meta-llama/Llama-4-Scout-17B-16E-Instruct) -- 109B total /
   // 17B active (MoE, 16 experts). Standard GQA text decoder, confirmed
   // directly from the model's own config.json (text_config block, fetched
@@ -621,7 +626,7 @@ export default function GPUSizingCalculator() {
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>GPU Sizing Tool</div>
         </div>
-        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.12</span>
+        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.13</span>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
