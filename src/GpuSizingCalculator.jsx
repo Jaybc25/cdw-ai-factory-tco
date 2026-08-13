@@ -127,12 +127,21 @@ const MODELS = [
   // layers, 16 KV heads, head_dim 128. Vision encoder (SigLIP, separate
   // config block) not counted, same simplification as other entries.
   { id: "gemma3-27b", label: "Gemma 3 27B", totalParamsB: 27, layers: 62, kvHeads: 16, headDim: 128, status: "VERIFIED" },
-  // DeepSeek V3/R1 intentionally NOT added yet -- both use Multi-head Latent
-  // Attention (MLA), not standard GQA. Their KV cache is a shared compressed
-  // latent (kv_lora_rank 512 + qk_rope_head_dim 64), not per-head K/V, so the
-  // layers/kvHeads/headDim formula below would badly overstate their memory
-  // footprint. Needs its own MLA-aware calculation before being added --
-  // tracked as a follow-on, not force-fit into this schema.
+  // DeepSeek V3 (deepseek-ai/DeepSeek-V3) -- 671B total / 37B active (MoE,
+  // 256 routed experts + 1 shared, 8 activated per token). Uses Multi-head
+  // Latent Attention (MLA), not standard GQA -- confirmed directly from the
+  // model's own config.json (fetched 2026-08-13): 61 layers, kv_lora_rank
+  // 512, qk_rope_head_dim 64 (128 attention heads share this one compressed
+  // latent -- there is no per-head K/V cache to speak of, which is the
+  // entire point of MLA). See computeInference() below: MLA models compute
+  // KV cache size from kvLoraRank + qkRopeHeadDim, NOT from
+  // layers/kvHeads/headDim like every other entry in this list.
+  { id: "deepseek-v3", label: "DeepSeek V3", totalParamsB: 671, layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64, status: "VERIFIED" },
+  // DeepSeek R1 (deepseek-ai/DeepSeek-R1) -- per DeepSeek's own model card,
+  // "DeepSeek-R1-Zero & DeepSeek-R1 are trained based on DeepSeek-V3-Base
+  // ... refer to the DeepSeek-V3 repository" for architecture, i.e. same
+  // dimensions as V3, same MLA sizing applies unchanged.
+  { id: "deepseek-r1", label: "DeepSeek R1", totalParamsB: 671, layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64, status: "VERIFIED" },
   { id: "custom", label: "Custom model...", totalParamsB: null, layers: null, kvHeads: null, headDim: null, status: "CUSTOM" },
 ];
 
@@ -216,7 +225,13 @@ function computeInference(inputs) {
   const quantBytes = QUANT_BYTES[inputs.quant];
   const weightMemoryGB = model.totalParamsB * quantBytes;
   const avgTokens = inputs.avgInputTokens + inputs.avgOutputTokens;
-  const kvBytesPerToken = 2 * model.layers * model.kvHeads * model.headDim * inputs.kvBytesPerElement;
+  // MLA (DeepSeek V3/R1) caches one compressed latent per layer, shared
+  // across every attention head -- no separate per-head K and V, so no x2
+  // factor and no kvHeads/headDim term. Every other model here uses
+  // standard GQA/MHA, where K and V are each cached per head.
+  const kvBytesPerToken = model.attentionType === "MLA"
+    ? model.layers * (model.kvLoraRank + model.qkRopeHeadDim) * inputs.kvBytesPerElement
+    : 2 * model.layers * model.kvHeads * model.headDim * inputs.kvBytesPerElement;
   const kvCacheGBPerSeq = (kvBytesPerToken * avgTokens) / 1e9;
   const kvCacheTotalGB = kvCacheGBPerSeq * inputs.concurrentUsers;
   const runtimeOverheadGB = (weightMemoryGB + kvCacheTotalGB) * inputs.overheadPct;
@@ -606,7 +621,7 @@ export default function GPUSizingCalculator() {
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>GPU Sizing Tool</div>
         </div>
-        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.11</span>
+        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.12</span>
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
