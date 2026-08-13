@@ -4,20 +4,14 @@ import cdwLogo from "./cdw-logo.png";
 
 // AI Factory tools landing page — home page at "/"
 // Each entry becomes a bubble. Add new tools here as they go live.
+// Order reflects the customer journey: use case -> model -> sizing -> cost.
 const TOOLS = [
   {
-    key: "tco",
-    name: "Cloud vs On-Prem\nTCO Calculator",
-    desc: "Cloud AI spend translated into on-prem infrastructure cost and payback.",
+    key: "use-cases",
+    name: "AI Use Case\nExplorer",
+    desc: "Match your industry's use cases to NVIDIA Blueprints CDW can execute.",
     status: "live",
-    path: "/tco",
-  },
-  {
-    key: "gpu-sizing",
-    name: "GPU Sizing Tool",
-    desc: "Right-size GPU class, count, and cluster shape for a target workload.",
-    status: "live",
-    path: "/gpu-sizing",
+    path: "/use-cases",
   },
   {
     key: "model-advisor",
@@ -27,11 +21,18 @@ const TOOLS = [
     path: "/model-advisor",
   },
   {
-    key: "use-cases",
-    name: "AI Use Case\nExplorer",
-    desc: "Match your industry's use cases to NVIDIA Blueprints CDW can execute.",
+    key: "gpu-sizing",
+    name: "GPU Sizing Tool",
+    desc: "Right-size GPU class, count, and cluster shape for a target workload.",
     status: "live",
-    path: "/use-cases",
+    path: "/gpu-sizing",
+  },
+  {
+    key: "tco",
+    name: "Cloud vs On-Prem\nTCO Calculator",
+    desc: "Cloud AI spend translated into on-prem infrastructure cost and payback.",
+    status: "live",
+    path: "/tco",
   },
 ];
 
