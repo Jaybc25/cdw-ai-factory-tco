@@ -4,7 +4,7 @@ import cdwLogo from "./cdw-logo.png";
 
 // AI Factory tools landing page — home page at "/"
 // Each entry becomes a bubble. Add new tools here as they go live.
-// Order reflects the customer journey: use case -> model -> sizing -> cost.
+// Order reflects the customer journey: use case -> model -> sizing -> cost -> ROI.
 const TOOLS = [
   {
     key: "use-cases",
@@ -33,6 +33,13 @@ const TOOLS = [
     desc: "Cloud AI spend translated into on-prem infrastructure cost and payback.",
     status: "live",
     path: "/tco",
+  },
+  {
+    key: "roi",
+    name: "AI Use Case\nROI Calculator",
+    desc: "Workload acceleration translated into capacity created and its economic value.",
+    status: "live",
+    path: "/roi",
   },
 ];
 
@@ -68,9 +75,11 @@ export default function LandingPage() {
         .afl-hero h1 { margin: 0 0 14px 0; font-weight: 800; font-size: clamp(26px, 3.6vw, 34px); line-height: 1.28; letter-spacing: -0.01em; }
         .afl-hero h1 span { color: var(--red); }
         .afl-hero p { margin: 0; color: var(--gray); font-size: 15px; line-height: 1.6; max-width: 620px; }
-        /* 4 tools = 2x2. Capped so bubbles don't stretch too wide at two columns.
-           When a 5th lands, 3-over-2; at 6, two rows of three. */
-        .afl-bubbles { display: grid; grid-template-columns: repeat(2, 1fr); gap: 22px; max-width: 760px; }
+        /* 5 tools = 3-over-2 (planned ahead of time in the original comment here).
+           3-column grid; 5 children auto-flow into a full row of 3 then a row of 2,
+           left-aligned under columns 1-2 — matches the approved mockup.
+           At 6 tools this naturally becomes two full rows of three, no CSS change needed. */
+        .afl-bubbles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
         .afl-bubble {
           background: var(--red); border-radius: 26px; padding: 30px 24px; min-height: 168px;
           display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -100,7 +109,10 @@ export default function LandingPage() {
           box-shadow: 0 8px 30px rgba(0,0,0,0.25); white-space: nowrap;
         }
         .afl-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
-        @media (max-width: 720px) {
+        @media (max-width: 900px) {
+          .afl-bubbles { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 560px) {
           .afl-bubbles { grid-template-columns: 1fr; }
           .afl-bubble { min-height: 140px; }
         }
