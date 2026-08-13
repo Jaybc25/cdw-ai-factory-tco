@@ -1,0 +1,796 @@
+import React, { useState, useMemo } from "react";
+import { Cpu, Zap, TrendingDown, TrendingUp, Info, ChevronDown, X } from "lucide-react";
+import cdwLogo from "./cdw-logo.png";
+
+// ---------------------------------------------------------------------------
+// Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
+// default), what-it-is -> why/if-unsure, always resolves to an action.
+// ---------------------------------------------------------------------------
+const TIPS = {
+  infModel: "The model you plan to run. If you're not sure yet, Llama 3.1 70B is a reasonable default for a general-purpose assistant -- pick 8B for lightweight/cheap, or 405B if you need frontier-level quality.",
+  quant: "How compressed the model's weights are in memory. FP8 is the safe default for H100/H200-class hardware; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300) and roughly halves memory again.",
+  concurrentUsers: "How many people will be generating a response at the same moment, not your total user count. A team of 500 might only have 20-50 concurrent at peak -- when unsure, estimate 5-10% of total users at peak hours.",
+  targetTokPerUser: "How fast each user's response should stream in. 20-30 tokens/sec feels roughly like natural reading speed for a chat experience; lower it for batch/offline jobs where speed matters less.",
+  environment: "Whether this is a real production deployment or something lighter-weight. Dev/Test/POC unlocks a note about cheaper workstation-class GPUs, since production reliability requirements don't apply yet.",
+  infGpuOverride: "Leave this on Auto-recommend to let the tool pick the most efficient class for your workload. Only override it if you already own a specific GPU class and want to see how it performs.",
+  avgInputTokens: "The typical length of what a user sends in, in tokens (~4 characters per token). 2,000 is a reasonable default for a chat-style prompt with some context; raise it for document-heavy use cases.",
+  avgOutputTokens: "The typical length of the model's response, in tokens. 500 covers a solid paragraph-to-page answer; lower it for short-form chat, raise it for long-form generation.",
+  kvBytesPerElement: "Precision used for the KV cache specifically (separate from the model weights). 2 bytes (FP16) is the safe default; dropping to 1 (FP8) saves memory but needs backend support to be accurate.",
+  overheadPct: "A safety margin added on top of weights and KV cache for runtime/activation memory. 15% is a conservative default -- lower it only if you know your serving stack is unusually memory-efficient.",
+  trainModel: "The model you're training or fine-tuning. If you're not sure yet, Llama 3.1 70B is a reasonable default for a mid-size production fine-tune.",
+  taskType: "Full fine-tune updates every weight and needs the most memory; LoRA/PEFT trains a small adapter and needs far less. If you're unsure which you need, LoRA is the cheaper starting point for most use cases.",
+  precision: "The numeric precision used during training. BF16 is the safe, widely-supported default; FP8 roughly halves memory and speeds up training but needs a model/stack that supports it well.",
+  datasetTokensB: "The size of your training dataset, in billions of tokens. If you're not sure, 10-50B tokens is a common range for a domain-specific fine-tune; pretraining runs are far larger (trillions).",
+  targetDays: "How quickly the training run needs to finish. Shorter deadlines need more GPUs working in parallel -- if there's no hard deadline, a few weeks is a reasonable default to size against.",
+  mfu: "Model FLOPs Utilization -- how much of a GPU's theoretical peak speed your training run actually achieves. 40% is a well-supported real-world default (Meta's Llama 3 paper reports 38-43% at scale).",
+};
+
+function TipDot({ tipKey }) {
+  const [open, setOpen] = useState(false);
+  const boxRef = React.useRef(null);
+
+  React.useEffect(() => {
+    if (!open) return;
+    function handleOutside(e) {
+      if (boxRef.current && !boxRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    }
+    function handleKey(e) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    // capture phase + native listener: closes reliably regardless of any
+    // stopPropagation elsewhere in the tree, and doesn't depend on a
+    // backdrop element's own click handler or exact screen coverage
+    document.addEventListener("pointerdown", handleOutside, true);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("pointerdown", handleOutside, true);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [open]);
+
+  if (!TIPS[tipKey]) return null;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-label="More info"
+        className="inline-flex items-center justify-center w-4 h-4 rounded-full border text-[10px] font-bold leading-none ml-1.5 align-middle"
+        style={{ borderColor: RED, color: RED }}
+      >
+        ?
+      </button>
+      {open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(45,45,45,0.35)" }}
+        >
+          <div
+            ref={boxRef}
+            className="w-full max-w-sm text-sm bg-white rounded-xl shadow-xl p-5"
+            style={{ border: `1.5px solid ${RED}`, color: CHARCOAL }}
+          >
+            <div className="flex justify-between items-center gap-3 mb-3">
+              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: RED }}>About this field</span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+                className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 -mr-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div>{TIPS[tipKey]}</div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+
+// exactly. If you change a number here, change it there too (and re-run the
+// Validation tab) or the web tool and the reference workbook will disagree.
+// ---------------------------------------------------------------------------
+
+const MODELS = [
+  { id: "llama31-8b", label: "Llama 3.1 8B Instruct", totalParamsB: 8.03, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "llama31-70b", label: "Llama 3.1 70B Instruct", totalParamsB: 70.6, layers: 80, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "llama31-405b", label: "Llama 3.1 405B Instruct", totalParamsB: 405, layers: 126, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "llama33-70b", label: "Llama 3.3 70B Instruct", totalParamsB: 70.6, layers: 80, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "mixtral-8x7b", label: "Mixtral 8x7B Instruct", totalParamsB: 46.7, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  // Meta Muse Glimmer 30B (released Aug 10 2026, meta-models/Muse-Glimmer-30B) --
+  // dense text decoder specs confirmed via NVIDIA NIM model card + vLLM recipes
+  // page: 29.6B params, 52 layers, hidden 6656, 8 KV heads, head_dim 128, 128K
+  // context. Ships with a separate ~1.8B ViT-G/14 vision encoder not counted
+  // here (this tool sizes the text decoder, same simplification as every other
+  // entry) and a small DFlash speculative-decoding drafter, a serving detail,
+  // not a sizing input.
+  { id: "muse-glimmer-30b", label: "Meta Muse Glimmer 30B", totalParamsB: 29.6, layers: 52, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  // Llama 4 Scout (meta-llama/Llama-4-Scout-17B-16E-Instruct) -- 109B total /
+  // 17B active (MoE, 16 experts). Standard GQA text decoder, confirmed
+  // directly from the model's own config.json (text_config block, fetched
+  // 2026-08-13): 48 layers, 8 KV heads, head_dim 128. Vision encoder (34
+  // layers, separate config block) not counted, same simplification as the
+  // other multimodal entries in this list.
+  { id: "llama4-scout", label: "Llama 4 Scout 17B-16E", totalParamsB: 109, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  // Llama 4 Maverick (meta-llama/Llama-4-Maverick-17B-128E-Instruct) -- 402B
+  // total / 17B active (MoE, 128 experts). Same text-decoder architecture
+  // shape as Scout, confirmed directly from config.json (text_config block,
+  // fetched 2026-08-13): 48 layers, 8 KV heads, head_dim 128.
+  { id: "llama4-maverick", label: "Llama 4 Maverick 17B-128E", totalParamsB: 402, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  // Gemma 3 27B (google/gemma-3-27b-it) -- dense text decoder. Confirmed
+  // directly from config.json (text_config block, fetched 2026-08-13): 62
+  // layers, 16 KV heads, head_dim 128. Vision encoder (SigLIP, separate
+  // config block) not counted, same simplification as other entries.
+  { id: "gemma3-27b", label: "Gemma 3 27B", totalParamsB: 27, layers: 62, kvHeads: 16, headDim: 128, status: "VERIFIED" },
+  // DeepSeek V3/R1 intentionally NOT added yet -- both use Multi-head Latent
+  // Attention (MLA), not standard GQA. Their KV cache is a shared compressed
+  // latent (kv_lora_rank 512 + qk_rope_head_dim 64), not per-head K/V, so the
+  // layers/kvHeads/headDim formula below would badly overstate their memory
+  // footprint. Needs its own MLA-aware calculation before being added --
+  // tracked as a follow-on, not force-fit into this schema.
+  { id: "custom", label: "Custom model...", totalParamsB: null, layers: null, kvHeads: null, headDim: null, status: "CUSTOM" },
+];
+
+// order matters: index 0 = lowest VRAM class, last = highest -- used for
+// "lower-cost" and "higher-growth" alternative picks, same as the workbook
+const GPU_SPECS = [
+  { id: "A100", vram: 80, bf16: 312, fp8: null, anchor: 615, anchorPrecision: "BF16", confidence: "EST", source: "Derived from peak-FLOPS ratio vs H100; no official MLPerf Llama-2-70B submission exists for A100" },
+  { id: "H100", vram: 80, bf16: 989, fp8: 1979, anchor: 3902, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, Dell PowerEdge XE9680 8xH100 (entry 5.0-0020): 31,216.8 tok/s offline / 8" },
+  { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8" },
+  { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)" },
+  { id: "GB200 NVL72", vram: 192, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified" },
+  { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%" },
+];
+
+const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
+const NODE_SIZE = 8; // GPUs per deployable node/system
+
+// RTX-class workstation GPU is not a candidate in the main auto-recommend
+// fork -- it's only ever surfaced as a conditional alternative for small,
+// non-production workloads. No MLPerf datacenter submission exists for it
+// (workstation cards aren't submitted to that category), so its anchor is
+// derived, not listed, and it stays capped at MEDIUM confidence.
+const RTX_SPEC = {
+  id: "RTX PRO 6000 Blackwell",
+  vram: 96,
+  anchor: 2095, // EST: H100 FP8 anchor (3,902) x bandwidth ratio (1.8 TB/s / 3.35 TB/s)
+  anchorPrecision: "FP8",
+  source: "EST, derived from memory-bandwidth ratio vs H100 -- no MLPerf datacenter submission exists for workstation-class GPUs; community vLLM benchmarks (CloudRift, Oct 2025) confirm the same bandwidth-bound scaling pattern on smaller models",
+  maxWorkstationGPUs: 4, // PCIe-only, no NVLink domain -- stops making sense past a small card count
+};
+
+function ceilDiv(a, b) {
+  return Math.ceil(a / b);
+}
+
+// ---------------------------------------------------------------------------
+// Input validation -- returns a list of plain-language problems, or an
+// empty array when the inputs are sane enough to compute against. Checked
+// before either math function runs; a non-empty list blocks the results
+// panel and shows the problems instead of a nonsense or NaN/Infinity result.
+// ---------------------------------------------------------------------------
+function validateInference(inputs) {
+  const errors = [];
+  const isCustom = inputs.model.id === "custom";
+  if (isCustom) {
+    if (!(inputs.customParamsB > 0)) errors.push("Custom model params (B) must be greater than 0.");
+    if (!(inputs.customLayers > 0)) errors.push("Custom model layers must be greater than 0.");
+    if (!(inputs.customKvHeads > 0)) errors.push("Custom model KV heads must be greater than 0.");
+    if (!(inputs.customHeadDim > 0)) errors.push("Custom model head dim must be greater than 0.");
+  }
+  if (!(inputs.concurrentUsers > 0)) errors.push("Peak concurrent users must be greater than 0.");
+  if (!(inputs.targetTokPerUser > 0)) errors.push("Target tokens/sec per user must be greater than 0.");
+  if (!(inputs.avgInputTokens >= 0)) errors.push("Avg input tokens can't be negative.");
+  if (!(inputs.avgOutputTokens >= 0)) errors.push("Avg output tokens can't be negative.");
+  if (inputs.avgInputTokens + inputs.avgOutputTokens <= 0) errors.push("Avg input + output tokens must add up to more than 0.");
+  if (!(inputs.kvBytesPerElement > 0)) errors.push("KV cache precision (bytes/element) must be greater than 0.");
+  if (!(inputs.overheadPct >= 0)) errors.push("Runtime/activation overhead % can't be negative.");
+  if (inputs.overheadPct > 2) errors.push("Runtime/activation overhead % over 200% is almost certainly a typo -- check the value.");
+  return errors;
+}
+
+function validateTraining(inputs) {
+  const errors = [];
+  const isCustom = inputs.model.id === "custom";
+  if (isCustom && !(inputs.customParamsB > 0)) errors.push("Custom model params (B) must be greater than 0.");
+  if (!(inputs.datasetTokensB > 0)) errors.push("Dataset size (billions of tokens) must be greater than 0.");
+  if (!(inputs.targetDays > 0)) errors.push("Target time to train (days) must be greater than 0.");
+  if (!(inputs.mfu > 0)) errors.push("MFU must be greater than 0.");
+  if (inputs.mfu > 1) errors.push("MFU over 1.0 (100%) isn't physically possible -- check the value.");
+  return errors;
+}
+
+// ---------------------------------------------------------------------------
+// Inference math -- mirrors Engine!B4:F27 in the workbook exactly
+// ---------------------------------------------------------------------------
+function computeInference(inputs) {
+  const model = inputs.model.id === "custom"
+    ? { totalParamsB: inputs.customParamsB, layers: inputs.customLayers, kvHeads: inputs.customKvHeads, headDim: inputs.customHeadDim, status: "CUSTOM" }
+    : inputs.model;
+
+  const quantBytes = QUANT_BYTES[inputs.quant];
+  const weightMemoryGB = model.totalParamsB * quantBytes;
+  const avgTokens = inputs.avgInputTokens + inputs.avgOutputTokens;
+  const kvBytesPerToken = 2 * model.layers * model.kvHeads * model.headDim * inputs.kvBytesPerElement;
+  const kvCacheGBPerSeq = (kvBytesPerToken * avgTokens) / 1e9;
+  const kvCacheTotalGB = kvCacheGBPerSeq * inputs.concurrentUsers;
+  const runtimeOverheadGB = (weightMemoryGB + kvCacheTotalGB) * inputs.overheadPct;
+  const totalMemoryGB = weightMemoryGB + kvCacheTotalGB + runtimeOverheadGB;
+  const totalThroughputNeeded = inputs.concurrentUsers * inputs.targetTokPerUser;
+
+  const candidates = GPU_SPECS.map((gpu) => {
+    const gpusMem = ceilDiv(totalMemoryGB, gpu.vram);
+    const gpusPerf = ceilDiv(totalThroughputNeeded, gpu.anchor);
+    return { ...gpu, gpusMem, gpusPerf, gpusWorkload: Math.max(gpusMem, gpusPerf) };
+  });
+
+  const autoRecommended = candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), candidates[0]);
+  const selected = inputs.gpuClassOverride === "Auto-recommend"
+    ? autoRecommended
+    : candidates.find((c) => c.id === inputs.gpuClassOverride);
+
+  const lowerCost = candidates[0];
+  const higherGrowth = candidates[candidates.length - 1];
+
+  const confidence =
+    model.status !== "VERIFIED"
+      ? { level: "LOW", note: "Model architecture not yet verified (custom entry)" }
+      : selected.id === "A100"
+      ? { level: "MEDIUM", note: "Architecture verified; throughput anchor is an extrapolated estimate (no MLPerf submission exists)" }
+      : { level: "HIGH", note: "Architecture verified; throughput anchor sourced from an official or independently-observed MLPerf submission" };
+
+  // RTX-class workstation alternative -- only computed and surfaced for
+  // small, non-production workloads. Real GPU count (no node-rounding --
+  // workstation cards aren't sold/deployed as 8-GPU nodes), capped at a
+  // sane workstation card count since PCIe-only scaling doesn't hold up
+  // past a handful of cards.
+  const rtxGpusMem = ceilDiv(totalMemoryGB, RTX_SPEC.vram);
+  const rtxGpusPerf = ceilDiv(totalThroughputNeeded, RTX_SPEC.anchor);
+  const rtxWorkload = Math.max(rtxGpusMem, rtxGpusPerf);
+  const rtxEligible = inputs.environment === "Dev/Test/POC" && rtxWorkload <= RTX_SPEC.maxWorkstationGPUs;
+  const rtxAlt = {
+    eligible: rtxEligible,
+    class: RTX_SPEC.id,
+    gpus: rtxWorkload,
+    vram: RTX_SPEC.vram,
+    overCap: rtxWorkload > RTX_SPEC.maxWorkstationGPUs,
+  };
+
+  return {
+    totalMemoryGB,
+    totalThroughputNeeded,
+    candidates,
+    selectedClass: selected.id,
+    minTechnical: selected.gpusWorkload,
+    recommended: Math.ceil(selected.gpusWorkload / NODE_SIZE) * NODE_SIZE,
+    lowerCost: { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: Math.ceil(lowerCost.gpusWorkload / NODE_SIZE) * NODE_SIZE },
+    higherGrowth: { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: Math.ceil(higherGrowth.gpusWorkload / NODE_SIZE) * NODE_SIZE },
+    confidence,
+    rtxAlt,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Training math -- mirrors Engine!B46:G61 in the workbook exactly
+// ---------------------------------------------------------------------------
+function computeTraining(inputs) {
+  const model = inputs.model.id === "custom"
+    ? { totalParamsB: inputs.customParamsB, status: "CUSTOM" }
+    : inputs.model;
+
+  const precisionBytes = inputs.precision === "FP8" ? 1 : 2;
+  const multiplier = inputs.memMultiplierOverride || (inputs.taskType === "LoRA/PEFT" ? 2.5 : 18);
+  const trainingMemoryGB = model.totalParamsB * precisionBytes * multiplier;
+  const flopsRequired = 6 * model.totalParamsB * inputs.datasetTokensB * 1e18;
+  const secondsTarget = inputs.targetDays * 86400;
+
+  const candidates = GPU_SPECS.map((gpu) => {
+    const peakTFLOPS = inputs.precision === "FP8" ? (gpu.fp8 ?? gpu.bf16) : gpu.bf16;
+    const gpusFit = ceilDiv(trainingMemoryGB, gpu.vram);
+    const achievableFlopsPerSec = peakTFLOPS * 1e12 * inputs.mfu;
+    const gpusTime = ceilDiv(flopsRequired, achievableFlopsPerSec * secondsTarget);
+    return { ...gpu, gpusFit, gpusTime, gpusWorkload: Math.max(gpusFit, gpusTime) };
+  });
+
+  const autoRecommended = candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), candidates[0]);
+  const selected = inputs.gpuClassOverride === "Auto-recommend"
+    ? autoRecommended
+    : candidates.find((c) => c.id === inputs.gpuClassOverride);
+
+  const lowerCost = candidates[0];
+  const higherGrowth = candidates[candidates.length - 1];
+
+  const confidence =
+    model.status !== "VERIFIED"
+      ? { level: "LOW", note: "Model architecture not yet verified (custom entry)" }
+      : { level: "MEDIUM-HIGH", note: "Architecture verified; FLOPs are NVIDIA published spec-sheet values, MFU default sourced from Meta's Llama 3 paper" };
+
+  return {
+    trainingMemoryGB,
+    flopsRequired,
+    candidates,
+    selectedClass: selected.id,
+    minTechnical: selected.gpusWorkload,
+    recommended: Math.ceil(selected.gpusWorkload / NODE_SIZE) * NODE_SIZE,
+    lowerCost: { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: Math.ceil(lowerCost.gpusWorkload / NODE_SIZE) * NODE_SIZE },
+    higherGrowth: { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: Math.ceil(higherGrowth.gpusWorkload / NODE_SIZE) * NODE_SIZE },
+    confidence,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// UI
+// ---------------------------------------------------------------------------
+
+const RED = "#CC0000";
+const CHARCOAL = "#2D2D2D";
+
+function Field({ label, hint, tipKey, children }) {
+  return (
+    <div className="mb-4">
+      <label className="block text-sm font-semibold mb-1" style={{ color: CHARCOAL }}>
+        {label}
+        {tipKey && <TipDot tipKey={tipKey} />}
+      </label>
+      {children}
+      {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+function Select({ value, onChange, options }) {
+  return (
+    <div className="relative">
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full appearance-none border border-gray-300 rounded-lg px-3 py-2 pr-9 text-sm bg-white focus:outline-none focus:ring-2"
+        style={{ "--tw-ring-color": RED }}
+      >
+        {options.map((o) => (
+          <option key={o} value={o}>{o}</option>
+        ))}
+      </select>
+      <ChevronDown className="w-4 h-4 absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
+    </div>
+  );
+}
+
+function NumberInput({ value, onChange, min = 0, step = 1 }) {
+  return (
+    <input
+      type="number"
+      value={value}
+      min={min}
+      step={step}
+      onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+      className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
+      style={{ "--tw-ring-color": RED }}
+    />
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Sample output preview -- SME feedback: raw "tokens/sec" is an abstract
+// number to a buyer. Streaming a sample response at the actual target rate
+// makes the tradeoff (fewer GPUs, slower stream) visible and felt in real
+// time, rather than explained. Word-level reveal, not real tokenization --
+// precision isn't the point, the felt sense of speed is. One fixed sample
+// text on purpose: this isn't meant to vary by workload profile or model
+// choice, just to demonstrate the number directly above it.
+// ---------------------------------------------------------------------------
+const SAMPLE_RESPONSE =
+  "Sure, here's a quick summary. Cloud compute spend rose eight percent quarter over quarter, while storage stayed roughly flat. The biggest driver was GPU instance hours during the fine-tuning sprint in March. Moving that workload on-prem could meaningfully reduce recurring costs over the next three years, especially as usage keeps growing.";
+
+function SampleOutputPreview({ tokPerSec }) {
+  const words = useMemo(() => SAMPLE_RESPONSE.split(" "), []);
+  const [count, setCount] = useState(0);
+  const rate = tokPerSec > 0 ? tokPerSec : 0;
+
+  // Restart the demo from scratch whenever the rate changes, so the
+  // slow-down (or speed-up) is visible from the very first word.
+  React.useEffect(() => {
+    setCount(0);
+  }, [rate]);
+
+  React.useEffect(() => {
+    if (!(rate > 0)) return;
+    const atEnd = count >= words.length;
+    const msPerWord = Math.max(1000 / rate, 16); // guard against runaway rates
+    const delay = atEnd ? 1400 : msPerWord; // brief pause at the end before looping
+    const id = setTimeout(() => {
+      setCount((c) => (c >= words.length ? 0 : c + 1));
+    }, delay);
+    return () => clearTimeout(id);
+  }, [count, rate, words.length]);
+
+  const visibleText = words.slice(0, count).join(" ");
+  const atEnd = count >= words.length;
+
+  return (
+    <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+      <style>{`@keyframes sopBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }`}</style>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Sample output preview</span>
+        <span className="text-xs font-semibold" style={{ color: RED }}>
+          {rate > 0 ? `at ${rate} tok/s` : "set a rate above"}
+        </span>
+      </div>
+      <div className="text-sm leading-relaxed min-h-[4.5rem]" style={{ color: CHARCOAL }}>
+        {visibleText}
+        {rate > 0 && !atEnd && (
+          <span
+            className="inline-block w-[3px] h-4 ml-0.5 align-middle"
+            style={{ background: RED, animation: "sopBlink 1s step-start infinite" }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function CopySummaryButton({ mode, result, modelLabel }) {
+  const [copied, setCopied] = useState(false);
+
+  function buildSummary() {
+    const lines = [
+      `CDW AI Factory -- GPU Sizing Summary (${mode})`,
+      `Model: ${modelLabel}`,
+      "",
+      `Minimum technical: ${result.minTechnical} x ${result.selectedClass}`,
+      `Recommended (production): ${result.recommended} x ${result.selectedClass}`,
+      `Lower-cost alternative: ${result.lowerCost.recommended} x ${result.lowerCost.class}`,
+      `Higher-growth alternative: ${result.higherGrowth.recommended} x ${result.higherGrowth.class}`,
+      `Confidence: ${result.confidence.level} -- ${result.confidence.note}`,
+    ];
+    if (mode === "Inference" && result.rtxAlt?.eligible) {
+      lines.push(`Workstation alternative: ${result.rtxAlt.gpus} x ${result.rtxAlt.class}`);
+    }
+    lines.push("", "Directional sizing estimate -- not a final BOM. Confirm with a CDW AI Factory specialist.");
+    return lines.join("\n");
+  }
+
+  async function handleCopy() {
+    const text = buildSummary();
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard API unavailable (e.g. insecure context) -- fall back to a visible textarea select
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.focus();
+      ta.select();
+      try {
+        document.execCommand("copy");
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        /* no-op: worst case the user manually selects the text area */
+      }
+      document.body.removeChild(ta);
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="mt-3 w-full text-sm font-semibold py-2.5 rounded-lg border transition-colors"
+      style={{ borderColor: RED, color: copied ? "white" : RED, background: copied ? RED : "white" }}
+    >
+      {copied ? "Copied" : "Copy summary"}
+    </button>
+  );
+}
+
+function ConfidenceBadge({ level }) {
+  const colors = {
+    HIGH: "bg-green-100 text-green-800 border-green-300",
+    "MEDIUM-HIGH": "bg-green-50 text-green-700 border-green-200",
+    MEDIUM: "bg-amber-100 text-amber-800 border-amber-300",
+    LOW: "bg-red-100 text-red-800 border-red-300",
+  };
+  return (
+    <span className={`inline-block text-xs font-bold px-2 py-1 rounded border ${colors[level] || colors.MEDIUM}`}>
+      {level} CONFIDENCE
+    </span>
+  );
+}
+
+function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent }) {
+  return (
+    <div
+      className="rounded-xl p-5 flex-1 min-w-[220px]"
+      style={{ background: accent ? CHARCOAL : "#F7F7F7", color: accent ? "white" : CHARCOAL }}
+    >
+      <div className="flex items-center gap-2 mb-2">
+        <Icon className="w-4 h-4" style={{ color: accent ? RED : RED }} />
+        <span className="text-xs font-bold uppercase tracking-wide" style={{ opacity: 0.8 }}>{title}</span>
+      </div>
+      <div className="text-3xl font-bold mb-1">{gpus} <span className="text-base font-normal">GPUs</span></div>
+      <div className="text-sm font-semibold" style={{ color: accent ? "white" : CHARCOAL }}>{gpuClass}</div>
+      {subtitle && <div className="text-xs mt-1" style={{ opacity: 0.7 }}>{subtitle}</div>}
+    </div>
+  );
+}
+
+export default function GPUSizingCalculator() {
+  const [mode, setMode] = useState("Inference");
+  const [pathLevel, setPathLevel] = useState("simple");
+
+  // inference state
+  const [infModel, setInfModel] = useState(MODELS[1]); // Llama 3.1 70B default
+  const [quant, setQuant] = useState("FP8");
+  const [concurrentUsers, setConcurrentUsers] = useState(100);
+  const [targetTokPerUser, setTargetTokPerUser] = useState(30);
+  const [environment, setEnvironment] = useState("Production");
+  const [avgInputTokens, setAvgInputTokens] = useState(2000);
+  const [avgOutputTokens, setAvgOutputTokens] = useState(500);
+  const [kvBytesPerElement, setKvBytesPerElement] = useState(2);
+  const [overheadPct, setOverheadPct] = useState(0.15);
+  const [infGpuOverride, setInfGpuOverride] = useState("Auto-recommend");
+  const [customParamsB, setCustomParamsB] = useState(70);
+  const [customLayers, setCustomLayers] = useState(80);
+  const [customKvHeads, setCustomKvHeads] = useState(8);
+  const [customHeadDim, setCustomHeadDim] = useState(128);
+
+  // training state
+  const [trainModel, setTrainModel] = useState(MODELS[1]);
+  const [taskType, setTaskType] = useState("Full fine-tune");
+  const [precision, setPrecision] = useState("BF16");
+  const [datasetTokensB, setDatasetTokensB] = useState(50);
+  const [targetDays, setTargetDays] = useState(14);
+  const [mfu, setMfu] = useState(0.4);
+  const [trainGpuOverride, setTrainGpuOverride] = useState("Auto-recommend");
+
+  const infInputs = {
+    model: infModel,
+    quant,
+    concurrentUsers,
+    targetTokPerUser,
+    avgInputTokens,
+    avgOutputTokens,
+    kvBytesPerElement,
+    overheadPct,
+    gpuClassOverride: infGpuOverride,
+    environment,
+    customParamsB,
+    customLayers,
+    customKvHeads,
+    customHeadDim,
+  };
+  const trainInputs = {
+    model: trainModel,
+    taskType,
+    precision,
+    datasetTokensB,
+    targetDays,
+    mfu,
+    gpuClassOverride: trainGpuOverride,
+    memMultiplierOverride: null,
+    customParamsB,
+  };
+
+  const infErrors = useMemo(() => validateInference(infInputs), [infModel, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, customParamsB, customLayers, customKvHeads, customHeadDim]);
+  const trainErrors = useMemo(() => validateTraining(trainInputs), [trainModel, datasetTokensB, targetDays, mfu, customParamsB]);
+
+  const inferenceResult = useMemo(
+    () => (infErrors.length ? null : computeInference(infInputs)),
+    [infModel, quant, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride, environment, customParamsB, customLayers, customKvHeads, customHeadDim, infErrors]
+  );
+
+  const trainingResult = useMemo(
+    () => (trainErrors.length ? null : computeTraining(trainInputs)),
+    [trainModel, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride, customParamsB, trainErrors]
+  );
+
+  const result = mode === "Inference" ? inferenceResult : trainingResult;
+  const errors = mode === "Inference" ? infErrors : trainErrors;
+
+  return (
+    <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      {/* Header */}
+      <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
+        <img src={cdwLogo} alt="CDW" className="h-9 w-auto flex-shrink-0" />
+        <div>
+          <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
+          <div className="text-lg font-bold" style={{ color: CHARCOAL }}>GPU Sizing Tool</div>
+        </div>
+        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.11</span>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Mode toggle */}
+        <div className="flex gap-2 mb-6">
+          {["Inference", "Training"].map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className="px-5 py-2 rounded-lg text-sm font-bold transition-colors"
+              style={
+                mode === m
+                  ? { background: RED, color: "white" }
+                  : { background: "#F2F2F2", color: CHARCOAL }
+              }
+            >
+              {m === "Inference" ? "Inference sizing" : "Training / fine-tuning sizing"}
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Inputs */}
+          <div>
+            <div className="flex gap-4 mb-4 border-b border-gray-200">
+              {["simple", "advanced"].map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPathLevel(p)}
+                  className="pb-2 text-sm font-semibold capitalize"
+                  style={
+                    pathLevel === p
+                      ? { color: RED, borderBottom: `2px solid ${RED}` }
+                      : { color: "#999" }
+                  }
+                >
+                  {p} path
+                </button>
+              ))}
+            </div>
+
+            {mode === "Inference" ? (
+              <>
+                <Field label="Model" tipKey="infModel">
+                  <Select
+                    value={infModel.id}
+                    onChange={(id) => setInfModel(MODELS.find((m) => m.id === id))}
+                    options={MODELS.map((m) => m.id)}
+                  />
+                  <div className="text-xs text-gray-500 mt-1">{infModel.label}</div>
+                </Field>
+
+                {infModel.id === "custom" && (
+                  <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <Field label="Params (B)"><NumberInput value={customParamsB} onChange={setCustomParamsB} /></Field>
+                    <Field label="Layers"><NumberInput value={customLayers} onChange={setCustomLayers} /></Field>
+                    <Field label="KV heads"><NumberInput value={customKvHeads} onChange={setCustomKvHeads} /></Field>
+                    <Field label="Head dim"><NumberInput value={customHeadDim} onChange={setCustomHeadDim} /></Field>
+                  </div>
+                )}
+
+                <Field label="Quantization" tipKey="quant"><Select value={quant} onChange={setQuant} options={["FP16", "FP8", "FP4"]} /></Field>
+                <Field label="Peak concurrent users" tipKey="concurrentUsers" hint="Concurrent generating sessions, not total licensed users">
+                  <NumberInput value={concurrentUsers} onChange={setConcurrentUsers} />
+                </Field>
+                <Field label="Target tokens/sec per user" tipKey="targetTokPerUser"><NumberInput value={targetTokPerUser} onChange={setTargetTokPerUser} /></Field>
+                <SampleOutputPreview tokPerSec={targetTokPerUser} />
+                <Field label="Environment" tipKey="environment"><Select value={environment} onChange={setEnvironment} options={["Production", "Dev/Test/POC"]} /></Field>
+                <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
+
+                {pathLevel === "advanced" && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <Field label="Avg input tokens" tipKey="avgInputTokens"><NumberInput value={avgInputTokens} onChange={setAvgInputTokens} /></Field>
+                    <Field label="Avg output tokens" tipKey="avgOutputTokens"><NumberInput value={avgOutputTokens} onChange={setAvgOutputTokens} /></Field>
+                    <Field label="KV cache precision (bytes/element)" tipKey="kvBytesPerElement"><NumberInput value={kvBytesPerElement} onChange={setKvBytesPerElement} step={1} /></Field>
+                    <Field label="Runtime/activation overhead %"><NumberInput value={overheadPct} onChange={setOverheadPct} step={0.01} /></Field>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <Field label="Model" tipKey="trainModel">
+                  <Select
+                    value={trainModel.id}
+                    onChange={(id) => setTrainModel(MODELS.find((m) => m.id === id))}
+                    options={MODELS.map((m) => m.id)}
+                  />
+                  <div className="text-xs text-gray-500 mt-1">{trainModel.label}</div>
+                </Field>
+
+                {trainModel.id === "custom" && (
+                  <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                    <Field label="Params (B)"><NumberInput value={customParamsB} onChange={setCustomParamsB} /></Field>
+                  </div>
+                )}
+
+                <Field label="Task type" tipKey="taskType"><Select value={taskType} onChange={setTaskType} options={["Pretraining", "Full fine-tune", "LoRA/PEFT"]} /></Field>
+                <Field label="Precision" tipKey="precision"><Select value={precision} onChange={setPrecision} options={["BF16", "FP8"]} /></Field>
+                <Field label="Dataset size (billions of tokens)" tipKey="datasetTokensB"><NumberInput value={datasetTokensB} onChange={setDatasetTokensB} /></Field>
+                <Field label="Target time to train (days)" tipKey="targetDays"><NumberInput value={targetDays} onChange={setTargetDays} /></Field>
+                <Field label="GPU class" tipKey="infGpuOverride"><Select value={trainGpuOverride} onChange={setTrainGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
+
+                {pathLevel === "advanced" && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <Field label="MFU (achieved % of peak FLOPs)" tipKey="mfu" hint="Sourced default: Meta's Llama 3 paper reports 38-43% BF16 MFU at 16K-GPU scale">
+                      <NumberInput value={mfu} onChange={setMfu} step={0.01} />
+                    </Field>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Results */}
+          <div>
+            {errors.length > 0 ? (
+              <div className="rounded-xl p-5 bg-red-50 border border-red-200">
+                <div className="text-xs font-bold uppercase tracking-wide text-red-800 mb-2">Fix these before sizing</div>
+                <ul className="text-sm text-red-900 space-y-1.5 list-disc list-inside">
+                  {errors.map((e, i) => (
+                    <li key={i}>{e}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+            <>
+            <div className="mb-4">
+              <ConfidenceBadge level={result.confidence.level} />
+              <p className="text-xs text-gray-500 mt-2 flex items-start gap-1">
+                <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                {result.confidence.note}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-3 mb-4">
+              <ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" />
+              <ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent />
+            </div>
+
+            <div className="flex flex-wrap gap-3 mb-6">
+              <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} />
+              <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} />
+            </div>
+
+            {mode === "Inference" && environment === "Dev/Test/POC" && (
+              <div className="mb-4">
+                {result.rtxAlt.eligible ? (
+                  <div className="rounded-xl p-4 bg-blue-50 border border-blue-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Cpu className="w-4 h-4 text-blue-700" />
+                      <span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span>
+                    </div>
+                    <div className="text-2xl font-bold text-blue-900 mb-1">
+                      {result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span>
+                    </div>
+                    <p className="text-xs text-blue-800">
+                      Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an
+                      estimate (no MLPerf datacenter submission exists for this class) -- treat as directional, and note
+                      PCIe-only scaling means this doesn't hold up as a substitute past a small card count.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">
+                    Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs}{" "}
+                    {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required) -- past that point data-center class is the
+                    more sensible recommendation even for non-production use.
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg">
+              <strong>Methodology:</strong> {mode === "Inference"
+                ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + KV cache + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. GPU count = max(memory-bound, performance-bound), rounded to an ${NODE_SIZE}-GPU node.`
+                : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to an ${NODE_SIZE}-GPU node.`}
+              {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes.
+            </div>
+
+            <CopySummaryButton mode={mode} result={result} modelLabel={mode === "Inference" ? infModel.label : trainModel.label} />
+            </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
