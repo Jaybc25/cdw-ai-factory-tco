@@ -1,8 +1,8 @@
 {
   "meta": {
-    "version": "2.0",
+    "version": "2.1",
     "last_verified": "2026-08-14",
-    "blueprint_count": 55,
+    "blueprint_count": 52,
     "industries": [
       "education",
       "federal-defense",
@@ -307,7 +307,7 @@
       "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/ambient-healthcare-agents",
       "use_case_category": "Agentic AI & Automation",
-      "description": "AI agents for clinical environments — ambient documentation during patient encounters, clinical note generation, care coordination support, and patient-facing navigation assistance.",
+      "description": "AI agents for clinical environments covering both provider-side (ambient documentation, clinical note generation) and patient-side (care navigation, medication adherence, post-discharge support) workflows.",
       "industry_fit": {
         "healthcare-life-sciences": "primary",
         "state-local-government": "primary",
@@ -322,9 +322,9 @@
       },
       "detail_what_it_does": "Deploys AI agents that listen to clinical conversations, generate structured clinical notes, surface relevant patient history, and assist patients with care navigation — reducing administrative burden on clinicians.",
       "detail_in_practice": {
-        "default": "Health systems use ambient documentation to give clinicians time back — notes are generated during the encounter rather than typed after, reducing after-hours charting by hours per day.",
-        "healthcare-life-sciences": "Hospitals and clinics deploy ambient AI that joins patient encounters, generates structured SOAP notes, and surfaces relevant lab results and medication history in real time.",
-        "state-local-government": "State-employed clinicians at correctional health facilities and state hospitals use ambient documentation to meet charting requirements without sacrificing patient contact time."
+        "default": "Health systems deploy ambient AI for two audiences: clinicians get real-time transcription and structured note generation during encounters; patients receive proactive navigation support for appointments, medication adherence, and post-discharge care guidance.",
+        "healthcare-life-sciences": "Hospitals deploy provider agents to reduce charting burden — notes generated during the visit, not after hours. Patient agents handle appointment reminders, medication coaching, and post-discharge follow-up without additional staff.",
+        "state-local-government": "State correctional health and state hospital clinicians use ambient documentation to meet charting standards. State Medicaid programs deploy patient agents to guide beneficiaries through care navigation and benefits questions."
       },
       "detail_infrastructure": "NVIDIA Riva ASR, Nemotron reasoning model via NIM, EHR integration layer, on-premises deployment to keep PHI off cloud."
     },
@@ -475,7 +475,7 @@
     {
       "id": "biomedical-aiq-research-agent",
       "name": "Biomedical AI-Q Research Agent Blueprint",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/nvidia/biomedical-aiq-research-agent",
       "use_case_category": "Life Sciences & Genomics",
       "description": "AI agents for biomedical research — literature search, virtual screening, protein-ligand interaction analysis, and hypothesis generation using AI-Q and BioNeMo.",
@@ -787,7 +787,7 @@
     {
       "id": "3d-object-generation",
       "name": "3D Object Generation Blueprint",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/nvidia/3d-object-generation",
       "use_case_category": "Digital Twins & Simulation",
       "description": "Generate high-quality 3D assets from text descriptions or 2D images — accelerating 3D content creation for product visualization, simulation seeding, training data generation, and digital twin population.",
@@ -816,7 +816,7 @@
     {
       "id": "3d-guided-genai-rtx",
       "name": "3D-Guided Generative AI Blueprint",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/nvidia/3d-guided-genai-rtx",
       "use_case_category": "Digital Twins & Simulation",
       "description": "RTX-accelerated generative AI guided by 3D spatial context — use depth maps, normals, and 3D scene structure to control image and content generation with geometric precision.",
@@ -959,7 +959,7 @@
     {
       "id": "enterprise-data-flywheel",
       "name": "Enterprise Data Flywheel Core Blueprint",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/nvidia/enterprise-data-flywheel",
       "use_case_category": "Data Flywheel & Model Ops",
       "description": "Core infrastructure for building a continuous AI improvement loop — data ingestion, curation, synthetic data generation, model fine-tuning, and evaluation, powered by NVIDIA NeMo.",
@@ -1155,77 +1155,6 @@
         "state-local-government": "State public health labs run GPU-accelerated genomic surveillance for infectious disease — processing pathogen sequencing data in near-real-time to inform outbreak response."
       },
       "detail_infrastructure": "NVIDIA Parabricks, high-memory GPU nodes (A100/H100), genomics data pipeline, integration with LIMS and bioinformatics tools."
-    },
-    {
-      "id": "ambient-healthcare-provider",
-      "name": "Ambient Healthcare Agents — Provider Blueprint",
-      "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/ambient-provider",
-      "use_case_category": "Agentic AI & Automation",
-      "description": "Ambient AI documentation specifically for clinical providers — real-time transcription of patient encounters, structured clinical note generation, and EHR integration.",
-      "industry_fit": {
-        "healthcare-life-sciences": "primary",
-        "state-local-government": "adjacent",
-        "federal-defense": "adjacent"
-      },
-      "department_fit": {
-        "operations": "primary",
-        "data-analytics": "adjacent"
-      },
-      "detail_what_it_does": "Listens to provider-patient conversations in real time, generates structured SOAP or other clinical note formats, and pushes draft notes to EHR for provider review — eliminating after-hours charting.",
-      "detail_in_practice": {
-        "default": "Clinicians use ambient documentation to reclaim hours of administrative time daily — notes are generated during the visit rather than typed after hours.",
-        "healthcare-life-sciences": "Physician practices and hospital systems deploy ambient AI to reduce documentation burden, improve note quality, and address clinician burnout driven by EHR overload.",
-        "state-local-government": "State correctional health and state hospital clinicians use ambient documentation to meet charting standards without sacrificing time with patients in high-demand settings."
-      },
-      "detail_infrastructure": "NVIDIA Riva ASR, Nemotron clinical reasoning model, EHR integration (HL7 FHIR), on-premises deployment for PHI compliance."
-    },
-    {
-      "id": "ambient-healthcare-patient",
-      "name": "Ambient Healthcare Agents — Patient Blueprint",
-      "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/ambient-patient",
-      "use_case_category": "Agentic AI & Automation",
-      "description": "Patient-facing AI agent for care navigation — appointment management, medication adherence support, post-discharge follow-up, and benefits navigation.",
-      "industry_fit": {
-        "healthcare-life-sciences": "primary",
-        "state-local-government": "primary"
-      },
-      "department_fit": {
-        "customer-service": "primary",
-        "operations": "adjacent"
-      },
-      "detail_what_it_does": "Deploys a conversational AI agent for patients that handles appointment reminders, medication adherence coaching, post-discharge care instructions, and navigation of health benefits — reducing readmissions and no-shows.",
-      "detail_in_practice": {
-        "default": "Health systems use patient AI agents to extend care coordination capacity — patients receive proactive outreach and guidance without requiring additional staff.",
-        "healthcare-life-sciences": "Hospitals deploy patient agents that follow up after discharge — confirming medication adherence, flagging warning symptoms, and scheduling follow-up appointments automatically.",
-        "state-local-government": "State Medicaid programs deploy patient agents to guide beneficiaries through care navigation, prior authorization, and benefit questions — reducing call center volume and improving care outcomes."
-      },
-      "detail_infrastructure": "NVIDIA Riva TTS/ASR, Nemotron reasoning model, patient engagement platform integration, on-premises deployment for PHI compliance."
-    },
-    {
-      "id": "retail-agentic-commerce-2",
-      "name": "Agentic Commerce Protocol Blueprint",
-      "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/retail-agentic-commerce",
-      "use_case_category": "Agentic AI & Automation",
-      "description": "Reference implementation of the Universal Commerce Protocol enabling AI agents to transact on behalf of buyers or sellers across commerce ecosystems — beyond negotiation into full transaction lifecycle.",
-      "industry_fit": {
-        "retail-distribution": "primary",
-        "financial-services": "adjacent",
-        "general-enterprise": "adjacent"
-      },
-      "department_fit": {
-        "sales": "primary",
-        "operations": "adjacent",
-        "finance": "adjacent"
-      },
-      "detail_what_it_does": "Extends agentic commerce beyond negotiation into the full transaction lifecycle — authentication, payment, fulfillment confirmation — enabling fully autonomous B2B and B2C commerce agents.",
-      "detail_in_practice": {
-        "default": "B2B commerce teams use this to automate the full order-to-confirm cycle — reducing manual touchpoints across the transaction.",
-        "retail-distribution": "Wholesale distributors automate repeat-order processing — buyer agents negotiate and confirm orders without human involvement for standard SKUs and established terms."
-      },
-      "detail_infrastructure": "NVIDIA NIM, ACP/UCP protocol stack, payment and authentication service integration, agent orchestration."
     },
     {
       "id": "nemoclaw-hermes",
