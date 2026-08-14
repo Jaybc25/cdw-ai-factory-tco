@@ -1,0 +1,2478 @@
+{
+  "schema_version": "1.0",
+  "content_version": "1.2",
+  "published_at": "2026-08-14",
+  "last_reviewed": "2026-08-14",
+  "content_governance_notes": [
+    "source_refs demonstrate the authoritative basis for including a readiness concern; they never assert the customer's particular legal obligation.",
+    "Per spec 3.6, primary authorities are cited whenever one exists; jurisdiction-dependent items (public records, residency/sovereignty, retention, contractual terms) carry a documented provenance exception under the principle that no source is better than a misleading source, with jurisdiction_note required.",
+    "Shared ID means shared semantics: if a branch needs different copy or owners, the item forks.",
+    "Blocking is conservative: every blocker asks whether the organization has identified what it is responsible for, never whether it has implemented something.",
+    "next_steps is branch- and item-aware with severity-aware ordering (confirmed blocking gaps are never displaced by static door priority); revised and audited at the final Phase 2 audit, 2026-08-14.",
+    "next_steps selection clarified at Phase 3 handoff (2026-08-14): recommendations come only from Complete doors, and multiple qualifying blockers within a door resolve to the first in the routed branch's authored item order."
+  ],
+  "applicability_tag_definitions": {
+    "public-sector": "State, local, tribal, territorial, or other government organizations.",
+    "federal": "U.S. federal agencies and organizations subject to federal requirements.",
+    "federal-contracting": "Organizations of any type handling federal information under contracts, grants, or agreements (including universities and commercial contractors).",
+    "education": "Educational agencies and institutions of any level.",
+    "higher-ed": "Colleges, universities, and postsecondary institutions.",
+    "k12": "Primary and secondary educational agencies and schools.",
+    "criminal-justice": "Organizations that handle criminal justice information or support criminal justice functions.",
+    "healthcare": "Organizations that handle health information or deliver health services."
+  },
+  "sources": {
+    "nist-sp-800-53": {
+      "publisher": "NIST",
+      "title": "Security and Privacy Controls for Information Systems and Organizations (SP 800-53)",
+      "version": "Rev. 5",
+      "url": "https://csrc.nist.gov/pubs/sp/800/53/r5/upd1/final",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14."
+    },
+    "nist-sp-800-122": {
+      "publisher": "NIST",
+      "title": "Guide to Protecting the Confidentiality of Personally Identifiable Information (PII) (SP 800-122)",
+      "version": "Final",
+      "url": "https://csrc.nist.gov/pubs/sp/800/122/final",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14."
+    },
+    "nist-sp-800-171": {
+      "publisher": "NIST",
+      "title": "Protecting Controlled Unclassified Information in Nonfederal Systems and Organizations (SP 800-171)",
+      "version": "Rev. 3",
+      "url": "https://csrc.nist.gov/pubs/sp/800/171/r3/final",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14. Applies to covered nonfederal systems."
+    },
+    "nist-sp-800-161": {
+      "publisher": "NIST",
+      "title": "Cybersecurity Supply Chain Risk Management Practices for Systems and Organizations (SP 800-161)",
+      "version": "Rev. 1",
+      "url": "https://csrc.nist.gov/pubs/sp/800/161/r1/final",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14."
+    },
+    "nist-ai-rmf": {
+      "publisher": "NIST",
+      "title": "Artificial Intelligence Risk Management Framework (AI RMF 1.0)",
+      "version": "1.0",
+      "url": "https://www.nist.gov/itl/ai-risk-management-framework",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14. Voluntary risk-management framework cited as governance basis only; it does not determine legal applicability. Under active revision by NIST; re-verify at content updates."
+    },
+    "hhs-hipaa": {
+      "publisher": "U.S. Department of Health and Human Services",
+      "title": "HIPAA Rules and Protected Health Information guidance",
+      "version": "Current",
+      "url": "https://www.hhs.gov/hipaa/",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14. PHI is defined within the HIPAA regulatory context."
+    },
+    "nara-cui": {
+      "publisher": "National Archives and Records Administration",
+      "title": "Controlled Unclassified Information (CUI) Program and Registry",
+      "version": "Current",
+      "url": "https://www.archives.gov/cui",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14. Registry provides government-wide guidance; implementing policy and agreements govern specifics."
+    },
+    "fbi-cjis-policy": {
+      "publisher": "FBI",
+      "title": "CJIS Security Policy",
+      "version": "6.1 (June 25, 2026)",
+      "url": "https://www.fbi.gov/services/cjis/cjis-security-policy-resource-center",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14. Listed URL redirects to the current FBI Law Enforcement Resource Center."
+    },
+    "ed-ferpa": {
+      "publisher": "U.S. Department of Education",
+      "title": "Family Educational Rights and Privacy Act (FERPA); 34 CFR Part 99",
+      "version": "Current",
+      "url": "https://studentprivacy.ed.gov/",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14. Implementing regulations at 34 CFR Part 99."
+    },
+    "govramp": {
+      "publisher": "GovRAMP (formerly StateRAMP)",
+      "title": "GovRAMP program materials",
+      "version": "Current",
+      "url": "https://govramp.org/",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14. Organization remains StateRAMP Inc. doing business as GovRAMP."
+    },
+    "gsa-section-508": {
+      "publisher": "GSA / U.S. Access Board",
+      "title": "Section 508 and Revised ICT Accessibility Standards",
+      "version": "Current",
+      "url": "https://www.section508.gov/",
+      "last_verified": "2026-08-14",
+      "review_notes": "Confirmed at final audit 2026-08-14. Authority for covered federal ICT specifically; cited as an example authority, never as a universal accessibility rule."
+    }
+  },
+  "summary_logic": {
+    "completion_states": {
+      "not_started": "No items answered in the routed branch.",
+      "in_progress": "Some, but not all, routed items answered. Display progress only (e.g. '7 of 11 questions reviewed'); no readiness label.",
+      "complete": "Every routed item has an explicit in_place, needs_attention, or dont_know response. Readiness label applies only here."
+    },
+    "readiness_rule_order": [
+      "needs_attention",
+      "gaps_to_investigate",
+      "mostly_ready",
+      "ready"
+    ],
+    "readiness_rules": {
+      "needs_attention": {
+        "condition": "at_least_one",
+        "impact": "blocking",
+        "state": "needs_attention",
+        "label": "Needs attention",
+        "detail_rule": "Also note any blocking or important items remaining dont_know in the detail line."
+      },
+      "gaps_to_investigate": {
+        "condition": "at_least_one",
+        "impact": [
+          "blocking",
+          "important"
+        ],
+        "state": "dont_know",
+        "label": "Gaps to investigate"
+      },
+      "mostly_ready": {
+        "condition": "at_least_one",
+        "impact": "important",
+        "state": "needs_attention",
+        "label": "Mostly ready"
+      },
+      "ready": {
+        "condition": "default",
+        "label": "Ready",
+        "note": "All blocking and important items in the routed branch are in_place. Informational items never affect status."
+      }
+    },
+    "wording_rule": "All status language describes the state of the user's own answers, never the tool's judgment of the organization."
+  },
+  "next_steps": {
+    "max_steps": 4,
+    "selection_rule": "For each Complete door whose readiness status is not Ready: if a blocking item listed in item_steps is unresolved (needs_attention or dont_know), use its item_step; if more than one blocking item qualifies within the door, use the first qualifying item in the routed branch's authored item order; otherwise use the branch_steps entry for the branch the user routed through. At most one step per door. Doors that are Not started or In progress produce no step: incomplete information yields progress only, never recommendations.",
+    "ordering_rule": {
+      "severity_order": [
+        "blocking_needs_attention",
+        "blocking_or_important_dont_know",
+        "important_needs_attention"
+      ],
+      "description": "Steps are ordered by the severity of the pattern that triggered them: confirmed blocking gaps first, then unknown blocking/important gaps, then important needs-attention. A confirmed blocking issue is never displaced by static door priority.",
+      "tiebreaker_door_priority": [
+        "data",
+        "security-governance",
+        "infrastructure",
+        "people-operations",
+        "business-use-case"
+      ]
+    },
+    "item_steps": {
+      "biz-problem": {
+        "step": "Define the business problem before advancing the use case.",
+        "tool_route": null
+      },
+      "biz-funding": {
+        "step": "Identify a production funding path with the executive sponsor and Finance.",
+        "tool_route": null
+      },
+      "infra-power": {
+        "step": "Confirm available facility power and the scope of any required upgrade.",
+        "tool_route": null
+      },
+      "data-use-rights": {
+        "step": "Confirm legal, contractual, and policy rights to use the data with the responsible teams.",
+        "tool_route": null
+      },
+      "sec-obligations": {
+        "step": "Identify the regulatory, policy, and contractual obligations that apply to the deployment.",
+        "tool_route": null
+      },
+      "ops-owner": {
+        "step": "Assign an accountable production owner for the AI environment.",
+        "tool_route": null
+      }
+    },
+    "branch_steps": {
+      "data.preparation": {
+        "step": "Close the data preparation gaps with the source owners: completeness, freshness, and the access approach.",
+        "tool_route": null
+      },
+      "data.quality": {
+        "step": "Run a focused usability assessment on the inventory: quality against the use case, formats, and authoritative sources.",
+        "tool_route": null
+      },
+      "data.integration": {
+        "step": "Map the source systems with their administrators and settle the consolidate-versus-in-place approach.",
+        "tool_route": null
+      },
+      "data.sensitive": {
+        "step": "Work with security and data governance on classification, permissions, and handling for sensitive data.",
+        "tool_route": null
+      },
+      "data.full": {
+        "step": "Run a data classification and inventory exercise with your data governance and security teams.",
+        "tool_route": null
+      },
+      "security-governance.extension": {
+        "step": "Extend existing security controls to the AI environment: identity, retention, logging, and the software stack.",
+        "tool_route": null
+      },
+      "security-governance.foundations": {
+        "step": "Establish the security foundations with your security team: roles, segmentation, encryption, and loss prevention.",
+        "tool_route": null
+      },
+      "security-governance.obligations": {
+        "step": "Work with legal and compliance to resolve the applicability questions you flagged.",
+        "tool_route": null
+      },
+      "security-governance.full": {
+        "step": "Schedule a security architecture review that covers the AI environment and the obligations you identified.",
+        "tool_route": null
+      },
+      "infrastructure.expansion": {
+        "step": "Confirm facility headroom and fabric capacity with facilities and networking, then size the addition with the GPU Sizing Tool.",
+        "tool_route": "/gpu-sizing"
+      },
+      "infrastructure.retrofit": {
+        "step": "Scope the facility work with facilities leadership, then define the footprint with the GPU Sizing Tool.",
+        "tool_route": "/gpu-sizing"
+      },
+      "infrastructure.deployment-decision": {
+        "step": "Resolve the open deployment inputs, then compare economics with the Cloud vs On-Prem TCO Calculator.",
+        "tool_route": "/tco"
+      },
+      "infrastructure.greenfield": {
+        "step": "Compare the environment paths and size the entry footprint with the GPU Sizing Tool.",
+        "tool_route": "/gpu-sizing"
+      },
+      "infrastructure.full": {
+        "step": "Define the infrastructure footprint with the GPU Sizing Tool, then compare economics with the Cloud vs On-Prem TCO Calculator.",
+        "tool_route": "/gpu-sizing"
+      },
+      "people-operations.upskilling": {
+        "step": "Close the operational gaps: assign support ownership and extend monitoring, patching, and incident coverage.",
+        "tool_route": null
+      },
+      "people-operations.ownership": {
+        "step": "Convene IT, security, and business leadership to assign the open ownership decisions.",
+        "tool_route": null
+      },
+      "people-operations.partner": {
+        "step": "Define the partner boundary, escalation path, and service expectations with vendor management.",
+        "tool_route": null
+      },
+      "people-operations.team-build": {
+        "step": "Define the team's roles, charter boundary, and operating processes.",
+        "tool_route": null
+      },
+      "people-operations.full": {
+        "step": "Convene IT, security, and business leadership to assign production ownership and operating responsibilities.",
+        "tool_route": null
+      },
+      "business-use-case.validation": {
+        "step": "Complete the use case definition with the business owner: metrics, error tolerance, review points, and pilot scope.",
+        "tool_route": null
+      },
+      "business-use-case.ideation": {
+        "step": "Explore AI use cases with the AI Use Case Explorer.",
+        "tool_route": "/use-cases"
+      },
+      "business-use-case.justification": {
+        "step": "Build out the investment case with the sponsor and Finance: value, funding path, and timeline.",
+        "tool_route": null
+      },
+      "business-use-case.full": {
+        "step": "Firm up the use case with the AI Use Case Explorer and define success metrics with the named users.",
+        "tool_route": "/use-cases"
+      }
+    }
+  },
+  "doors": [
+    {
+      "id": "data",
+      "label": "Data",
+      "hero_blurb": "Is the data accessible, usable, and cleared for the way you plan to use it?",
+      "state_picker": {
+        "question": "What best describes where you are today?",
+        "options": [
+          {
+            "label": "We know which data the AI use case needs",
+            "branch": "preparation"
+          },
+          {
+            "label": "We have the data, but don't know whether it's usable for AI",
+            "branch": "quality"
+          },
+          {
+            "label": "The data we need lives across multiple systems",
+            "branch": "integration"
+          },
+          {
+            "label": "We're concerned about sensitive or restricted data",
+            "branch": "sensitive"
+          },
+          {
+            "label": "Not sure yet",
+            "branch": "full"
+          }
+        ]
+      },
+      "branches": [
+        {
+          "id": "preparation",
+          "label": "Preparing known data",
+          "items": [
+            "data-owner",
+            "data-complete",
+            "data-fresh",
+            "data-access-approach",
+            "data-quality"
+          ]
+        },
+        {
+          "id": "quality",
+          "label": "Assessing usability",
+          "items": [
+            "data-inventory",
+            "data-structured-mix",
+            "data-unstructured-condition",
+            "data-authoritative",
+            "data-quality"
+          ]
+        },
+        {
+          "id": "integration",
+          "label": "Data across systems",
+          "items": [
+            "data-systems",
+            "data-access-paths",
+            "data-consolidate",
+            "data-identifiers",
+            "data-owner"
+          ]
+        },
+        {
+          "id": "sensitive",
+          "label": "Sensitive and restricted data",
+          "items": [
+            "data-use-rights",
+            "data-classified",
+            "data-sensitive-types",
+            "data-residency",
+            "data-retention",
+            "data-retrieval-perms",
+            "data-prep-handling"
+          ]
+        },
+        {
+          "id": "full",
+          "label": "The full data checklist",
+          "items": [
+            "data-inventory",
+            "data-owner",
+            "data-systems",
+            "data-structured-mix",
+            "data-quality",
+            "data-complete",
+            "data-authoritative",
+            "data-fresh",
+            "data-access-approach",
+            "data-consolidate",
+            "data-classified",
+            "data-sensitive-types",
+            "data-use-rights",
+            "data-retrieval-perms",
+            "data-retention"
+          ]
+        }
+      ],
+      "handoffs": {}
+    },
+    {
+      "id": "security-governance",
+      "label": "Security & Governance",
+      "hero_blurb": "How will you protect data, models, and access, and meet the obligations that apply?",
+      "state_picker": {
+        "question": "What best describes where you are today?",
+        "options": [
+          {
+            "label": "We have a security program and need to extend it to AI",
+            "branch": "extension"
+          },
+          {
+            "label": "We're starting our AI security thinking from scratch",
+            "branch": "foundations"
+          },
+          {
+            "label": "We have regulatory, policy, or contractual requirements we need to meet",
+            "branch": "obligations"
+          },
+          {
+            "label": "Not sure yet",
+            "branch": "full"
+          }
+        ]
+      },
+      "branches": [
+        {
+          "id": "extension",
+          "label": "Extending your security program",
+          "items": [
+            "sec-identity",
+            "sec-prompt-retention",
+            "sec-logging",
+            "sec-secrets",
+            "sec-guardrails",
+            "sec-provenance",
+            "sec-supply-chain"
+          ]
+        },
+        {
+          "id": "foundations",
+          "label": "Security foundations",
+          "items": [
+            "sec-roles",
+            "sec-segmentation",
+            "sec-encryption",
+            "sec-dlp"
+          ]
+        },
+        {
+          "id": "obligations",
+          "label": "Obligations and applicability",
+          "items": [
+            "sec-obligations",
+            "sec-cji",
+            "sec-ferpa",
+            "sec-cui",
+            "sec-govramp",
+            "sec-pubrecords",
+            "sec-accessibility",
+            "sec-contracts"
+          ]
+        },
+        {
+          "id": "full",
+          "label": "The full security checklist",
+          "items": [
+            "sec-obligations",
+            "sec-roles",
+            "sec-segmentation",
+            "sec-encryption",
+            "sec-secrets",
+            "sec-prompt-retention",
+            "sec-logging",
+            "sec-dlp",
+            "sec-guardrails",
+            "sec-provenance",
+            "sec-supply-chain",
+            "sec-pubrecords"
+          ]
+        }
+      ],
+      "handoffs": {}
+    },
+    {
+      "id": "infrastructure",
+      "label": "Infrastructure",
+      "hero_blurb": "Can your facility, network, and storage support the deployment you're considering?",
+      "state_picker": {
+        "question": "What best describes where you are today?",
+        "options": [
+          {
+            "label": "We already run GPU infrastructure",
+            "branch": "expansion"
+          },
+          {
+            "label": "We have a data center but no GPU footprint",
+            "branch": "retrofit"
+          },
+          {
+            "label": "We're evaluating cloud vs on-prem",
+            "branch": "deployment-decision"
+          },
+          {
+            "label": "We don't currently operate infrastructure suitable for AI",
+            "branch": "greenfield"
+          },
+          {
+            "label": "Not sure yet",
+            "branch": "full"
+          }
+        ]
+      },
+      "branches": [
+        {
+          "id": "expansion",
+          "label": "Expanding existing GPU infrastructure",
+          "items": [
+            "infra-headroom",
+            "infra-cooling-req",
+            "infra-eastwest",
+            "infra-storage",
+            "infra-ceiling"
+          ]
+        },
+        {
+          "id": "retrofit",
+          "label": "Retrofitting the data center",
+          "items": [
+            "infra-power",
+            "infra-heat",
+            "infra-space",
+            "infra-dc-network",
+            "infra-scope"
+          ]
+        },
+        {
+          "id": "deployment-decision",
+          "label": "Deciding where to run it",
+          "items": [
+            "infra-data-move",
+            "infra-perf",
+            "infra-util",
+            "infra-duration",
+            "infra-sovereignty"
+          ]
+        },
+        {
+          "id": "greenfield",
+          "label": "Starting without suitable infrastructure",
+          "items": [
+            "infra-paths",
+            "infra-min-footprint",
+            "infra-operator",
+            "infra-leadtimes"
+          ]
+        },
+        {
+          "id": "full",
+          "label": "The full infrastructure checklist",
+          "items": [
+            "infra-data-move",
+            "infra-perf",
+            "infra-util",
+            "infra-duration",
+            "infra-sovereignty",
+            "infra-feasibility",
+            "infra-dc-network",
+            "infra-storage",
+            "infra-scope",
+            "infra-ceiling",
+            "infra-operator",
+            "infra-leadtimes"
+          ]
+        }
+      ],
+      "handoffs": {
+        "expansion": [
+          {
+            "tool_route": "/gpu-sizing",
+            "link_text": "Next: GPU Sizing Tool — determine the compute footprint your workload requires.",
+            "framing": "next"
+          },
+          {
+            "tool_route": "/tco",
+            "link_text": "Then: Cloud vs On-Prem TCO Calculator — compare the economics of the resulting environment.",
+            "framing": "also"
+          }
+        ],
+        "retrofit": [
+          {
+            "tool_route": "/gpu-sizing",
+            "link_text": "Next: GPU Sizing Tool — determine the compute footprint your workload requires.",
+            "framing": "next"
+          },
+          {
+            "tool_route": "/tco",
+            "link_text": "Then: Cloud vs On-Prem TCO Calculator — compare the economics of the resulting environment.",
+            "framing": "also"
+          }
+        ],
+        "greenfield": [
+          {
+            "tool_route": "/gpu-sizing",
+            "link_text": "Next: GPU Sizing Tool — determine the compute footprint your workload requires.",
+            "framing": "next"
+          },
+          {
+            "tool_route": "/tco",
+            "link_text": "Then: Cloud vs On-Prem TCO Calculator — compare the economics of the resulting environment.",
+            "framing": "also"
+          }
+        ],
+        "deployment-decision": [
+          {
+            "tool_route": "/tco",
+            "link_text": "Next: Cloud vs On-Prem TCO Calculator if you already understand your GPU footprint.",
+            "framing": "next"
+          },
+          {
+            "tool_route": "/gpu-sizing",
+            "link_text": "Need to define that footprint first? Start with the GPU Sizing Tool.",
+            "framing": "also"
+          }
+        ]
+      }
+    },
+    {
+      "id": "people-operations",
+      "label": "People & Operations",
+      "hero_blurb": "Who owns, operates, and supports the environment once it's real?",
+      "state_picker": {
+        "question": "What best describes where you are today?",
+        "options": [
+          {
+            "label": "We have an IT/infrastructure team but limited AI operations experience",
+            "branch": "upskilling"
+          },
+          {
+            "label": "We're still determining who will own AI in production",
+            "branch": "ownership"
+          },
+          {
+            "label": "We expect a partner to help operate the environment",
+            "branch": "partner"
+          },
+          {
+            "label": "We're building a dedicated AI/platform team",
+            "branch": "team-build"
+          },
+          {
+            "label": "Not sure yet",
+            "branch": "full"
+          }
+        ]
+      },
+      "branches": [
+        {
+          "id": "upskilling",
+          "label": "Building operational capability",
+          "items": [
+            "ops-gpu-support",
+            "ops-monitoring",
+            "ops-patching",
+            "ops-rollback",
+            "ops-incident",
+            "ops-skills-gaps"
+          ]
+        },
+        {
+          "id": "ownership",
+          "label": "Settling ownership",
+          "items": [
+            "ops-owner",
+            "ops-model-approval",
+            "ops-lifecycle",
+            "ops-investigator",
+            "ops-division",
+            "ops-capacity"
+          ]
+        },
+        {
+          "id": "partner",
+          "label": "Operating with a partner",
+          "items": [
+            "ops-owner",
+            "ops-partner-boundary",
+            "ops-inhouse-min",
+            "ops-escalation",
+            "ops-service-expect",
+            "ops-partner-coverage"
+          ]
+        },
+        {
+          "id": "team-build",
+          "label": "Building the platform team",
+          "items": [
+            "ops-roles",
+            "ops-division",
+            "ops-cost-alloc",
+            "ops-change-mgmt",
+            "ops-skills-currency"
+          ]
+        },
+        {
+          "id": "full",
+          "label": "The full people & operations checklist",
+          "items": [
+            "ops-owner",
+            "ops-division",
+            "ops-model-approval",
+            "ops-investigator",
+            "ops-lifecycle",
+            "ops-gpu-support",
+            "ops-monitoring",
+            "ops-incident",
+            "ops-patching",
+            "ops-rollback",
+            "ops-capacity",
+            "ops-skills-gaps",
+            "ops-change-mgmt",
+            "ops-cost-alloc"
+          ]
+        }
+      ],
+      "handoffs": {}
+    },
+    {
+      "id": "business-use-case",
+      "label": "Business & Use Case",
+      "hero_blurb": "Is there a defined problem, named users, and a path from pilot to production?",
+      "state_picker": {
+        "question": "What best describes where you are today?",
+        "options": [
+          {
+            "label": "We have a specific use case and need to validate it",
+            "branch": "validation"
+          },
+          {
+            "label": "We know we want to use AI but haven't chosen the use case",
+            "branch": "ideation"
+          },
+          {
+            "label": "We've chosen the use case and need to justify the investment",
+            "branch": "justification"
+          },
+          {
+            "label": "Not sure yet",
+            "branch": "full"
+          }
+        ]
+      },
+      "branches": [
+        {
+          "id": "validation",
+          "label": "Validating the use case",
+          "items": [
+            "biz-problem",
+            "biz-users",
+            "biz-metrics",
+            "biz-error",
+            "biz-review",
+            "biz-pilot",
+            "biz-prodcriteria",
+            "biz-baseline"
+          ]
+        },
+        {
+          "id": "ideation",
+          "label": "Finding the use case",
+          "items": [
+            "biz-ideation-process",
+            "biz-ideation-users",
+            "biz-ideation-outcome",
+            "biz-peers"
+          ]
+        },
+        {
+          "id": "justification",
+          "label": "Justifying the investment",
+          "items": [
+            "biz-baseline",
+            "biz-value",
+            "biz-funding",
+            "biz-sponsor",
+            "biz-timeline",
+            "biz-inaction"
+          ]
+        },
+        {
+          "id": "full",
+          "label": "The full business checklist",
+          "items": [
+            "biz-problem",
+            "biz-baseline",
+            "biz-users",
+            "biz-ideation-outcome",
+            "biz-metrics",
+            "biz-value",
+            "biz-error",
+            "biz-review",
+            "biz-sponsor",
+            "biz-funding",
+            "biz-pilot",
+            "biz-prodcriteria",
+            "biz-timeline",
+            "biz-inaction",
+            "biz-peers"
+          ]
+        }
+      ],
+      "handoffs": {
+        "ideation": [
+          {
+            "tool_route": "/use-cases",
+            "link_text": "Not sure yet? Explore AI use cases by industry or business function.",
+            "framing": "next"
+          }
+        ]
+      }
+    }
+  ],
+  "items": [
+    {
+      "id": "biz-problem",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Do you have a clearly defined business problem this AI use case addresses?",
+      "impact": "blocking",
+      "why_it_matters": "Starting from a clearly defined problem gives the project a stable basis for scope and success criteria. A one-sentence problem statement lets every later decision, from model choice to infrastructure, be measured against it.",
+      "typical_owners": [
+        "Business unit leadership",
+        "Executive sponsor"
+      ],
+      "branch_tags": [
+        "validation",
+        "full"
+      ],
+      "impact_rationale": "Without a defined problem, success cannot be meaningfully evaluated and scope can expand without a clear boundary. This is the branch's genuine logical gate."
+    },
+    {
+      "id": "biz-users",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Have you identified the specific people who would use this in their daily work?",
+      "impact": "important",
+      "why_it_matters": "'The organization' is not a user. Identifying the people who will actually use the system helps define the workflow the AI must fit into and exposes adoption barriers early.",
+      "typical_owners": [
+        "Business unit leadership",
+        "Department managers"
+      ],
+      "branch_tags": [
+        "validation",
+        "full"
+      ],
+      "review_notes": "Deliberate near-neighbor of biz-ideation-users: this asks for specific people; that asks whether any user group comes to mind. Distinct maturity levels, kept separate on purpose."
+    },
+    {
+      "id": "biz-metrics",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Have you defined how you'll measure success?",
+      "impact": "important",
+      "why_it_matters": "Without agreed metrics, the pilot ends in opinions. A small set of measurable outcomes, defined before deployment, gives the pilot something concrete to prove or disprove.",
+      "typical_owners": [
+        "Business unit leadership",
+        "Executive sponsor"
+      ],
+      "branch_tags": [
+        "validation",
+        "full"
+      ]
+    },
+    {
+      "id": "biz-error",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Have you defined what level and types of AI error are acceptable for this use case?",
+      "impact": "important",
+      "why_it_matters": "AI systems can produce incorrect or inappropriate results, and what is tolerable depends heavily on the use case. Defining acceptable error and failure conditions up front shapes model evaluation, review workflows, and whether the use case is suitable for production.",
+      "typical_owners": [
+        "Business unit leadership",
+        "Risk/Compliance where applicable"
+      ],
+      "branch_tags": [
+        "validation",
+        "full"
+      ]
+    },
+    {
+      "id": "biz-review",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Have you determined where human review is required before AI output is acted on?",
+      "impact": "important",
+      "why_it_matters": "Human review defines where AI output can be used directly and where a person must verify it first. That decision affects workflow design, staffing, risk controls, and the amount of automation the use case can realistically support.",
+      "typical_owners": [
+        "Business unit leadership",
+        "Risk/Compliance",
+        "Legal where applicable"
+      ],
+      "branch_tags": [
+        "validation",
+        "full"
+      ]
+    },
+    {
+      "id": "biz-pilot",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Have you defined the scope of an initial pilot?",
+      "impact": "important",
+      "why_it_matters": "A pilot scoped to one team, one workflow, and a fixed period produces a decision. An unscoped pilot produces a permanent experiment.",
+      "typical_owners": [
+        "Project/Program management",
+        "Business unit leadership"
+      ],
+      "branch_tags": [
+        "validation",
+        "full"
+      ]
+    },
+    {
+      "id": "biz-prodcriteria",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Have you defined what would justify moving from pilot to production?",
+      "impact": "important",
+      "why_it_matters": "Production criteria set in advance prevent both premature scaling and pilots that succeed quietly and go nowhere. They should reference the success metrics directly.",
+      "typical_owners": [
+        "Executive sponsor",
+        "Project/Program management"
+      ],
+      "branch_tags": [
+        "validation",
+        "full"
+      ]
+    },
+    {
+      "id": "biz-baseline",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Do you understand the current process well enough to compare against it?",
+      "impact": "important",
+      "why_it_matters": "The value of the AI version is only visible against a baseline of how the work happens today. A rough baseline is enough to begin; without one, it becomes difficult to show whether the AI version actually improved the process.",
+      "typical_owners": [
+        "Business unit leadership",
+        "Operations/Finance"
+      ],
+      "branch_tags": [
+        "validation",
+        "justification",
+        "full"
+      ],
+      "review_notes": "Shared item: validation and justification branches, same semantics (the baseline question)."
+    },
+    {
+      "id": "biz-ideation-process",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Do you know which business process you're trying to improve?",
+      "impact": "important",
+      "why_it_matters": "AI applies to a process, not to an organization in general. Naming the process, even loosely, turns 'we should use AI' into something that can be evaluated.",
+      "typical_owners": [
+        "Business unit leadership"
+      ],
+      "branch_tags": [
+        "ideation"
+      ],
+      "review_notes": "Excluded from the full list: in full-list context this collapses into biz-problem."
+    },
+    {
+      "id": "biz-ideation-users",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Do you know who the users would be?",
+      "impact": "important",
+      "why_it_matters": "The people doing the work today often reveal where AI could help and what it would have to fit around. If no user group comes to mind, the use case isn't found yet.",
+      "typical_owners": [
+        "Business unit leadership",
+        "Department managers"
+      ],
+      "branch_tags": [
+        "ideation"
+      ],
+      "review_notes": "Deliberate near-neighbor of biz-users; see that item's note."
+    },
+    {
+      "id": "biz-ideation-outcome",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Do you know what outcome you're trying to change?",
+      "impact": "important",
+      "why_it_matters": "Faster, cheaper, more accurate, and more available are different goals that lead to different use cases. Picking the outcome narrows the search dramatically.",
+      "typical_owners": [
+        "Business unit leadership",
+        "Executive sponsor"
+      ],
+      "branch_tags": [
+        "ideation",
+        "full"
+      ]
+    },
+    {
+      "id": "biz-peers",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Have you looked at what organizations like yours are already doing with AI?",
+      "impact": "informational",
+      "why_it_matters": "Looking at how peer organizations are using AI can make an abstract discussion more concrete. It can surface practical use cases worth adapting rather than requiring your team to start from a blank page.",
+      "typical_owners": [
+        "Business unit leadership",
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "ideation",
+        "full"
+      ]
+    },
+    {
+      "id": "biz-value",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Have you estimated the value the AI version would create?",
+      "impact": "important",
+      "why_it_matters": "A rough estimate of time saved, capacity created, or errors avoided is enough to start. It doesn't need to be precise; it needs to be stated so it can be challenged and refined.",
+      "typical_owners": [
+        "Business unit leadership",
+        "Finance"
+      ],
+      "branch_tags": [
+        "justification",
+        "full"
+      ]
+    },
+    {
+      "id": "biz-funding",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Is there an identified funding path for moving this use case into production?",
+      "impact": "blocking",
+      "why_it_matters": "Without an identified production funding path, a successful pilot may still have no clear route into sustained operation. Knowing how production would be funded is what separates a project from a demonstration.",
+      "typical_owners": [
+        "Executive sponsor",
+        "Finance"
+      ],
+      "branch_tags": [
+        "justification",
+        "full"
+      ],
+      "impact_rationale": "A use case cannot move into a funded production deployment if no source of production funding has been identified. The question tests the actual gating condition (funding path), not a proxy (a named budget owner)."
+    },
+    {
+      "id": "biz-sponsor",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Do you have an executive sponsor who will advocate for this?",
+      "impact": "important",
+      "why_it_matters": "AI initiatives often span business, IT, data, security, and legal teams. An executive sponsor can resolve decisions and organizational barriers that working teams may not have the authority to settle themselves.",
+      "typical_owners": [
+        "Executive leadership"
+      ],
+      "branch_tags": [
+        "justification",
+        "full"
+      ]
+    },
+    {
+      "id": "biz-timeline",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Have you set a rough timeline from pilot to production decision?",
+      "impact": "important",
+      "why_it_matters": "A target decision date creates a clear point for deciding whether to stop, revise, or move toward production. Without one, pilots extend indefinitely and the investment case goes stale.",
+      "typical_owners": [
+        "Project/Program management",
+        "Executive sponsor"
+      ],
+      "branch_tags": [
+        "justification",
+        "full"
+      ]
+    },
+    {
+      "id": "biz-inaction",
+      "door_id": "business-use-case",
+      "item_revision": 1,
+      "text": "Have you considered what staying with the current process costs?",
+      "impact": "informational",
+      "why_it_matters": "The comparison isn't AI cost versus zero; it's AI cost versus the ongoing cost of today's process. Understanding the cost of staying with the current process gives the investment discussion a more complete baseline.",
+      "typical_owners": [
+        "Finance",
+        "Business unit leadership"
+      ],
+      "branch_tags": [
+        "justification",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-gpu-support",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Is it clear who will support the GPU systems themselves, including hardware, drivers, and firmware?",
+      "impact": "important",
+      "why_it_matters": "GPU infrastructure adds maintenance dependencies across drivers, firmware, operating systems, and supporting software that may not fit neatly into existing server-team responsibilities. Without an assigned owner, this support can fall between the server team and the application team.",
+      "typical_owners": [
+        "IT/Infrastructure leadership"
+      ],
+      "branch_tags": [
+        "upskilling",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-monitoring",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you decided how the AI environment will be monitored, and by whom?",
+      "impact": "important",
+      "why_it_matters": "AI environments add things worth watching that standard server monitoring doesn't cover, such as GPU utilization, thermals, and the health of model services. Deciding what gets monitored and who responds keeps problems visible early.",
+      "typical_owners": [
+        "IT Operations"
+      ],
+      "branch_tags": [
+        "upskilling",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-patching",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Do you have a plan for patching and updating the AI software stack?",
+      "impact": "important",
+      "why_it_matters": "The stack spans drivers, container runtimes, frameworks, and model services, and updates to one layer can affect the others. A defined update process makes changes deliberate and recoverable instead of allowing the environment to become difficult to maintain because dependencies are poorly understood.",
+      "typical_owners": [
+        "IT Operations",
+        "Platform team"
+      ],
+      "branch_tags": [
+        "upskilling",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-rollback",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Do you know how you would roll back a model or model-service change that produces unacceptable results?",
+      "impact": "important",
+      "why_it_matters": "Models and the services around them change through updates, tuning, and configuration changes. A rollback plan requires preserving a known-good version and knowing who has authority to restore it.",
+      "typical_owners": [
+        "IT Operations",
+        "Application owner"
+      ],
+      "branch_tags": [
+        "upskilling",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-incident",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Does your incident response process cover AI-specific problems?",
+      "impact": "important",
+      "why_it_matters": "AI incidents include degraded or inappropriate output, not just outages, and those can be harder to detect. Extending existing incident processes to cover them clarifies who gets called and what gets checked.",
+      "typical_owners": [
+        "IT Operations",
+        "Security"
+      ],
+      "branch_tags": [
+        "upskilling",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-skills-gaps",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you identified the skills gaps between what your team knows today and what operating this environment requires?",
+      "impact": "important",
+      "why_it_matters": "Naming the gaps turns them into decisions about training, hiring, or partner support. Otherwise, capability gaps may not become visible until the team is supporting a live environment.",
+      "typical_owners": [
+        "IT leadership",
+        "HR/Training"
+      ],
+      "branch_tags": [
+        "upskilling",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-owner",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Is it clear which team owns the AI environment once it's in production?",
+      "impact": "blocking",
+      "why_it_matters": "AI deployments cross infrastructure, data, and application boundaries, and shared responsibility can leave gaps unless one team is named accountable. Naming the owning team settles where day-to-day accountability lives.",
+      "typical_owners": [
+        "IT leadership",
+        "Executive sponsor"
+      ],
+      "branch_tags": [
+        "ownership",
+        "partner",
+        "full"
+      ],
+      "impact_rationale": "An environment with no accountable production owner can leave operation, security, cost, and escalation responsibilities unresolved. Shared into the partner branch deliberately: a partner can operate an environment, but accountability for it stays inside the organization."
+    },
+    {
+      "id": "ops-model-approval",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you decided who can approve a model for production use?",
+      "impact": "important",
+      "why_it_matters": "Approving a model is a judgment about fitness and risk, not only technical readiness. A named approver makes that judgment deliberate rather than implicit in a deployment step.",
+      "typical_owners": [
+        "Business owner",
+        "IT leadership",
+        "Risk/Compliance where applicable"
+      ],
+      "branch_tags": [
+        "ownership",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-lifecycle",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you decided who determines when a model should be updated, replaced, or retired?",
+      "impact": "important",
+      "why_it_matters": "A model that was suitable at launch may become less suitable as data, usage patterns, available models, or requirements change. Without a decision owner, models can remain in service by default rather than by deliberate review.",
+      "typical_owners": [
+        "Application owner",
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "ownership",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-investigator",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you decided who investigates when the AI produces problematic output?",
+      "impact": "important",
+      "why_it_matters": "Investigating bad output can involve the data, the model, and the application layer at once. Assigning this ahead of time avoids working it out during a live issue.",
+      "typical_owners": [
+        "IT Operations",
+        "Application owner",
+        "Security where applicable"
+      ],
+      "branch_tags": [
+        "ownership",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-division",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you defined how responsibility divides when infrastructure, data, and application teams are different groups?",
+      "impact": "important",
+      "why_it_matters": "The environment owner still depends on other teams for data quality, application behavior, and infrastructure changes. A simple division of responsibility keeps handoffs from becoming standoffs.",
+      "typical_owners": [
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "ownership",
+        "team-build",
+        "full"
+      ],
+      "review_notes": "Shared item: ownership and team-build branches; in team-build it defines the new team's charter boundary against existing teams. Same semantics."
+    },
+    {
+      "id": "ops-capacity",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you decided who owns capacity planning as usage grows?",
+      "impact": "important",
+      "why_it_matters": "GPU capacity additions can involve substantial cost, facility dependencies, and procurement lead time, so someone needs to watch utilization and plan ahead. Reactive capacity planning can narrow the organization's options and increase cost or delay.",
+      "typical_owners": [
+        "IT leadership",
+        "Finance"
+      ],
+      "branch_tags": [
+        "ownership",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-partner-boundary",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you defined which operational responsibilities the partner covers and which stay in-house?",
+      "impact": "important",
+      "why_it_matters": "Partner arrangements work when the boundary is explicit: who patches, who monitors, who responds at 2 a.m., who touches models. Undefined boundaries surface as gaps during incidents rather than during planning.",
+      "typical_owners": [
+        "IT leadership",
+        "Vendor management"
+      ],
+      "branch_tags": [
+        "partner"
+      ]
+    },
+    {
+      "id": "ops-inhouse-min",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you decided what your team must be able to do even with a partner in place?",
+      "impact": "important",
+      "why_it_matters": "Some capabilities are hard to delegate entirely, such as judging whether AI output is acceptable for your organization and deciding what the environment should do next. Defining the in-house minimum helps define what remains an organizational responsibility even when operational work is delegated.",
+      "typical_owners": [
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "partner"
+      ]
+    },
+    {
+      "id": "ops-escalation",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you defined how escalation works between your team and the partner?",
+      "impact": "important",
+      "why_it_matters": "AI incidents can involve the partner's layer, your data, and your application at the same time. An agreed escalation path with response expectations avoids negotiating one mid-incident.",
+      "typical_owners": [
+        "IT Operations",
+        "Vendor management"
+      ],
+      "branch_tags": [
+        "partner"
+      ]
+    },
+    {
+      "id": "ops-service-expect",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you defined the service expectations the partner will be accountable for?",
+      "impact": "important",
+      "why_it_matters": "Service expectations turn a partner arrangement into something manageable: response times, coverage hours, patching responsibilities, and agreed outcomes. Expectations defined up front can be measured and corrected; expectations assumed tend to surface as disputes.",
+      "typical_owners": [
+        "IT leadership",
+        "Vendor management"
+      ],
+      "branch_tags": [
+        "partner"
+      ]
+    },
+    {
+      "id": "ops-partner-coverage",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Does the partner arrangement cover the AI-specific layers, not just the hardware?",
+      "impact": "important",
+      "why_it_matters": "A support agreement may cover hardware without covering model services, AI software, or application-level output issues. Confirming the support boundary prevents an operational gap between infrastructure support and the layers running on top of it.",
+      "typical_owners": [
+        "IT leadership",
+        "Vendor management"
+      ],
+      "branch_tags": [
+        "partner"
+      ]
+    },
+    {
+      "id": "ops-roles",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you defined the roles the team needs, not just the headcount?",
+      "impact": "important",
+      "why_it_matters": "An AI platform team mixes distinct kinds of work: infrastructure operation, platform engineering, and supporting the people who build on it. Defining the work first helps avoid building a team with strong coverage in one area and gaps in another.",
+      "typical_owners": [
+        "IT leadership",
+        "HR/Talent"
+      ],
+      "branch_tags": [
+        "team-build"
+      ]
+    },
+    {
+      "id": "ops-cost-alloc",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you decided how the team's costs will be allocated as internal usage grows?",
+      "impact": "important",
+      "why_it_matters": "A shared AI platform consumes infrastructure and operating budget as usage grows. Knowing how those costs will be tracked and funded helps the team plan capacity and maintain a sustainable operating model. Showback or chargeback are options, not requirements.",
+      "typical_owners": [
+        "IT leadership",
+        "Finance"
+      ],
+      "branch_tags": [
+        "team-build",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-change-mgmt",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Is there a change management process for how the team introduces updates to shared AI services?",
+      "impact": "important",
+      "why_it_matters": "Once several groups depend on the platform, an update that helps one can disrupt another. Lightweight change management, with notice and a rollback path, keeps shared infrastructure trustworthy.",
+      "typical_owners": [
+        "Platform team",
+        "IT Operations"
+      ],
+      "branch_tags": [
+        "team-build",
+        "full"
+      ]
+    },
+    {
+      "id": "ops-skills-currency",
+      "door_id": "people-operations",
+      "item_revision": 1,
+      "text": "Have you planned how the team keeps its skills current as the AI stack evolves?",
+      "impact": "informational",
+      "why_it_matters": "Skills can become outdated quickly as the stack changes. A standing plan for skills currency, through training time, vendor resources, or community involvement, addresses the gap before it shows up in operations.",
+      "typical_owners": [
+        "IT leadership",
+        "HR/Training"
+      ],
+      "branch_tags": [
+        "team-build"
+      ]
+    },
+    {
+      "id": "data-owner",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Has an owner been identified for each data source the use case will rely on?",
+      "impact": "important",
+      "why_it_matters": "Knowing who is accountable for each source gives the project somewhere to resolve access, quality, and appropriate-use questions. Identifying those owners early keeps data decisions from becoming an unassigned dependency.",
+      "typical_owners": [
+        "Data governance",
+        "Business unit leadership"
+      ],
+      "branch_tags": [
+        "preparation",
+        "integration",
+        "full"
+      ],
+      "review_notes": "Shared item: preparation and integration branches; ownership questions multiply when sources do. Same semantics."
+    },
+    {
+      "id": "data-complete",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Have you checked whether the data is complete enough for the use case?",
+      "impact": "important",
+      "why_it_matters": "Missing fields, partial history, or uneven coverage can limit what the use case can reliably do. Finding those gaps before the build gives the team a chance to change the design or address the data rather than discovering the limitation through the results.",
+      "typical_owners": [
+        "Data owner",
+        "Application team"
+      ],
+      "branch_tags": [
+        "preparation",
+        "full"
+      ]
+    },
+    {
+      "id": "data-fresh",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Do you know how current the data needs to be, and how it will stay that way?",
+      "impact": "important",
+      "why_it_matters": "Some use cases work on last quarter's data; others need yesterday's. Knowing the freshness requirement, and what process keeps the data at it, reduces the risk of the AI relying on information that is too old for the use case.",
+      "typical_owners": [
+        "Data owner",
+        "IT Operations"
+      ],
+      "branch_tags": [
+        "preparation",
+        "full"
+      ]
+    },
+    {
+      "id": "data-access-approach",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Have you decided how the AI will access this data, such as retrieval from an index, direct integration, or another governed access path?",
+      "impact": "important",
+      "why_it_matters": "How data is prepared and accessed shapes the technical design, the infrastructure requirement, and how quickly new information becomes available to the AI. This decision connects the data conversation to the architecture conversation.",
+      "typical_owners": [
+        "IT/Architecture",
+        "Data owner"
+      ],
+      "branch_tags": [
+        "preparation",
+        "full"
+      ]
+    },
+    {
+      "id": "data-quality",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Have you assessed data quality against how this use case will actually use it?",
+      "impact": "important",
+      "why_it_matters": "Quality is relative to use: data too messy for one purpose can be fine for another. Assessing quality against the specific use case avoids both false confidence and unnecessary cleanup projects.",
+      "typical_owners": [
+        "Data owner",
+        "Application team"
+      ],
+      "branch_tags": [
+        "preparation",
+        "quality",
+        "full"
+      ],
+      "review_notes": "Shared item: preparation and quality branches. Same semantics."
+    },
+    {
+      "id": "data-inventory",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Do you have an inventory of the data this use case would draw from?",
+      "impact": "important",
+      "why_it_matters": "An inventory, even a simple list of sources and what they contain, turns 'our data' into something that can be evaluated. It gives the team a concrete starting point for later quality, access, and architecture decisions.",
+      "typical_owners": [
+        "Data governance",
+        "IT"
+      ],
+      "branch_tags": [
+        "quality",
+        "full"
+      ]
+    },
+    {
+      "id": "data-structured-mix",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Do you know how much of the data is structured versus unstructured?",
+      "impact": "important",
+      "why_it_matters": "Structured records and unstructured content take different preparation paths and often different technical approaches. Knowing the mix early shapes both the effort estimate and the architecture.",
+      "typical_owners": [
+        "Data governance",
+        "IT"
+      ],
+      "branch_tags": [
+        "quality",
+        "full"
+      ]
+    },
+    {
+      "id": "data-unstructured-condition",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Do you know whether unstructured content is machine-readable, or whether it includes scans, images, locked files, or other formats that need preparation?",
+      "impact": "important",
+      "why_it_matters": "Unstructured content may need different preparation depending on its format and quality. Scans, images, protected files, inconsistent layouts, or poor text extraction can affect how reliably the content can be indexed, retrieved, or interpreted.",
+      "typical_owners": [
+        "IT",
+        "Records management"
+      ],
+      "branch_tags": [
+        "quality"
+      ]
+    },
+    {
+      "id": "data-authoritative",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Do you know where the authoritative version lives when copies of the data differ?",
+      "impact": "important",
+      "why_it_matters": "When copies disagree, the project needs a rule for which source takes precedence. Otherwise the AI may retrieve or use inconsistent versions of the same information.",
+      "typical_owners": [
+        "Data governance",
+        "Business unit leadership"
+      ],
+      "branch_tags": [
+        "quality",
+        "full"
+      ]
+    },
+    {
+      "id": "data-systems",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Do you know which systems hold the data and who administers each?",
+      "impact": "important",
+      "why_it_matters": "Every source system comes with an administrator, an access process, and constraints of its own. Mapping systems to people converts an integration wish into a workable plan.",
+      "typical_owners": [
+        "IT",
+        "Data governance"
+      ],
+      "branch_tags": [
+        "integration",
+        "full"
+      ]
+    },
+    {
+      "id": "data-access-paths",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Do you have a way to access each source system, whether APIs, exports, or direct connections?",
+      "impact": "important",
+      "why_it_matters": "The available access method can materially shape integration effort. A source without a practical API, export, or approved connection path may require vendor involvement, custom work, or an alternative source.",
+      "typical_owners": [
+        "IT/Architecture"
+      ],
+      "branch_tags": [
+        "integration"
+      ]
+    },
+    {
+      "id": "data-consolidate",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Have you decided whether data will be consolidated or accessed in place?",
+      "impact": "important",
+      "why_it_matters": "Consolidating data can simplify access but may create additional copies, pipelines, and governance responsibilities. Accessing data in place can reduce duplication but increases dependence on source-system availability, permissions, and performance.",
+      "typical_owners": [
+        "IT/Architecture",
+        "Data governance"
+      ],
+      "branch_tags": [
+        "integration",
+        "full"
+      ]
+    },
+    {
+      "id": "data-identifiers",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Do the source systems agree on the basics, such as identifiers, definitions, and formats?",
+      "impact": "important",
+      "why_it_matters": "Combining data across systems depends on shared keys and consistent meanings. Where systems disagree, someone has to decide the mapping, and that work belongs in the plan.",
+      "typical_owners": [
+        "Data governance",
+        "IT"
+      ],
+      "branch_tags": [
+        "integration"
+      ]
+    },
+    {
+      "id": "data-use-rights",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Have the legal, contractual, and policy rights to use this data for the intended AI purpose been confirmed?",
+      "impact": "blocking",
+      "why_it_matters": "Data can carry restrictions from contracts, licenses, consent terms, regulation, or organizational policy that limit how it can be used, and a new AI purpose can fall outside what was originally permitted. Confirming use rights includes how the data will be used, for example retrieval versus model training, since permissions can differ between them.",
+      "typical_owners": [
+        "Legal",
+        "Data governance",
+        "Compliance"
+      ],
+      "branch_tags": [
+        "sensitive",
+        "full"
+      ],
+      "impact_rationale": "Use rights are the genuine gate for this branch; using data without them creates material legal and contractual exposure regardless of technical readiness.",
+      "source_refs": [
+        "nist-ai-rmf"
+      ],
+      "review_notes": "NIST AI RMF cited as governance basis for identifying applicable requirements only; the actual authority is the specific contract, license, consent term, regulation, or policy involved."
+    },
+    {
+      "id": "data-classified",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Has sensitive data been classified before being made available to AI workloads?",
+      "impact": "important",
+      "why_it_matters": "AI applications can create additional paths through which sensitive information is retrieved, logged, transformed, or exposed to users. Classification helps determine which information the AI should be allowed to access and what protections should travel with it.",
+      "typical_owners": [
+        "Security",
+        "Data governance",
+        "Legal/Compliance"
+      ],
+      "branch_tags": [
+        "sensitive",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-53"
+      ]
+    },
+    {
+      "id": "data-sensitive-types",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Do you know whether the data contains personally identifiable information (PII), protected health information (PHI), Controlled Unclassified Information (CUI), or other regulated or restricted information?",
+      "impact": "important",
+      "why_it_matters": "Different categories of sensitive information can carry different handling requirements. Identifying what is actually present gives privacy, security, compliance, and legal teams the information they need to determine which obligations apply.",
+      "typical_owners": [
+        "Data governance",
+        "Privacy/Compliance",
+        "Legal"
+      ],
+      "branch_tags": [
+        "sensitive",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-122",
+        "hhs-hipaa",
+        "nara-cui"
+      ],
+      "review_notes": "PHI is protected health information within the HIPAA regulatory context. Cross-reference: sec-cui picks up from presence to safeguarding requirements."
+    },
+    {
+      "id": "data-residency",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Are there residency or location requirements for where this data can be stored and processed?",
+      "impact": "important",
+      "why_it_matters": "Some data carries requirements about the jurisdictions or environments it can occupy, from regulation, contract, or policy. Residency requirements discovered late can require an architecture to be changed.",
+      "typical_owners": [
+        "Legal/Compliance",
+        "IT/Architecture"
+      ],
+      "branch_tags": [
+        "sensitive"
+      ],
+      "review_notes": "Documented provenance exception: no source is better than a misleading source. Cross-reference: infra-sovereignty covers how such requirements constrain deployment placement.",
+      "jurisdiction_note": "Requirements are jurisdiction-, contract-, and policy-specific; no universal authority exists."
+    },
+    {
+      "id": "data-retention",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Have retention requirements been identified for the data and for AI-generated records derived from it?",
+      "impact": "important",
+      "why_it_matters": "Source data may already be subject to retention requirements, and prompts, outputs, logs, or derived records may have separate requirements depending on the organization, jurisdiction, and use case. Identifying those requirements before deployment helps the team design storage and lifecycle handling deliberately.",
+      "typical_owners": [
+        "Records management",
+        "Legal/Compliance"
+      ],
+      "branch_tags": [
+        "sensitive",
+        "full"
+      ],
+      "review_notes": "Documented provenance exception. Deliberately scoped to retention/lifecycle; public-records disclosure applicability lives in sec-pubrecords (Door 2).",
+      "jurisdiction_note": "Retention requirements vary by organization, jurisdiction, and record type."
+    },
+    {
+      "id": "data-retrieval-perms",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Will retrieval respect existing access permissions, so users can't see data through the AI that they couldn't see directly?",
+      "impact": "important",
+      "why_it_matters": "An AI retrieval layer can expose content beyond a user's normal permissions if source access controls are not preserved or re-enforced. Carrying authorization into retrieval helps keep AI-mediated access aligned with the organization's existing access model.",
+      "typical_owners": [
+        "Security",
+        "IT/Architecture"
+      ],
+      "branch_tags": [
+        "sensitive",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-53"
+      ]
+    },
+    {
+      "id": "data-prep-handling",
+      "door_id": "data",
+      "item_revision": 1,
+      "text": "Have you decided how sensitive data will be handled during preparation, whether masked, redacted, or excluded?",
+      "impact": "important",
+      "why_it_matters": "Preparing data for AI can create new copies, indexes, embeddings, intermediate files, or transformed versions of sensitive content. Deciding whether information should be masked, redacted, excluded, or otherwise protected helps keep those derived assets within the organization's intended handling boundaries.",
+      "typical_owners": [
+        "Data governance",
+        "Security"
+      ],
+      "branch_tags": [
+        "sensitive"
+      ],
+      "source_refs": [
+        "nist-sp-800-53",
+        "nist-sp-800-122"
+      ]
+    },
+    {
+      "id": "infra-headroom",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Do you know your current power and cooling headroom for additional GPU systems?",
+      "impact": "important",
+      "why_it_matters": "GPU systems can introduce substantially higher rack-level power and cooling requirements than an existing environment was designed around. Headroom determines whether expansion fits the current facility or becomes a facility project.",
+      "typical_owners": [
+        "Facilities",
+        "IT Infrastructure"
+      ],
+      "branch_tags": [
+        "expansion"
+      ]
+    },
+    {
+      "id": "infra-cooling-req",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Have you confirmed the cooling requirements of the systems you'd add, including whether they require liquid cooling?",
+      "impact": "important",
+      "why_it_matters": "Cooling requirements vary by platform, and some high-density GPU systems require liquid cooling rather than offering it as an option. Adding liquid cooling to an air-cooled facility can become a separate facility project, so that requirement belongs in the plan before hardware selection is finalized.",
+      "typical_owners": [
+        "Facilities",
+        "IT Infrastructure"
+      ],
+      "branch_tags": [
+        "expansion"
+      ]
+    },
+    {
+      "id": "infra-eastwest",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Can your network handle the east-west traffic of a larger GPU cluster?",
+      "impact": "important",
+      "why_it_matters": "Distributed training and multi-node inference can generate substantial east-west traffic across the compute fabric, the network between GPU systems. If that fabric cannot provide the required bandwidth and latency, additional GPUs may not deliver the expected scaling.",
+      "typical_owners": [
+        "Network team",
+        "IT Infrastructure"
+      ],
+      "branch_tags": [
+        "expansion"
+      ]
+    },
+    {
+      "id": "infra-storage",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Can your storage deliver the capacity and throughput the expanded GPU environment needs?",
+      "impact": "important",
+      "why_it_matters": "Insufficient storage throughput can leave expensive compute underutilized even when total storage capacity is adequate. Expansion can increase both the amount of data being stored and the rate at which the cluster needs to read or write it.",
+      "typical_owners": [
+        "Storage team",
+        "IT Infrastructure"
+      ],
+      "branch_tags": [
+        "expansion",
+        "full"
+      ]
+    },
+    {
+      "id": "infra-ceiling",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Do you know how far the current environment can expand before hitting a facility limit?",
+      "impact": "informational",
+      "why_it_matters": "Space, power, and cooling each have a ceiling, and knowing which one arrives first tells you when the next expansion stops being an equipment order and becomes a facility decision. That's worth knowing well before it's true.",
+      "typical_owners": [
+        "Facilities",
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "expansion",
+        "full"
+      ]
+    },
+    {
+      "id": "infra-power",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Does the facility have the power available for the GPU systems you're considering?",
+      "impact": "blocking",
+      "why_it_matters": "GPU systems can draw substantially more power per rack than the equipment a facility was designed around. Confirming available power, and the cost and timeline of adding more, belongs at the start of a retrofit plan.",
+      "typical_owners": [
+        "Facilities",
+        "IT Infrastructure"
+      ],
+      "branch_tags": [
+        "retrofit"
+      ],
+      "impact_rationale": "Insufficient facility power can materially prevent or delay an on-prem deployment until additional capacity is available; adding power is real work with real lead time, not a configuration change. Deliberately branch-scoped: blocking holds for the selected retrofit path, so this item does not appear in the persona-neutral full list (see infra-feasibility)."
+    },
+    {
+      "id": "infra-heat",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Can the facility remove the heat these systems produce?",
+      "impact": "important",
+      "why_it_matters": "Higher electrical density also means more heat must be removed from the same physical area, and GPU densities can exceed what existing air cooling was designed to handle. Whether the answer is enhanced air or liquid cooling determines what facility work the retrofit includes.",
+      "typical_owners": [
+        "Facilities"
+      ],
+      "branch_tags": [
+        "retrofit"
+      ]
+    },
+    {
+      "id": "infra-space",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Is there physical space with the right characteristics, not just empty rack positions?",
+      "impact": "important",
+      "why_it_matters": "GPU systems bring weight, power delivery, and cooling requirements to the specific row they occupy. A space that holds the racks isn't automatically a space that supports them.",
+      "typical_owners": [
+        "Facilities",
+        "IT Infrastructure"
+      ],
+      "branch_tags": [
+        "retrofit"
+      ]
+    },
+    {
+      "id": "infra-dc-network",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Can the data center network support AI systems, including the traffic between nodes?",
+      "impact": "important",
+      "why_it_matters": "AI clusters need high-bandwidth connections between their own nodes, which is a different requirement from serving users. Multi-node AI may require a dedicated or purpose-designed high-bandwidth, low-latency compute fabric rather than relying only on the data center's existing application network.",
+      "typical_owners": [
+        "Network team"
+      ],
+      "branch_tags": [
+        "retrofit",
+        "full"
+      ]
+    },
+    {
+      "id": "infra-scope",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Have you scoped the facility work the retrofit needs, with cost and timeline?",
+      "impact": "important",
+      "why_it_matters": "Power, cooling, and structural work carry procurement and construction timelines of their own. Scoping them early puts the true project timeline on the table instead of discovering it mid-deployment.",
+      "typical_owners": [
+        "Facilities",
+        "IT leadership",
+        "Finance"
+      ],
+      "branch_tags": [
+        "retrofit",
+        "full"
+      ]
+    },
+    {
+      "id": "infra-data-move",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Do you know which data can be processed outside your own environment and which must stay within specific approved environments?",
+      "impact": "important",
+      "why_it_matters": "Where the data may go constrains where the AI can run. Knowing which data is movable and which is not narrows the realistic deployment options before any economics are compared.",
+      "typical_owners": [
+        "Data governance",
+        "Legal/Compliance",
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "deployment-decision",
+        "full"
+      ]
+    },
+    {
+      "id": "infra-perf",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Have you determined how predictable the workload's performance needs to be?",
+      "impact": "important",
+      "why_it_matters": "Some workloads tolerate variable performance; others need consistent latency or guaranteed capacity. That requirement affects which deployment models fit before price enters the picture.",
+      "typical_owners": [
+        "IT/Architecture",
+        "Business owner"
+      ],
+      "branch_tags": [
+        "deployment-decision",
+        "full"
+      ]
+    },
+    {
+      "id": "infra-util",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Do you have an estimate of how heavily the infrastructure would be used?",
+      "impact": "important",
+      "why_it_matters": "Utilization materially affects the economics of reserved or owned capacity versus consumption-based infrastructure. Even a rough estimate gives the TCO comparison a much better starting point.",
+      "typical_owners": [
+        "IT leadership",
+        "Application team"
+      ],
+      "branch_tags": [
+        "deployment-decision",
+        "full"
+      ]
+    },
+    {
+      "id": "infra-duration",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Do you know how long the workload will run, a project phase or an ongoing capability?",
+      "impact": "important",
+      "why_it_matters": "Duration changes the economics of ownership. A workload measured in months and a capability measured in years can reasonably land on different answers.",
+      "typical_owners": [
+        "Business owner",
+        "IT leadership",
+        "Finance"
+      ],
+      "branch_tags": [
+        "deployment-decision",
+        "full"
+      ]
+    },
+    {
+      "id": "infra-sovereignty",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Are there residency or sovereignty requirements that constrain where the workload can run?",
+      "impact": "important",
+      "why_it_matters": "Some requirements limit the jurisdictions or environment types a workload may occupy, and they can settle the deployment question before economics enter. Your legal and compliance teams determine which requirements apply.",
+      "typical_owners": [
+        "Legal/Compliance",
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "deployment-decision",
+        "full"
+      ],
+      "review_notes": "Documented provenance exception. Cross-reference: data-residency asks whether the data carries such requirements; this item asks how they constrain deployment placement. Distinct semantics, deliberately not shared.",
+      "jurisdiction_note": "Requirements are jurisdiction- and framework-specific; no universal sovereignty authority exists. Sources support named examples only when expansion text names them."
+    },
+    {
+      "id": "infra-paths",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Have you looked at the realistic paths to a first environment: colocation, hosted private infrastructure, or building in your own space?",
+      "impact": "important",
+      "why_it_matters": "Greenfield doesn't have to mean construction. Colocation or hosted private options can shift some or much of the facility responsibility away from your organization while still providing dedicated infrastructure options. Comparing these paths early keeps 'build it ourselves' from becoming the default simply because it is familiar.",
+      "typical_owners": [
+        "IT leadership",
+        "Finance",
+        "Facilities"
+      ],
+      "branch_tags": [
+        "greenfield"
+      ]
+    },
+    {
+      "id": "infra-min-footprint",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Do you know the minimum viable footprint for your first workload?",
+      "impact": "important",
+      "why_it_matters": "The entry point can be much smaller than the end state. Sizing the first workload separately can keep the initial commitment smaller and gives the organization a clearer point from which to expand or revise.",
+      "typical_owners": [
+        "IT/Architecture",
+        "Finance"
+      ],
+      "branch_tags": [
+        "greenfield"
+      ]
+    },
+    {
+      "id": "infra-operator",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Have you decided who would operate the environment, wherever it lives?",
+      "impact": "important",
+      "why_it_matters": "An environment in a colocation facility still needs operating, and hosted infrastructure still requires internal accountability. Deciding who runs it belongs in the same decision as where it lives.",
+      "typical_owners": [
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "greenfield",
+        "full"
+      ],
+      "review_notes": "Cross-reference: ops-owner (Door 4) resolves production ownership in depth; this item ties the operating question to the placement decision specifically. Deliberately distinct."
+    },
+    {
+      "id": "infra-leadtimes",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "Do you know the lead times for the path you're leaning toward?",
+      "impact": "important",
+      "why_it_matters": "Colocation contracting, facility work, procurement, and hardware availability can each affect the schedule. Understanding them early keeps the deployment date realistic.",
+      "typical_owners": [
+        "IT leadership",
+        "Procurement"
+      ],
+      "branch_tags": [
+        "greenfield",
+        "full"
+      ]
+    },
+    {
+      "id": "infra-feasibility",
+      "door_id": "infrastructure",
+      "item_revision": 1,
+      "text": "If on-prem infrastructure is under consideration, have you checked whether your facility could support the required power, cooling, and physical footprint?",
+      "impact": "important",
+      "why_it_matters": "On-prem AI systems can require materially different power, cooling, and space than conventional infrastructure. An early feasibility check tells you whether your existing facility is a realistic option or whether colocation, hosted infrastructure, facility upgrades, or cloud should stay in consideration.",
+      "typical_owners": [
+        "Facilities",
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "full"
+      ],
+      "review_notes": "First full-list-only item: persona-neutral replacement for the branch-scoped retrofit blocker (infra-power) in the 'Not sure yet' path."
+    },
+    {
+      "id": "sec-identity",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Do your identity and access controls extend to the AI environment, covering who can use which models and what those models can reach?",
+      "impact": "important",
+      "why_it_matters": "AI adds new things to authorize: model endpoints, retrieval systems, and administrative surfaces. Extending existing identity controls to cover them keeps AI access inside the model your organization already enforces.",
+      "typical_owners": [
+        "Security",
+        "IAM team"
+      ],
+      "branch_tags": [
+        "extension"
+      ],
+      "source_refs": [
+        "nist-sp-800-53"
+      ],
+      "review_notes": "Near-neighbor of sec-roles: this extends an existing identity model; that defines roles from scratch. Full list carries sec-roles. Deliberately distinct."
+    },
+    {
+      "id": "sec-prompt-retention",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Have you decided what happens to prompts and responses, whether they're retained, for how long, and who can see them?",
+      "impact": "important",
+      "why_it_matters": "Prompts and responses may contain sensitive, personal, proprietary, or operational information. Deciding whether they are retained, for how long, and who may access them affects privacy, security, storage, investigation, and records-handling decisions.",
+      "typical_owners": [
+        "Security",
+        "Legal/Compliance",
+        "Privacy"
+      ],
+      "branch_tags": [
+        "extension",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-53"
+      ]
+    },
+    {
+      "id": "sec-logging",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Does logging and auditing cover AI activity, including access, administrative changes, and usage records appropriate to your policies?",
+      "impact": "important",
+      "why_it_matters": "Investigating incidents and demonstrating accountability may require records of requests, administrative actions, access, configuration changes, and system activity. Deciding what to log, and ensuring logs do not create unnecessary sensitive-data retention, belongs in the design before launch.",
+      "typical_owners": [
+        "Security",
+        "IT Operations"
+      ],
+      "branch_tags": [
+        "extension",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-53"
+      ]
+    },
+    {
+      "id": "sec-secrets",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Are secrets and credentials for the AI stack managed rather than embedded?",
+      "impact": "important",
+      "why_it_matters": "An AI environment can introduce credentials across model services, data stores, integrations, automation, and administrative tools. Credentials scattered through configurations and notebooks are harder to rotate and easier to expose than centrally managed ones.",
+      "typical_owners": [
+        "Security",
+        "Platform team"
+      ],
+      "branch_tags": [
+        "extension",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-53"
+      ]
+    },
+    {
+      "id": "sec-guardrails",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Have you decided what guardrails or content controls the deployment needs?",
+      "impact": "important",
+      "why_it_matters": "Input filtering, topic constraints, and output controls depend on the use case and who sees the results. Choosing them deliberately, rather than accepting defaults, makes the AI's boundaries a decision instead of an accident.",
+      "typical_owners": [
+        "Security",
+        "Application owner",
+        "Business owner"
+      ],
+      "branch_tags": [
+        "extension",
+        "full"
+      ],
+      "source_refs": [
+        "nist-ai-rmf"
+      ]
+    },
+    {
+      "id": "sec-provenance",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Do you know where your models come from and how you would confirm the identity and version of what is actually deployed?",
+      "impact": "important",
+      "why_it_matters": "Models are software artifacts with sources, versions, and integrity characteristics. Knowing the provenance of what's deployed supports both trust in the system and the rollback plan when something changes.",
+      "typical_owners": [
+        "Security",
+        "Platform team"
+      ],
+      "branch_tags": [
+        "extension",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-161",
+        "nist-ai-rmf"
+      ]
+    },
+    {
+      "id": "sec-supply-chain",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Does your supply-chain security practice cover the AI stack, including models, containers, and dependencies?",
+      "impact": "important",
+      "why_it_matters": "An AI environment assembles many third-party components. Extending existing supply-chain practices, such as approved sources, dependency scanning, and vulnerability handling, to the AI stack covers the new surface with disciplines you already have, and connects to the update process covered under People & Operations.",
+      "typical_owners": [
+        "Security"
+      ],
+      "branch_tags": [
+        "extension",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-161"
+      ]
+    },
+    {
+      "id": "sec-roles",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Are roles and access defined for who can use, manage, and administer the AI environment?",
+      "impact": "important",
+      "why_it_matters": "The basic separation between using the AI, managing its content, and administering its infrastructure is the foundation the other controls build on. Defining those roles first makes every later security decision assignable.",
+      "typical_owners": [
+        "Security",
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "foundations",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-53"
+      ],
+      "review_notes": "Near-neighbor of sec-identity; see that item's note. Full list carries this phrasing."
+    },
+    {
+      "id": "sec-segmentation",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Is the AI environment separated from the rest of the network in a deliberate way?",
+      "impact": "important",
+      "why_it_matters": "Segmentation limits what a problem in the AI environment can reach and controls the paths in and out. The appropriate degree of segmentation depends on the architecture and risk, but it should be intentional rather than an accidental result of where the environment was deployed.",
+      "typical_owners": [
+        "Security",
+        "Network team"
+      ],
+      "branch_tags": [
+        "foundations",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-53"
+      ]
+    },
+    {
+      "id": "sec-encryption",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Is data encrypted at rest and in transit across the AI environment?",
+      "impact": "important",
+      "why_it_matters": "AI applications can create additional stores such as indexes, embeddings, caches, and logs that may contain or reflect sensitive source information. Applying the organization's encryption requirements to those stores and the connections between them helps avoid creating less-protected copies or derivatives.",
+      "typical_owners": [
+        "Security",
+        "IT Infrastructure"
+      ],
+      "branch_tags": [
+        "foundations",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-53"
+      ]
+    },
+    {
+      "id": "sec-dlp",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Do you have basic protections against sensitive data leaving through the AI?",
+      "impact": "important",
+      "why_it_matters": "The AI's outbound paths can carry sensitive content outward. Basic loss-prevention thinking applied to those paths helps reduce the risk that sensitive information leaves through responses, logs, exports, integrations, or other AI-mediated paths.",
+      "typical_owners": [
+        "Security"
+      ],
+      "branch_tags": [
+        "foundations",
+        "full"
+      ],
+      "source_refs": [
+        "nist-sp-800-53"
+      ]
+    },
+    {
+      "id": "sec-obligations",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Have you identified which regulatory, policy, and contractual obligations apply to this AI deployment?",
+      "impact": "blocking",
+      "why_it_matters": "Obligations can come from law, regulation, funding terms, contracts, insurance conditions, and internal policy. Identifying which ones apply to this specific deployment is what turns compliance from a vague concern into a workable list.",
+      "typical_owners": [
+        "Legal/Compliance",
+        "Security",
+        "Executive leadership"
+      ],
+      "branch_tags": [
+        "obligations",
+        "full"
+      ],
+      "impact_rationale": "Identification, not compliance, is the gate this tool can legitimately ask about; deploying before knowing which obligations apply can materially expose the organization. Identifying the applicable obligations provides the basis for later security, legal, procurement, and governance decisions.",
+      "source_refs": [
+        "nist-ai-rmf"
+      ],
+      "review_notes": "NIST AI RMF is a voluntary risk-management framework cited as governance basis only; it does not determine legal applicability. Actual authority comes from the relevant law, regulation, contract, policy, or funding instrument."
+    },
+    {
+      "id": "sec-cji",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Will this AI environment process or retrieve Criminal Justice Information (CJI)?",
+      "impact": "important",
+      "why_it_matters": "Organizations handling CJI may have security obligations under the FBI CJIS Security Policy. Your security, compliance, and legal teams determine which requirements apply to the planned environment.",
+      "typical_owners": [
+        "Security",
+        "Compliance",
+        "Legal"
+      ],
+      "branch_tags": [
+        "obligations"
+      ],
+      "applicability_tags": [
+        "public-sector",
+        "criminal-justice"
+      ],
+      "source_refs": [
+        "fbi-cjis-policy"
+      ]
+    },
+    {
+      "id": "sec-ferpa",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Will the environment access, process, or generate information from student education records?",
+      "impact": "important",
+      "why_it_matters": "Educational agencies and institutions may have obligations under FERPA for education records. Determining whether this environment touches such records is the applicability question your compliance and legal teams need answered first.",
+      "typical_owners": [
+        "Compliance",
+        "Legal",
+        "Registrar/Records"
+      ],
+      "branch_tags": [
+        "obligations"
+      ],
+      "applicability_tags": [
+        "education",
+        "k12",
+        "higher-ed"
+      ],
+      "source_refs": [
+        "ed-ferpa"
+      ]
+    },
+    {
+      "id": "sec-cui",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "If Controlled Unclassified Information is present, have the safeguarding requirements that apply to this environment been identified?",
+      "impact": "important",
+      "why_it_matters": "CUI may bring safeguarding and dissemination requirements based on the applicable federal authority, agency policy, contract, or agreement. NIST SP 800-171 provides requirements for protecting CUI in covered nonfederal systems; your security, compliance, and contracting teams determine what applies to the planned environment.",
+      "typical_owners": [
+        "Security",
+        "Compliance"
+      ],
+      "branch_tags": [
+        "obligations"
+      ],
+      "applicability_tags": [
+        "public-sector",
+        "federal",
+        "federal-contracting"
+      ],
+      "source_refs": [
+        "nara-cui",
+        "nist-sp-800-171"
+      ],
+      "review_notes": "Cross-reference: data-sensitive-types establishes whether CUI is present; this item picks up from presence to requirements. Deliberately distinct."
+    },
+    {
+      "id": "sec-govramp",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Is GovRAMP (formerly StateRAMP) relevant to how your organization acquires or authorizes cloud services?",
+      "impact": "important",
+      "why_it_matters": "State, local, tribal, and education organizations may use GovRAMP as part of evaluating cloud-service security. Knowing whether it is part of your procurement or authorization process helps narrow the deployment and provider options worth considering.",
+      "typical_owners": [
+        "Procurement",
+        "Compliance",
+        "IT leadership"
+      ],
+      "branch_tags": [
+        "obligations"
+      ],
+      "applicability_tags": [
+        "public-sector",
+        "education"
+      ],
+      "source_refs": [
+        "govramp"
+      ]
+    },
+    {
+      "id": "sec-pubrecords",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Have you considered whether prompts, outputs, logs, or other AI records may be subject to applicable public-records requirements?",
+      "impact": "important",
+      "why_it_matters": "Public-sector organizations may have retention, discovery, or disclosure obligations for certain records, and requirements vary by jurisdiction and use case. Your records-management and legal teams determine how AI-generated and AI-related records should be handled.",
+      "typical_owners": [
+        "Records management",
+        "Legal"
+      ],
+      "branch_tags": [
+        "obligations",
+        "full"
+      ],
+      "applicability_tags": [
+        "public-sector"
+      ],
+      "review_notes": "Documented provenance exception under 'no source is better than a misleading source'; when jurisdiction filtering exists, attach the relevant state or local primary authority. Cross-reference: data-retention covers retention/lifecycle handling.",
+      "jurisdiction_note": "Public-records obligations are jurisdiction-specific; no single nationwide primary authority governs state and local requirements."
+    },
+    {
+      "id": "sec-accessibility",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Have the accessibility requirements that apply to the AI application's users been identified?",
+      "impact": "important",
+      "why_it_matters": "Accessibility requirements can arise from law, procurement rules, organizational policy, or the needs of the people using the application. Identifying the applicable requirements early lets the application team account for them in design and testing rather than discovering them after deployment.",
+      "typical_owners": [
+        "Compliance",
+        "IT/Application team"
+      ],
+      "branch_tags": [
+        "obligations"
+      ],
+      "source_refs": [
+        "gsa-section-508"
+      ],
+      "review_notes": "Section 508 / Access Board ICT standards are the authority for covered federal ICT specifically, cited as an example authority, never as a universal accessibility rule.",
+      "jurisdiction_note": "Applicable accessibility authorities vary by organization type and jurisdiction."
+    },
+    {
+      "id": "sec-contracts",
+      "door_id": "security-governance",
+      "item_revision": 1,
+      "text": "Do contracts, grants, or insurance terms impose requirements on this deployment?",
+      "impact": "important",
+      "why_it_matters": "Obligations aren't only statutes. Funding terms, cyber-insurance conditions, and research agreements can set concrete security requirements, and they need to be identified from the actual governing documents rather than inferred from the type of project.",
+      "typical_owners": [
+        "Legal",
+        "Compliance",
+        "Finance"
+      ],
+      "branch_tags": [
+        "obligations"
+      ],
+      "review_notes": "Documented provenance exception: the item asks the organization to inspect its own governing documents; no external authority exists to cite.",
+      "jurisdiction_note": "Requirements are specific to the organization's own governing documents."
+    }
+  ]
+}
