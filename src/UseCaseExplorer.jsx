@@ -100,7 +100,7 @@ function FitBadge({ fit }) {
 function BlueprintCard({ bp, fit, onSelect }) {
   return (
     <button
-      onClick={() => onSelect(bp)}
+      onClick={(e) => onSelect(bp, e.currentTarget)}
       style={{
         background: "#fff", border: `1px solid ${CDW_BORDER}`, borderRadius: 10,
         padding: "14px 16px", cursor: "pointer", textAlign: "left",
@@ -175,7 +175,7 @@ function CategorySection({ category, blueprints, fit, onSelect, open, onToggle }
 }
 
 // DetailModal: proper role/aria, focus trap, focus return on close
-function DetailModal({ bp, contextLabel, contextFit, triggerRef, onClose }) {
+function DetailModal({ bp, contextLabel, contextFit, triggerEl, onClose }) {
   const dialogRef = useRef();
   const closeButtonRef = useRef();
   const titleId = `modal-title-${bp.id}`;
@@ -212,7 +212,7 @@ function DetailModal({ bp, contextLabel, contextFit, triggerRef, onClose }) {
       document.removeEventListener("pointerdown", handlePointer);
       document.removeEventListener("keydown", handleKey);
       // Return focus to the card that opened the modal
-      triggerRef?.current?.focus();
+      triggerEl?.focus();
     };
   }, [onClose, triggerRef]);
 
@@ -262,7 +262,7 @@ function DetailModal({ bp, contextLabel, contextFit, triggerRef, onClose }) {
         {/* legacy warning */}
         {bp.status === "legacy" && (
           <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#92400e" }}>
-            <strong>Legacy blueprint:</strong> This blueprint has been superseded by a newer entry. It may still be deployable but is no longer actively maintained by NVIDIA.
+            <strong>Legacy blueprint:</strong> NVIDIA no longer actively maintains this Blueprint. It is retained here because the underlying use case remains relevant.
           </div>
         )}
 
@@ -334,8 +334,8 @@ export default function UseCaseExplorer() {
   const [selectedFunction, setSelectedFunction] = useState(null);
   const [activeCategory, setActiveCategory] = useState("All");
   const [modalBp, setModalBp] = useState(null);
+  const [modalTrigger, setModalTrigger] = useState(null);
   const [sectionsOpen, setSectionsOpen] = useState({});
-  const lastCardRef = useRef(null); // for focus return from modal
 
   const industryBlueprints = selectedIndustry ? getBlueprintsForIndustry(selectedIndustry.id) : [];
   const functionBlueprints = selectedFunction ? getBlueprintsForFunction(selectedFunction.id) : [];
@@ -607,7 +607,7 @@ export default function UseCaseExplorer() {
                 category={cat}
                 blueprints={bps}
                 fit={fitMap}
-                onSelect={(bp) => { setModalBp(bp); }}
+                onSelect={(bp, el) => { setModalBp(bp); setModalTrigger(el); }}
                 open={!!sectionsOpen[cat]}
                 onToggle={() => toggleSection(cat)}
               />
@@ -628,8 +628,8 @@ export default function UseCaseExplorer() {
           bp={modalBp}
           contextLabel={contextLabel}
           contextFit={fitMap[modalBp.id]}
-          triggerRef={lastCardRef}
-          onClose={() => setModalBp(null)}
+          triggerEl={modalTrigger}
+          onClose={() => { setModalBp(null); setModalTrigger(null); }}
         />
       )}
     </div>

@@ -86,7 +86,6 @@
       "industry_fit": {
         "retail-distribution": "primary",
         "financial-services": "adjacent",
-        "state-local-government": "adjacent",
         "general-enterprise": "adjacent"
       },
       "department_fit": {
@@ -127,11 +126,11 @@
         "operations": "adjacent",
         "communications": "adjacent"
       },
-      "detail_what_it_does": "Deploys a fully on-premises voice agent capable of understanding natural speech, reasoning over organizational knowledge, and responding in real time — without cloud routing of sensitive conversations.",
+      "detail_what_it_does": "Deploys a fully on-premises voice agent capable of understanding natural speech, reasoning over organizational knowledge, and responding in real time — with the option to self-host so sensitive conversations remain within the organization's controlled environment.",
       "detail_in_practice": {
         "default": "Organizations replace or augment phone-based contact centers with AI voice agents that handle routine inquiries 24/7, reducing cost-per-contact and wait times.",
         "state-local-government": "State agencies deploy voice agents for high-volume citizen call centers — DMV renewals, unemployment status, benefits eligibility — deflecting routine calls around the clock.",
-        "healthcare-life-sciences": "Health systems use voice agents for appointment scheduling, prescription refill requests, and post-discharge care check-ins without exposing PHI to cloud providers.",
+        "healthcare-life-sciences": "Health systems use voice agents for appointment scheduling, prescription refill requests, and post-discharge care check-ins with a self-hosted deployment option for organizations that need to keep PHI within their controlled environment.",
         "financial-services": "Banks and insurers handle account inquiries, claims status, and fraud alerts via voice agents that authenticate callers and resolve tier-1 issues instantly."
       },
       "detail_infrastructure": "NVIDIA Riva ASR/TTS, Nemotron reasoning model via NIM, real-time inference GPU (L40S or H100 recommended), telephony integration layer."
@@ -205,7 +204,6 @@
         "retail-distribution": "primary",
         "food-cpg-manufacturing": "primary",
         "general-manufacturing": "adjacent",
-        "state-local-government": "adjacent",
         "education": "adjacent",
         "general-enterprise": "adjacent"
       },
@@ -258,8 +256,7 @@
       "use_case_category": "Quantitative & Risk Analytics",
       "description": "GPU-accelerated quantitative optimization of investment portfolios — enables real-time rebalancing, risk-adjusted return optimization, and scenario analysis at institutional scale.",
       "industry_fit": {
-        "financial-services": "primary",
-        "state-local-government": "primary"
+        "financial-services": "primary"
       },
       "department_fit": {
         "finance": "primary",
@@ -326,7 +323,7 @@
         "healthcare-life-sciences": "Hospitals deploy provider agents to reduce charting burden — notes generated during the visit, not after hours. Patient agents handle appointment reminders, medication coaching, and post-discharge follow-up without additional staff.",
         "state-local-government": "State correctional health and state hospital clinicians use ambient documentation to meet charting standards. State Medicaid programs deploy patient agents to guide beneficiaries through care navigation and benefits questions."
       },
-      "detail_infrastructure": "NVIDIA Riva ASR, Nemotron reasoning model via NIM, EHR integration layer, on-premises deployment to keep PHI off cloud."
+      "detail_infrastructure": "NVIDIA Riva ASR, Nemotron reasoning model via NIM, EHR integration layer, self-hosted deployment option for organizations seeking greater control over PHI handling."
     },
     {
       "id": "flood-intelligence",
@@ -378,12 +375,12 @@
         "finance": "adjacent",
         "human-resources": "adjacent"
       },
-      "detail_what_it_does": "Enables retrieval-augmented generation over sensitive document corpora while keeping all data encrypted — satisfying compliance requirements for highly regulated environments that cannot use standard RAG pipelines.",
+      "detail_what_it_does": "Enables retrieval-augmented generation over sensitive document corpora while keeping all data encrypted — supporting compliance requirements in highly regulated environments that cannot use standard RAG pipelines.",
       "detail_in_practice": {
-        "default": "Regulated organizations use encrypted RAG to unlock the value of sensitive document archives without violating data protection requirements.",
+        "default": "Regulated organizations use encrypted RAG to unlock the value of sensitive document archives while helping address data-protection requirements.",
         "healthcare-life-sciences": "Health systems query clinical records, treatment protocols, and research data through encrypted RAG — PHI stays encrypted even during inference.",
         "state-local-government": "State law enforcement and child welfare agencies query sensitive case files and court records through encrypted RAG without data ever leaving the secure environment unprotected.",
-        "legal-services": "Law firms query privileged documents, case files, and contracts through encrypted retrieval — preserving privilege and meeting bar-mandated confidentiality requirements."
+        "legal-services": "Law firms query privileged documents, case files, and contracts through encrypted retrieval — supporting confidentiality controls."
       },
       "detail_infrastructure": "Cyborg encryption-in-use layer, NVIDIA NIM for embedding and inference, on-premises vector database, air-gap capable deployment."
     },
@@ -396,7 +393,6 @@
       "description": "AI-powered shopping advisor with multi-agent architecture, real-time streaming responses, image-based product search, and intelligent cart management.",
       "industry_fit": {
         "retail-distribution": "primary",
-        "state-local-government": "adjacent",
         "healthcare-life-sciences": "adjacent",
         "education": "adjacent"
       },
@@ -594,7 +590,6 @@
       "description": "Agentic AI framework for automating and optimizing radio access network (RAN) parameter configuration — using LLM-driven reasoning to tune network performance continuously.",
       "industry_fit": {
         "utilities-energy": "adjacent",
-        "state-local-government": "adjacent",
         "federal-defense": "adjacent",
         "transportation-logistics": "adjacent"
       },
@@ -741,7 +736,7 @@
         "research-engineering": "adjacent",
         "communications": "adjacent"
       },
-      "detail_what_it_does": "Ingests documents, policies, research, contracts, and knowledge bases — chunks and embeds them into a vector store — then enables natural language Q&A that cites source documents and stays grounded in organizational knowledge rather than hallucinating.",
+      "detail_what_it_does": "Ingests documents, policies, research, contracts, and knowledge bases — chunks and embeds them into a vector store — then enables natural language Q&A that cites source documents and stays grounded in organizational knowledge with citations back to source documents.",
       "detail_in_practice": {
         "default": "Every knowledge-intensive organization uses RAG to make institutional knowledge queryable — the building block underneath most enterprise AI assistant deployments.",
         "healthcare-life-sciences": "Clinical teams query treatment protocols, drug interaction databases, and patient records using natural language — getting cited answers without digging through folders.",
@@ -795,7 +790,6 @@
         "retail-distribution": "primary",
         "general-manufacturing": "primary",
         "food-cpg-manufacturing": "adjacent",
-        "state-local-government": "adjacent",
         "federal-defense": "adjacent",
         "education": "adjacent"
       },
@@ -940,7 +934,6 @@
       "industry_fit": {
         "healthcare-life-sciences": "primary",
         "food-cpg-manufacturing": "adjacent",
-        "state-local-government": "adjacent",
         "federal-defense": "adjacent",
         "education": "adjacent"
       },
@@ -1097,7 +1090,7 @@
       },
       "detail_what_it_does": "Deploys an AI research agent that formulates search strategies, queries multiple internal and external sources, synthesizes findings, resolves conflicts between sources, and delivers a comprehensive cited research brief — replacing hours of manual research.",
       "detail_in_practice": {
-        "default": "Analysts, researchers, and decision-makers use this to compress multi-hour research tasks into minutes — with output that cites every source rather than hallucinating.",
+        "default": "Analysts, researchers, and decision-makers use this to compress multi-hour research tasks into minutes — with output that provides citations back to every retrieved source.",
         "legal-services": "Legal teams conduct rapid case law research, regulatory landscape analysis, and contract clause searches with AI that retrieves and cites every relevant document.",
         "state-local-government": "State policy analysts, budget staff, and legislative researchers use AI-Q to synthesize complex policy questions across statutes, precedents, and agency data in minutes.",
         "financial-services": "Investment analysts use AI-Q to synthesize earnings transcripts, analyst reports, and proprietary data into comprehensive investment theses."
@@ -1199,7 +1192,6 @@
         "general-enterprise": "primary",
         "financial-services": "primary",
         "federal-defense": "primary",
-        "state-local-government": "adjacent",
         "healthcare-life-sciences": "adjacent",
         "general-manufacturing": "adjacent"
       },
