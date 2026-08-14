@@ -373,6 +373,18 @@ export default function RoiCalculator() {
   const [openTipId, setOpenTipId] = useState(null);
   const [showFte, setShowFte] = useState(false);
   const [showUpside, setShowUpside] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const mq = window.matchMedia("(max-width: 720px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
 
   const errors = useMemo(() => validateInputs(inputs), [inputs]);
   const hasErrors = Object.keys(errors).length > 0;
@@ -384,8 +396,13 @@ export default function RoiCalculator() {
   const set = (key) => (val) => setInputs((prev) => ({ ...prev, [key]: val }));
 
   return (
-    <div style={styles.page}>
-      <div style={styles.header}>
+    <div style={{ ...styles.page, padding: isMobile ? "0 12px 32px" : styles.page.padding }}>
+      <div style={{
+        ...styles.header,
+        padding: isMobile ? "14px 0" : styles.header.padding,
+        marginBottom: isMobile ? 16 : styles.header.marginBottom,
+        gap: isMobile ? 8 : styles.header.gap,
+      }}>
         <a href="/" style={{ textDecoration: "none" }} aria-label="AI Factory Tools home">
           <span style={styles.logoWordmark}>CDW</span>
         </a>
@@ -393,10 +410,19 @@ export default function RoiCalculator() {
           <div style={styles.eyebrow}>AI Factory Tools</div>
           <h1 style={styles.title}>AI Use Case ROI Calculator</h1>
         </div>
-        <span style={styles.versionPill}>PROTOTYPE v1.0</span>
+        <span style={{
+          ...styles.versionPill,
+          marginLeft: isMobile ? 0 : "auto",
+          flexBasis: isMobile ? "100%" : "auto",
+          width: isMobile ? "fit-content" : "auto",
+        }}>PROTOTYPE v1.0</span>
       </div>
 
-      <div style={styles.grid}>
+      <div style={{
+        ...styles.grid,
+        gridTemplateColumns: isMobile ? "minmax(0,1fr)" : styles.grid.gridTemplateColumns,
+        gap: isMobile ? 16 : styles.grid.gap,
+      }}>
         {/* ---------------- INPUTS COLUMN ---------------- */}
         <div>
           <div style={styles.section}>
@@ -463,7 +489,12 @@ export default function RoiCalculator() {
 
         {/* ---------------- RESULTS COLUMN ---------------- */}
         <div>
-          <div style={styles.resultsCard}>
+          <div style={{
+            ...styles.resultsCard,
+            position: isMobile ? "static" : "sticky",
+            top: isMobile ? "auto" : styles.resultsCard.top,
+            padding: isMobile ? 16 : styles.resultsCard.padding,
+          }}>
             {hasErrors || !engine ? (
               <div style={styles.guardText}>
                 Fix the highlighted inputs to see results.
@@ -474,7 +505,7 @@ export default function RoiCalculator() {
                   Capacity Created — Operational Result
                 </div>
                 <div style={{ marginTop: 10 }}>
-                  <span style={styles.headlineValue}>{fmtHours(engine.grossCapacity)}</span>
+                  <span style={{ ...styles.headlineValue, fontSize: isMobile ? 26 : styles.headlineValue.fontSize }}>{fmtHours(engine.grossCapacity)}</span>
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
                     gross capacity created — the operationally established result
                   </div>
@@ -491,21 +522,33 @@ export default function RoiCalculator() {
                   {showFte ? "Hide" : "Show"} FTE-equivalent detail
                 </button>
                 {showFte && (
-                  <div style={styles.resultRow}>
+                  <div style={{
+                      ...styles.resultRow,
+                      alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                      flexWrap: isMobile ? "wrap" : "nowrap",
+                    }}>
                     <span style={styles.resultLabelSecondary}>Redeployable Capacity Equivalent</span>
-                    <span style={styles.resultValueSecondary}>{fmtFte(engine.fteEquivalent)}</span>
+                    <span style={{ ...styles.resultValueSecondary, whiteSpace: isMobile ? "normal" : styles.resultValueSecondary.whiteSpace }}>{fmtFte(engine.fteEquivalent)}</span>
                   </div>
                 )}
                 <div style={styles.note}>Capacity created, not a staffing recommendation.</div>
 
                 <div style={styles.resultsSectionHeader}>Economic Value of Redeployed Capacity</div>
-                <div style={styles.resultRow}>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
                   <span style={styles.resultLabel}>Steady-state economic value</span>
-                  <span style={styles.resultValue}>{fmtCurrency(engine.steadyStateValue)}/yr</span>
+                  <span style={{ ...styles.resultValue, whiteSpace: isMobile ? "normal" : styles.resultValue.whiteSpace }}>{fmtCurrency(engine.steadyStateValue)}/yr</span>
                 </div>
-                <div style={styles.resultRow}>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
                   <span style={styles.resultLabel}>Year 1 realized value (ramped)</span>
-                  <span style={styles.resultValue}>{fmtCurrency(engine.year1Value)}/yr</span>
+                  <span style={{ ...styles.resultValue, whiteSpace: isMobile ? "normal" : styles.resultValue.whiteSpace }}>{fmtCurrency(engine.year1Value)}/yr</span>
                 </div>
                 {engine.illustrativeUpside > 0 && (
                   <>
@@ -513,9 +556,13 @@ export default function RoiCalculator() {
                       {showUpside ? "Hide" : "Show"} illustrative upside
                     </button>
                     {showUpside && (
-                      <div style={styles.resultRow}>
+                      <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
                         <span style={styles.resultLabelSecondary}>Illustrative upside (excluded from ROI)</span>
-                        <span style={styles.resultValueSecondary}>{fmtCurrency(engine.illustrativeUpside)}/yr</span>
+                        <span style={{ ...styles.resultValueSecondary, whiteSpace: isMobile ? "normal" : styles.resultValueSecondary.whiteSpace }}>{fmtCurrency(engine.illustrativeUpside)}/yr</span>
                       </div>
                     )}
                   </>
@@ -525,19 +572,35 @@ export default function RoiCalculator() {
                 </div>
 
                 <div style={styles.resultsSectionHeader}>Investment Result</div>
-                <div style={styles.resultRow}>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
                   <span style={styles.resultLabel}>Year 1 net benefit</span>
-                  <span style={styles.resultValue}>{fmtCurrency(engine.year1Net)}</span>
+                  <span style={{ ...styles.resultValue, whiteSpace: isMobile ? "normal" : styles.resultValue.whiteSpace }}>{fmtCurrency(engine.year1Net)}</span>
                 </div>
-                <div style={styles.resultRow}>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
                   <span style={styles.resultLabel}>{inputs.horizonYears}-yr horizon net benefit</span>
-                  <span style={styles.resultValue}>{fmtCurrency(engine.horizonNet)}</span>
+                  <span style={{ ...styles.resultValue, whiteSpace: isMobile ? "normal" : styles.resultValue.whiteSpace }}>{fmtCurrency(engine.horizonNet)}</span>
                 </div>
-                <div style={styles.resultRow}>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
                   <span style={styles.resultLabel}>{inputs.horizonYears}-yr horizon ROI</span>
-                  <span style={styles.resultValue}>{fmtPercent(engine.horizonROI)}</span>
+                  <span style={{ ...styles.resultValue, whiteSpace: isMobile ? "normal" : styles.resultValue.whiteSpace }}>{fmtPercent(engine.horizonROI)}</span>
                 </div>
-                <div style={styles.resultRow}>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
                   <span style={styles.resultLabel}>Estimated payback period</span>
                   <span style={engine.payback == null ? styles.guardText : styles.resultValue}>
                     {fmtMonths(engine.payback)}
