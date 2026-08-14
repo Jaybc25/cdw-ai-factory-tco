@@ -1,677 +1,1647 @@
 {
   "meta": {
-    "schema_version": "1.0",
-    "catalog_last_verified": "2026-08-12",
-    "source": "build.nvidia.com/blueprints, cross-referenced against github.com/orgs/NVIDIA-AI-Blueprints/repositories",
-    "note": "detail_in_practice resolves by industry key first, then falls back to 'default'."
+    "version": "2.0",
+    "last_verified": "2026-08-14",
+    "blueprint_count": 55,
+    "industries": [
+      "education",
+      "federal-defense",
+      "financial-services",
+      "food-cpg-manufacturing",
+      "general-manufacturing",
+      "healthcare-life-sciences",
+      "legal-services",
+      "oil-gas",
+      "retail-distribution",
+      "state-local-government",
+      "transportation-logistics",
+      "utilities-energy",
+      "general-enterprise"
+    ],
+    "business_functions": [
+      "finance",
+      "human-resources",
+      "information-technology",
+      "cybersecurity",
+      "legal-compliance",
+      "operations",
+      "supply-chain-logistics",
+      "customer-service",
+      "sales",
+      "marketing",
+      "data-analytics",
+      "research-engineering",
+      "communications"
+    ],
+    "use_case_categories": [
+      "Agentic AI & Automation",
+      "RAG & Knowledge Retrieval",
+      "Video & Sensor Intelligence",
+      "Digital Twins & Simulation",
+      "Data Flywheel & Model Ops",
+      "Life Sciences & Genomics",
+      "Quantitative & Risk Analytics"
+    ]
   },
-
-  "industries": [
-    { "id": "education", "label": "Education", "framing": "K-12 districts and universities hold student data under FERPA and, increasingly, state-level AI policy. On-premises deployment keeps that data inside institutional control." },
-    { "id": "federal-defense", "label": "Federal / Defense Contractors", "framing": "Air-gapped and classified environments rule out SaaS AI outright. These are reference architectures you deploy and own, inside your own accreditation boundary." },
-    { "id": "financial-services", "label": "Financial Services", "framing": "Regulated institutions need auditability over which model touched which data. Owning the stack makes model governance a design choice rather than a vendor disclosure." },
-    { "id": "food-cpg", "label": "Food & CPG Manufacturing", "framing": "Plant floors generate vision and sensor data continuously, and food safety documentation never stops accumulating. Both are cheaper to process where they are created." },
-    { "id": "general-manufacturing", "label": "General Manufacturing", "framing": "Decades of engineering documentation, live line telemetry, and simulation workloads all favor infrastructure you own over metered API calls." },
-    { "id": "healthcare", "label": "Healthcare & Life Sciences", "framing": "PHI handling makes sending data to a hyperscaler API a compliance conversation before it is a cost conversation. On-premises inference sidesteps both." },
-    { "id": "legal", "label": "Legal Services", "framing": "Privileged client material cannot go to a public API. That single constraint makes owned infrastructure the default rather than the upgrade." },
-    { "id": "oil-gas", "label": "Oil & Gas", "framing": "Remote sites with limited or intermittent connectivity cannot depend on a round trip to the cloud. Inference belongs at the edge, near the asset." },
-    { "id": "retail-distribution", "label": "Retail & Distribution", "framing": "Store and DC workloads run continuously at high volume, which is exactly the profile where metered API pricing stops making sense." },
-    { "id": "state-local-gov", "label": "State & Local Government", "framing": "Data sovereignty, public records obligations, and capital-friendly procurement cycles all point the same direction: own the infrastructure." },
-    { "id": "transportation-logistics", "label": "Transportation & Logistics", "framing": "Assets are distributed and moving. Terminal and yard-level inference beats round-tripping telemetry from every vehicle and container." },
-    { "id": "utilities-energy", "label": "Utilities & Energy", "framing": "NERC CIP requirements and OT network isolation make on-premises close to mandatory for anything touching operational systems." },
-    { "id": "general-enterprise", "label": "Other / General Enterprise", "framing": "Cross-industry workloads where the economics of owning inference capacity stand on their own." }
-  ],
-
-  "use_case_categories": [
-    { "id": "customer-service", "label": "Customer & Citizen Service" },
-    { "id": "document-intelligence", "label": "Document Intelligence & Search" },
-    { "id": "predictive-ops", "label": "Predictive Ops & Maintenance" },
-    { "id": "digital-twin", "label": "Digital Twin & Simulation" },
-    { "id": "cybersecurity", "label": "Cybersecurity & Threat Detection" },
-    { "id": "workforce-copilots", "label": "Workforce Copilots" },
-    { "id": "quant-risk", "label": "Quantitative & Risk Analytics", "note": "PROPOSED seventh category — added to house the three capital-markets blueprints that had no clean home. Drop it and refile those three if you would rather stay at six." }
-  ],
-
   "blueprints": [
     {
-      "id": "enterprise-rag",
-      "name": "NVIDIA RAG Blueprint",
-      "description": "Lets an organization's own documents power an AI assistant that answers from those documents, with citations, instead of guessing from general training data.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy", "general-enterprise"],
-      "use_case_categories": ["document-intelligence", "customer-service"],
-      "capability_tags": ["rag", "retrieval", "multimodal"],
-      "industry_pitch": "Turn the documents your people already can't find into answers they can get in seconds, with citations back to the source.",
-      "detail_what_it_does": "A retrieval pipeline that indexes your existing documents and uses them to ground an AI assistant's answers. Handles text, tables, charts, and images in the same pipeline, and cites which document each answer came from. Deployable in your own environment, so the documents never leave it.",
-      "detail_in_practice": {
-        "default": "Point it at the document repositories your staff currently search by hand: policies, procedures, contracts, technical manuals. Staff ask questions in plain language and get sourced answers instead of a list of files to open.",
-        "state-local-gov": "Point it at municipal code, permit requirements, and benefits eligibility rules. Constituents get straight answers about zoning or licensing without a phone call, and staff stop re-answering the same twenty questions.",
-        "healthcare": "Point it at clinical protocols, formulary, payer policy, and credentialing documentation. Clinical and administrative staff get sourced answers without paging through binders or portals mid-shift.",
-        "legal": "Point it at your matter files, precedent library, and contract archive. Associates get cited answers from your own work product rather than starting research from zero, and privileged material stays inside your walls.",
-        "food-cpg": "Point it at HACCP plans, supplier certifications, and food safety records. Plant and QA staff get audit-ready answers on the floor instead of walking back to a filing cabinet.",
-        "education": "Point it at the student handbook, financial aid policy, and course catalog. Students and families self-serve the routine questions that currently consume the front office."
-      },
-      "detail_infrastructure": "Mid-size open model plus an embedding model. Small pilots run on a single node; production scales with concurrent users more than document volume.",
+      "id": "omniverse-dsx-digital-twin",
+      "name": "Omniverse DSX Blueprint for AI Factory Digital Twins",
       "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "aiq",
-      "name": "NVIDIA AI-Q Blueprint for Intelligent Agents",
-      "description": "A research agent that plans a line of inquiry, pulls from multiple sources, and writes a cited report rather than a one-line answer.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/aiq",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy", "general-enterprise"],
-      "use_case_categories": ["document-intelligence", "workforce-copilots"],
-      "capability_tags": ["agentic-workflow", "rag", "research"],
-      "industry_pitch": "Hand off the research that eats an analyst's week and get back a cited report you can actually check.",
-      "detail_what_it_does": "An agent that classifies what you're asking, decides how deep to go, runs multiple researchers in parallel across your sources, and produces a citation-backed report. You can ask follow-up questions against a finished report or re-run it with new inputs.",
-      "detail_in_practice": {
-        "default": "Give it the research task a subject matter expert would otherwise spend days on, pulling across internal archives and approved external sources, and review the cited draft instead of building it from scratch.",
-        "legal": "Case law synthesis and discovery support where every assertion needs a citation. The blueprint's source-citation design lines up with how legal work already gets checked.",
-        "federal-defense": "Capture and proposal research across past performance libraries, solicitations, and technical archives, inside your own boundary.",
-        "utilities-energy": "Rate case preparation and regulatory filing research across dockets, precedent, and internal operational data.",
-        "healthcare": "Prior authorization research, coverage determination, and literature synthesis with sources attached."
+      "nvidia_url": "https://build.nvidia.com/nvidia/omniverse-dsx-blueprint-for-ai-factories",
+      "use_case_category": "Digital Twins & Simulation",
+      "description": "Design, simulate, and optimize physical infrastructure using digital twins built on NVIDIA Omniverse. Combines real-time sensor data, physics simulation, and AI to mirror real-world environments.",
+      "industry_fit": {
+        "general-manufacturing": "primary",
+        "food-cpg-manufacturing": "primary",
+        "utilities-energy": "primary",
+        "oil-gas": "primary",
+        "state-local-government": "primary",
+        "federal-defense": "primary",
+        "transportation-logistics": "adjacent",
+        "healthcare-life-sciences": "adjacent"
       },
-      "detail_infrastructure": "Larger reasoning model plus retrieval components. Agentic workloads burn more tokens per task than chat, which is exactly the pattern where owned capacity beats metered API pricing.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "video-search-summarization",
-      "name": "Video Search and Summarization (VSS)",
-      "description": "Makes video searchable in plain language, so you can ask what happened on camera instead of scrubbing footage.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/video-search-and-summarization",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy"],
-      "use_case_categories": ["predictive-ops", "cybersecurity"],
-      "capability_tags": ["computer-vision", "vlm", "rag", "alerting"],
-      "industry_pitch": "Stop scrubbing footage. Ask what happened, get the clip, and get an alert next time it happens.",
-      "detail_what_it_does": "Vision language models watch your video, summarize what's in it, answer questions about it, and raise alerts on conditions you define. Works on live feeds and archives. Note this is review, search, and alerting rather than a high-speed per-frame inspection system.",
-      "detail_in_practice": {
-        "default": "Point it at cameras you already have. Instead of assigning someone to watch or scrub, ask what happened during a window and get the clips plus a summary.",
-        "healthcare": "Facility safety, fall risk in common areas, OR utilization review, and entrance security. Keep the framing on operational and safety review rather than anything patient-monitoring-adjacent.",
-        "oil-gas": "Remote site monitoring, flare stack observation, right-of-way surveillance, and PPE compliance in hazardous areas, at sites where nobody is watching a monitor.",
-        "retail-distribution": "Loss prevention, queue and staffing analysis, and safety compliance across stores without adding headcount to watch feeds.",
-        "transportation-logistics": "Yard and terminal monitoring, equipment inspection review, and incident investigation across a distributed asset base.",
-        "state-local-gov": "Public safety camera review, traffic incident analysis, and facility security. Worth pairing with a clear retention and access policy, since this is the use case constituents ask about.",
-        "general-manufacturing": "Line monitoring, quality review, and worker safety compliance, with searchable history when something goes wrong.",
-        "legal": "Deposition and hearing video review, plus searchable video evidence in discovery, where review volume is growing faster than anyone's capacity to watch it."
+      "department_fit": {
+        "operations": "primary",
+        "research-engineering": "primary",
+        "information-technology": "adjacent",
+        "supply-chain-logistics": "adjacent"
       },
-      "detail_infrastructure": "Vision language models are the heaviest inference profile in the catalog and scale with concurrent camera streams. This is the use case most likely to justify dedicated on-premises capacity on cost alone.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "streaming-data-to-rag",
-      "name": "Streaming Data to RAG",
-      "description": "Turns live sensor and signal data into something you can ask questions about, instead of only charting it on a dashboard.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/streaming-data-to-rag",
-      "industries": ["federal-defense", "food-cpg", "general-manufacturing", "healthcare", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy"],
-      "use_case_categories": ["predictive-ops", "cybersecurity"],
-      "capability_tags": ["rag", "streaming", "sensor-data", "speech"],
-      "industry_pitch": "Make the sensor data you already collect answerable in plain language, not just plottable.",
-      "detail_what_it_does": "Ingests streaming sensor and signal data, indexes it continuously, and lets operators query it conversationally alongside their reference documentation. The result is situational awareness you can interrogate rather than a wall of gauges.",
+      "detail_what_it_does": "Creates a live digital replica of physical facilities or infrastructure. Integrates sensor feeds, CAD/BIM data, and AI models to simulate operations, test changes, and predict failures before they happen in the real world.",
       "detail_in_practice": {
-        "default": "Feed it the telemetry you already collect and let operators ask what changed, when, and what the procedure says to do about it.",
-        "utilities-energy": "SCADA, substation, and smart meter telemetry made queryable alongside operating procedures, so an operator can ask what changed on a feeder and what the procedure says next.",
-        "oil-gas": "Wellhead, pipeline, and processing telemetry from sites with intermittent connectivity, processed at the edge where it's generated.",
-        "transportation-logistics": "Telematics from vehicles, rail cars, and containers, queryable by corridor, asset, or time window.",
-        "general-manufacturing": "Equipment telemetry from the line, indexed against maintenance history and manuals so anomalies come with context."
+        "default": "Organizations use digital twins to reduce unplanned downtime, optimize energy use, and rehearse emergency scenarios without touching production systems.",
+        "state-local-government": "State agencies use this to model capitol campuses, correctional facilities, and DOT asset networks — enabling maintenance planning, energy optimization, and emergency simulation without physical disruption.",
+        "utilities-energy": "Utilities model generation facilities and grid infrastructure to predict failures, optimize dispatch, and simulate storm response before it happens.",
+        "general-manufacturing": "Manufacturers build digital replicas of production lines to test layout changes, predict maintenance needs, and optimize throughput without stopping operations."
       },
-      "detail_infrastructure": "Continuous ingest plus retrieval. Edge-deployable, which matters most where connectivity is the constraint rather than cost.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "data-flywheel",
-      "name": "NVIDIA Data Flywheel Blueprint",
-      "description": "A loop that keeps retraining and re-evaluating your models on your own usage data, so smaller and cheaper models can take over work the big ones started.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/data-flywheel",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy", "general-enterprise"],
-      "use_case_categories": ["workforce-copilots"],
-      "capability_tags": ["model-ops", "distillation", "evaluation"],
-      "industry_pitch": "Your AI gets cheaper and better the longer you run it, because it learns from your traffic instead of staying frozen.",
-      "detail_what_it_does": "An automated cycle that captures production traffic, evaluates whether a smaller model could handle it at target accuracy, and promotes the cheaper model when it can. Over time the expensive model handles less of the volume.",
-      "detail_in_practice": {
-        "default": "Run it behind whatever you deploy first. Month one you're paying for a large model on every request; month six a distilled model is handling the routine traffic at a fraction of the compute, on hardware you already own."
-      },
-      "detail_infrastructure": "Needs training capacity alongside inference, which is the clearest argument in the catalog for owning rather than renting: this workload only pays off if the hardware is already yours.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "nemotron-voice-agent",
-      "name": "Nemotron Voice Agent",
-      "description": "A real-time voice assistant that listens, understands, and speaks back, built to run on your own infrastructure.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/nemotron-voice-agent",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy", "general-enterprise"],
-      "use_case_categories": ["customer-service"],
-      "capability_tags": ["speech", "asr", "tts", "agentic-workflow"],
-      "industry_pitch": "Answer the routine calls that never stop coming, in natural voice, without adding headcount.",
-      "detail_what_it_does": "End-to-end voice agent combining speech recognition, a language model, and speech synthesis with low enough latency for real conversation. Handles inquiry, lookup, and handoff to a human when it should.",
-      "detail_in_practice": {
-        "default": "Put it on the line that generates the most repetitive calls. It handles the routine ninety percent and hands the rest to staff with context already gathered.",
-        "utilities-energy": "Outage reporting and billing inquiry, where call volume spikes hardest exactly when staff are least available.",
-        "state-local-gov": "311 and service request lines, reaching constituents who will call but won't use a web form.",
-        "oil-gas": "Hands-free field operations support for crews who are gloved, at height, or otherwise unable to use a screen."
-      },
-      "detail_infrastructure": "Latency-sensitive: speech in, model, speech out, all under conversational thresholds. This is the workload where local inference most visibly beats a cloud round trip.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "pdf-to-podcast",
-      "name": "PDF to Podcast",
-      "description": "Converts documents into a natural-sounding audio discussion people can listen to instead of read.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/pdf-to-podcast",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy"],
-      "use_case_categories": ["customer-service", "document-intelligence"],
-      "capability_tags": ["tts", "summarization", "accessibility"],
-      "industry_pitch": "Get the long document read by the people who need it, by letting them listen on the drive instead of promising to read it later.",
-      "detail_what_it_does": "Takes a document and produces a conversational audio version, summarized and structured for listening rather than read aloud verbatim.",
-      "detail_in_practice": {
-        "default": "Use it on the documents your people are supposed to read and don't: policy updates, safety bulletins, procedure changes.",
-        "state-local-gov": "Council agendas, budget documents, and policy proposals as audio, which doubles as a civic transparency story and demos extremely well.",
-        "transportation-logistics": "Safety bulletins and procedure updates for drivers and crews who are effectively never at a desk.",
-        "education": "Handbooks, syllabi, and policy documents in audio, which carries a real accessibility benefit alongside the convenience."
-      },
-      "detail_infrastructure": "Batch workload, latency-tolerant. Cheap to run alongside heavier tools on the same hardware.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "content-localization",
-      "name": "Content Localization",
-      "description": "Translates and localizes media, including syncing speakers' lips to the translated audio.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/content-localization",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy"],
-      "use_case_categories": ["customer-service"],
-      "capability_tags": ["translation", "speech", "computer-vision"],
-      "industry_pitch": "Reach the part of your audience you're currently only serving in one language, without rebuilding the content.",
-      "detail_what_it_does": "Translates media content, generates localized audio, and synchronizes speaker lip movement to the new audio track across multiple speakers.",
-      "detail_in_practice": {
-        "default": "Run existing training, safety, and communication content through it to produce versions in the languages your audience actually speaks.",
-        "education": "Course materials and family communications in a district's home languages, which is often both an equity commitment and a compliance obligation.",
-        "state-local-gov": "Constituent communications in required languages, produced in-house rather than through a translation vendor cycle.",
-        "oil-gas": "Safety and training content for a globally distributed workforce, where comprehension is a safety issue rather than a convenience."
-      },
-      "detail_infrastructure": "Batch multimodal workload combining translation, speech synthesis, and video generation. Heavier than text but fully latency-tolerant.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "gpu-query-engine",
-      "name": "GPU Query Engine (GQE)",
-      "description": "A GPU-accelerated SQL engine that runs large analytical queries dramatically faster than CPU-based warehouses.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/gpu-query-engine",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy", "general-enterprise"],
-      "use_case_categories": ["predictive-ops", "document-intelligence"],
-      "capability_tags": ["data-processing", "sql", "analytics"],
-      "industry_pitch": "Run the queries your team currently schedules overnight in the time it takes to get coffee.",
-      "detail_what_it_does": "A reference architecture for GPU-accelerated SQL processing, letting existing analytical workloads run on GPU hardware instead of scaling out CPU clusters.",
-      "detail_in_practice": {
-        "default": "Aim it at the analytical workloads that are currently slow enough that people avoid asking questions: multi-year operational history, cross-system joins, large aggregations.",
-        "oil-gas": "Seismic, production, and reservoir datasets, which are among the largest structured data volumes in any industry.",
-        "legal": "E-discovery processing across large document productions, where turnaround time is a cost driver."
-      },
-      "detail_infrastructure": "Data-processing rather than inference, so it sizes on data volume and query concurrency rather than model size. Often shares a cluster with inference workloads.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "llm-router",
-      "name": "LLM Router",
-      "description": "Routes each request to the most appropriate model, so simple questions don't consume expensive capacity.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/llm-router",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy", "general-enterprise"],
-      "use_case_categories": ["workforce-copilots"],
-      "capability_tags": ["model-ops", "routing", "governance"],
-      "industry_pitch": "Stop paying premium-model prices for questions a small model could have answered.",
-      "detail_what_it_does": "Classifies incoming requests and dispatches them to the best-fit model for the task, balancing quality against cost and latency. Also produces a record of which model handled what.",
-      "detail_in_practice": {
-        "default": "Deploy it in front of a mixed model fleet. Routine lookups go to a small fast model, hard reasoning goes to a large one, and you get an audit trail of the split.",
-        "financial-services": "The routing log doubles as model governance evidence, which matters when a regulator asks which system produced a given output.",
-        "legal": "Useful where AI-assisted work is billed to clients and the firm needs a defensible record of what handled which matter."
-      },
-      "detail_infrastructure": "Lightweight itself, but it presumes you're running several models, which is a fleet-scale argument rather than a single-node one.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "nemoclaw-suite",
-      "name": "NemoClaw Governed Agent Suite",
-      "description": "Three related blueprints for running autonomous coding and workflow agents inside enterprise guardrails and sandboxing.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-for-openclaw",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy", "general-enterprise"],
-      "use_case_categories": ["workforce-copilots", "cybersecurity"],
-      "capability_tags": ["agentic-workflow", "sandboxing", "governance", "coding"],
-      "industry_pitch": "Give developers real autonomous agents without giving them ungoverned access to your systems.",
-      "detail_what_it_does": "Covers NemoClaw for LangChain Deep Agents Code, for Hermes Agent, and for OpenClaw. All three run agents that plan, edit, and test work autonomously, with sandboxing and enterprise governance around what the agent can reach.",
-      "detail_in_practice": {
-        "default": "Stand it up where developer productivity matters but ungoverned agent access is a non-starter. The governance layer is the reason this is deployable in environments that would otherwise ban agentic tools outright.",
-        "federal-defense": "The sandboxing story is what makes agentic development viable inside an accreditation boundary.",
-        "legal": "Client confidentiality and privilege make ungoverned agent access untenable; the guardrails are the point.",
-        "utilities-energy": "NERC CIP obligations around critical infrastructure make governed agent execution a requirement rather than a preference."
-      },
-      "detail_infrastructure": "Long-running agent sessions consume far more tokens than interactive chat, making sustained throughput the sizing driver.",
-      "status": "active",
-      "last_verified": "2026-08-12",
-      "internal_note": "Bundled as one card to avoid three near-identical entries. Split if customers start asking for a specific variant."
-    },
-    {
-      "id": "nsight-copilot",
-      "name": "Nsight Copilot",
-      "description": "A coding assistant specialized in CUDA and GPU programming, grounded in authoritative GPU development documentation.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/nsight-copilot",
-      "industries": ["education", "federal-defense", "financial-services", "general-manufacturing", "healthcare", "oil-gas", "utilities-energy", "general-enterprise"],
-      "use_case_categories": ["workforce-copilots"],
-      "capability_tags": ["coding", "rag", "hpc"],
-      "industry_pitch": "Give your HPC and simulation engineers an assistant that actually knows GPU programming.",
-      "detail_what_it_does": "An AI coding assistant with CUDA-aware chat, real-time completion, and retrieval grounded in GPU programming documentation. Runs on DGX Spark class hardware.",
-      "detail_in_practice": {
-        "default": "For teams writing or porting GPU code. Narrow audience, but high value where it applies.",
-        "oil-gas": "Reservoir simulation and computational engineering teams already running serious HPC.",
-        "utilities-energy": "Grid modeling and power systems simulation groups.",
-        "financial-services": "Quantitative research and risk compute teams."
-      },
-      "detail_infrastructure": "Workstation or single-node class. Runs on DGX Spark, so it's a low barrier to entry compared with the rest of the catalog.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "financial-fraud-detection",
-      "name": "Financial Fraud Detection",
-      "description": "Detects fraud by modeling the relationships between accounts and transactions, not just individual transaction features.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/financial-fraud-detection",
-      "industries": ["financial-services", "education", "federal-defense", "healthcare", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy"],
-      "use_case_categories": ["cybersecurity", "predictive-ops"],
-      "capability_tags": ["gnn", "fraud", "anomaly-detection"],
-      "industry_pitch": "Catch the fraud rings that per-transaction rules miss, because the pattern is in the connections.",
-      "detail_what_it_does": "Uses graph neural networks to spot fraudulent patterns across networks of accounts and transactions, catching coordinated activity that transaction-level rules score as individually normal.",
-      "detail_in_practice": {
-        "default": "Point it at transaction and claim data where you suspect organized rather than opportunistic fraud.",
-        "healthcare": "Claims fraud, where coordinated billing patterns across providers are exactly the graph problem this solves.",
-        "state-local-gov": "Benefits, procurement, and tax fraud, with a direct revenue-recovery argument for a budget-constrained agency.",
-        "federal-defense": "Improper payments and procurement fraud, a standing federal priority with real dollar recovery attached.",
-        "transportation-logistics": "Cargo theft and fictitious pickup schemes, a live and growing problem in freight.",
-        "utilities-energy": "Energy theft and billing fraud detection across meter and account networks.",
-        "education": "Financial aid and enrollment fraud, which has grown sharply with online enrollment."
-      },
-      "detail_infrastructure": "Graph model training plus real-time scoring. Training is periodic and heavy; inference is light and latency-sensitive.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "transaction-foundation-model",
-      "name": "Build Your Own Transaction Foundation Model",
-      "description": "Trains a foundation model on your own tabular transaction history, producing embeddings that feed fraud, risk, and personalization systems.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/build-your-own-transaction-foundation-model",
-      "industries": ["financial-services", "healthcare", "retail-distribution", "transportation-logistics", "utilities-energy"],
-      "use_case_categories": ["quant-risk", "predictive-ops"],
-      "capability_tags": ["transformers", "embeddings", "tabular", "personalization"],
-      "industry_pitch": "Build a model that understands your customers' sequences of behavior, not just their last transaction.",
-      "detail_what_it_does": "Applies transformer architecture to tabular transaction data to produce embeddings that capture behavioral sequence, then feeds those embeddings into downstream fraud, risk, and personalization models.",
-      "detail_in_practice": {
-        "default": "Use where sequences of events carry more signal than any single event: what happened before this, and how unusual is that pattern for this account.",
-        "utilities-energy": "Meter reading and billing sequences, for both theft detection and consumption forecasting.",
-        "healthcare": "Claims sequences, where the order and timing of events carries the signal.",
-        "retail-distribution": "Customer behavior modeling for personalization as well as return and payment fraud."
-      },
-      "detail_infrastructure": "Genuine training workload on your own proprietary data, which cannot be outsourced to an API. Sizes on data volume and training cadence.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "quantitative-portfolio-optimization",
-      "name": "Quantitative Portfolio Optimization",
-      "description": "Runs portfolio optimization fast enough to be used in real time rather than as an overnight batch.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/quantitative-portfolio-optimization",
-      "industries": ["financial-services"],
-      "use_case_categories": ["quant-risk"],
-      "capability_tags": ["cuopt", "optimization", "capital-markets"],
-      "industry_pitch": "Optimize the portfolio while the market is still moving, not after it closed.",
-      "detail_what_it_does": "GPU-accelerated portfolio optimization using cuOpt, built for institutional scale and real-time rebalancing.",
-      "detail_in_practice": {
-        "default": "For asset managers and institutional desks where optimization runtime currently dictates how often the portfolio can be rebalanced."
-      },
-      "detail_infrastructure": "Optimization rather than inference. Sizes on portfolio complexity and rebalancing frequency.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "quantitative-signal-discovery",
-      "name": "Quantitative Signal Discovery Agent",
-      "description": "Automates the discovery, testing, and refinement of trading signals for quantitative research teams.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/quantitative-signal-discovery-agent",
-      "industries": ["financial-services"],
-      "use_case_categories": ["quant-risk"],
-      "capability_tags": ["agentic-workflow", "algorithmic-trading", "research"],
-      "industry_pitch": "Test more hypotheses than your quant team could work through by hand, and keep the ones that survive.",
-      "detail_what_it_does": "An agentic workflow that proposes candidate trading signals, backtests them, and refines the survivors, scaling the throughput of a quantitative research process.",
-      "detail_in_practice": {
-        "default": "For quant desks where the bottleneck is analyst time spent formulating and testing hypotheses rather than access to data."
-      },
-      "detail_infrastructure": "Agentic plus heavy backtesting compute. Sustained rather than bursty.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "ai-model-distillation-financial",
-      "name": "AI Model Distillation for Financial Data",
-      "description": "Distills large models down to smaller domain-specific ones for financial data, cutting the cost of running signals at scale.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/ai-model-distillation-for-financial-data",
-      "industries": ["financial-services"],
-      "use_case_categories": ["quant-risk", "workforce-copilots"],
-      "capability_tags": ["distillation", "model-ops", "data-flywheel"],
-      "industry_pitch": "Run market signal generation at production scale without paying frontier-model prices per call.",
-      "detail_what_it_does": "Applies the Data Flywheel pattern to unstructured financial data, distilling domain-specific models that generate market signals at a fraction of the compute cost of the model that trained them.",
-      "detail_in_practice": {
-        "default": "For firms already running signal generation at volume where per-call model cost has become the limiting factor on how much can be processed."
-      },
-      "detail_infrastructure": "Training plus inference on the same footprint, the classic own-don't-rent profile.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "retail-shopping-assistant",
-      "name": "Retail Shopping Assistant",
-      "description": "A multi-agent shopping advisor with image search and cart management, for online and in-store use.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/retail-shopping-assistant",
-      "industries": ["retail-distribution", "food-cpg", "general-manufacturing"],
-      "use_case_categories": ["customer-service"],
-      "capability_tags": ["agentic-workflow", "rag", "computer-vision", "embeddings"],
-      "industry_pitch": "Give every shopper the attention of your best associate, including the ones shopping at 2am.",
-      "detail_what_it_does": "Multi-agent architecture handling product discovery, image-based search, recommendation, and cart management, with streaming responses.",
-      "detail_in_practice": {
-        "default": "Deploy across web, app, and in-store kiosk so the same assistant handles discovery wherever the customer is.",
-        "general-manufacturing": "The same mechanic works as a B2B parts configurator, where selecting the right component from a deep catalog is the actual customer problem.",
-        "food-cpg": "For brands going direct-to-consumer, where you own the storefront but not decades of retail merchandising experience."
-      },
-      "detail_infrastructure": "Multi-agent plus vision plus retrieval, with consumer-facing latency requirements and traffic that spikes seasonally.",
-      "status": "active",
-      "last_verified": "2026-08-12"
+      "detail_infrastructure": "NVIDIA Omniverse Enterprise, Isaac Sim, high-memory GPU nodes (H100/B200 recommended for real-time simulation), high-bandwidth sensor data ingestion pipeline."
     },
     {
       "id": "retail-agentic-commerce",
-      "name": "Retail Agentic Commerce",
-      "description": "Reference implementation of emerging agentic commerce protocols, enabling AI-driven checkout while you stay merchant of record.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/retail-agentic-commerce",
-      "industries": ["retail-distribution", "food-cpg", "general-manufacturing"],
-      "use_case_categories": ["customer-service"],
-      "capability_tags": ["agentic-workflow", "commerce", "mcp"],
-      "industry_pitch": "Be ready when your customers' AI agents start doing the buying, instead of being disintermediated by them.",
-      "detail_what_it_does": "Implements the Agentic Commerce Protocol and Universal Commerce Protocol so AI agents can negotiate and complete checkout against your storefront while you remain merchant of record.",
-      "detail_in_practice": {
-        "default": "This is a positioning conversation as much as a deployment one: agent-driven purchasing is arriving, and the question is whether your storefront can transact with an agent or only with a human."
-      },
-      "detail_infrastructure": "Protocol and integration heavy rather than compute heavy. The strategic weight outsizes the infrastructure footprint.",
+      "name": "Retail Agentic Commerce Blueprint",
       "status": "active",
-      "last_verified": "2026-08-12"
+      "nvidia_url": "https://build.nvidia.com/nvidia/retail-agentic-commerce",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Reference implementation of the Agentic Commerce Protocol enabling AI-powered checkout negotiation and transaction completion while maintaining merchant control.",
+      "industry_fit": {
+        "retail-distribution": "primary",
+        "financial-services": "adjacent",
+        "state-local-government": "adjacent",
+        "general-enterprise": "adjacent"
+      },
+      "department_fit": {
+        "sales": "primary",
+        "operations": "primary",
+        "customer-service": "adjacent",
+        "finance": "adjacent"
+      },
+      "detail_what_it_does": "Deploys AI agents that can negotiate terms, process transactions, and complete commerce workflows autonomously — operating within merchant-defined rules and guardrails.",
+      "detail_in_practice": {
+        "default": "Retailers and B2B sellers use this to enable AI-assisted purchasing experiences where agents can handle negotiation, upsell, and checkout on behalf of buyers or sellers.",
+        "retail-distribution": "Automates buyer-seller negotiation in B2B wholesale — agents handle volume pricing, contract terms, and order confirmation without manual back-and-forth.",
+        "state-local-government": "Adapted for state procurement — AI agents assist procurement officers in bid evaluation, vendor negotiation, and contract term comparison."
+      },
+      "detail_infrastructure": "NVIDIA NIM microservices, LangGraph or CrewAI orchestration, low-latency GPU inference for real-time negotiation response."
     },
     {
-      "id": "retail-catalog-enrichment",
-      "name": "Retail Catalog Enrichment",
-      "description": "Turns basic product images and data into rich, localized catalog content automatically.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/retail-catalog-enrichment",
-      "industries": ["retail-distribution", "food-cpg", "general-manufacturing", "transportation-logistics", "oil-gas", "healthcare"],
-      "use_case_categories": ["customer-service", "document-intelligence"],
-      "capability_tags": ["vlm", "diffusion", "generation", "catalog"],
-      "industry_pitch": "Fill in the catalog content nobody has time to write, from the product images you already have.",
-      "detail_what_it_does": "Vision language models read product imagery and generate descriptions, attributes, and localized copy, replacing a heavily manual content production process.",
-      "detail_in_practice": {
-        "default": "Aim it at the catalog backlog: items with a photo, a SKU, and nothing else.",
-        "general-manufacturing": "Parts and equipment catalogs, where incomplete data is a genuine sales and service friction point.",
-        "food-cpg": "Product content fed downstream to retail partners, which is a constant and constantly manual obligation.",
-        "healthcare": "Supply and equipment catalogs across a large system's purchasing operation."
-      },
-      "detail_infrastructure": "Batch vision and generation. Latency-tolerant, so it fills idle capacity on hardware bought for something else.",
+      "id": "nemotron-voice-agent",
+      "name": "Nemotron Voice Agent Blueprint",
       "status": "active",
-      "last_verified": "2026-08-12"
+      "nvidia_url": "https://build.nvidia.com/nvidia/nemotron-voice-agent",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "End-to-end voice agent built on NVIDIA Nemotron models with real-time speech-to-text, reasoning, and text-to-speech — enabling natural, low-latency voice interactions.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "state-local-government": "primary",
+        "retail-distribution": "primary",
+        "financial-services": "primary",
+        "education": "primary",
+        "transportation-logistics": "adjacent",
+        "utilities-energy": "adjacent",
+        "general-enterprise": "primary"
+      },
+      "department_fit": {
+        "customer-service": "primary",
+        "human-resources": "primary",
+        "sales": "adjacent",
+        "operations": "adjacent",
+        "communications": "adjacent"
+      },
+      "detail_what_it_does": "Deploys a fully on-premises voice agent capable of understanding natural speech, reasoning over organizational knowledge, and responding in real time — without cloud routing of sensitive conversations.",
+      "detail_in_practice": {
+        "default": "Organizations replace or augment phone-based contact centers with AI voice agents that handle routine inquiries 24/7, reducing cost-per-contact and wait times.",
+        "state-local-government": "State agencies deploy voice agents for high-volume citizen call centers — DMV renewals, unemployment status, benefits eligibility — deflecting routine calls around the clock.",
+        "healthcare-life-sciences": "Health systems use voice agents for appointment scheduling, prescription refill requests, and post-discharge care check-ins without exposing PHI to cloud providers.",
+        "financial-services": "Banks and insurers handle account inquiries, claims status, and fraud alerts via voice agents that authenticate callers and resolve tier-1 issues instantly."
+      },
+      "detail_infrastructure": "NVIDIA Riva ASR/TTS, Nemotron reasoning model via NIM, real-time inference GPU (L40S or H100 recommended), telephony integration layer."
+    },
+    {
+      "id": "ran-energy-efficiency",
+      "name": "Intent-Driven RAN Energy Efficiency Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/viavi/intent-driven-ran-energy-efficiency",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Closed-loop agentic workflow that autonomously optimizes energy consumption across radio access networks and physical infrastructure by continuously monitoring and adjusting configuration parameters.",
+      "industry_fit": {
+        "utilities-energy": "primary",
+        "state-local-government": "primary",
+        "oil-gas": "adjacent",
+        "general-manufacturing": "adjacent",
+        "federal-defense": "adjacent",
+        "transportation-logistics": "adjacent"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "research-engineering": "primary",
+        "information-technology": "adjacent",
+        "finance": "adjacent"
+      },
+      "detail_what_it_does": "An AI agent continuously monitors energy consumption patterns across networked infrastructure and autonomously adjusts configuration parameters to minimize usage while maintaining performance SLAs.",
+      "detail_in_practice": {
+        "default": "Facilities and network operations teams use this to drive down energy spend and meet sustainability mandates without manual monitoring.",
+        "utilities-energy": "Grid operators and telcos optimize power consumption across distributed network infrastructure automatically, reducing OpEx and carbon footprint.",
+        "state-local-government": "State facilities offices deploy this across state-owned buildings and data centers to hit sustainability mandates and reduce utility spend without manual intervention."
+      },
+      "detail_infrastructure": "NVIDIA NIM microservices, agentic orchestration framework, real-time telemetry ingestion, integration with building management or network management systems."
     },
     {
       "id": "multi-agent-warehouse",
-      "name": "Multi-Agent Intelligent Warehouse",
-      "description": "A multi-agent system for warehouse operations, combining automation, real-time monitoring, and plain-language interaction.",
+      "name": "Multi-Agent Intelligent Warehouse Blueprint",
+      "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/multi-agent-intelligent-warehouse",
-      "industries": ["retail-distribution", "transportation-logistics", "general-manufacturing", "food-cpg", "healthcare", "utilities-energy", "federal-defense", "oil-gas"],
-      "use_case_categories": ["predictive-ops"],
-      "capability_tags": ["agentic-workflow", "rag", "logistics", "monitoring"],
-      "industry_pitch": "Ask your warehouse what's happening instead of waiting for the report that says what happened.",
-      "detail_what_it_does": "Coordinated agents monitor warehouse operations, optimize task allocation, and answer operational questions conversationally.",
-      "detail_in_practice": {
-        "default": "For any operation where inventory and throughput questions currently require someone to pull a report or walk the floor.",
-        "healthcare": "Central supply and sterile processing, where stockouts have clinical consequences.",
-        "utilities-energy": "Storm materials staging and transformer inventory, where readiness is the whole point.",
-        "federal-defense": "Depot and sustainment inventory across distributed sites.",
-        "oil-gas": "Remote site parts staging, where a missing component means a crew waits days."
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Multi-agent AI system for warehouse operations — handles inventory monitoring, task assignment, real-time exception handling, and natural language interaction for staff.",
+      "industry_fit": {
+        "retail-distribution": "primary",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "primary",
+        "transportation-logistics": "primary",
+        "state-local-government": "adjacent",
+        "healthcare-life-sciences": "adjacent",
+        "federal-defense": "adjacent"
       },
-      "detail_infrastructure": "Multi-agent orchestration plus continuous monitoring ingest. Site-level deployment fits the edge pattern.",
-      "status": "active",
-      "last_verified": "2026-08-12"
+      "department_fit": {
+        "supply-chain-logistics": "primary",
+        "operations": "primary",
+        "information-technology": "adjacent"
+      },
+      "detail_what_it_does": "Deploys coordinated AI agents that monitor warehouse inventory in real time, assign tasks to workers or robots, flag exceptions, and respond to natural language queries from floor staff.",
+      "detail_in_practice": {
+        "default": "Distribution centers use this to reduce pick errors, improve throughput, and give floor managers real-time visibility without custom WMS development.",
+        "retail-distribution": "Retailers optimize fulfillment center operations — agents coordinate pick-pack-ship workflows, handle returns exceptions, and surface inventory discrepancies automatically.",
+        "state-local-government": "State agencies adapt this for emergency supply depots, evidence storage facilities, and corrections inventory — real-time tracking with natural language queries for staff."
+      },
+      "detail_infrastructure": "NVIDIA NIM microservices, multi-agent orchestration (LangGraph or CrewAI), computer vision NIMs for visual inventory, integration with WMS/ERP systems."
     },
     {
-      "id": "ambient-healthcare-agents",
-      "name": "Ambient Healthcare Agents",
-      "description": "Voice-driven agents that capture and structure the conversation in the room, so the documentation writes itself.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/ambient-healthcare-agents",
-      "industries": ["healthcare", "state-local-gov"],
-      "use_case_categories": ["workforce-copilots", "customer-service"],
-      "capability_tags": ["speech", "asr", "tts", "agentic-workflow"],
-      "industry_pitch": "Give your people back the hours they spend documenting what they just did.",
-      "detail_what_it_does": "Combines speech recognition, language models, and speech synthesis into agents that support both providers and patients, including ambient capture of an encounter into structured documentation.",
-      "detail_in_practice": {
-        "default": "Deploy where a professional's day splits between the work and writing up the work.",
-        "healthcare": "Ambient clinical documentation, currently the highest-demand AI use case in health systems, plus patient-facing agents for intake and follow-up.",
-        "state-local-gov": "Social services caseworkers and public health staff carry a nearly identical documentation burden, and this is an angle most agencies haven't considered."
-      },
-      "detail_infrastructure": "Real-time speech plus language modeling, and in healthcare the PHI constraint makes local inference close to a requirement rather than a preference.",
+      "id": "retail-catalog-enrichment",
+      "name": "Retail Catalog Enrichment Blueprint",
       "status": "active",
-      "last_verified": "2026-08-12"
+      "nvidia_url": "https://build.nvidia.com/nvidia/retail-catalog-enrichment",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "GenAI system that enriches product or service catalog entries with rich text, imagery, localized descriptions, and structured attributes — at scale and without manual copywriting.",
+      "industry_fit": {
+        "retail-distribution": "primary",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "adjacent",
+        "state-local-government": "adjacent",
+        "education": "adjacent",
+        "general-enterprise": "adjacent"
+      },
+      "department_fit": {
+        "marketing": "primary",
+        "sales": "primary",
+        "operations": "adjacent",
+        "communications": "adjacent"
+      },
+      "detail_what_it_does": "Uses vision language models and generative AI to automatically generate product descriptions, extract structured attributes, create localized content, and produce lifestyle imagery from basic product photos.",
+      "detail_in_practice": {
+        "default": "E-commerce and catalog teams use this to scale content production without proportional headcount growth — enriching thousands of SKUs in the time it used to take to do dozens.",
+        "retail-distribution": "Retailers automatically generate localized product descriptions, extract searchable attributes, and create on-brand marketing copy from a single product image.",
+        "state-local-government": "State agencies adapt this to enrich multilingual service catalogs — generating localized benefit program descriptions and eligibility summaries for diverse citizen populations."
+      },
+      "detail_infrastructure": "NVIDIA Nemotron VLM via NIM, diffusion model NIM for imagery, Nemotron LLM for text generation, scalable batch inference infrastructure."
     },
     {
-      "id": "biomedical-aiq-research-agent",
-      "name": "Biomedical AI-Q Research Agent",
-      "description": "The AI-Q research agent specialized for biomedical literature and data.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/biomedical-aiq-research-agent",
-      "industries": ["healthcare", "education", "federal-defense", "food-cpg"],
-      "use_case_categories": ["document-intelligence", "workforce-copilots"],
-      "capability_tags": ["agentic-workflow", "rag", "research", "biomedical"],
-      "industry_pitch": "Compress a literature review from weeks to an afternoon, with citations intact.",
-      "detail_what_it_does": "Applies the AI-Q research agent pattern to biomedical corpora, producing cited synthesis across literature and research data.",
-      "detail_in_practice": {
-        "default": "For research teams whose bottleneck is reading and synthesizing prior work rather than generating new data.",
-        "education": "Research universities and academic medical centers, a natural fit for the higher-ed side of this vertical.",
-        "food-cpg": "Food science and ag-biotech research groups working the same literature-heavy problem."
-      },
-      "detail_infrastructure": "Same profile as AI-Q with domain-specific retrieval. Research institutions often already own GPU capacity this can share.",
+      "id": "ai-model-distillation-financial",
+      "name": "AI Model Distillation for Financial Data Blueprint",
       "status": "active",
-      "last_verified": "2026-08-12"
+      "nvidia_url": "https://build.nvidia.com/nvidia/ai-model-distillation-for-financial-data",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "Distills and deploys compact, domain-specific AI models from unstructured financial data — generating high-quality market signals or fiscal intelligence at lower inference cost.",
+      "industry_fit": {
+        "financial-services": "primary",
+        "state-local-government": "primary",
+        "oil-gas": "adjacent",
+        "general-enterprise": "adjacent"
+      },
+      "department_fit": {
+        "finance": "primary",
+        "data-analytics": "primary",
+        "research-engineering": "adjacent",
+        "information-technology": "adjacent"
+      },
+      "detail_what_it_does": "Takes a large foundation model and distills it into a smaller, domain-tuned model trained on organizational financial data — achieving high accuracy at a fraction of the inference cost of a general-purpose LLM.",
+      "detail_in_practice": {
+        "default": "Finance teams use distilled models to generate market signals, fiscal summaries, and risk assessments from internal data without sending sensitive financials to cloud APIs.",
+        "financial-services": "Asset managers and banks create proprietary signal-generation models trained on their own trading data, news feeds, and financial filings — running entirely on-premises.",
+        "state-local-government": "State budget offices distill models from appropriations history, revenue data, and economic indicators to generate fiscal intelligence for analysts without cloud data exposure."
+      },
+      "detail_infrastructure": "NVIDIA NeMo distillation pipeline, NIM for inference, GPU cluster for training (H100/B200), data curation and annotation tooling."
     },
     {
-      "id": "single-cell-analysis",
-      "name": "Single Cell Analysis",
-      "description": "Accelerates single-cell data analysis from days to minutes using GPU-accelerated data science libraries.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/single-cell-analysis",
-      "industries": ["healthcare", "education", "federal-defense", "food-cpg"],
-      "use_case_categories": ["predictive-ops"],
-      "capability_tags": ["rapids", "genomics", "research"],
-      "industry_pitch": "Turn an overnight analysis run into a coffee break, so researchers iterate instead of waiting.",
-      "detail_what_it_does": "GPU-accelerated single-cell analysis via RAPIDS-singlecell, compressing standard research workflows from days to minutes.",
-      "detail_in_practice": {
-        "default": "For labs where analysis turnaround dictates how many hypotheses get tested in a grant cycle."
-      },
-      "detail_infrastructure": "Data-science acceleration rather than inference. Sizes on dataset scale.",
+      "id": "quantitative-portfolio-optimization",
+      "name": "Quantitative Portfolio Optimization Blueprint",
       "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "genomics-analysis",
-      "name": "Genomics Analysis",
-      "description": "GPU-accelerated genomic sequencing and analysis pipelines.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/genomics-analysis",
-      "industries": ["healthcare", "education", "federal-defense", "food-cpg"],
-      "use_case_categories": ["predictive-ops"],
-      "capability_tags": ["genomics", "sequencing", "research"],
-      "industry_pitch": "Cut sequencing analysis time enough that genomics becomes a clinical tool, not just a research one.",
-      "detail_what_it_does": "Accelerates genomic sequencing analysis pipelines on GPU infrastructure.",
-      "detail_in_practice": {
-        "default": "For sequencing operations where pipeline runtime is the constraint on throughput or clinical turnaround.",
-        "federal-defense": "National labs and biodefense programs running sequencing at scale.",
-        "food-cpg": "Ag-biotech and food safety genomics, including pathogen tracing."
+      "nvidia_url": "https://build.nvidia.com/nvidia/quantitative-portfolio-optimization",
+      "use_case_category": "Quantitative & Risk Analytics",
+      "description": "GPU-accelerated quantitative optimization of investment portfolios — enables real-time rebalancing, risk-adjusted return optimization, and scenario analysis at institutional scale.",
+      "industry_fit": {
+        "financial-services": "primary",
+        "state-local-government": "primary"
       },
-      "detail_infrastructure": "Pipeline acceleration sized on sequencing volume. Sustained utilization makes owned hardware straightforward to justify.",
-      "status": "active",
-      "last_verified": "2026-08-12"
-    },
-    {
-      "id": "omniverse-dsx",
-      "name": "NVIDIA Omniverse DSX Blueprint for AI Factory Digital Twins",
-      "description": "Design, simulate, and operate AI factory infrastructure as a digital twin before and after it is built.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/omniverse-dsx-blueprint-for-ai-factories",
-      "industries": ["general-manufacturing", "food-cpg", "oil-gas", "utilities-energy", "state-local-gov", "federal-defense", "financial-services", "healthcare", "education"],
-      "use_case_categories": ["digital-twin"],
-      "capability_tags": ["omniverse", "simulation", "digital-twin", "openusd"],
-      "industry_pitch": "Design the facility, the power, and the cooling together as a simulation before you pour concrete.",
-      "detail_what_it_does": "Unites facility design, hardware layout, power, and cooling into a single simulated model, validated against a real build. Aimed specifically at AI factory infrastructure rather than general facility twins.",
-      "detail_in_practice": {
-        "default": "Most relevant when you're standing up AI infrastructure of your own rather than modeling an existing production process. Worth setting that expectation early so it isn't mistaken for a general-purpose plant twin.",
-        "utilities-energy": "Utilities are unusually well positioned here, owning both the power and the land, and several are actively evaluating AI infrastructure as a business.",
-        "state-local-gov": "Relevant where a jurisdiction is pursuing sovereign AI capacity rather than renting it."
+      "department_fit": {
+        "finance": "primary",
+        "data-analytics": "primary",
+        "research-engineering": "adjacent"
       },
-      "detail_infrastructure": "Omniverse simulation workloads plus the AI factory being designed. This one is upstream of the infrastructure conversation rather than downstream of it.",
-      "status": "active",
-      "last_verified": "2026-08-12"
+      "detail_what_it_does": "Applies GPU-parallelized optimization algorithms to portfolio construction — solving large-scale mean-variance, factor-based, and scenario-constrained optimization problems orders of magnitude faster than CPU-based approaches.",
+      "detail_in_practice": {
+        "default": "Quantitative investment teams use GPU acceleration to run optimization workloads in real time that previously required overnight batch runs.",
+        "financial-services": "Hedge funds and asset managers run intraday portfolio rebalancing, stress testing, and factor exposure optimization at speeds that enable true real-time risk management.",
+        "state-local-government": "State pension funds and treasury offices optimize fund allocations and run scenario analysis on GPU infrastructure — dramatically accelerating what were previously overnight batch jobs."
+      },
+      "detail_infrastructure": "NVIDIA cuOpt, RAPIDS libraries, high-memory GPU nodes (A100/H100), integration with portfolio management and risk systems."
     },
     {
       "id": "cosmos-dataset-search",
-      "name": "Cosmos Dataset Search",
-      "description": "Vector search and retrieval across very large video datasets, built for training autonomous systems.",
+      "name": "Cosmos Dataset Search Blueprint",
+      "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/cosmos-dataset-search",
-      "industries": ["transportation-logistics", "general-manufacturing", "oil-gas", "utilities-energy", "healthcare", "retail-distribution", "food-cpg", "federal-defense", "education"],
-      "use_case_categories": ["digital-twin", "predictive-ops"],
-      "capability_tags": ["computer-vision", "search", "physical-ai", "autonomous"],
-      "industry_pitch": "Find the handful of edge cases hiding in a petabyte of video, instead of training on whatever you happened to label.",
-      "detail_what_it_does": "Semantic search and retrieval over large video datasets, so teams training perception models can find specific scenarios rather than sampling blindly.",
-      "detail_in_practice": {
-        "default": "For anyone training vision models on their own footage where the hard part is curating the training set, not running the training.",
-        "transportation-logistics": "Autonomous vehicle and yard automation development.",
-        "utilities-energy": "Drone-based transmission and distribution inspection programs.",
-        "healthcare": "Surgical robotics and procedural video research."
+      "use_case_category": "Video & Sensor Intelligence",
+      "description": "Accelerates post-training of autonomous vehicle and robotics stacks using vector search and retrieval over large video datasets — enabling efficient identification of edge cases and training examples.",
+      "industry_fit": {
+        "transportation-logistics": "primary",
+        "general-manufacturing": "primary",
+        "federal-defense": "primary",
+        "state-local-government": "adjacent",
+        "oil-gas": "adjacent"
       },
-      "detail_infrastructure": "Embedding generation across large video corpora plus vector search at scale. Storage-heavy alongside GPU-heavy.",
-      "status": "active",
-      "last_verified": "2026-08-12"
+      "department_fit": {
+        "research-engineering": "primary",
+        "operations": "adjacent",
+        "information-technology": "adjacent"
+      },
+      "detail_what_it_does": "Uses vector search over massive video datasets to find semantically similar scenarios — enabling AV and robotics teams to surface rare edge cases, curate training data, and accelerate model iteration without manually reviewing petabytes of footage.",
+      "detail_in_practice": {
+        "default": "Autonomous systems teams use this to find the needle-in-a-haystack failure scenarios that matter most for safety — without watching every hour of footage.",
+        "transportation-logistics": "Fleet operators and AV developers search video archives to find specific road conditions, near-miss events, or environmental edge cases for model retraining.",
+        "state-local-government": "State DOT agencies post-train inspection drone models by searching video archives for specific bridge conditions, road defects, or infrastructure anomalies."
+      },
+      "detail_infrastructure": "NVIDIA Cosmos tokenizer, vector database (Milvus or pgvector), GPU-accelerated embedding generation, large-scale video storage."
     },
     {
-      "id": "3d-object-generation",
-      "name": "3D Object Generation",
-      "description": "Generates 3D objects and assets from prompts or references, for design and simulation pipelines.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/3d-object-generation",
-      "industries": ["general-manufacturing", "food-cpg", "retail-distribution", "oil-gas", "utilities-energy", "transportation-logistics", "state-local-gov", "federal-defense", "education"],
-      "use_case_categories": ["digital-twin"],
-      "capability_tags": ["generation", "3d", "omniverse"],
-      "industry_pitch": "Populate a simulation or a product visualization without modeling every asset by hand.",
-      "detail_what_it_does": "Generates 3D assets programmatically for use in design, visualization, and simulation environments.",
-      "detail_in_practice": {
-        "default": "Useful wherever asset creation is the bottleneck in a visualization or simulation effort.",
-        "state-local-gov": "Urban planning visualization and capital project modeling for public presentation.",
-        "retail-distribution": "Product visualization and virtual showroom assets."
-      },
-      "detail_infrastructure": "Generative workload, batch-friendly, often workstation-class for smaller teams.",
+      "id": "ambient-healthcare-agents",
+      "name": "Ambient Healthcare Agents Blueprint",
       "status": "active",
-      "last_verified": "2026-08-12"
+      "nvidia_url": "https://build.nvidia.com/nvidia/ambient-healthcare-agents",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "AI agents for clinical environments — ambient documentation during patient encounters, clinical note generation, care coordination support, and patient-facing navigation assistance.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "state-local-government": "primary",
+        "federal-defense": "adjacent",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "human-resources": "adjacent",
+        "customer-service": "adjacent",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Deploys AI agents that listen to clinical conversations, generate structured clinical notes, surface relevant patient history, and assist patients with care navigation — reducing administrative burden on clinicians.",
+      "detail_in_practice": {
+        "default": "Health systems use ambient documentation to give clinicians time back — notes are generated during the encounter rather than typed after, reducing after-hours charting by hours per day.",
+        "healthcare-life-sciences": "Hospitals and clinics deploy ambient AI that joins patient encounters, generates structured SOAP notes, and surfaces relevant lab results and medication history in real time.",
+        "state-local-government": "State-employed clinicians at correctional health facilities and state hospitals use ambient documentation to meet charting requirements without sacrificing patient contact time."
+      },
+      "detail_infrastructure": "NVIDIA Riva ASR, Nemotron reasoning model via NIM, EHR integration layer, on-premises deployment to keep PHI off cloud."
     },
     {
-      "id": "3d-guided-genai-rtx",
-      "name": "3D-Guided Generative AI (RTX)",
-      "description": "Controls AI image generation using a rough 3D scene, so you get the composition you intended rather than what the prompt happened to produce.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/genai-3d-guided",
-      "industries": ["general-manufacturing", "retail-distribution", "food-cpg", "education", "state-local-gov"],
-      "use_case_categories": ["digital-twin"],
-      "capability_tags": ["generation", "3d", "rtx", "diffusion"],
-      "industry_pitch": "Get marketing and design imagery with the composition you actually wanted, on a workstation rather than a cluster.",
-      "detail_what_it_does": "Combines a 3D scene tool with image generation so the layout of the scene controls the composition of the generated image. Runs on RTX workstations.",
-      "detail_in_practice": {
-        "default": "For design and marketing teams producing visual content at volume, where prompt-only generation wastes time on composition retries.",
-        "retail-distribution": "Product and campaign imagery produced in-house rather than through a photo shoot cycle.",
-        "food-cpg": "Packaging and marketing visuals across many SKUs and markets."
-      },
-      "detail_infrastructure": "RTX workstation class. The lowest infrastructure barrier in the catalog, which makes it a useful low-risk first deployment.",
+      "id": "flood-intelligence",
+      "name": "Flood Intelligence Blueprint (H2O.ai)",
       "status": "active",
-      "last_verified": "2026-08-12"
+      "nvidia_url": "https://build.nvidia.com/h2o/flood-intelligence",
+      "use_case_category": "Video & Sensor Intelligence",
+      "description": "Real-time AI-powered disaster risk intelligence — flood prediction, severity mapping, and emergency response coordination at scale using geospatial and sensor data.",
+      "industry_fit": {
+        "state-local-government": "primary",
+        "utilities-energy": "primary",
+        "federal-defense": "primary",
+        "oil-gas": "adjacent",
+        "transportation-logistics": "adjacent",
+        "general-enterprise": "adjacent"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "research-engineering": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Combines geospatial data, weather models, and sensor feeds to generate real-time flood risk predictions, severity maps, and emergency response recommendations — enabling proactive rather than reactive disaster management.",
+      "detail_in_practice": {
+        "default": "Emergency management and infrastructure teams use this to predict flood impact before it happens and pre-position resources accordingly.",
+        "state-local-government": "State emergency management agencies use real-time flood modeling to pre-position equipment, coordinate mutual aid, and brief governors before events peak.",
+        "utilities-energy": "Utilities predict flooding impact on substations, generation facilities, and distribution infrastructure — enabling pre-emptive grid hardening and crew staging."
+      },
+      "detail_infrastructure": "H2O.ai Driverless AI, NVIDIA GPU-accelerated geospatial processing, real-time sensor data ingestion, GIS integration."
     },
     {
-      "id": "telecom-network-configuration",
-      "name": "AI Agent for Telecom Network Configuration Planning",
-      "description": "Uses agentic AI to plan and optimize radio network configuration parameters.",
+      "id": "cyborg-enterprise-rag",
+      "name": "Cyborg Enterprise RAG Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/cyborg/cyborg-enterprise-rag",
+      "use_case_category": "RAG & Knowledge Retrieval",
+      "description": "Secure multimodal RAG with encryption-in-use — extract, embed, and index sensitive documents while keeping data encrypted throughout the retrieval and inference pipeline.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "financial-services": "primary",
+        "legal-services": "primary",
+        "federal-defense": "primary",
+        "state-local-government": "primary",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "legal-compliance": "primary",
+        "information-technology": "primary",
+        "cybersecurity": "primary",
+        "finance": "adjacent",
+        "human-resources": "adjacent"
+      },
+      "detail_what_it_does": "Enables retrieval-augmented generation over sensitive document corpora while keeping all data encrypted — satisfying compliance requirements for highly regulated environments that cannot use standard RAG pipelines.",
+      "detail_in_practice": {
+        "default": "Regulated organizations use encrypted RAG to unlock the value of sensitive document archives without violating data protection requirements.",
+        "healthcare-life-sciences": "Health systems query clinical records, treatment protocols, and research data through encrypted RAG — PHI stays encrypted even during inference.",
+        "state-local-government": "State law enforcement and child welfare agencies query sensitive case files and court records through encrypted RAG without data ever leaving the secure environment unprotected.",
+        "legal-services": "Law firms query privileged documents, case files, and contracts through encrypted retrieval — preserving privilege and meeting bar-mandated confidentiality requirements."
+      },
+      "detail_infrastructure": "Cyborg encryption-in-use layer, NVIDIA NIM for embedding and inference, on-premises vector database, air-gap capable deployment."
+    },
+    {
+      "id": "retail-shopping-assistant",
+      "name": "Retail Shopping Assistant Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/retail-shopping-assistant",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "AI-powered shopping advisor with multi-agent architecture, real-time streaming responses, image-based product search, and intelligent cart management.",
+      "industry_fit": {
+        "retail-distribution": "primary",
+        "state-local-government": "adjacent",
+        "healthcare-life-sciences": "adjacent",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "customer-service": "primary",
+        "sales": "primary",
+        "marketing": "adjacent"
+      },
+      "detail_what_it_does": "Deploys a conversational shopping agent that understands natural language requests, searches product catalogs by image or text, makes personalized recommendations, and manages cart state across a session.",
+      "detail_in_practice": {
+        "default": "Retailers use this to provide expert shopping assistance at scale — replacing or augmenting human associates for product discovery and purchase decisions.",
+        "retail-distribution": "E-commerce and in-store kiosk deployments provide expert product guidance, compare alternatives, and guide customers through complex purchases.",
+        "state-local-government": "Adapted as a citizen benefits discovery assistant — guides residents through available programs, eligibility requirements, and application steps conversationally."
+      },
+      "detail_infrastructure": "NVIDIA NIM LLM and embedding models, LangGraph agent orchestration, vector search for catalog retrieval, real-time streaming inference."
+    },
+    {
+      "id": "streaming-data-to-rag",
+      "name": "Streaming Data to RAG Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/streaming-data-to-rag",
+      "use_case_category": "RAG & Knowledge Retrieval",
+      "description": "Connects real-time streaming data sources — sensors, radio feeds, operational systems — to a RAG pipeline, enabling AI queries over live data rather than static document snapshots.",
+      "industry_fit": {
+        "utilities-energy": "primary",
+        "oil-gas": "primary",
+        "general-manufacturing": "primary",
+        "state-local-government": "primary",
+        "federal-defense": "primary",
+        "transportation-logistics": "primary",
+        "healthcare-life-sciences": "adjacent"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "information-technology": "primary",
+        "data-analytics": "primary",
+        "research-engineering": "adjacent"
+      },
+      "detail_what_it_does": "Ingests streaming data from sensors, APIs, and operational systems, continuously indexes it into a vector store, and exposes it through a RAG interface — enabling AI queries that reflect the current state of operations, not yesterday's data.",
+      "detail_in_practice": {
+        "default": "Operations teams use streaming RAG to ask natural language questions about live operational data — 'What's the status of line 3 right now?' — without writing SQL queries.",
+        "utilities-energy": "Grid operators query live SCADA, sensor, and weather data through natural language to support real-time situational awareness and outage response.",
+        "state-local-government": "Emergency operations centers ingest live sensor, radio, and field data into a RAG pipeline — dispatchers and commanders can query current field conditions in natural language.",
+        "oil-gas": "Upstream operators query live drilling telemetry, well pressure, and equipment sensor data through natural language for real-time operational intelligence."
+      },
+      "detail_infrastructure": "Kafka or Pulsar streaming, NVIDIA NIM embedding models, vector database with continuous upsert, NIM LLM for query reasoning."
+    },
+    {
+      "id": "multi-llm-nim",
+      "name": "Multi-LLM NIM Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/bring-llm-to-nim",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "Deploy a broad range of open-source and custom LLMs through a unified NIM container interface — enabling organizations to run and serve multiple models on-premises without cloud dependency.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "federal-defense": "primary",
+        "state-local-government": "primary",
+        "healthcare-life-sciences": "adjacent",
+        "financial-services": "adjacent",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "data-analytics": "primary",
+        "research-engineering": "primary"
+      },
+      "detail_what_it_does": "Provides a standardized container runtime for deploying any Hugging Face or custom LLM with NIM's optimized inference stack — consistent API surface, GPU optimization, and enterprise support regardless of which model is running.",
+      "detail_in_practice": {
+        "default": "IT and platform teams use this to build a sovereign AI model serving layer — any team in the organization can access models through a standard API without each team managing their own inference infrastructure.",
+        "federal-defense": "Defense organizations run classified-environment LLMs entirely on-premises through a unified serving layer — no model weights or queries leave the secure enclave.",
+        "state-local-government": "State DoIT teams build a shared model serving platform that any agency can call — centralized governance, decentralized access, no cloud data exposure."
+      },
+      "detail_infrastructure": "NVIDIA NIM container runtime, GPU cluster (any modern NVIDIA data center GPU), Kubernetes or on-prem orchestration, model registry."
+    },
+    {
+      "id": "biomedical-aiq-research-agent",
+      "name": "Biomedical AI-Q Research Agent Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/biomedical-aiq-research-agent",
+      "use_case_category": "Life Sciences & Genomics",
+      "description": "AI agents for biomedical research — literature search, virtual screening, protein-ligand interaction analysis, and hypothesis generation using AI-Q and BioNeMo.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "federal-defense": "adjacent",
+        "education": "adjacent",
+        "state-local-government": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Combines AI-Q agentic reasoning with BioNeMo molecular models to enable researchers to query biomedical literature, screen molecular candidates, analyze protein interactions, and generate research hypotheses — accelerating drug discovery and disease research cycles.",
+      "detail_in_practice": {
+        "default": "Life sciences research teams use this to compress months of literature review and early-stage screening into days.",
+        "healthcare-life-sciences": "Pharmaceutical and biotech companies accelerate early-stage drug discovery — agents search literature, screen millions of molecular candidates, and surface the most promising leads.",
+        "state-local-government": "State public health labs use AI-assisted genomic surveillance to detect disease outbreaks, identify pathogen variants, and generate research briefs faster than manual analysis allows."
+      },
+      "detail_infrastructure": "NVIDIA BioNeMo NIMs, AI-Q orchestration framework, high-memory GPU nodes for molecular simulation, biomedical vector database."
+    },
+    {
+      "id": "ai-observability-data-flywheel",
+      "name": "AI Observability for Data Flywheel Blueprint (W&B)",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/wandb/ai-observability-for-data-flywheel",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "Streamlines evaluation, monitoring, and continuous optimization of AI models in production — tracking performance, detecting drift, and logging experiments through Weights & Biases integration.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "financial-services": "primary",
+        "healthcare-life-sciences": "primary",
+        "state-local-government": "primary",
+        "federal-defense": "adjacent",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "data-analytics": "primary",
+        "research-engineering": "primary",
+        "legal-compliance": "adjacent"
+      },
+      "detail_what_it_does": "Integrates Weights & Biases observability into the NVIDIA data flywheel — tracking model performance metrics, experiment results, drift signals, and retraining triggers across all production AI models in a unified dashboard.",
+      "detail_in_practice": {
+        "default": "AI platform and data science teams use this to maintain visibility and control over every model in production — catching degradation before it reaches users.",
+        "financial-services": "Risk and compliance teams use model observability to demonstrate that AI-driven decisions remain accurate and auditable over time — satisfying regulatory model risk management requirements.",
+        "state-local-government": "State AI governance offices monitor deployed models — benefits eligibility, fraud detection — for drift and bias, ensuring ongoing fairness and accuracy."
+      },
+      "detail_infrastructure": "Weights & Biases platform, NVIDIA NeMo evaluator, GPU-accelerated evaluation pipeline, model registry with lineage tracking."
+    },
+    {
+      "id": "ai-orchestration-data-flywheel",
+      "name": "AI Orchestration for Data Flywheel Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/iguazio/ai-orchestration-for-data-flywheel",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "Orchestrates the full AI data flywheel lifecycle — data ingestion, curation, model training, evaluation, and deployment — using MLRun and NVIDIA NeMo microservices.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "financial-services": "primary",
+        "healthcare-life-sciences": "primary",
+        "state-local-government": "primary",
+        "general-manufacturing": "adjacent",
+        "federal-defense": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "data-analytics": "primary",
+        "research-engineering": "primary",
+        "operations": "adjacent"
+      },
+      "detail_what_it_does": "Provides end-to-end MLOps orchestration — automates the pipeline from raw data ingestion through curation, training, evaluation, and deployment, with human feedback loops baked in to continuously improve models.",
+      "detail_in_practice": {
+        "default": "ML platform teams use this to replace fragile hand-built pipelines with a governed, automated flywheel that keeps all production models improving over time.",
+        "healthcare-life-sciences": "Health AI teams automate retraining of clinical models as new patient data accumulates — keeping diagnostic and triage models current without manual intervention.",
+        "state-local-government": "State IT offices run automated retraining pipelines for fraud detection, benefits eligibility, and recidivism risk models — keeping them accurate as population and policy shifts."
+      },
+      "detail_infrastructure": "Iguazio MLRun platform, NVIDIA NeMo microservices, GPU cluster for training, data lake or lakehouse integration."
+    },
+    {
+      "id": "safety-for-agentic-ai",
+      "name": "Safety for Agentic AI Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/safety-for-agentic-ai",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "Comprehensive safety, security, and privacy framework for agentic AI systems — covering guardrails, access control, content safety, privacy preservation, and audit logging.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "healthcare-life-sciences": "primary",
+        "financial-services": "primary",
+        "state-local-government": "primary",
+        "federal-defense": "primary",
+        "legal-services": "primary",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "cybersecurity": "primary",
+        "legal-compliance": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Provides a reference architecture for deploying agentic AI safely — NeMo Guardrails for content and behavior control, privacy-preserving inference, access control policies, and comprehensive audit logging for compliance and forensics.",
+      "detail_in_practice": {
+        "default": "Organizations use this as the safety layer underneath every AI agent deployment — ensuring agents can't be manipulated, can't access data beyond their authorization, and leave a complete audit trail.",
+        "financial-services": "Banks and insurers deploy AI agents with guardrails that prevent unauthorized data access, enforce regulatory boundaries, and log every agent action for examiner review.",
+        "state-local-government": "State governments use this as their AI governance foundation — ensuring every deployed AI system is explainable, privacy-preserving, and compliant with state AI legislation."
+      },
+      "detail_infrastructure": "NVIDIA NeMo Guardrails, NIM microservices, policy engine integration, audit logging infrastructure, RBAC integration."
+    },
+    {
+      "id": "telco-network-configuration",
+      "name": "AI Agent for Telecom Network Configuration Planning Blueprint",
+      "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/telco-network-configuration",
-      "industries": ["utilities-energy", "state-local-gov", "education", "general-manufacturing", "healthcare", "retail-distribution", "oil-gas", "federal-defense"],
-      "use_case_categories": ["predictive-ops"],
-      "capability_tags": ["agentic-workflow", "simulation", "networking"],
-      "industry_pitch": "Tune the network you own without a specialist manually working through parameter combinations.",
-      "detail_what_it_does": "An agentic framework that plans and optimizes radio access network parameters using simulation and language-model-driven reasoning.",
-      "detail_in_practice": {
-        "default": "Relevant to any organization operating its own wireless infrastructure rather than buying connectivity as a service.",
-        "general-manufacturing": "Private 5G on plant floors, an area growing fast and short on in-house RF expertise.",
-        "healthcare": "Hospital wireless environments where coverage gaps have clinical consequences.",
-        "education": "Large campus wireless networks.",
-        "oil-gas": "Remote site communications where connectivity is the operating constraint."
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Agentic AI framework for automating and optimizing radio access network (RAN) parameter configuration — using LLM-driven reasoning to tune network performance continuously.",
+      "industry_fit": {
+        "utilities-energy": "adjacent",
+        "state-local-government": "adjacent",
+        "federal-defense": "adjacent",
+        "transportation-logistics": "adjacent"
       },
-      "detail_infrastructure": "Simulation plus agentic reasoning, run periodically rather than continuously.",
-      "status": "active",
-      "last_verified": "2026-08-12"
+      "department_fit": {
+        "information-technology": "primary",
+        "operations": "primary",
+        "research-engineering": "adjacent"
+      },
+      "detail_what_it_does": "Deploys an AI agent that continuously monitors RAN performance metrics and autonomously adjusts configuration parameters — replacing the manual, expert-intensive process of network optimization.",
+      "detail_in_practice": {
+        "default": "Telecom network operations teams use this to reduce the manual effort of RAN parameter tuning while improving network performance consistency.",
+        "state-local-government": "State broadband offices and public safety network operators use this to optimize FirstNet and rural broadband network performance without requiring dedicated RF engineering staff.",
+        "federal-defense": "Defense communications teams apply this to tactical and base network optimization — maintaining performance under variable conditions autonomously."
+      },
+      "detail_infrastructure": "NVIDIA NIM LLM microservices, RAN telemetry integration, agentic orchestration framework, network management system APIs."
     },
     {
-      "id": "ai-virtual-assistant",
-      "name": "AI Virtual Assistant for Customer Service",
-      "description": "A text-based customer service assistant grounded in your own knowledge base.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/ai-virtual-assistant-for-customer-service",
-      "industries": ["retail-distribution", "state-local-gov", "financial-services", "education", "healthcare", "utilities-energy"],
-      "use_case_categories": ["customer-service"],
-      "capability_tags": ["rag", "customer-service"],
-      "industry_pitch": "Handle the routine inquiries in text, grounded in your own documentation.",
-      "detail_what_it_does": "A reference text-based virtual assistant integrating a knowledge base with customer service workflows.",
-      "detail_in_practice": {
-        "default": "Deprecated by NVIDIA as of April 2026 and retained for reference only. The RAG Blueprint is the current path for this use case; keep this entry visible only if you want the historical mapping."
+      "id": "financial-fraud-detection",
+      "name": "Financial Fraud Detection Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/financial-fraud-detection",
+      "use_case_category": "Quantitative & Risk Analytics",
+      "description": "Real-time AI fraud detection for financial transaction data — identifies sophisticated fraud patterns with high accuracy using GPU-accelerated graph analytics and ML models.",
+      "industry_fit": {
+        "financial-services": "primary",
+        "state-local-government": "primary",
+        "healthcare-life-sciences": "primary",
+        "retail-distribution": "adjacent",
+        "federal-defense": "adjacent",
+        "general-enterprise": "adjacent"
       },
-      "detail_infrastructure": "Superseded. Size against the RAG Blueprint instead.",
-      "status": "deprecated",
-      "last_verified": "2026-08-12"
+      "department_fit": {
+        "finance": "primary",
+        "legal-compliance": "primary",
+        "cybersecurity": "primary",
+        "operations": "adjacent",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Applies GPU-accelerated graph analytics and ensemble ML models to transaction streams in real time — detecting fraud rings, account takeover, synthetic identity fraud, and insider threats faster and more accurately than rule-based systems.",
+      "detail_in_practice": {
+        "default": "Finance and risk teams use this to catch fraud at the point of transaction rather than in next-day batch review — reducing losses and false positives simultaneously.",
+        "financial-services": "Banks and payment processors detect card fraud, account takeover, and wire fraud in milliseconds using GPU-accelerated pattern recognition across transaction graphs.",
+        "state-local-government": "State agencies apply this to Medicaid fraud, unemployment insurance fraud, tax evasion, and procurement irregularities — turning reactive investigation into real-time detection.",
+        "healthcare-life-sciences": "Health systems detect billing fraud, duplicate claims, and inappropriate prescribing patterns across payer and provider networks."
+      },
+      "detail_infrastructure": "NVIDIA RAPIDS graph analytics, cuML fraud models, GPU-accelerated feature engineering, real-time transaction stream integration."
+    },
+    {
+      "id": "nvidia-aiq",
+      "name": "NVIDIA AI-Q Blueprint for Intelligent Agents",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/aiq",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Foundational agentic AI infrastructure — connects AI agents to enterprise data sources, enables multi-step reasoning, and delivers trusted, actionable insights across organizational knowledge.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "financial-services": "primary",
+        "healthcare-life-sciences": "primary",
+        "state-local-government": "primary",
+        "federal-defense": "primary",
+        "education": "primary",
+        "legal-services": "primary",
+        "general-manufacturing": "adjacent",
+        "retail-distribution": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "data-analytics": "primary",
+        "operations": "adjacent",
+        "research-engineering": "adjacent",
+        "legal-compliance": "adjacent",
+        "finance": "adjacent",
+        "human-resources": "adjacent"
+      },
+      "detail_what_it_does": "Provides the reasoning, retrieval, and orchestration foundation for enterprise AI agents — connects to databases, document stores, APIs, and structured data sources, then reasons across them to answer complex multi-step questions.",
+      "detail_in_practice": {
+        "default": "Platform and IT teams deploy AI-Q as the core intelligence layer that all business-specific agents are built on top of — reducing the work of building each new agent from scratch.",
+        "state-local-government": "State DoIT offices deploy AI-Q as the foundational platform that agency-specific agents run on — a shared infrastructure investment that multiplies as each new agency use case comes online.",
+        "healthcare-life-sciences": "Health systems use AI-Q as the connective tissue between clinical systems, protocols, and research data — powering agents that reason across the full knowledge base rather than a single system."
+      },
+      "detail_infrastructure": "NVIDIA NIM LLM and embedding microservices, NeMo Retriever, multi-agent orchestration, enterprise data connectors, vector database."
     },
     {
       "id": "earth2-weather-analytics",
-      "name": "AI Weather Analytics with Earth-2",
-      "description": "AI-driven weather analysis and forecasting with multi-layered geospatial visualization.",
+      "name": "AI Weather Analytics with Earth-2 Blueprint",
+      "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/earth2-weather-analytics",
-      "industries": ["utilities-energy", "oil-gas", "transportation-logistics", "state-local-gov", "food-cpg", "education"],
-      "use_case_categories": ["predictive-ops"],
-      "capability_tags": ["forecasting", "geospatial", "simulation"],
-      "industry_pitch": "Forecast the weather that drives your load, your routes, or your outages at your own resolution.",
-      "detail_what_it_does": "AI weather prediction and geospatial analytics built on Earth-2.",
-      "detail_in_practice": {
-        "default": "Marked deprecated on NVIDIA's catalog. Worth keeping visible because the underlying use case is core to several industries and NVIDIA may well reintroduce it.",
-        "utilities-energy": "Weather-driven load forecasting and storm response planning, arguably more central to utilities than to any other industry.",
-        "transportation-logistics": "Weather-driven routing and disruption planning."
+      "use_case_category": "Video & Sensor Intelligence",
+      "description": "AI-powered weather analysis and forecasting with multi-layered geospatial visualization — enables high-resolution atmospheric modeling and environmental intelligence at regional and global scale.",
+      "industry_fit": {
+        "utilities-energy": "primary",
+        "state-local-government": "primary",
+        "oil-gas": "primary",
+        "transportation-logistics": "primary",
+        "federal-defense": "primary",
+        "food-cpg-manufacturing": "adjacent",
+        "general-manufacturing": "adjacent"
       },
-      "detail_infrastructure": "Forecasting model inference on geospatial data. Deprecated status means treat as directional until NVIDIA clarifies a successor.",
-      "status": "deprecated",
-      "last_verified": "2026-08-12"
+      "department_fit": {
+        "operations": "primary",
+        "research-engineering": "primary",
+        "data-analytics": "primary"
+      },
+      "detail_what_it_does": "Runs GPU-accelerated atmospheric AI models — including NVIDIA FourCastNet and Pangu-Weather — to generate high-resolution forecasts, visualize multi-layered geospatial data, and support environmental analysis at speeds unachievable with traditional NWP.",
+      "detail_in_practice": {
+        "default": "Operations and planning teams use Earth-2 to make weather-informed decisions faster and at higher resolution than public forecast services allow.",
+        "utilities-energy": "Grid operators use high-resolution wind and solar forecasting to optimize generation dispatch and anticipate demand spikes more accurately than 24-hour public forecasts.",
+        "state-local-government": "Emergency management agencies use Earth-2 to generate hyperlocal severe weather and flood forecasts — enabling earlier evacuation decisions and more precise resource pre-positioning.",
+        "oil-gas": "Offshore operators use high-resolution sea-state and storm forecasting to make production continuation and evacuation decisions days earlier than before."
+      },
+      "detail_infrastructure": "NVIDIA Earth-2 platform, FourCastNet / Pangu-Weather AI models via NIM, GPU cluster for inference, geospatial visualization stack."
     },
     {
-      "id": "bring-llms-to-nim",
-      "name": "Bring Your Own LLM to NIM",
-      "description": "Packages a model you already chose or fine-tuned into NVIDIA's optimized serving format.",
-      "nvidia_url": "https://build.nvidia.com/nvidia/bring-llms-to-nim",
-      "industries": ["education", "federal-defense", "financial-services", "food-cpg", "general-manufacturing", "healthcare", "legal", "oil-gas", "retail-distribution", "state-local-gov", "transportation-logistics", "utilities-energy", "general-enterprise"],
-      "use_case_categories": ["workforce-copilots"],
-      "capability_tags": ["model-ops", "serving", "deployment"],
-      "industry_pitch": "Run the model you picked, on your hardware, with the serving performance you paid for.",
-      "detail_what_it_does": "A path for taking an open or fine-tuned model and deploying it as an optimized NIM microservice on your own infrastructure.",
-      "detail_in_practice": {
-        "default": "The connective tissue between choosing a model and running it well. Pairs directly with the Open-Weight Model Advisor: that tool picks the model, this deploys it."
-      },
-      "detail_infrastructure": "Serving optimization rather than a use case in itself. Sizing comes from the model chosen.",
+      "id": "enterprise-rag",
+      "name": "NVIDIA RAG Blueprint",
       "status": "active",
-      "last_verified": "2026-08-12"
+      "nvidia_url": "https://build.nvidia.com/nvidia/rag",
+      "use_case_category": "RAG & Knowledge Retrieval",
+      "description": "Foundational retrieval-augmented generation pipeline — index enterprise documents, query them with natural language, and get accurate, cited answers grounded in your organization's own knowledge.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "healthcare-life-sciences": "primary",
+        "financial-services": "primary",
+        "state-local-government": "primary",
+        "education": "primary",
+        "legal-services": "primary",
+        "federal-defense": "primary",
+        "general-manufacturing": "primary",
+        "oil-gas": "primary",
+        "utilities-energy": "primary",
+        "retail-distribution": "adjacent",
+        "transportation-logistics": "adjacent",
+        "food-cpg-manufacturing": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "legal-compliance": "primary",
+        "human-resources": "primary",
+        "finance": "adjacent",
+        "sales": "adjacent",
+        "customer-service": "adjacent",
+        "data-analytics": "adjacent",
+        "operations": "adjacent",
+        "research-engineering": "adjacent",
+        "communications": "adjacent"
+      },
+      "detail_what_it_does": "Ingests documents, policies, research, contracts, and knowledge bases — chunks and embeds them into a vector store — then enables natural language Q&A that cites source documents and stays grounded in organizational knowledge rather than hallucinating.",
+      "detail_in_practice": {
+        "default": "Every knowledge-intensive organization uses RAG to make institutional knowledge queryable — the building block underneath most enterprise AI assistant deployments.",
+        "healthcare-life-sciences": "Clinical teams query treatment protocols, drug interaction databases, and patient records using natural language — getting cited answers without digging through folders.",
+        "legal-services": "Law firms and legal departments query contracts, precedents, and regulatory filings — finding relevant clauses and cases in seconds rather than hours.",
+        "state-local-government": "State agencies make statutes, administrative code, HR policy, and procurement rules instantly queryable by employees — eliminating the 'who knows where that policy lives?' problem.",
+        "financial-services": "Finance teams query earnings transcripts, risk reports, and regulatory filings in natural language — accelerating research and compliance review."
+      },
+      "detail_infrastructure": "NVIDIA NIM embedding and LLM microservices, NeMo Retriever, vector database (Milvus, pgvector, or Weaviate), document ingestion pipeline."
+    },
+    {
+      "id": "video-search-summarization",
+      "name": "Video Search and Summarization Agent Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/video-search-and-summarization",
+      "use_case_category": "Video & Sensor Intelligence",
+      "description": "Ingest, analyze, and query massive volumes of video — live or archived — to extract insights, detect events, generate summaries, and enable interactive Q&A over video content.",
+      "industry_fit": {
+        "retail-distribution": "primary",
+        "transportation-logistics": "primary",
+        "state-local-government": "primary",
+        "federal-defense": "primary",
+        "healthcare-life-sciences": "adjacent",
+        "general-manufacturing": "primary",
+        "utilities-energy": "adjacent",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "cybersecurity": "primary",
+        "legal-compliance": "adjacent",
+        "supply-chain-logistics": "adjacent",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Uses vision language models and vector search to make video content semantically searchable — find specific events, faces, objects, or behaviors across thousands of hours of footage without frame-by-frame manual review.",
+      "detail_in_practice": {
+        "default": "Security, operations, and legal teams use video search to find specific incidents in large archives in minutes rather than days of manual review.",
+        "state-local-government": "State police and corrections agencies search body cam and facility surveillance footage for specific events — dramatically reducing evidence review time for investigations.",
+        "transportation-logistics": "Fleet operators and port authorities detect incidents, safety violations, and cargo exceptions across camera networks without requiring 24/7 human monitoring.",
+        "general-manufacturing": "Plant operations teams detect quality defects, safety violations, and process anomalies in production line camera feeds in real time."
+      },
+      "detail_infrastructure": "NVIDIA Cosmos vision language models, NeMo Retriever multimodal, GPU-accelerated video ingestion, multimodal vector database, streaming or batch processing pipeline."
+    },
+    {
+      "id": "3d-object-generation",
+      "name": "3D Object Generation Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/3d-object-generation",
+      "use_case_category": "Digital Twins & Simulation",
+      "description": "Generate high-quality 3D assets from text descriptions or 2D images — accelerating 3D content creation for product visualization, simulation seeding, training data generation, and digital twin population.",
+      "industry_fit": {
+        "retail-distribution": "primary",
+        "general-manufacturing": "primary",
+        "food-cpg-manufacturing": "adjacent",
+        "state-local-government": "adjacent",
+        "federal-defense": "adjacent",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "marketing": "primary",
+        "research-engineering": "primary",
+        "operations": "adjacent"
+      },
+      "detail_what_it_does": "Converts text prompts or 2D photographs into production-quality 3D assets using GPU-accelerated generative models — eliminating the need for manual 3D modeling for many use cases.",
+      "detail_in_practice": {
+        "default": "Product, engineering, and marketing teams use this to generate 3D assets at a fraction of the cost and time of traditional 3D modeling workflows.",
+        "retail-distribution": "Retailers generate 3D product visualizations for e-commerce from photography — enabling AR try-before-you-buy experiences without costly manual 3D modeling.",
+        "general-manufacturing": "Engineering teams generate 3D component models for simulation seeding, digital twin population, and design review without manual CAD work.",
+        "state-local-government": "Law enforcement and legal teams generate 3D reconstructions from crime scene photography and accident documentation for courtroom and investigation use."
+      },
+      "detail_infrastructure": "NVIDIA Edify 3D generative model via NIM, GPU-accelerated rendering, 3D asset pipeline integration."
+    },
+    {
+      "id": "3d-guided-genai-rtx",
+      "name": "3D-Guided Generative AI Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/3d-guided-genai-rtx",
+      "use_case_category": "Digital Twins & Simulation",
+      "description": "RTX-accelerated generative AI guided by 3D spatial context — use depth maps, normals, and 3D scene structure to control image and content generation with geometric precision.",
+      "industry_fit": {
+        "general-manufacturing": "primary",
+        "retail-distribution": "primary",
+        "state-local-government": "adjacent",
+        "federal-defense": "adjacent",
+        "transportation-logistics": "adjacent",
+        "oil-gas": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "marketing": "primary",
+        "operations": "adjacent"
+      },
+      "detail_what_it_does": "Uses 3D scene geometry as control signals for generative AI — enabling spatially consistent image generation, design iteration, and visualization that respects real-world geometry rather than producing geometrically inconsistent outputs.",
+      "detail_in_practice": {
+        "default": "Design and engineering teams use 3D-guided generation to iterate on physical design concepts at generative AI speed while maintaining geometric accuracy.",
+        "general-manufacturing": "Product designers iterate on physical product aesthetics using AI generation guided by CAD geometry — maintaining dimensional accuracy while exploring design variations rapidly.",
+        "retail-distribution": "Visual merchandising teams generate spatially accurate product placement visualizations for store layout planning.",
+        "state-local-government": "Infrastructure planners visualize proposed road, building, or facility designs in context — AI-generated renderings guided by survey and GIS geometry."
+      },
+      "detail_infrastructure": "NVIDIA RTX GPU (workstation or server), ControlNet or equivalent with 3D depth/normal guidance, NIM generative model."
+    },
+    {
+      "id": "pdf-to-podcast",
+      "name": "PDF to Podcast Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/pdf-to-podcast",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Transforms PDF documents into engaging AI-generated podcast-style audio — making dense documents accessible as on-the-go audio content.",
+      "industry_fit": {
+        "education": "primary",
+        "state-local-government": "primary",
+        "general-enterprise": "primary",
+        "healthcare-life-sciences": "adjacent",
+        "financial-services": "adjacent",
+        "legal-services": "adjacent"
+      },
+      "department_fit": {
+        "communications": "primary",
+        "human-resources": "primary",
+        "legal-compliance": "adjacent",
+        "sales": "adjacent",
+        "marketing": "adjacent"
+      },
+      "detail_what_it_does": "Ingests PDF documents, extracts and structures the key content, generates a natural conversational script, and synthesizes it as multi-voice audio — turning any document into a listenable briefing.",
+      "detail_in_practice": {
+        "default": "Communications and learning teams use this to make dense content more accessible — employees actually consume audio briefings during commutes rather than ignoring PDF attachments.",
+        "education": "Universities convert course materials, research papers, and reading lists into audio for students who prefer listening — improving engagement with dense academic content.",
+        "state-local-government": "Legislative staff, agency communicators, and field employees convert budget documents, policy updates, and regulatory guidance into audio briefings consumable during travel.",
+        "healthcare-life-sciences": "Clinical education teams convert clinical protocols, drug formulary updates, and training materials into audio for staff who can't pause patient care to read."
+      },
+      "detail_infrastructure": "NVIDIA NIM LLM for script generation, Riva TTS or ElevenLabs NIM for voice synthesis, document extraction pipeline."
+    },
+    {
+      "id": "ai-virtual-assistant",
+      "name": "AI Virtual Assistant for Customer Service Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/ai-virtual-assistant",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Customizable AI virtual assistant for customer service — handles common inquiries, routes complex issues, and maintains contextually aware conversations across channels.",
+      "industry_fit": {
+        "retail-distribution": "primary",
+        "financial-services": "primary",
+        "healthcare-life-sciences": "primary",
+        "state-local-government": "primary",
+        "education": "primary",
+        "utilities-energy": "primary",
+        "general-enterprise": "primary",
+        "transportation-logistics": "adjacent"
+      },
+      "department_fit": {
+        "customer-service": "primary",
+        "communications": "primary",
+        "human-resources": "adjacent",
+        "sales": "adjacent"
+      },
+      "detail_what_it_does": "Deploys a text-based AI assistant that handles tier-1 and tier-2 inquiries, maintains conversation context, integrates with backend systems for live data, and escalates intelligently to human agents when needed.",
+      "detail_in_practice": {
+        "default": "Customer-facing teams use this to deflect high-volume routine inquiries — reducing cost-per-contact and wait times while freeing human agents for complex issues.",
+        "state-local-government": "State agency portals deploy virtual assistants for citizen services — answering questions about benefits, licenses, permits, and applications without requiring a phone call.",
+        "healthcare-life-sciences": "Patient portals deploy AI assistants for scheduling, prescription refills, and benefit coverage questions — reducing call center volume significantly.",
+        "financial-services": "Banks and insurers handle account inquiries, policy questions, and claim status without live agent involvement for the majority of contacts."
+      },
+      "detail_infrastructure": "NVIDIA NIM LLM and embedding, LangGraph agent orchestration, CRM/backend API integration, real-time streaming response."
+    },
+    {
+      "id": "single-cell-analysis",
+      "name": "Single-Cell Analysis with RAPIDS Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/single-cell-analysis",
+      "use_case_category": "Life Sciences & Genomics",
+      "description": "GPU-accelerated single-cell RNA and DNA sequencing analysis — dramatically speeds up the processing and analysis of large single-cell datasets for genomics research.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "education": "primary",
+        "federal-defense": "adjacent",
+        "state-local-government": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Applies GPU-parallelized RAPIDS algorithms to single-cell sequencing data — reducing analysis time from hours or days to minutes for standard scRNA-seq workflows, enabling researchers to iterate faster.",
+      "detail_in_practice": {
+        "default": "Genomics research teams use GPU acceleration to process single-cell datasets at speeds that make iterative, exploratory analysis practical rather than bottlenecked.",
+        "healthcare-life-sciences": "Biotech and pharma researchers analyze tumor microenvironments, cell type compositions, and gene expression at single-cell resolution — with results in minutes rather than overnight.",
+        "state-local-government": "State public health labs apply GPU-accelerated genomics to disease surveillance — processing pathogen sequencing data fast enough to inform real-time outbreak response."
+      },
+      "detail_infrastructure": "NVIDIA RAPIDS (cuDF, cuML, cuGraph), high-memory GPU nodes (A100/H100), Jupyter or pipeline integration for genomics workflows."
+    },
+    {
+      "id": "bionemo-protein-engineering",
+      "name": "BioNeMo Protein Engineering Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/bionemo-protein-engineering",
+      "use_case_category": "Life Sciences & Genomics",
+      "description": "AI-assisted protein structure prediction, binding site analysis, and protein-ligand interaction modeling using NVIDIA BioNeMo generative and predictive models.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "food-cpg-manufacturing": "adjacent",
+        "state-local-government": "adjacent",
+        "federal-defense": "adjacent",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Applies BioNeMo protein language models to predict protein structures, model binding interactions, design protein binders, and screen candidate compounds — compressing early-stage drug discovery and bioengineering research cycles.",
+      "detail_in_practice": {
+        "default": "Life sciences research teams use this to screen molecular candidates and design protein binders computationally before committing to expensive wet lab synthesis.",
+        "healthcare-life-sciences": "Biotech and pharma teams use protein engineering AI to design novel therapeutics, predict antibody binding, and identify enzyme engineering targets.",
+        "state-local-government": "State agriculture and public health labs use protein and pathogen modeling to analyze disease-causing organisms and food safety threats faster than traditional lab methods."
+      },
+      "detail_infrastructure": "NVIDIA BioNeMo NIMs (ESMFold, MolMIM, DiffDock), high-memory GPU nodes for molecular simulation."
+    },
+    {
+      "id": "enterprise-data-flywheel",
+      "name": "Enterprise Data Flywheel Core Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/enterprise-data-flywheel",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "Core infrastructure for building a continuous AI improvement loop — data ingestion, curation, synthetic data generation, model fine-tuning, and evaluation, powered by NVIDIA NeMo.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "financial-services": "primary",
+        "healthcare-life-sciences": "primary",
+        "state-local-government": "primary",
+        "general-manufacturing": "primary",
+        "federal-defense": "primary",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "data-analytics": "primary",
+        "research-engineering": "primary"
+      },
+      "detail_what_it_does": "Provides the foundational infrastructure for organizations to continuously improve their AI models using operational data — automating data curation, synthetic augmentation, fine-tuning, and evaluation in a governed loop.",
+      "detail_in_practice": {
+        "default": "AI platform teams use this as the engine under all their production models — ensuring every model improves over time as new data accumulates, without requiring a full retraining project each time.",
+        "financial-services": "Trading and risk teams build proprietary model improvement loops — each new market event becomes training signal that automatically improves the next model generation.",
+        "state-local-government": "State AI programs use this as the infrastructure backbone — every agency AI use case feeds back into a governed improvement loop maintained centrally by DoIT."
+      },
+      "detail_infrastructure": "NVIDIA NeMo Curator, NeMo Customizer, synthetic data generation pipeline, GPU cluster for training (H100/B200), model registry with lineage."
+    },
+    {
+      "id": "securing-agentic-ai",
+      "name": "Securing Agentic AI Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/securing-agentic-ai",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "Security hardening framework for agentic AI systems — covers prompt injection defense, access control, tool use boundaries, audit logging, and red-teaming for production agent deployments.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "financial-services": "primary",
+        "state-local-government": "primary",
+        "federal-defense": "primary",
+        "healthcare-life-sciences": "primary",
+        "legal-services": "primary"
+      },
+      "department_fit": {
+        "cybersecurity": "primary",
+        "information-technology": "primary",
+        "legal-compliance": "adjacent"
+      },
+      "detail_what_it_does": "Provides reference architectures and implementation guides for hardening AI agent systems against adversarial manipulation, unauthorized data access, and tool misuse — with built-in audit logging satisfying enterprise and regulatory security requirements.",
+      "detail_in_practice": {
+        "default": "Security and AI platform teams use this to ensure every deployed agent has defensible access controls, tamper-resistant audit trails, and tested defenses against prompt injection.",
+        "financial-services": "Banks use this to ensure AI agents handling transactions cannot be manipulated into unauthorized transfers and leave a complete audit trail for regulators.",
+        "state-local-government": "State CISO offices use this as the security framework that AI deployments must pass before production — ensuring agents accessing sensitive citizen data are hardened and auditable."
+      },
+      "detail_infrastructure": "NVIDIA NeMo Guardrails, RBAC and policy enforcement layer, audit logging infrastructure, red-teaming tooling."
+    },
+    {
+      "id": "vulnerability-analysis",
+      "name": "Vulnerability Analysis Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/vulnerability-analysis",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "AI-accelerated container and software vulnerability scanning — uses generative AI to rapidly identify, triage, and explain security vulnerabilities across containerized infrastructure.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "federal-defense": "primary",
+        "state-local-government": "primary",
+        "financial-services": "primary",
+        "healthcare-life-sciences": "adjacent",
+        "general-manufacturing": "adjacent"
+      },
+      "department_fit": {
+        "cybersecurity": "primary",
+        "information-technology": "primary",
+        "legal-compliance": "adjacent"
+      },
+      "detail_what_it_does": "Scans container images and software dependencies for known CVEs, uses AI to triage severity in context, and generates natural language remediation guidance — accelerating the vulnerability management cycle dramatically.",
+      "detail_in_practice": {
+        "default": "Security and DevSecOps teams use AI-accelerated scanning to process vulnerability backlogs faster and get actionable remediation guidance without manually researching each CVE.",
+        "federal-defense": "Defense IT teams achieve continuous ATO compliance by running automated vulnerability scanning with AI-generated remediation plans that meet STIG and RMF requirements.",
+        "state-local-government": "State CISO offices use AI-accelerated scanning across state-hosted container workloads — surfacing the highest-priority vulnerabilities with remediation guidance for resource-constrained security teams."
+      },
+      "detail_infrastructure": "NVIDIA NIM LLM for analysis, container scanning integration (Trivy or equivalent), CVE database feeds, CI/CD pipeline integration."
+    },
+    {
+      "id": "digital-human",
+      "name": "Digital Human Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/digital-human",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Interactive AI-powered digital human for real-time, face-to-face style conversational interactions — combining avatar rendering, voice, and reasoning for kiosk, web, and immersive deployments.",
+      "industry_fit": {
+        "retail-distribution": "primary",
+        "healthcare-life-sciences": "primary",
+        "education": "primary",
+        "state-local-government": "primary",
+        "general-enterprise": "adjacent",
+        "transportation-logistics": "adjacent"
+      },
+      "department_fit": {
+        "customer-service": "primary",
+        "communications": "primary",
+        "human-resources": "adjacent",
+        "marketing": "adjacent"
+      },
+      "detail_what_it_does": "Renders a photorealistic or stylized interactive avatar that speaks, listens, and reasons in real time — providing face-to-face style conversational assistance for scenarios where a chat interface feels too impersonal.",
+      "detail_in_practice": {
+        "default": "Customer experience and communications teams use digital humans in kiosks, web experiences, and training scenarios where an interactive human presence matters.",
+        "retail-distribution": "Retailers deploy digital human sales associates in stores and online — providing expert, personalized assistance without requiring staff to be physically present.",
+        "state-local-government": "State agencies deploy digital human kiosks in high-traffic offices — DMV, social services lobbies — providing accessible, interactive guidance to walk-in citizens.",
+        "education": "Universities use digital humans for interactive student onboarding, advising support, and tutoring experiences."
+      },
+      "detail_infrastructure": "NVIDIA ACE (Avatar Cloud Engine), Riva ASR/TTS, Nemotron reasoning model, real-time rendering GPU (RTX or L40S), avatar rendering pipeline."
+    },
+    {
+      "id": "aiq-research-assistant",
+      "name": "AI-Q Research Assistant Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/aiq-research-assistant",
+      "use_case_category": "RAG & Knowledge Retrieval",
+      "description": "Deep research agent that autonomously searches, synthesizes, and summarizes information from multiple enterprise data sources — delivering comprehensive, cited research briefs on any topic.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "financial-services": "primary",
+        "legal-services": "primary",
+        "state-local-government": "primary",
+        "healthcare-life-sciences": "primary",
+        "education": "primary",
+        "federal-defense": "primary"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "legal-compliance": "primary",
+        "finance": "primary",
+        "data-analytics": "primary",
+        "communications": "adjacent",
+        "human-resources": "adjacent"
+      },
+      "detail_what_it_does": "Deploys an AI research agent that formulates search strategies, queries multiple internal and external sources, synthesizes findings, resolves conflicts between sources, and delivers a comprehensive cited research brief — replacing hours of manual research.",
+      "detail_in_practice": {
+        "default": "Analysts, researchers, and decision-makers use this to compress multi-hour research tasks into minutes — with output that cites every source rather than hallucinating.",
+        "legal-services": "Legal teams conduct rapid case law research, regulatory landscape analysis, and contract clause searches with AI that retrieves and cites every relevant document.",
+        "state-local-government": "State policy analysts, budget staff, and legislative researchers use AI-Q to synthesize complex policy questions across statutes, precedents, and agency data in minutes.",
+        "financial-services": "Investment analysts use AI-Q to synthesize earnings transcripts, analyst reports, and proprietary data into comprehensive investment theses."
+      },
+      "detail_infrastructure": "NVIDIA AI-Q framework, NIM LLM and embedding, multi-source retrieval connectors, citation tracking layer, web search integration."
+    },
+    {
+      "id": "llm-router",
+      "name": "LLM Router Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/llm-router",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "Intelligently routes LLM inference requests to the most appropriate model based on query complexity, cost constraints, and performance requirements — optimizing quality and cost across a fleet of models.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "financial-services": "adjacent",
+        "state-local-government": "adjacent",
+        "healthcare-life-sciences": "adjacent",
+        "federal-defense": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "data-analytics": "adjacent",
+        "finance": "adjacent"
+      },
+      "detail_what_it_does": "Analyzes incoming LLM queries and routes them to the optimal model in the fleet — routing simple queries to efficient small models and complex reasoning to larger ones, reducing cost while maintaining quality.",
+      "detail_in_practice": {
+        "default": "IT and AI platform teams use LLM routing to cut inference costs significantly without degrading user experience — simple lookups hit a small model, complex analysis hits a large one.",
+        "state-local-government": "State DoIT offices reduce AI infrastructure cost by routing the majority of routine citizen service queries to efficient small models and escalating complex multi-step queries to frontier models.",
+        "financial-services": "Banks optimize AI cost across high-volume transaction query workloads — routing simple balance inquiries to efficient models and complex risk analysis to frontier models."
+      },
+      "detail_infrastructure": "NVIDIA NIM routing layer, fleet of NIM-served LLMs at varying sizes, query classification model, cost tracking integration."
+    },
+    {
+      "id": "genomics-analysis",
+      "name": "Genomics Analysis Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/genomics-analysis",
+      "use_case_category": "Life Sciences & Genomics",
+      "description": "GPU-accelerated genomics pipeline for large-scale DNA and RNA sequencing analysis — covering variant calling, alignment, and population-scale genomic data processing.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "federal-defense": "primary",
+        "education": "primary",
+        "state-local-government": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Accelerates the full genomics analysis pipeline using NVIDIA Parabricks — alignment, variant calling, and downstream analysis — reducing whole genome analysis from hours to minutes.",
+      "detail_in_practice": {
+        "default": "Genomics research and clinical labs use GPU acceleration to process sequencing data fast enough to support time-sensitive clinical decisions and large-cohort research.",
+        "healthcare-life-sciences": "Clinical genomics labs support real-time diagnosis of rare diseases, infectious disease outbreak tracking, and pharmacogenomics with whole-genome analysis in under 30 minutes.",
+        "state-local-government": "State public health labs run GPU-accelerated genomic surveillance for infectious disease — processing pathogen sequencing data in near-real-time to inform outbreak response."
+      },
+      "detail_infrastructure": "NVIDIA Parabricks, high-memory GPU nodes (A100/H100), genomics data pipeline, integration with LIMS and bioinformatics tools."
+    },
+    {
+      "id": "ambient-healthcare-provider",
+      "name": "Ambient Healthcare Agents — Provider Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/ambient-provider",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Ambient AI documentation specifically for clinical providers — real-time transcription of patient encounters, structured clinical note generation, and EHR integration.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "state-local-government": "adjacent",
+        "federal-defense": "adjacent"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Listens to provider-patient conversations in real time, generates structured SOAP or other clinical note formats, and pushes draft notes to EHR for provider review — eliminating after-hours charting.",
+      "detail_in_practice": {
+        "default": "Clinicians use ambient documentation to reclaim hours of administrative time daily — notes are generated during the visit rather than typed after hours.",
+        "healthcare-life-sciences": "Physician practices and hospital systems deploy ambient AI to reduce documentation burden, improve note quality, and address clinician burnout driven by EHR overload.",
+        "state-local-government": "State correctional health and state hospital clinicians use ambient documentation to meet charting standards without sacrificing time with patients in high-demand settings."
+      },
+      "detail_infrastructure": "NVIDIA Riva ASR, Nemotron clinical reasoning model, EHR integration (HL7 FHIR), on-premises deployment for PHI compliance."
+    },
+    {
+      "id": "ambient-healthcare-patient",
+      "name": "Ambient Healthcare Agents — Patient Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/ambient-patient",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Patient-facing AI agent for care navigation — appointment management, medication adherence support, post-discharge follow-up, and benefits navigation.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "state-local-government": "primary"
+      },
+      "department_fit": {
+        "customer-service": "primary",
+        "operations": "adjacent"
+      },
+      "detail_what_it_does": "Deploys a conversational AI agent for patients that handles appointment reminders, medication adherence coaching, post-discharge care instructions, and navigation of health benefits — reducing readmissions and no-shows.",
+      "detail_in_practice": {
+        "default": "Health systems use patient AI agents to extend care coordination capacity — patients receive proactive outreach and guidance without requiring additional staff.",
+        "healthcare-life-sciences": "Hospitals deploy patient agents that follow up after discharge — confirming medication adherence, flagging warning symptoms, and scheduling follow-up appointments automatically.",
+        "state-local-government": "State Medicaid programs deploy patient agents to guide beneficiaries through care navigation, prior authorization, and benefit questions — reducing call center volume and improving care outcomes."
+      },
+      "detail_infrastructure": "NVIDIA Riva TTS/ASR, Nemotron reasoning model, patient engagement platform integration, on-premises deployment for PHI compliance."
+    },
+    {
+      "id": "retail-agentic-commerce-2",
+      "name": "Agentic Commerce Protocol Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/retail-agentic-commerce",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Reference implementation of the Universal Commerce Protocol enabling AI agents to transact on behalf of buyers or sellers across commerce ecosystems — beyond negotiation into full transaction lifecycle.",
+      "industry_fit": {
+        "retail-distribution": "primary",
+        "financial-services": "adjacent",
+        "general-enterprise": "adjacent"
+      },
+      "department_fit": {
+        "sales": "primary",
+        "operations": "adjacent",
+        "finance": "adjacent"
+      },
+      "detail_what_it_does": "Extends agentic commerce beyond negotiation into the full transaction lifecycle — authentication, payment, fulfillment confirmation — enabling fully autonomous B2B and B2C commerce agents.",
+      "detail_in_practice": {
+        "default": "B2B commerce teams use this to automate the full order-to-confirm cycle — reducing manual touchpoints across the transaction.",
+        "retail-distribution": "Wholesale distributors automate repeat-order processing — buyer agents negotiate and confirm orders without human involvement for standard SKUs and established terms."
+      },
+      "detail_infrastructure": "NVIDIA NIM, ACP/UCP protocol stack, payment and authentication service integration, agent orchestration."
+    },
+    {
+      "id": "nemoclaw-hermes",
+      "name": "NemoClaw for Hermes Agent Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-for-hermes-agent",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Deploy governed autonomous Hermes agents in enterprise environments — agents work with approved tools and data sources, learn team workflows, and turn repeatable guidance into durable reusable skills via NVIDIA OpenShell sandboxing.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "financial-services": "primary",
+        "state-local-government": "primary",
+        "federal-defense": "primary",
+        "healthcare-life-sciences": "adjacent",
+        "legal-services": "adjacent",
+        "general-manufacturing": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "cybersecurity": "primary",
+        "operations": "adjacent",
+        "legal-compliance": "adjacent",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Deploys Hermes AI agents inside NVIDIA OpenShell sandboxes — giving enterprises policy-based control over which tools, data sources, and systems agents can touch. Agents learn team workflows through real usage, capture repeatable guidance as durable Hermes Skills, and improve future performance automatically. OpenShell guardrails enforce access boundaries and data handling policies at runtime.",
+      "detail_in_practice": {
+        "default": "Teams deploy governed agents for tasks like PR review, incident triage, product planning, and launch review — agents learn preferred approaches from corrections and feedback, compounding value over time without retraining.",
+        "financial-services": "Trading ops and technology teams deploy governed agents for regulatory research, exception handling, and workflow automation — with OpenShell enforcing strict boundaries around which data and systems agents can access.",
+        "state-local-government": "State DoIT offices deploy governed agents for cross-agency workflows — procurement review, policy research, incident triage — with OpenShell guardrails satisfying security review requirements before production.",
+        "federal-defense": "Defense IT teams deploy sandboxed agents for classified-environment automation — OpenShell policy enforcement provides the access control and audit trail required for ATO and security compliance."
+      },
+      "detail_infrastructure": "NVIDIA Nemotron models via NIM, NVIDIA OpenShell runtime (early preview), LangChain or Hermes agent harness, Hermes Skills registry, enterprise tool and data source connectors."
+    },
+    {
+      "id": "nemoclaw-langchain",
+      "name": "NemoClaw for LangChain Deep Agents Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-langchain",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Reference architecture for building long-running enterprise agents combining LangChain Deep Agents Code, NVIDIA Nemotron 3 Ultra, and NVIDIA OpenShell — tuned for benchmark-leading agent performance at significantly lower inference cost.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "financial-services": "primary",
+        "federal-defense": "primary",
+        "state-local-government": "adjacent",
+        "healthcare-life-sciences": "adjacent",
+        "general-manufacturing": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "data-analytics": "primary",
+        "research-engineering": "primary",
+        "cybersecurity": "adjacent",
+        "operations": "adjacent"
+      },
+      "detail_what_it_does": "Provides a fully tuned enterprise agent stack — Nemotron 3 Ultra as the open model layer, LangChain Deep Agents as the harness for planning, tool use, memory, and long-running task execution, and OpenShell as the governed runtime. The three layers are tuned together, delivering strong agent benchmark performance at a fraction of the cost of frontier API models.",
+      "detail_in_practice": {
+        "default": "Engineering and AI platform teams use this as the reference architecture for building production-grade agentic systems — model, harness, runtime, and eval loop all specified and tuned together rather than assembled ad hoc.",
+        "financial-services": "Quant and technology teams build long-running research and workflow agents that operate within OpenShell access policies — tuning harness and model together for domain-specific performance at lower inference cost than cloud APIs.",
+        "federal-defense": "Defense AI teams build mission-specific agents on a fully on-premises open stack — no model weights or agent traces leave the secure environment, with OpenShell governing every tool interaction."
+      },
+      "detail_infrastructure": "NVIDIA Nemotron 3 Ultra via NIM, LangChain Deep Agents Code (dcode), NVIDIA OpenShell runtime, GPU cluster for inference (Blackwell recommended for cost-performance), evaluation pipeline for harness tuning."
+    },
+    {
+      "id": "gpu-query-engine",
+      "name": "GPU Query Engine (GQE) Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/gpu-query-engine",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "Reference architecture for building GPU-accelerated SQL query engines using NVIDIA GQE and libcudf — delivers up to 7.5x speedup over CPU databases on large-scale analytical workloads.",
+      "industry_fit": {
+        "financial-services": "primary",
+        "oil-gas": "primary",
+        "utilities-energy": "primary",
+        "general-manufacturing": "primary",
+        "transportation-logistics": "primary",
+        "state-local-government": "adjacent",
+        "federal-defense": "adjacent",
+        "healthcare-life-sciences": "adjacent",
+        "general-enterprise": "primary"
+      },
+      "department_fit": {
+        "data-analytics": "primary",
+        "information-technology": "primary",
+        "finance": "adjacent",
+        "research-engineering": "adjacent",
+        "operations": "adjacent"
+      },
+      "detail_what_it_does": "Provides a reference implementation for executing SQL queries at GPU-accelerated speeds over massive datasets — using NVIDIA cuDF, nvCOMP, and NVLink-C2C to move query execution from CPU to GPU. Achieves up to 7.5x aggregate speedup and up to 25.5x per-query gains on large-scale benchmarks. Open-source architecture informs database engine design for teams embedding GPU acceleration into their own analytics stacks.",
+      "detail_in_practice": {
+        "default": "Data and analytics teams use GQE to query datasets that are too large or too slow on CPU-based systems — eliminating overnight batch jobs or expensive cloud query costs by moving analytical workloads to on-premises GPU infrastructure.",
+        "financial-services": "Quant and risk teams run intraday analytical queries over transaction histories, position data, and market feeds at speeds that enable real-time risk attribution and factor analysis previously requiring overnight batch runs.",
+        "oil-gas": "Reservoir engineers and production teams query decades of drilling telemetry, well logs, and sensor history in seconds — enabling iterative analysis that was previously bottlenecked by CPU query engines.",
+        "utilities-energy": "Grid analytics teams query meter, outage, and asset event histories at scale — supporting real-time operational analytics and large-cohort infrastructure modeling.",
+        "general-manufacturing": "Operations and engineering teams query high-frequency production sensor data, quality records, and maintenance histories at speeds that support real-time root cause analysis on the plant floor."
+      },
+      "detail_infrastructure": "NVIDIA GB200 NVL4 or any modern NVIDIA data center GPU, NVIDIA cuDF and CUDA-X libraries, nvCOMP compression library, Substrait query plan integration, existing data lake or lakehouse storage."
+    },
+    {
+      "id": "nsight-copilot",
+      "name": "Nsight Copilot — AI Code Assistant for CUDA Development Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/nsight-copilot",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "AI-powered CUDA-aware coding assistant deployed on DGX Spark — delivers expert GPU programming chat, real-time code completion, and RAG grounded in authoritative NVIDIA GPU programming knowledge.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "federal-defense": "primary",
+        "general-manufacturing": "primary",
+        "oil-gas": "primary",
+        "education": "primary",
+        "financial-services": "adjacent",
+        "healthcare-life-sciences": "adjacent",
+        "utilities-energy": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "information-technology": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Deploys a CUDA-aware AI coding assistant on DGX Spark that understands GPU programming patterns, NVIDIA APIs, and performance optimization techniques. Provides expert chat, real-time code completion, and retrieval-augmented answers grounded in NVIDIA documentation — running entirely on-premises so proprietary code never leaves the organization.",
+      "detail_in_practice": {
+        "default": "Engineering and HPC teams use Nsight Copilot to accelerate GPU code development — getting expert-level guidance on CUDA optimization, kernel design, and NVIDIA library usage without requiring every developer to have deep GPU expertise.",
+        "education": "University HPC centers and engineering programs deploy Nsight Copilot to support researchers and students moving workloads to CUDA — reducing the expertise barrier for GPU-accelerated computational science.",
+        "federal-defense": "Defense software organizations use on-premises Nsight Copilot for classified GPU development environments — expert CUDA assistance without sending proprietary code or queries to external APIs.",
+        "general-manufacturing": "Manufacturers developing simulation, vision, or digital-twin code internally use Nsight Copilot to accelerate GPU optimization without building a dedicated GPU programming team.",
+        "oil-gas": "Seismic processing and reservoir simulation developers use Nsight Copilot to optimize GPU kernels for high-performance geoscience computing workflows."
+      },
+      "detail_infrastructure": "NVIDIA DGX Spark (personal AI supercomputer), NIM microservices for LLM and embedding, RAG pipeline over NVIDIA GPU programming documentation, on-premises deployment."
+    },
+    {
+      "id": "nemoclaw-openclaw",
+      "name": "NemoClaw for OpenClaw Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-for-openclaw",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Run always-on OpenClaw agents with greater enterprise control, privacy, and flexibility — installed with a single command via NVIDIA OpenShell for sandboxed, governed agentic execution.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "federal-defense": "primary",
+        "financial-services": "primary",
+        "state-local-government": "adjacent",
+        "healthcare-life-sciences": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "cybersecurity": "primary",
+        "operations": "adjacent",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Extends the popular open-source OpenClaw autonomous agent framework with NVIDIA OpenShell enterprise governance — adding policy-based access control, sandboxed execution, and privacy guardrails to always-on agents. Single-command installation wraps OpenClaw agents in enterprise-grade security without requiring a full rebuild of existing agent workflows.",
+      "detail_in_practice": {
+        "default": "Organizations already experimenting with OpenClaw agents use this to move from prototype to production — adding the governance, access control, and audit logging required for enterprise deployment without changing the underlying agent logic.",
+        "federal-defense": "Defense organizations deploy governed OpenClaw agents inside secure enclaves — OpenShell sandboxing ensures agents cannot access systems or data outside their defined authorization boundary.",
+        "financial-services": "Banks and insurers wrap existing agentic workflows in OpenShell governance — satisfying model risk management and audit requirements for AI agents operating near sensitive financial systems."
+      },
+      "detail_infrastructure": "NVIDIA OpenShell runtime (early preview), OpenClaw agent framework, NVIDIA NIM for model inference, policy configuration layer, on-premises or air-gapped deployment capable."
+    },
+    {
+      "id": "synthetic-manipulation-motion",
+      "name": "Synthetic Manipulation Motion Generation for Robotics Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/isaac-gr00t-synthetic-manipulation",
+      "use_case_category": "Digital Twins & Simulation",
+      "description": "Generate exponentially large amounts of synthetic robot manipulation training trajectories from a small number of human demonstrations — built on NVIDIA Isaac GR00T, Omniverse, and Cosmos.",
+      "industry_fit": {
+        "general-manufacturing": "primary",
+        "food-cpg-manufacturing": "primary",
+        "retail-distribution": "primary",
+        "transportation-logistics": "primary",
+        "federal-defense": "primary",
+        "healthcare-life-sciences": "adjacent",
+        "education": "adjacent",
+        "utilities-energy": "adjacent",
+        "oil-gas": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "operations": "primary",
+        "supply-chain-logistics": "adjacent",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Captures a small number of human task demonstrations via spatial computing device, then synthetically generates hundreds of thousands of physically accurate robot training trajectories — dramatically compressing the data acquisition bottleneck in robot learning. NVIDIA used this to generate 780,000 trajectories (equivalent to 9 months of human demonstration) in 11 hours, improving GR00T N1 performance by 40%.",
+      "detail_in_practice": {
+        "default": "Robotics teams use this to break the data bottleneck in robot learning — going from a handful of human demonstrations to a massive, diverse training dataset without months of additional data collection.",
+        "general-manufacturing": "Manufacturers training robots for assembly, material handling, or quality inspection tasks generate synthetic trajectory datasets that would be impossible to collect through real-world teleoperation alone.",
+        "food-cpg-manufacturing": "Food manufacturers developing robotic picking, packing, and palletizing automation generate diverse synthetic training data covering product variation, orientation, and handling edge cases.",
+        "retail-distribution": "E-commerce fulfillment operators training robotic picking systems generate synthetic trajectories covering the full SKU diversity of their catalog without physically demonstrating each item handling scenario.",
+        "federal-defense": "Defense robotics programs generate synthetic manipulation datasets for hazardous or operationally constrained scenarios that cannot be safely demonstrated repeatedly in the real world."
+      },
+      "detail_infrastructure": "NVIDIA Isaac GR00T-Mimic, NVIDIA Omniverse, NVIDIA Cosmos world foundation models, spatial computing device for initial demonstrations (Apple Vision Pro or equivalent), H100 GPU or higher with 80GB VRAM."
+    },
+    {
+      "id": "mega-multi-robot-fleet",
+      "name": "Mega Blueprint — Test Multi-Robot Fleets for Industrial Automation",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/mega-multi-robot-fleets-for-industrial-automation",
+      "use_case_category": "Digital Twins & Simulation",
+      "description": "Simulate, test, and optimize heterogeneous physical AI and robot fleets at scale in industrial digital twins before real-world deployment — built on NVIDIA Omniverse, OpenUSD, and Isaac ROS.",
+      "industry_fit": {
+        "general-manufacturing": "primary",
+        "food-cpg-manufacturing": "primary",
+        "retail-distribution": "primary",
+        "transportation-logistics": "primary",
+        "utilities-energy": "adjacent",
+        "state-local-government": "adjacent",
+        "federal-defense": "adjacent",
+        "oil-gas": "adjacent"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "research-engineering": "primary",
+        "supply-chain-logistics": "primary",
+        "information-technology": "adjacent"
+      },
+      "detail_what_it_does": "Builds a physics-accurate digital twin of industrial facilities — factories, warehouses, distribution centers — and simulates heterogeneous robot fleets (AMRs, humanoids, intelligent cameras, visual AI agents) operating together. Teams test fleet coordination, optimize layouts, validate performance, and catch failure modes before any robot touches the physical environment.",
+      "detail_in_practice": {
+        "default": "Industrial operations teams use Mega to validate robot fleet deployments digitally — catching coordination failures, layout inefficiencies, and edge cases in simulation before committing to physical deployment.",
+        "general-manufacturing": "Automotive and electronics manufacturers simulate humanoid and AMR robot fleets on assembly lines — validating that robots can coordinate with human workers and each other before physical commissioning.",
+        "food-cpg-manufacturing": "CPG companies simulate automated picking, packing, and palletizing robot fleets across facility layouts before physical installation — optimizing throughput and identifying congestion points digitally.",
+        "retail-distribution": "Distribution center operators simulate AMR and humanoid robot fleets across warehouse layouts — testing fleet routing, task allocation, and human-robot interaction before deployment.",
+        "transportation-logistics": "Port, airport, and yard operators simulate autonomous vehicle and robot fleets in their facility digital twins — optimizing throughput and validating safety protocols before live operations."
+      },
+      "detail_infrastructure": "NVIDIA Omniverse Enterprise, OpenUSD, Isaac ROS, Sensor RTX for sensor simulation, fleet management system integration via VDA5050, GPU cluster for real-time simulation."
+    },
+    {
+      "id": "digital-twin-fluid-simulation",
+      "name": "Digital Twin for Interactive Fluid Simulation Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/digital-twins-for-fluid-simulation",
+      "use_case_category": "Digital Twins & Simulation",
+      "description": "Real-time interactive digital twin for computational fluid dynamics and external aerodynamics — combines GPU-accelerated solvers, PhysicsNeMo AI surrogate models, and Omniverse visualization for instant engineering simulation feedback.",
+      "industry_fit": {
+        "general-manufacturing": "primary",
+        "oil-gas": "primary",
+        "utilities-energy": "primary",
+        "federal-defense": "primary",
+        "transportation-logistics": "primary",
+        "food-cpg-manufacturing": "adjacent",
+        "state-local-government": "adjacent",
+        "education": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "operations": "adjacent",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Provides a reference workflow for building real-time CFD digital twins — combining CUDA-X accelerated physics solvers with NVIDIA PhysicsNeMo AI surrogate models to achieve up to 1,200x faster simulations and interactive visualization. Engineers can change geometry or boundary conditions and see updated flow field results in real time rather than waiting hours or days.",
+      "detail_in_practice": {
+        "default": "Engineering teams use interactive CFD digital twins to compress design iteration cycles from days or weeks to minutes — testing design changes and seeing fluid dynamics results instantly rather than submitting batch jobs.",
+        "general-manufacturing": "Product engineers run interactive aerodynamic, thermal, and airflow simulations during design review — testing geometry changes in real time without submitting to a compute cluster queue.",
+        "oil-gas": "Reservoir and facilities engineers run interactive flow simulations for pipeline design, equipment optimization, and process engineering — compressing analysis cycles that previously required dedicated HPC time.",
+        "utilities-energy": "Power generation engineers simulate cooling, thermal management, and airflow for turbines, generators, and facility HVAC — enabling interactive design optimization without day-long batch runs.",
+        "federal-defense": "Aerospace and naval engineering programs simulate aerodynamic and hydrodynamic performance interactively — testing propulsion, hull, and airframe design variations in real time during the design process.",
+        "education": "University engineering programs give students and researchers interactive CFD simulation that previously required expensive dedicated HPC clusters — enabling hands-on fluid dynamics learning and research."
+      },
+      "detail_infrastructure": "NVIDIA CUDA-X accelerated solvers, NVIDIA PhysicsNeMo physics-AI framework, NVIDIA Omniverse for visualization, high-memory GPU nodes (GH200 or H100 recommended), integration with existing CAE software (Ansys, Siemens, Altair, Cadence)."
+    },
+    {
+      "id": "evo2-protein-design",
+      "name": "Evo 2 Protein Design Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/evo2-protein-design",
+      "use_case_category": "Life Sciences & Genomics",
+      "description": "Generative AI workflow for designing DNA sequences that translate into proteins for bioengineering — using the Evo 2 foundation model trained on genomic data across the tree of life.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "food-cpg-manufacturing": "adjacent",
+        "education": "adjacent",
+        "federal-defense": "adjacent",
+        "state-local-government": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Uses the Evo 2 genomic foundation model — trained on billions of DNA sequences across the tree of life — to generate novel DNA sequences that can be translated into proteins with desired properties. Enables bioengineers and researchers to explore the sequence space of life computationally before committing to wet lab synthesis.",
+      "detail_in_practice": {
+        "default": "Life sciences research teams use Evo 2 to explore genomic design space computationally — generating candidate sequences for novel proteins, enzymes, and therapeutic targets without exhaustive wet lab screening.",
+        "healthcare-life-sciences": "Biopharma and biotech researchers use Evo 2 for therapeutic protein design, enzyme engineering, and functional genomics — generating and screening candidates computationally before synthesis.",
+        "food-cpg-manufacturing": "Food science and agricultural biotech teams use Evo 2 for enzyme design, fermentation optimization, and crop bioengineering research.",
+        "education": "Major research universities give faculty and graduate researchers access to frontier genomic AI tools for translational research and drug discovery programs.",
+        "state-local-government": "State public health labs and agricultural agencies use Evo 2 for pathogen characterization, agricultural disease research, and biosurveillance genomic analysis."
+      },
+      "detail_infrastructure": "NVIDIA Evo 2 model via BioNeMo NIM, high-memory GPU nodes for genomic inference, bioinformatics pipeline integration."
+    },
+    {
+      "id": "generative-protein-binder",
+      "name": "Generative Protein Binder Design Pipeline Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/protein-binder-design-for-drug-discovery",
+      "use_case_category": "Life Sciences & Genomics",
+      "description": "Multi-stage generative AI pipeline for designing protein binders — combines AlphaFold2 structure prediction, RFdiffusion conformation exploration, and ProteinMPNN sequence generation to design therapeutic molecules faster.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "education": "adjacent",
+        "federal-defense": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Orchestrates a sequence of BioNeMo NIM microservices — AlphaFold2 for target structure prediction, RFdiffusion for binder conformation generation, ProteinMPNN for sequence design — to design protein therapeutics that bind a target protein. The pipeline is 5x faster than CPU equivalents and compresses months of traditional trial-and-error into a computational workflow.",
+      "detail_in_practice": {
+        "default": "Drug discovery teams use this pipeline to computationally design protein binders for a target — narrowing a near-infinite sequence space down to testable candidates before expensive wet lab synthesis.",
+        "healthcare-life-sciences": "Biopharma and biotech teams design novel antibody-like binders, peptide therapeutics, and protein drugs computationally — getting to synthesis-ready candidates in days rather than months of iterative lab work.",
+        "education": "Academic medical centers and research universities use this pipeline for translational research — giving faculty access to frontier protein design AI tools for grant-funded therapeutic discovery programs."
+      },
+      "detail_infrastructure": "NVIDIA BioNeMo NIMs (AlphaFold2, RFdiffusion, ProteinMPNN), high-memory GPU nodes for molecular simulation, protein structure visualization pipeline."
+    },
+    {
+      "id": "generative-virtual-screening",
+      "name": "Generative Virtual Screening Pipeline Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/generative-virtual-screening",
+      "use_case_category": "Life Sciences & Genomics",
+      "description": "Generative AI pipeline for designing and screening optimized small molecule drug candidates — combines protein structure prediction, molecular generation, and docking to accelerate early-stage drug discovery.",
+      "industry_fit": {
+        "healthcare-life-sciences": "primary",
+        "education": "adjacent",
+        "federal-defense": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Chains BioNeMo NIM microservices — OpenFold2 for protein structure prediction, GenMol for drug-like molecule generation, DiffDock for binding pose prediction — to design small molecule drug candidates optimized for a specific protein target. Applicable to any protein target, not just reference cases.",
+      "detail_in_practice": {
+        "default": "Drug discovery teams use generative virtual screening to design optimized small molecule candidates computationally — replacing early-stage screening of large compound libraries with AI-generated, target-optimized candidates.",
+        "healthcare-life-sciences": "Pharma and biotech teams run generative virtual screening against novel targets to produce optimized lead candidates for synthesis — compressing hit identification from months to days.",
+        "education": "Research universities run generative virtual screening pipelines for academic drug discovery programs — enabling faculty and graduate students to pursue computational hit identification without access to large compound libraries."
+      },
+      "detail_infrastructure": "NVIDIA BioNeMo NIMs (OpenFold2, GenMol, DiffDock), GPU-accelerated molecular docking, high-memory GPU nodes, chemistry informatics pipeline integration."
+    },
+    {
+      "id": "transaction-foundation-model",
+      "name": "Build Your Own Transaction Foundation Model Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/build-your-own-transaction-foundation-model",
+      "use_case_category": "Quantitative & Risk Analytics",
+      "description": "Create intelligent transaction embeddings using transformer architecture trained on tabular financial data — enabling fraud detection, personalization, risk scoring, and behavioral analytics from raw transaction sequences.",
+      "industry_fit": {
+        "financial-services": "primary",
+        "retail-distribution": "adjacent",
+        "state-local-government": "adjacent",
+        "healthcare-life-sciences": "adjacent"
+      },
+      "department_fit": {
+        "finance": "primary",
+        "data-analytics": "primary",
+        "legal-compliance": "adjacent",
+        "cybersecurity": "adjacent",
+        "research-engineering": "adjacent"
+      },
+      "detail_what_it_does": "Trains a transformer model on sequences of tabular transaction data — producing rich behavioral embeddings that capture spending patterns, account relationships, and behavioral signals. The resulting foundation model can be fine-tuned for fraud detection, customer personalization, credit risk, AML, and other downstream tasks specific to the organization.",
+      "detail_in_practice": {
+        "default": "Financial institutions use transaction foundation models to build a proprietary behavioral intelligence layer — embeddings trained on their own data that outperform generic models on every downstream task.",
+        "financial-services": "Banks and payment processors train transaction foundation models on their own card, ACH, and wire data — producing embeddings that power proprietary fraud models, personalization engines, and risk scoring.",
+        "state-local-government": "State revenue and benefits agencies train transaction models on benefits disbursement, tax payment, and procurement data — powering fraud detection that understands their own population and payment patterns.",
+        "retail-distribution": "Retailers train transaction models on purchase history to power proprietary recommendation, loyalty, and loss-prevention systems — behavioral intelligence trained on their own customers."
+      },
+      "detail_infrastructure": "NVIDIA NeMo for transformer training, GPU cluster for training (H100/B200), tabular data preprocessing pipeline, fine-tuning framework for downstream tasks."
+    },
+    {
+      "id": "quantitative-signal-discovery",
+      "name": "Quantitative Signal Discovery Agent Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/quantitative-signal-discovery-agent",
+      "use_case_category": "Quantitative & Risk Analytics",
+      "description": "Automate and scale the discovery, testing, and refinement of trading signals for quantitative research — AI agent systematically explores signal hypotheses, backtests candidates, and surfaces the most promising for researcher review.",
+      "industry_fit": {
+        "financial-services": "primary"
+      },
+      "department_fit": {
+        "finance": "primary",
+        "data-analytics": "primary",
+        "research-engineering": "adjacent"
+      },
+      "detail_what_it_does": "Deploys an AI agent that autonomously generates signal hypotheses from market data, executes backtests, evaluates statistical robustness, and refines candidates — compressing the signal research cycle that would otherwise require weeks of manual quant researcher effort.",
+      "detail_in_practice": {
+        "default": "Quantitative research teams use this agent to scale signal discovery — running systematic exploration of the signal space in parallel rather than sequentially, surfacing candidates for researcher review rather than generation.",
+        "financial-services": "Hedge funds and quant asset managers deploy signal discovery agents to explore alpha hypotheses at scale — the agent does the systematic search, quant researchers evaluate and refine what surfaces."
+      },
+      "detail_infrastructure": "NVIDIA NIM LLM, NeMo Agent Toolkit, Nemotron reasoning model, backtesting engine integration, market data pipeline, GPU-accelerated computation."
+    },
+    {
+      "id": "content-localization",
+      "name": "Content Localization Blueprint",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/content-localization",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Localize and translate media content at scale — translates audio and video, syncs speaker lip movements to translated audio, and preserves speaker identity across languages for broadcast, streaming, and enterprise content.",
+      "industry_fit": {
+        "education": "primary",
+        "retail-distribution": "primary",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "adjacent",
+        "healthcare-life-sciences": "adjacent",
+        "state-local-government": "adjacent",
+        "general-enterprise": "primary"
+      },
+      "department_fit": {
+        "marketing": "primary",
+        "communications": "primary",
+        "human-resources": "adjacent",
+        "sales": "adjacent"
+      },
+      "detail_what_it_does": "Automatically translates spoken audio in video content, synthesizes translated speech preserving the original speaker voice, and applies lip-sync to match the translated audio to the speaker on screen — enabling professional-quality localization at a fraction of traditional dubbing cost and time.",
+      "detail_in_practice": {
+        "default": "Marketing and communications teams use this to localize video content across languages without manual dubbing — training materials, product demos, and corporate communications reach global audiences at scale.",
+        "education": "Universities and e-learning platforms localize course video content across languages — making lectures, tutorials, and educational materials accessible to international students without manual translation projects.",
+        "retail-distribution": "Retailers localize product video content, training materials, and marketing across regional markets — the same product demo reaches multiple language markets without reshooting.",
+        "state-local-government": "State agencies localize public-facing video communications — emergency instructions, benefits guidance, and civic information — for multilingual communities without per-language production budgets.",
+        "food-cpg-manufacturing": "CPG brands localize product videos, training content, and marketing materials across export markets — a single content production scales to multiple languages automatically."
+      },
+      "detail_infrastructure": "NVIDIA Riva ASR and TTS, speaker diarization and voice cloning NIMs, lip-sync generation model, video processing pipeline, GPU-accelerated inference."
     }
   ]
 }
