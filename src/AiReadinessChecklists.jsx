@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import cdwLogo from "./cdw-logo.png";
 import checklistData from "./checklists.json";
 
 // ---------------------------------------------------------------------------
@@ -133,7 +134,7 @@ const S = {
   page: { fontFamily: "'Segoe UI', 'Helvetica Neue', Arial, sans-serif", background: C.bg, color: C.charcoal, minHeight: "100vh" },
   shell: { maxWidth: 980, margin: "0 auto", padding: "0 20px 64px" },
   header: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 0", borderBottom: `3px solid ${C.red}`, marginBottom: 28 },
-  homeBlock: { textDecoration: "none", color: "inherit", display: "block" },
+  homeBlock: { textDecoration: "none", color: "inherit", display: "flex", alignItems: "center", gap: 12 },
   eyebrow: { display: "block", fontSize: 11.5, fontWeight: 800, letterSpacing: 1.1, color: C.red },
   toolName: { display: "block", fontSize: 18, fontWeight: 800, color: C.charcoal, marginTop: 2 },
   protoBadge: { background: C.red, color: "#fff", fontSize: 11, fontWeight: 800, borderRadius: 5, padding: "4px 8px", letterSpacing: 0.4 },
@@ -220,13 +221,13 @@ export default function AiReadinessChecklists() {
     <div style={S.page}>
       <div style={S.shell}>
         <header style={S.header}>
-          {/* Matches the sub-tool header convention used by the other AI Factory tools.
-              To show the CDW mark as ModelAdvisor does, add
-              `import cdwLogo from "./cdw-logo.png";` and an <img> inside the home link.
-              Left out here so the single-file preview build stays self-contained. */}
+          {/* Matches the sub-tool header convention used by the other AI Factory tools. */}
           <a href="/" style={S.homeBlock} aria-label="AI Factory Tools home">
-            <span style={S.eyebrow}>AI FACTORY TOOLS</span>
-            <span style={S.toolName}>AI Readiness Checklists</span>
+            <img src={cdwLogo} alt="CDW" style={{ height: 36, width: "auto" }} />
+            <span>
+              <span style={S.eyebrow}>AI FACTORY TOOLS</span>
+              <span style={S.toolName}>AI Readiness Checklists</span>
+            </span>
           </a>
           <span style={S.protoBadge}>PROTOTYPE v1.0</span>
         </header>
