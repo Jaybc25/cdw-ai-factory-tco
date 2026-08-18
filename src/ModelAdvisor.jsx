@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { ChevronDown, X, ArrowRight } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
+import { AuthProvider } from "./AuthContext";
+import AuthWidget from "./AuthWidget";
 import {
   getCatalog, CATALOG_META, buildRecommendations, explainCard, explainVerificationCandidate, explainOtherEligible,
 } from "./modelAdvisorEngine.js";
@@ -277,7 +279,7 @@ function getInitialSourceUseCase() {
   return params?.get("sourceUseCase") || null;
 }
 
-export default function ModelAdvisor() {
+function ModelAdvisorInner() {
   const catalog = useMemo(() => getCatalog(), []);
 
   const [checkedWorkloads, setCheckedWorkloads] = useState(getInitialCheckedWorkloads);
@@ -325,6 +327,10 @@ export default function ModelAdvisor() {
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>Open-Weight Model Advisor</div>
         </div>
         <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.1</span>
+      </div>
+
+      <div className="border-b border-gray-100 px-6 py-2 flex items-center justify-end">
+        <AuthWidget />
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-6">
@@ -441,5 +447,13 @@ export default function ModelAdvisor() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ModelAdvisor() {
+  return (
+    <AuthProvider>
+      <ModelAdvisorInner />
+    </AuthProvider>
   );
 }
