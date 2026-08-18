@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
+import cdwLogo from "./cdw-logo.png";
 import {
   DEFAULT_INPUTS, BOUNDS, validateInputs, computeEngine,
   PAYBACK_GUARD_TEXT, NA_TEXT, excelRound,
@@ -403,8 +404,8 @@ export default function RoiCalculator() {
         marginBottom: isMobile ? 16 : styles.header.marginBottom,
         gap: isMobile ? 8 : styles.header.gap,
       }}>
-        <a href="/" style={{ textDecoration: "none" }} aria-label="AI Factory Tools home">
-          <span style={styles.logoWordmark}>CDW</span>
+        <a href="/" style={{ textDecoration: "none", display: "flex", alignItems: "center" }} aria-label="AI Factory Tools home">
+          <img src={cdwLogo} alt="CDW" style={{ height: 36, width: "auto" }} />
         </a>
         <div>
           <div style={styles.eyebrow}>AI Factory Tools</div>
