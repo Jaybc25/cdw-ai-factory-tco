@@ -328,10 +328,6 @@ export default function ModelAdvisor() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-6">
-        <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#FFF8E6", border: "1px solid #F0C040", color: "#7A5A00" }}>
-          <strong>Beta</strong> -- model recommendations use periodically refreshed third-party benchmark and model metadata (specs synced {new Date(CATALOG_META.specsSyncedAt).toLocaleDateString()}, capability scores synced {new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()}). Verify licensing and deployment requirements before production use.
-        </div>
-
         {sourceUseCase && (
           <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}>
             Workloads pre-filled based on your Use Case Explorer selection ({sourceUseCase}). Adjust anything below to refine the recommendation.
