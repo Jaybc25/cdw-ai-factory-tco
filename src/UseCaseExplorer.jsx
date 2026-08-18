@@ -743,7 +743,9 @@ export default function UseCaseExplorer() {
 
       {/* header */}
       <div style={{ background: "#fff", borderBottom: "3px solid #e8e8e8", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 }}>
-        <img src={cdwLogo} alt="CDW" style={{ height: 36, width: "auto" }} />
+        <a href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }} aria-label="AI Factory Tools home">
+          <img src={cdwLogo} alt="CDW" style={{ height: 36, width: "auto" }} />
+        </a>
         <div style={{ borderLeft: "1px solid #e0e0e0", paddingLeft: 12, display: "flex", flexDirection: "column" }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: CDW_RED, letterSpacing: "0.12em", textTransform: "uppercase" }}>AI Factory Tools</span>
           <span style={{ fontSize: 17, fontWeight: 700, color: CDW_DARK, lineHeight: 1.2 }}>AI Use Case Explorer</span>
