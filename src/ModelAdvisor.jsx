@@ -231,11 +231,44 @@ function OtherEligibleCard({ model, ranking }) {
   );
 }
 
+// ─── cross-tool handoff: read incoming URL params on first render ────────────
+// Populated by Use Case Explorer's handoff links (?workloads=agentic,rag&
+// primary=agentic&sourceUseCase=retail-agentic-commerce). Falls back to the
+// existing defaults if no recognized params are present, so this is purely
+// additive -- a direct visit to /model-advisor behaves exactly as before.
+const VALID_WORKLOAD_VALUES = ["chat", "rag", "coding", "summarization", "agentic", "reasoning", "classification"];
+
+function getIncomingParams() {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search);
+}
+
+function getInitialCheckedWorkloads() {
+  const params = getIncomingParams();
+  const raw = params?.get("workloads");
+  if (!raw) return ["chat"];
+  const values = raw.split(",").map((s) => s.trim()).filter((v) => VALID_WORKLOAD_VALUES.includes(v));
+  return values.length ? values : ["chat"];
+}
+
+function getInitialPrimaryWorkload(checked) {
+  const params = getIncomingParams();
+  const primary = params?.get("primary");
+  if (primary && checked.includes(primary)) return primary;
+  return checked[0];
+}
+
+function getInitialSourceUseCase() {
+  const params = getIncomingParams();
+  return params?.get("sourceUseCase") || null;
+}
+
 export default function ModelAdvisor() {
   const catalog = useMemo(() => getCatalog(), []);
 
-  const [checkedWorkloads, setCheckedWorkloads] = useState(["chat"]);
-  const [primaryWorkload, setPrimaryWorkload] = useState("chat");
+  const [checkedWorkloads, setCheckedWorkloads] = useState(getInitialCheckedWorkloads);
+  const [primaryWorkload, setPrimaryWorkload] = useState(() => getInitialPrimaryWorkload(getInitialCheckedWorkloads()));
+  const [sourceUseCase] = useState(getInitialSourceUseCase);
   const [qualityPriority, setQualityPriority] = useState("strong");
   const [contextWindow, setContextWindow] = useState("none");
   const [multimodal, setMultimodal] = useState("none");
@@ -284,6 +317,12 @@ export default function ModelAdvisor() {
         <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#FFF8E6", border: "1px solid #F0C040", color: "#7A5A00" }}>
           <strong>Beta</strong> -- model recommendations use periodically refreshed third-party benchmark and model metadata (specs synced {new Date(CATALOG_META.specsSyncedAt).toLocaleDateString()}, capability scores synced {new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()}). Verify licensing and deployment requirements before production use.
         </div>
+
+        {sourceUseCase && (
+          <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}>
+            Workloads pre-filled based on your Use Case Explorer selection ({sourceUseCase}). Adjust anything below to refine the recommendation.
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Inputs */}

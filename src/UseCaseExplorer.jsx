@@ -1,6 +1,67 @@
 import { useState, useRef, useEffect } from "react";
 import cdwLogo from "./cdw-logo.png";
 import blueprintData from "./blueprints.json";
+import crosswalkData from "./ModelAdvisorCrosswalk.json";
+
+// ─── cross-tool handoff: build param-carrying URLs from the crosswalk ────────
+// Maps a crosswalk umbrella label to the exact `value` string Model Advisor's
+// WORKLOAD_OPTIONS uses. Vision & Multimodal has no ModelAdvisor equivalent
+// yet, so it's intentionally left out -- a blueprint whose only umbrella is
+// Vision & Multimodal won't pre-check anything, which is correct until that
+// checkbox exists.
+const UMBRELLA_TO_WORKLOAD_VALUE = {
+  "Chat & Assistants": "chat",
+  "RAG & Knowledge Retrieval": "rag",
+  "Coding": "coding",
+  "Summarization & Content Generation": "summarization",
+  "Agentic AI & Tool Use": "agentic",
+  "Reasoning & Analysis": "reasoning",
+  "Classification & Extraction": "classification",
+};
+
+const CROSSWALK_BY_ID = Object.fromEntries(
+  crosswalkData.crosswalk.map((row) => [row.id, row])
+);
+
+// Builds the three handoff hrefs for a given blueprint. Falls back to a bare
+// link with just sourceUseCase if the blueprint isn't in the crosswalk yet
+// (new blueprints added to blueprints.json before the crosswalk catches up).
+function buildHandoffLinks(bp) {
+  const row = CROSSWALK_BY_ID[bp.id];
+  const sourceUseCase = encodeURIComponent(bp.id);
+
+  if (!row) {
+    return {
+      modelAdvisor: `/model-advisor?sourceUseCase=${sourceUseCase}`,
+      gpuSizing: `/gpu-sizing?sourceUseCase=${sourceUseCase}`,
+      tco: `/tco?sourceUseCase=${sourceUseCase}`,
+    };
+  }
+
+  const workloadValues = (row.modelAdvisorUmbrellas || [])
+    .map((u) => UMBRELLA_TO_WORKLOAD_VALUE[u])
+    .filter(Boolean);
+  const primaryValue = UMBRELLA_TO_WORKLOAD_VALUE[row.primaryUmbrella] || workloadValues[0];
+
+  const modelAdvisorParams = new URLSearchParams({ sourceUseCase: row.id });
+  if (workloadValues.length) modelAdvisorParams.set("workloads", workloadValues.join(","));
+  if (primaryValue) modelAdvisorParams.set("primary", primaryValue);
+
+  const gpuSizingParams = new URLSearchParams({ sourceUseCase: row.id });
+  if (row.gpuWorkloadType) gpuSizingParams.set("workloadType", row.gpuWorkloadType);
+  if (row.workloadFamily === "Specialized Science" || row.gpuWorkloadType === "model-training") {
+    gpuSizingParams.set("mode", "Training");
+  }
+
+  const tcoParams = new URLSearchParams({ sourceUseCase: row.id });
+
+  return {
+    modelAdvisor: `/model-advisor?${modelAdvisorParams.toString()}`,
+    gpuSizing: `/gpu-sizing?${gpuSizingParams.toString()}`,
+    tco: `/tco?${tcoParams.toString()}`,
+    routingClass: row.routingClass,
+  };
+}
 
 // ─── design tokens ────────────────────────────────────────────────────────────
 const CDW_RED    = "#cc0000";
@@ -522,6 +583,7 @@ function DetailModal({ bp, contextLabel, contextDisplayName, contextFit, trigger
   }, [onClose, triggerEl]);
 
   const practiceText = bp.detail_in_practice?.[contextLabel] || bp.detail_in_practice?.default;
+  const handoffLinks = buildHandoffLinks(bp);
   const practiceHeader = contextDisplayName
     ? `What this could look like in ${contextDisplayName}`
     : "What this could look like in practice";
@@ -571,9 +633,9 @@ function DetailModal({ bp, contextLabel, contextDisplayName, contextFit, trigger
         )}
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, paddingTop: 4 }}>
-          <a href="/model-advisor" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: CDW_RED, color: "#fff", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>Model Advisor →</a>
-          <a href="/gpu-sizing" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: CDW_DARK, color: "#fff", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>GPU Sizing →</a>
-          <a href="/tco" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", color: CDW_DARK, border: "1px solid #ccc", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>TCO Calculator →</a>
+          <a href={handoffLinks.modelAdvisor} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: CDW_RED, color: "#fff", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>Model Advisor →</a>
+          <a href={handoffLinks.gpuSizing} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: CDW_DARK, color: "#fff", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>GPU Sizing →</a>
+          <a href={handoffLinks.tco} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", color: CDW_DARK, border: "1px solid #ccc", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>TCO Calculator →</a>
           {bp.nvidia_url && (
             <a href={bp.nvidia_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", color: "#666", border: "1px solid #ccc", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>View on NVIDIA ↗</a>
           )}

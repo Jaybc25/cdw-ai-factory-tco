@@ -787,9 +787,37 @@ function PodSizingHandoff() {
   );
 }
 
+// ─── cross-tool handoff: read incoming URL params on first render ────────────
+// Populated by Use Case Explorer's handoff links (?workloadType=simulation-
+// rendering&mode=Training&sourceUseCase=omniverse-dsx-digital-twin). Falls
+// back to existing defaults if no recognized params are present -- a direct
+// visit to /gpu-sizing behaves exactly as before.
+function getIncomingParams() {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search);
+}
+
+function getInitialMode() {
+  const params = getIncomingParams();
+  const raw = params?.get("mode");
+  return raw === "Training" || raw === "Inference" ? raw : "Inference";
+}
+
+function getInitialSourceUseCase() {
+  const params = getIncomingParams();
+  return params?.get("sourceUseCase") || null;
+}
+
+function getInitialWorkloadType() {
+  const params = getIncomingParams();
+  return params?.get("workloadType") || null;
+}
+
 export default function GPUSizingCalculator() {
-  const [mode, setMode] = useState("Inference");
+  const [mode, setMode] = useState(getInitialMode);
   const [pathLevel, setPathLevel] = useState("simple");
+  const [sourceUseCase] = useState(getInitialSourceUseCase);
+  const [incomingWorkloadType] = useState(getInitialWorkloadType);
 
   // inference state
   const [infModel, setInfModel] = useState(MODELS[1]); // Llama 3.1 70B default
@@ -877,6 +905,16 @@ export default function GPUSizingCalculator() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
+        {sourceUseCase && (
+          <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}>
+            Arrived from Use Case Explorer ({sourceUseCase}).{" "}
+            {incomingWorkloadType && /simulation|molecular|genomics|geospatial|vision|avatar|analytics-acceleration|scanning|pipeline|optimization|mlops|serving|governance|rendering/.test(incomingWorkloadType) ? (
+              <>This workload type ({incomingWorkloadType}) isn't fully represented in this calculator yet -- it's scoped for LLM inference and training today. Use the numbers below as a rough compute-scale reference, and confirm with a CDW AI Factory specialist for this workload.</>
+            ) : (
+              <>Mode pre-set to <strong>{mode}</strong> based on that use case. Adjust anything below to refine the estimate.</>
+            )}
+          </div>
+        )}
         {/* Mode toggle */}
         <div className="flex gap-2 mb-6">
           {["Inference", "Training"].map((m) => (
