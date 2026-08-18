@@ -13,7 +13,21 @@ const CHARCOAL = "#2D2D2D";
 // core, what-it-is -> why/if-unsure, always resolves to an action.
 // ---------------------------------------------------------------------------
 const TIPS = {
-  workload: "Which tasks you'll actually use this model for. Check every workload that matters, then tell us which one to prioritize below -- ranking is based on that one, since a model great at coding isn't necessarily great at everything else.",
+  workload: (
+    <div className="flex flex-col gap-2">
+      <div>Which tasks you'll actually use this model for. Check every workload that matters, then tell us which one to prioritize below -- ranking is based on that one, since a model great at coding isn't necessarily great at everything else.</div>
+      <ul className="flex flex-col gap-1.5 mt-1">
+        <li><strong>General chat / assistant</strong> -- conversational agents, e.g. Ambient Healthcare Agents, AI Virtual Assistant, Digital Human</li>
+        <li><strong>RAG / knowledge retrieval</strong> -- grounded document Q&A, e.g. NVIDIA RAG Blueprint, Streaming Data to RAG, AI-Q Research Assistant</li>
+        <li><strong>Coding</strong> -- code generation/assistance, e.g. Nsight Copilot</li>
+        <li><strong>Summarization & content generation</strong> -- e.g. Retail Catalog Enrichment, PDF to Podcast</li>
+        <li><strong>Agentic / tool use</strong> -- autonomous multi-step workflows, e.g. Retail Agentic Commerce, Multi-Agent Warehouse, NemoClaw agents</li>
+        <li><strong>Reasoning</strong> -- multi-step analytical work, e.g. Quantitative Signal Discovery</li>
+        <li><strong>Classification & extraction</strong> -- structured labeling/extraction (document routing, ticket tagging). No single Explorer Blueprint centers on this alone -- it shows up as a component inside several of the above.</li>
+      </ul>
+      <div className="text-xs text-gray-500 mt-1">Note: Blueprints outside these seven -- digital twins, simulation, genomics, and similar specialized workloads -- aren't open-weight model selection questions. Those route to GPU Sizing or a specialized-stack page directly from Use Case Explorer, not through this tool.</div>
+    </div>
+  ),
   primaryWorkload: "Of the workloads you checked, which matters most for this decision? We rank models using the benchmark that best matches this specific workload where one exists.",
   qualityPriority: "How much you're willing to trade raw capability for a smaller, cheaper-to-run model. Frontier-like stays close to the top score; Economical allows a much wider range of models to qualify as \"efficient enough.\"",
   contextWindow: "The largest amount of text (prompt + conversation history) the model needs to handle at once. If you're not sure, 32K covers most chat and document use cases comfortably.",
@@ -110,10 +124,10 @@ const WORKLOAD_OPTIONS = [
   { value: "chat", label: "General chat / assistant" },
   { value: "rag", label: "RAG / knowledge retrieval" },
   { value: "coding", label: "Coding" },
-  { value: "summarization", label: "Summarization" },
+  { value: "summarization", label: "Summarization & content generation" },
   { value: "agentic", label: "Agentic / tool use" },
   { value: "reasoning", label: "Reasoning" },
-  { value: "classification", label: "Classification" },
+  { value: "classification", label: "Classification & extraction" },
 ];
 
 const QUALITY_OPTIONS = [
@@ -195,7 +209,7 @@ function RecommendationCard({ card, ranking, inputs }) {
         <span>{model.license || "License unverified"}</span>
       </div>
       <a
-        href="/gpu-sizing"
+        href={`/gpu-sizing?model=${encodeURIComponent(model.canonical_model_id)}`}
         className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold justify-center py-2 rounded-lg"
         style={{ background: CHARCOAL, color: "white" }}
       >
@@ -221,7 +235,7 @@ function OtherEligibleCard({ model, ranking }) {
         <span>{model.license || "License unverified"}</span>
       </div>
       <a
-        href="/gpu-sizing"
+        href={`/gpu-sizing?model=${encodeURIComponent(model.canonical_model_id)}`}
         className="mt-1 inline-flex items-center gap-1.5 text-sm font-semibold justify-center py-2 rounded-lg border"
         style={{ borderColor: CHARCOAL, color: CHARCOAL }}
       >

@@ -35,6 +35,9 @@ function buildHandoffLinks(bp) {
       modelAdvisor: `/model-advisor?sourceUseCase=${sourceUseCase}`,
       gpuSizing: `/gpu-sizing?sourceUseCase=${sourceUseCase}`,
       tco: `/tco?sourceUseCase=${sourceUseCase}`,
+      showModelAdvisor: true,
+      showGpuSizing: true,
+      note: null,
     };
   }
 
@@ -55,11 +58,32 @@ function buildHandoffLinks(bp) {
 
   const tcoParams = new URLSearchParams({ sourceUseCase: row.id });
 
+  // routingClass decides whether Model Advisor is even a sensible destination.
+  // Only general-model-selection blueprints get real workload checkboxes
+  // pre-filled there -- everything else (infrastructure-first, specialized-
+  // stack, platform-architecture) has an empty modelAdvisorUmbrellas array,
+  // so showing that pill would land someone on a screen with nothing checked
+  // and no explanation why. Hide it instead, and say why in a note.
+  const showModelAdvisor = row.routingClass === "general-model-selection";
+  const showGpuSizing = row.routingClass !== "platform-architecture";
+
+  let note = null;
+  if (row.routingClass === "infrastructure-first") {
+    note = "This use case is infrastructure/compute-driven rather than an open-weight model selection question -- go straight to GPU Sizing.";
+  } else if (row.routingClass === "specialized-stack") {
+    note = `This use case relies on a specialized NVIDIA stack (${row.specializedStack}) rather than a general-purpose open-weight model, so Model Advisor's rankings don't apply here. GPU Sizing below reflects general compute scale for reference.`;
+  } else if (row.routingClass === "platform-architecture") {
+    note = `This use case is a platform/architecture consideration (${row.specializedStack}) rather than a model-selection or sizing question. Connect with a CDW AI Factory specialist to scope this one.`;
+  }
+
   return {
     modelAdvisor: `/model-advisor?${modelAdvisorParams.toString()}`,
     gpuSizing: `/gpu-sizing?${gpuSizingParams.toString()}`,
     tco: `/tco?${tcoParams.toString()}`,
     routingClass: row.routingClass,
+    showModelAdvisor,
+    showGpuSizing,
+    note,
   };
 }
 
@@ -632,9 +656,19 @@ function DetailModal({ bp, contextLabel, contextDisplayName, contextFit, trigger
           </div>
         )}
 
+        {handoffLinks.note && (
+          <div style={{ background: "#FFF8E6", border: "1px solid #F0C040", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#7A5A00" }}>
+            {handoffLinks.note}
+          </div>
+        )}
+
         <div style={{ display: "flex", flexWrap: "wrap", gap: 10, paddingTop: 4 }}>
-          <a href={handoffLinks.modelAdvisor} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: CDW_RED, color: "#fff", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>Model Advisor →</a>
-          <a href={handoffLinks.gpuSizing} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: CDW_DARK, color: "#fff", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>GPU Sizing →</a>
+          {handoffLinks.showModelAdvisor && (
+            <a href={handoffLinks.modelAdvisor} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: CDW_RED, color: "#fff", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>Model Advisor →</a>
+          )}
+          {handoffLinks.showGpuSizing && (
+            <a href={handoffLinks.gpuSizing} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: CDW_DARK, color: "#fff", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>GPU Sizing →</a>
+          )}
           <a href={handoffLinks.tco} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "#fff", color: CDW_DARK, border: "1px solid #ccc", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>TCO Calculator →</a>
           {bp.nvidia_url && (
             <a href={bp.nvidia_url} target="_blank" rel="noopener noreferrer" style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", color: "#666", border: "1px solid #ccc", borderRadius: 8, padding: "9px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer", textDecoration: "none" }}>View on NVIDIA ↗</a>

@@ -813,14 +813,23 @@ function getInitialWorkloadType() {
   return params?.get("workloadType") || null;
 }
 
+function getInitialInfModel() {
+  const params = getIncomingParams();
+  const modelId = params?.get("model");
+  if (!modelId) return MODELS[1]; // existing default: Llama 3.1 70B
+  const match = MODELS.find((m) => m.id === modelId);
+  return match || MODELS[1];
+}
+
 export default function GPUSizingCalculator() {
   const [mode, setMode] = useState(getInitialMode);
   const [pathLevel, setPathLevel] = useState("simple");
   const [sourceUseCase] = useState(getInitialSourceUseCase);
   const [incomingWorkloadType] = useState(getInitialWorkloadType);
+  const [incomingModelId] = useState(() => getIncomingParams()?.get("model") || null);
 
   // inference state
-  const [infModel, setInfModel] = useState(MODELS[1]); // Llama 3.1 70B default
+  const [infModel, setInfModel] = useState(getInitialInfModel);
   const [quant, setQuant] = useState("FP8");
   const [concurrentUsers, setConcurrentUsers] = useState(100);
   const [targetTokPerUser, setTargetTokPerUser] = useState(30);
@@ -905,13 +914,20 @@ export default function GPUSizingCalculator() {
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
-        {sourceUseCase && (
+        {(sourceUseCase || incomingModelId) && (
           <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}>
-            Arrived from Use Case Explorer ({sourceUseCase}).{" "}
-            {incomingWorkloadType && /simulation|molecular|genomics|geospatial|vision|avatar|analytics-acceleration|scanning|pipeline|optimization|mlops|serving|governance|rendering/.test(incomingWorkloadType) ? (
-              <>This workload type ({incomingWorkloadType}) isn't fully represented in this calculator yet -- it's scoped for LLM inference and training today. Use the numbers below as a rough compute-scale reference, and confirm with a CDW AI Factory specialist for this workload.</>
-            ) : (
-              <>Mode pre-set to <strong>{mode}</strong> based on that use case. Adjust anything below to refine the estimate.</>
+            {incomingModelId && !sourceUseCase && (
+              <>Model pre-set to <strong>{incomingModelId}</strong>, carried over from Model Advisor. Adjust anything below to refine the estimate.</>
+            )}
+            {sourceUseCase && (
+              <>
+                Arrived from Use Case Explorer ({sourceUseCase}).{" "}
+                {incomingWorkloadType && /simulation|molecular|genomics|geospatial|vision|avatar|analytics-acceleration|scanning|pipeline|optimization|mlops|serving|governance|rendering/.test(incomingWorkloadType) ? (
+                  <>This workload type ({incomingWorkloadType}) isn't fully represented in this calculator yet -- it's scoped for LLM inference and training today. Use the numbers below as a rough compute-scale reference, and confirm with a CDW AI Factory specialist for this workload.</>
+                ) : (
+                  <>Mode pre-set to <strong>{mode}</strong> based on that use case. Adjust anything below to refine the estimate.</>
+                )}
+              </>
             )}
           </div>
         )}
