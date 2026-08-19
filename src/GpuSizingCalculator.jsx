@@ -593,6 +593,43 @@ function PodSizingHandoff() {
   );
 }
 
+// GPU Sizing's classes (A100/H100/H200/B200/GB200 NVL72/B300) don't share
+// naming with TCO's "system you'd buy" field (DGX H200/B200/B300/GB200
+// NVL-72/GB300 NVL-72) -- different tools, different vocabularies. TCO also
+// doesn't sell A100/H100 as new DGX systems (its purchase line starts at
+// H200), so those two fall back to the closest current-generation option
+// rather than a class that isn't actually for sale.
+const TCO_OWN_SYS_FOR_CLASS = {
+  A100: "DGX H200",
+  H100: "DGX H200",
+  H200: "DGX H200",
+  B200: "DGX B200",
+  "GB200 NVL72": "DGX GB200 NVL-72",
+  B300: "DGX B300",
+};
+
+function TcoHandoff({ selectedClass, recommended }) {
+  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
+  const href = `/tco?ownSys=${encodeURIComponent(ownSys)}`;
+  return (
+    <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-gray-50 flex items-center justify-between gap-3">
+      <div>
+        <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Next: Cost comparison</div>
+        <div className="text-xs text-gray-500">
+          See whether buying {recommended} x {selectedClass} costs less than your current cloud spend, in the TCO Calculator.
+        </div>
+      </div>
+      <a
+        href={href}
+        className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white flex-shrink-0"
+        style={{ background: RED }}
+      >
+        Compare TCO
+      </a>
+    </div>
+  );
+}
+
 function getIncomingParams() {
   if (typeof window === "undefined") return null;
   return new URLSearchParams(window.location.search);
@@ -1118,6 +1155,8 @@ function GPUSizingCalculatorInner() {
                 : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}
               {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).
             </div>
+
+            <TcoHandoff selectedClass={result.selectedClass} recommended={result.recommended} />
 
             <PodSizingHandoff />
 

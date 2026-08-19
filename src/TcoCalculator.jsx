@@ -397,13 +397,25 @@ function RateField({ k, label, eff, defaults, ov, setOv, fmt: f, step }) {
   );
 }
 
+function getIncomingParams() {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search);
+}
+
+function getInitialOwnSys() {
+  const params = getIncomingParams();
+  const raw = params?.get("ownSys");
+  return raw && OWN_TARGETS.includes(raw) ? raw : "DGX B200";
+}
+
 function AppInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const [ov, setOv] = useState({});
   const [bill, setBill] = useState(105000);
   const [provider, setProvider] = useState("AWS");
   const [gpuClass, setGpuClass] = useState("H100");
-  const [ownSys, setOwnSys] = useState("DGX B200");
+  const [ownSys, setOwnSys] = useState(getInitialOwnSys);
+  const [arrivedFromGpuSizing] = useState(() => !!getIncomingParams()?.get("ownSys"));
   const [trainShare, setTrainShare] = useState(0.5);
   const [odShare, setOdShare] = useState(0);
   const [storageAuto, setStorageAuto] = useState(true); // v2.3: Tier 1 derives storage from the bill; manual entry = Tier 2/3
@@ -651,6 +663,12 @@ function AppInner() {
 
 
         {view === "calc" && (<div>
+        {arrivedFromGpuSizing && (
+          <div style={{ background: "#F5F5F5", border: "1px solid #ddd", borderRadius: 10, padding: "12px 16px", marginBottom: 14, fontSize: 13, color: "#444" }}>
+            Target system pre-set to <strong>{ownSys}</strong>, based on your GPU Sizing recommendation. Enter your
+            current monthly cloud spend below to see whether owning it costs less than what you're paying today.
+          </div>
+        )}
         {/* RESULTS */}
         <div style={{ background: C.ink, borderRadius: 14, padding: "16px 16px 12px", marginBottom: 14, color: "#FFFFFF" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
