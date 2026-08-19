@@ -110,6 +110,31 @@ export function AuthProvider({ children }) {
     }
   }
 
+  // Saves this tool's CURRENT state to the account -- overwritten each call,
+  // not appended (see tool_snapshots' unique(account_id, tool) constraint).
+  // This is what powers the Combined Summary: it captures where someone
+  // stands even if they never clicked "get report" on this specific tool.
+  // Fire-and-forget, same reasoning as logDownloadEvent -- a save failure
+  // should never interrupt someone using the tool.
+  async function saveSnapshot(tool, inputs, summary) {
+    if (!session?.user?.id) return;
+    try {
+      const { error } = await supabase.from("tool_snapshots").upsert(
+        {
+          account_id: session.user.id,
+          tool,
+          inputs,
+          summary,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "account_id,tool" }
+      );
+      if (error) throw error;
+    } catch (err) {
+      console.error("Failed to save tool snapshot:", err);
+    }
+  }
+
   const value = {
     session,
     account,
@@ -120,6 +145,7 @@ export function AuthProvider({ children }) {
     signOut,
     completeSetup,
     logDownloadEvent,
+    saveSnapshot,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -129,4 +155,23 @@ export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used inside an AuthProvider");
   return ctx;
+}
+
+// Drop this one line into any tool to get autosave for free:
+//   useAutosaveSnapshot("tco", inputs, summaryObject);
+// Debounced -- waits for a pause in changes before saving, so it doesn't
+// fire on every keystroke. Does nothing while signed out.
+export function useAutosaveSnapshot(tool, inputs, summary, delayMs = 1500) {
+  const { saveSnapshot, isLoggedIn } = useAuth();
+  const inputsKey = JSON.stringify(inputs);
+  const summaryKey = JSON.stringify(summary);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    const id = setTimeout(() => {
+      saveSnapshot(tool, inputs, summary);
+    }, delayMs);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tool, inputsKey, summaryKey, isLoggedIn, delayMs]);
 }
