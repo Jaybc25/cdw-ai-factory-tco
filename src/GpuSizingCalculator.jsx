@@ -436,71 +436,6 @@ function SampleOutputPreview({ tokPerSec }) {
   );
 }
 
-function CopySummaryButton({ mode, result, modelLabel }) {
-  const [copied, setCopied] = useState(false);
-
-  function buildSummary() {
-    const lines = [
-      `CDW AI Factory -- GPU Sizing Summary (${mode})`,
-      `Model: ${modelLabel}`,
-      "",
-      `Minimum technical: ${result.minTechnical} x ${result.selectedClass}`,
-      `Recommended (production): ${result.recommended} x ${result.selectedClass}`,
-      `Lower-cost alternative: ${result.lowerCost.recommended} x ${result.lowerCost.class}`,
-      `Higher-growth alternative: ${result.higherGrowth.recommended} x ${result.higherGrowth.class}`,
-      `Confidence: ${result.confidence.level} -- ${result.confidence.note}`,
-    ];
-    if (result.budget?.recommended) {
-      lines.push(`Estimated hardware budget: ${fmtUsdPlain(result.budget.recommended.amount)} (same pricing basis as the TCO Calculator, not a quote)`);
-    }
-    if (mode === "Inference" && result.rtxAlt?.eligible) {
-      lines.push(`Workstation alternative: ${result.rtxAlt.gpus} x ${result.rtxAlt.class}`);
-    }
-    if (mode === "Inference" && result.utilization) {
-      lines.push(`Estimated utilization at recommended config: ${Math.round(result.utilization.recommended * 100)}%`);
-      lines.push(`Idle GPU-hours/day after ${result.workingDayHours}h working day: ${result.idleGpuHoursAfterHours.toFixed(0)}`);
-    }
-    lines.push("", "Directional sizing estimate -- not a final BOM. Confirm with a CDW AI Factory specialist.");
-    return lines.join("\n");
-  }
-
-  async function handleCopy() {
-    const text = buildSummary();
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.focus();
-      ta.select();
-      try {
-        document.execCommand("copy");
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      } catch {
-        /* no-op */
-      }
-      document.body.removeChild(ta);
-    }
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      className="mt-3 w-full text-sm font-semibold py-2.5 rounded-lg border transition-colors"
-      style={{ borderColor: RED, color: copied ? "white" : RED, background: copied ? RED : "white" }}
-    >
-      {copied ? "Copied" : "Copy summary"}
-    </button>
-  );
-}
-
 function ConfidenceBadge({ level }) {
   const colors = {
     HIGH: "bg-green-100 text-green-800 border-green-300",
@@ -535,9 +470,6 @@ function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent }) {
 function fmtUsd(n) {
   if (n >= 1e6) return `$${(n / 1e6).toFixed(2)}M`;
   return `$${Math.round(n / 1000)}K`;
-}
-function fmtUsdPlain(n) {
-  return `$${Math.round(n).toLocaleString()}`;
 }
 
 function BudgetPanel({ budget }) {
@@ -1174,8 +1106,6 @@ function GPUSizingCalculatorInner() {
             >
               Get the full sizing report
             </button>
-
-            <CopySummaryButton mode={mode} result={result} modelLabel={modelLabel} />
             </>
             )}
           </div>
