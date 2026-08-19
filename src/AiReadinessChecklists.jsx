@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import cdwLogo from "./cdw-logo.png";
-import { AuthProvider } from "./AuthContext";
+import { AuthProvider, useAuth } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import checklistData from "./checklists.json";
 
@@ -175,6 +175,7 @@ const STATUS_COLORS = { "Ready": C.greenOk, "Mostly ready": "#4E8A1F", "Needs at
 const COMPLETION_LABELS = { not_started: "Not started", in_progress: "In progress", complete: "Complete" };
 
 function AiReadinessChecklistsInner() {
+  const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const [store, setStore] = useState(() => {
     const saved = loadState();
     if (saved && saved.content_version === checklistData.content_version) return { state: saved, versionNotice: false };
@@ -218,9 +219,33 @@ function AiReadinessChecklistsInner() {
 
   const door = view.doorId ? doorById(view.doorId) : null;
   const branch = door ? routedBranch(door, routes) : null;
+  const doorsComplete = checklistData.doors.filter((d) => completionOf(d, routes, answers).state === "complete").length;
+
+  function requestSummary() {
+    if (isLoggedIn && !needsSetup && account) {
+      setEmailForm({ name: account.name || "", company: account.company || "", email: account.email || "" });
+      logDownloadEvent("readiness", {
+        doorsComplete,
+        doorsTotal: checklistData.doors.length,
+        suggestedStepCount: steps.length,
+      });
+      setEmailDone(true);
+    } else {
+      setEmailOpen(true);
+    }
+  }
+
+  const [emailStatus, setEmailStatus] = useState("");
+  function submitEmailForm() {
+    if (!emailForm.name || !emailForm.email || !emailForm.company) { setEmailStatus("Please fill in all three fields."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailForm.email)) { setEmailStatus("Please enter a valid email address."); return; }
+    setEmailStatus("");
+    setEmailDone(true);
+  }
 
   return (
     <div style={S.page}>
+      <style>{`@media print { .no-print { display: none !important; } }`}</style>
       <div style={S.shell}>
         <header style={S.header}>
           {/* Matches the sub-tool header convention used by the other AI Factory tools. */}
@@ -234,7 +259,7 @@ function AiReadinessChecklistsInner() {
           <span style={S.protoBadge}>PROTOTYPE v1.0</span>
         </header>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 0", borderBottom: "1px solid #eee", marginBottom: 12 }}>
+        <div className="no-print" style={{ display: "flex", justifyContent: "flex-end", padding: "8px 0", borderBottom: "1px solid #eee", marginBottom: 12 }}>
           <AuthWidget />
         </div>
 
@@ -305,27 +330,38 @@ function AiReadinessChecklistsInner() {
 
               <div style={{ marginTop: 20 }}>
                 {!emailOpen && !emailDone && (
-                  <button style={S.primaryBtn} onClick={() => setEmailOpen(true)}>Email me my readiness summary</button>
+                  <button className="no-print" style={S.primaryBtn} onClick={requestSummary}>Get my readiness summary</button>
                 )}
                 {emailOpen && !emailDone && (
-                  <div style={{ maxWidth: 420 }}>
+                  <div className="no-print" style={{ maxWidth: 420 }}>
                     <input style={S.input} placeholder="Name" value={emailForm.name}
                       onChange={(e) => setEmailForm({ ...emailForm, name: e.target.value })} />
                     <input style={S.input} placeholder="Organization" value={emailForm.company}
                       onChange={(e) => setEmailForm({ ...emailForm, company: e.target.value })} />
                     <input style={S.input} placeholder="Work email" value={emailForm.email}
                       onChange={(e) => setEmailForm({ ...emailForm, email: e.target.value })} />
-                    <button style={S.primaryBtn} onClick={() => setEmailDone(true)}>Show my summary</button>
-                    <p style={{ color: C.slate, fontSize: 12.5, marginTop: 8 }}>
-                      Prototype notice: everything you enter stays in your browser. No information is collected or sent anywhere.
-                    </p>
+                    {emailStatus && <p style={{ color: C.red, fontSize: 12.5, marginTop: -4, marginBottom: 8 }}>{emailStatus}</p>}
+                    <button style={S.primaryBtn} onClick={submitEmailForm}>Show my summary</button>
                   </div>
                 )}
                 {emailDone && (
                   <div>
+                    <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                      <button style={S.primaryBtn} onClick={() => window.print()}>Print / Save as PDF</button>
+                      <button style={{ ...S.primaryBtn, background: "#fff", color: C.charcoal, border: `1px solid ${C.line}` }} onClick={() => { setEmailDone(false); setEmailOpen(false); }}>Back</button>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                      <img src={cdwLogo} alt="CDW" style={{ height: 30, width: "auto" }} />
+                      <div style={{ fontSize: 10, letterSpacing: 1.5, color: C.slate, textTransform: "uppercase" }}>AI Factory &middot; Readiness Assessment Summary</div>
+                    </div>
+                    <div style={{ fontSize: 19, fontWeight: 800, margin: "4px 0 2px" }}>
+                      Prepared for {emailForm.name || "you"}{emailForm.company ? `, ${emailForm.company}` : ""}
+                    </div>
+                    <div style={{ fontSize: 12, color: C.slate, marginBottom: 14 }}>{new Date().toLocaleDateString()}</div>
                     <pre style={{ ...S.expand, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{summaryText}</pre>
-                    <p style={{ color: C.slate, fontSize: 12.5 }}>
-                      Copy this summary to keep or share it. In this prototype, nothing is emailed and nothing leaves your browser.
+                    <p style={{ color: C.slate, fontSize: 12.5, marginTop: 8 }}>
+                      This assessment reflects your own answers and organizes the gaps -- it doesn't certify, validate,
+                      or verify anything, and isn't legal or compliance advice. Confirm with a CDW AI Factory specialist.
                     </p>
                   </div>
                 )}
