@@ -913,6 +913,21 @@ function AppInner() {
           </div>
         </Section>
 
+        <div style={{ marginBottom: 10, borderRadius: 10, border: `1px solid ${C.line}`, background: "#F7F7F7", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: C.sub, textTransform: "uppercase", marginBottom: 2 }}>Next: task-level ROI</div>
+            <div style={{ fontSize: 12, color: "#444" }}>
+              Send this infrastructure cost ({fmt(r.adj.capex + r.oneTime)} upfront, {fmt(r.adj.opex * 12)}/yr ongoing) into the ROI Calculator as the AI cost side of a task-automation business case.
+            </div>
+          </div>
+          <a
+            href={`/roi?initialCost=${Math.round(r.adj.capex + r.oneTime)}&recurringCost=${Math.round(r.adj.opex * 12)}`}
+            style={{ ...disp, fontSize: 12, fontWeight: 700, padding: "9px 14px", borderRadius: 8, background: C.green, color: "#fff", textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap" }}
+          >
+            Send to ROI Calculator
+          </a>
+        </div>
+
         <button onClick={requestReport}
           style={{ ...disp, width: "100%", fontWeight: 700, fontSize: 15, padding: "14px", borderRadius: 10,
             border: "none", cursor: "pointer", background: C.green, color: "#fff", marginBottom: 10 }}>

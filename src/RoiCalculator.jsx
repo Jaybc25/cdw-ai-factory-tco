@@ -371,10 +371,31 @@ const fmtFte = (v) => v == null ? NA_TEXT : `~${v.toFixed(1)} FTE-years`;
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
+function getIncomingParams() {
+  if (typeof window === "undefined") return null;
+  return new URLSearchParams(window.location.search);
+}
+
+function getInitialInputs() {
+  const params = getIncomingParams();
+  const initialCost = params?.get("initialCost");
+  const recurringCost = params?.get("recurringCost");
+  if (initialCost == null && recurringCost == null) return DEFAULT_INPUTS;
+  return {
+    ...DEFAULT_INPUTS,
+    ...(initialCost != null && !Number.isNaN(+initialCost) ? { initialCost: +initialCost } : {}),
+    ...(recurringCost != null && !Number.isNaN(+recurringCost) ? { recurringCost: +recurringCost } : {}),
+  };
+}
+
 function RoiCalculatorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
 
-  const [inputs, setInputs] = useState(DEFAULT_INPUTS);
+  const [inputs, setInputs] = useState(getInitialInputs);
+  const [arrivedFromTco] = useState(() => {
+    const params = getIncomingParams();
+    return !!(params?.get("initialCost") || params?.get("recurringCost"));
+  });
   const [openTipId, setOpenTipId] = useState(null);
   const [showFte, setShowFte] = useState(false);
   const [showUpside, setShowUpside] = useState(false);
@@ -580,6 +601,12 @@ function RoiCalculatorInner() {
 
       {view === "calc" && (
       <div className="no-print">
+      {arrivedFromTco && (
+        <div style={{ background: "#F5F5F5", border: `1px solid ${GRAY_BORDER}`, borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#444" }}>
+          Initial and recurring AI cost pre-filled from your TCO Calculator results. Adjust the workload fields
+          below to see the full ROI case.
+        </div>
+      )}
       <div style={{
         ...styles.grid,
         gridTemplateColumns: isMobile ? "minmax(0,1fr)" : styles.grid.gridTemplateColumns,
