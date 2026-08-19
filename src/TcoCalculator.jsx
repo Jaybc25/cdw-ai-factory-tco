@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import cdwLogo from "./cdw-logo.png";
-import { AuthProvider, useAuth } from "./AuthContext";
+import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 
 /* ============ CLOUD RATES: per-GPU-hour LIST prices, by provider x GPU class ============
@@ -472,6 +472,18 @@ function AppInner() {
     [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelSize, quant, horizon, provider, ov]
   );
   const t = r.tot(horizon);
+
+  useAutosaveSnapshot("tco", inputsObj, {
+    savings: t.saveAdj,
+    cloudCost: t.cloud,
+    onPremCost: t.onAdj,
+    recommendedFleet: `${r.sysAdj} x ${ownSys}`,
+    horizonYears: horizon,
+    provider,
+    gpuClass,
+    monthlyBill: bill,
+  });
+
   // Minimum viable spend: smallest monthly bill where on-prem beats cloud at the selected horizon, current settings (spend-based path)
   const minViable = useMemo(() => {
     for (let b = 20000; b <= 2000000; b *= 1.1) {
