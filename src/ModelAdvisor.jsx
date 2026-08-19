@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { ChevronDown, X, ArrowRight } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
-import { AuthProvider } from "./AuthContext";
+import { AuthProvider, useAuth } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import {
   getCatalog, CATALOG_META, buildRecommendations, explainCard, explainVerificationCandidate, explainOtherEligible,
@@ -10,10 +10,6 @@ import {
 const RED = "#CC0000";
 const CHARCOAL = "#2D2D2D";
 
-// ---------------------------------------------------------------------------
-// Tooltip copy -- same rubric as the TCO/GPU sizing tools: <=2 sentences
-// core, what-it-is -> why/if-unsure, always resolves to an action.
-// ---------------------------------------------------------------------------
 const TIPS = {
   workload: (
     <div className="flex flex-col gap-2">
@@ -193,6 +189,10 @@ const CONFIDENCE_BADGE = {
   MEDIUM: { label: "Size-class estimate", color: "#a66a00" },
 };
 
+function labelFor(options, value) {
+  return options.find((o) => o.value === value)?.label || value;
+}
+
 function RecommendationCard({ card, ranking, inputs }) {
   const model = card.model;
   const conf = CONFIDENCE_BADGE[model.confidence] || CONFIDENCE_BADGE.MEDIUM;
@@ -221,10 +221,6 @@ function RecommendationCard({ card, ranking, inputs }) {
   );
 }
 
-// Lighter-weight card for eligible models that didn't win a slot -- same
-// core info (params, confidence, license, sizing link) as the featured
-// cards, but no badge row, so it reads as "also qualifies" rather than
-// implying it's a top pick.
 function OtherEligibleCard({ model, ranking }) {
   const conf = CONFIDENCE_BADGE[model.confidence] || CONFIDENCE_BADGE.MEDIUM;
   return (
@@ -247,11 +243,6 @@ function OtherEligibleCard({ model, ranking }) {
   );
 }
 
-// ─── cross-tool handoff: read incoming URL params on first render ────────────
-// Populated by Use Case Explorer's handoff links (?workloads=agentic,rag&
-// primary=agentic&sourceUseCase=retail-agentic-commerce). Falls back to the
-// existing defaults if no recognized params are present, so this is purely
-// additive -- a direct visit to /model-advisor behaves exactly as before.
 const VALID_WORKLOAD_VALUES = ["chat", "rag", "coding", "summarization", "agentic", "reasoning", "classification"];
 
 function getIncomingParams() {
@@ -280,6 +271,7 @@ function getInitialSourceUseCase() {
 }
 
 function ModelAdvisorInner() {
+  const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const catalog = useMemo(() => getCatalog(), []);
 
   const [checkedWorkloads, setCheckedWorkloads] = useState(getInitialCheckedWorkloads);
@@ -295,10 +287,14 @@ function ModelAdvisorInner() {
   const [dataSensitivity, setDataSensitivity] = useState("general");
   const [optimizationPriority, setOptimizationPriority] = useState("balanced");
 
+  const [view, setView] = useState("calc");
+  const [lead, setLead] = useState({ name: "", company: "", email: "" });
+  const [leadStatus, setLeadStatus] = useState("");
+
   function toggleWorkload(w) {
     setCheckedWorkloads((prev) => {
       const next = prev.includes(w) ? prev.filter((x) => x !== w) : [...prev, w];
-      if (next.length === 0) return prev; // must keep at least one
+      if (next.length === 0) return prev;
       if (!next.includes(primaryWorkload)) setPrimaryWorkload(next[0]);
       return next;
     });
@@ -316,8 +312,32 @@ function ModelAdvisorInner() {
 
   const showGovernanceNudge = (dataSensitivity === "regulated" || dataSensitivity === "air-gapped") && governance === "none";
 
+  function requestReport() {
+    if (isLoggedIn && !needsSetup && account) {
+      setLead({ name: account.name || "", company: account.company || "", email: account.email || "" });
+      logDownloadEvent("model-advisor", {
+        primaryWorkload,
+        workloads: checkedWorkloads.join(","),
+        topModel: result.cards[0]?.model.canonical_model_id || null,
+        qualityPriority,
+        optimizationPriority,
+      });
+      setView("report");
+    } else {
+      setView("gate");
+    }
+  }
+
+  function submitLead() {
+    if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) { setLeadStatus("Please enter a valid email address."); return; }
+    setLeadStatus("");
+    setView("report");
+  }
+
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>
       <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
         <a href="/" className="flex-shrink-0" aria-label="AI Factory Tools home">
           <img src={cdwLogo} alt="CDW" className="h-9 w-auto" />
@@ -326,13 +346,174 @@ function ModelAdvisorInner() {
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>Open-Weight Model Advisor</div>
         </div>
-        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.1</span>
+        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.2</span>
       </div>
 
-      <div className="border-b border-gray-100 px-6 py-2 flex items-center justify-end">
+      <div className="no-print border-b border-gray-100 px-6 py-2 flex items-center justify-end">
         <AuthWidget />
       </div>
 
+      {view === "gate" && (
+        <div className="max-w-lg mx-auto px-6 py-10">
+          <div className="rounded-xl border border-gray-200 p-6">
+            <div className="text-lg font-bold mb-1" style={{ color: CHARCOAL }}>Get the full model advisor report</div>
+            <div className="text-xs text-gray-500 mb-4">
+              The report includes your selected workloads, the recommended model(s) with ranking rationale,
+              licensing and deployment notes, and the next step for infrastructure sizing.
+            </div>
+            {["name", "company", "email"].map((f) => (
+              <input
+                key={f}
+                placeholder={f === "name" ? "Full name" : f === "company" ? "Company" : "Work email"}
+                value={lead[f]}
+                type={f === "email" ? "email" : "text"}
+                onChange={(e) => setLead({ ...lead, [f]: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm mb-2"
+              />
+            ))}
+            {leadStatus && <div className="text-xs mb-2" style={{ color: RED }}>{leadStatus}</div>}
+            <div className="flex gap-2 mt-2">
+              <button onClick={submitLead} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>
+                View my report
+              </button>
+              <button onClick={() => setView("calc")} className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">
+                Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {view === "report" && (
+        <div className="max-w-3xl mx-auto px-6 py-10">
+          <div className="no-print flex gap-2 mb-6">
+            <button onClick={() => window.print()} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>
+              Print / Save as PDF
+            </button>
+            <button onClick={() => setView("calc")} className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">
+              Back to advisor
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 mb-2">
+            <img src={cdwLogo} alt="CDW" className="h-8 w-auto" />
+            <div className="text-xs font-bold tracking-widest text-gray-500 uppercase">AI Factory &middot; Open-Weight Model Advisor Report</div>
+          </div>
+          <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>
+            Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}
+          </div>
+          <div className="text-xs text-gray-500 mb-6">
+            {new Date().toLocaleDateString()} &middot; {result.eligibleCount} of {result.totalCount} tracked models met stated requirements
+          </div>
+
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Selected workloads</div>
+          <div className="rounded-xl border border-gray-200 p-4 mb-6 text-sm" style={{ color: CHARCOAL }}>
+            <div className="flex flex-wrap gap-2 mb-2">
+              {checkedWorkloads.map((w) => (
+                <span
+                  key={w}
+                  className="text-xs font-semibold px-2.5 py-1 rounded-full"
+                  style={w === primaryWorkload ? { background: RED, color: "white" } : { background: "#F2F2F2", color: CHARCOAL }}
+                >
+                  {labelFor(WORKLOAD_OPTIONS, w)}{w === primaryWorkload ? " (primary)" : ""}
+                </span>
+              ))}
+            </div>
+            <p className="text-xs text-gray-500">Ranking is based on the primary workload, since a model strong at one task isn't necessarily strong at every task checked.</p>
+          </div>
+
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Requirements used</div>
+          <div className="rounded-xl border border-gray-200 p-4 mb-6 text-sm" style={{ color: CHARCOAL }}>
+            <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+              <div className="text-gray-500">Quality priority</div><div>{labelFor(QUALITY_OPTIONS, qualityPriority)}</div>
+              <div className="text-gray-500">Context window</div><div>{labelFor(CONTEXT_OPTIONS, contextWindow)}</div>
+              <div className="text-gray-500">Multimodal need</div><div>{labelFor(MULTIMODAL_OPTIONS, multimodal)}</div>
+              <div className="text-gray-500">License requirement</div><div>{labelFor(LICENSE_OPTIONS, license)}</div>
+              <div className="text-gray-500">Governance / origin</div><div>{labelFor(GOVERNANCE_OPTIONS, governance)}</div>
+              <div className="text-gray-500">Data sensitivity</div><div>{labelFor(SENSITIVITY_OPTIONS, dataSensitivity)}</div>
+              <div className="text-gray-500">Optimization priority</div><div>{labelFor(OPTIMIZATION_OPTIONS, optimizationPriority)}</div>
+            </div>
+          </div>
+
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Recommended model(s) &amp; ranking rationale</div>
+          {result.cards.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-gray-300 p-4 mb-6 text-sm text-gray-500">
+              No models met the stated requirements at the time this report was generated. Relax the license, governance, or context window filters and re-run.
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4 mb-6">
+              {result.cards.map((c) => (
+                <RecommendationCard key={c.model.canonical_model_id} card={c} ranking={result.ranking} inputs={inputs} />
+              ))}
+            </div>
+          )}
+
+          {result.otherEligible.length > 0 && (
+            <>
+              <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Other models meeting requirements</div>
+              <div className="rounded-xl border border-gray-200 p-4 mb-6 text-sm" style={{ color: CHARCOAL }}>
+                <div className="flex flex-col gap-1.5">
+                  {result.otherEligible.map((m) => {
+                    const conf = CONFIDENCE_BADGE[m.confidence] || CONFIDENCE_BADGE.MEDIUM;
+                    return (
+                      <div key={m.canonical_model_id} className="flex justify-between gap-3">
+                        <span className="font-semibold">{m.canonical_model_id}</span>
+                        <span className="text-gray-500 text-xs">
+                          {m.param_count_billion != null ? `${m.param_count_billion}B` : "unverified"} &middot;{" "}
+                          <span style={{ color: conf.color }}>{conf.label}</span> &middot; {m.license || "license unverified"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </>
+          )}
+
+          {result.verificationCandidates.length > 0 && (
+            <>
+              <div className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#8A5A00" }}>Potential matches requiring verification</div>
+              <div className="mb-6">
+                {result.verificationCandidates.map((m) => (
+                  <div key={m.canonical_model_id} className="rounded-xl border border-amber-300 bg-amber-50 p-4 mb-2 text-sm">
+                    <div className="font-bold mb-1" style={{ color: CHARCOAL }}>{m.canonical_model_id}</div>
+                    <div className="text-gray-600">{explainVerificationCandidate(m)}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Caveats</div>
+          <div className="text-xs text-gray-500 p-4 bg-gray-50 rounded-lg mb-6 leading-relaxed">
+            Model recommendations use periodically refreshed third-party benchmark and model metadata (specs synced{" "}
+            {new Date(CATALOG_META.specsSyncedAt).toLocaleDateString()}, capability scores synced{" "}
+            {new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()}). Verify licensing and deployment
+            requirements directly with the model provider before production use. This is a directional shortlist,
+            not a final vendor decision -- confirm with a CDW AI Factory specialist.
+          </div>
+
+          {result.cards[0] && (
+            <a
+              href={`/gpu-sizing?model=${encodeURIComponent(result.cards[0].model.canonical_model_id)}`}
+              className="no-print inline-flex items-center gap-1.5 text-sm font-bold justify-center py-2.5 px-5 rounded-lg mb-6"
+              style={{ background: CHARCOAL, color: "white" }}
+            >
+              Next: size infrastructure for {result.cards[0].model.canonical_model_id} <ArrowRight className="w-3.5 h-3.5" />
+            </a>
+          )}
+
+          <div className="border-t-2 pt-4 flex justify-between" style={{ borderColor: CHARCOAL }}>
+            <div>
+              <div className="text-sm font-bold" style={{ color: CHARCOAL }}>Jay B. Carlile</div>
+              <div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div>
+            </div>
+            <div className="text-xs text-gray-500 text-right">Next step: bring your actual<br />deployment constraints for a validated shortlist</div>
+          </div>
+        </div>
+      )}
+
+      {view === "calc" && (
       <div className="max-w-5xl mx-auto px-6 py-6">
         {sourceUseCase && (
           <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}>
@@ -443,9 +624,20 @@ function ModelAdvisorInner() {
                 ))}
               </div>
             )}
+
+            {result.cards.length > 0 && (
+              <button
+                onClick={requestReport}
+                className="mt-6 w-full text-sm font-bold py-2.5 rounded-lg text-white"
+                style={{ background: RED }}
+              >
+                Get the full report
+              </button>
+            )}
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
