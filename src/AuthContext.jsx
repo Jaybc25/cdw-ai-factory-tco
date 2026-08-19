@@ -84,11 +84,27 @@ export function AuthProvider({ children }) {
   async function logDownloadEvent(tool, keyInputs) {
     if (!session?.user?.id) return;
     try {
-      await supabase.from("download_events").insert({
-        account_id: session.user.id,
-        tool,
-        key_inputs: keyInputs,
-      });
+      const { data: insertedRow, error } = await supabase
+        .from("download_events")
+        .insert({
+          account_id: session.user.id,
+          tool,
+          key_inputs: keyInputs,
+        })
+        .select()
+        .single();
+      if (error) throw error;
+
+      // Fire the Slack notification directly from the client, rather than
+      // relying on a Supabase Database Webhook -- this project is hitting a
+      // known Supabase platform bug ("schema supabase_functions does not
+      // exist") that blocks database-triggered webhooks entirely. Calling
+      // the same Edge Function directly sidesteps it. Best-effort: a failed
+      // notification should never block the download the user actually asked
+      // for, so this failure is only logged, never surfaced to the user.
+      supabase.functions
+        .invoke("bright-endpoint", { body: { record: insertedRow } })
+        .catch((err) => console.error("Failed to send download notification:", err));
     } catch (err) {
       console.error("Failed to log download event:", err);
     }
