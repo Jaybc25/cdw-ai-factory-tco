@@ -352,7 +352,7 @@ function AiReadinessChecklistsInner() {
 
               <div style={{ marginTop: 20 }}>
                 {!emailOpen && !emailDone && (
-                  <button className="no-print" style={S.primaryBtn} onClick={requestSummary}>Get my readiness summary</button>
+                  <button className="no-print" style={S.primaryBtn} onClick={requestSummary}>Get my full readiness report</button>
                 )}
                 {emailOpen && !emailDone && (
                   <div className="no-print" style={{ maxWidth: 420 }}>
@@ -374,17 +374,91 @@ function AiReadinessChecklistsInner() {
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                       <img src={cdwLogo} alt="CDW" style={{ height: 30, width: "auto" }} />
-                      <div style={{ fontSize: 10, letterSpacing: 1.5, color: C.slate, textTransform: "uppercase" }}>AI Factory &middot; Readiness Assessment Summary</div>
+                      <div style={{ fontSize: 10, letterSpacing: 1.5, color: C.slate, textTransform: "uppercase" }}>AI Factory &middot; Readiness Assessment Report</div>
                     </div>
                     <div style={{ fontSize: 19, fontWeight: 800, margin: "4px 0 2px" }}>
                       Prepared for {emailForm.name || "you"}{emailForm.company ? `, ${emailForm.company}` : ""}
                     </div>
                     <div style={{ fontSize: 12, color: C.slate, marginBottom: 14 }}>{new Date().toLocaleDateString()}</div>
-                    <pre style={{ ...S.expand, whiteSpace: "pre-wrap", fontFamily: "inherit" }}>{summaryText}</pre>
+
+                    <div style={{ ...S.card, marginBottom: 22 }}>
+                      <p style={{ fontWeight: 800, margin: "0 0 10px", fontSize: 14 }}>At a glance</p>
+                      {checklistData.doors.map((d) => {
+                        const comp = completionOf(d, routes, answers);
+                        const readiness = readinessOf(d, routes, answers);
+                        const label = comp.state === "complete" && readiness ? readiness.label
+                          : comp.state === "in_progress" ? `In progress (${comp.answered} of ${comp.total})`
+                          : "Not started";
+                        return (
+                          <div key={d.id} style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${C.line}`, fontSize: 13.5 }}>
+                            <span>{d.label}</span>
+                            <span style={{ fontWeight: 700, color: STATUS_COLORS[label] || C.slate }}>{label}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {checklistData.doors.map((d) => {
+                      const comp = completionOf(d, routes, answers);
+                      if (comp.state === "not_started") return null;
+                      const branch = comp.branch;
+                      const items = branch.items.map(itemById);
+                      const readiness = readinessOf(d, routes, answers);
+                      return (
+                        <div key={d.id} style={{ marginBottom: 26, breakInside: "avoid" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", borderBottom: `2px solid ${C.charcoal}`, paddingBottom: 6, marginBottom: 10 }}>
+                            <p style={{ fontSize: 16, fontWeight: 800, margin: 0 }}>{d.label}: {branch.label}</p>
+                            {comp.state === "complete" && readiness
+                              ? <span style={S.statusChip(STATUS_COLORS[readiness.label] || C.slate)}>{readiness.label}</span>
+                              : <span style={S.statusChip(C.blue)}>{comp.answered} of {comp.total} reviewed</span>}
+                          </div>
+                          {items.map((it) => {
+                            const val = answers[it.id];
+                            const flagged = val === "needs_attention" || val === "dont_know";
+                            const tone = val === "in_place" ? C.greenOk : val === "needs_attention" ? C.red : val === "dont_know" ? C.amber : C.slate;
+                            return (
+                              <div key={it.id} style={{ padding: "9px 0", borderBottom: `1px solid ${C.line}` }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
+                                  <span style={{ fontSize: 13.5, lineHeight: 1.4 }}>{it.text}</span>
+                                  <span style={{ fontSize: 12, fontWeight: 700, color: tone, whiteSpace: "nowrap" }}>
+                                    {val ? STATE_LABELS[val] : "Not yet answered"}
+                                  </span>
+                                </div>
+                                {flagged && (
+                                  <p style={{ fontSize: 12, color: C.slate, margin: "5px 0 0", lineHeight: 1.5 }}>
+                                    {it.why_it_matters} <span style={{ fontStyle: "italic" }}>Typical owner(s): {it.typical_owners.join(", ")}.</span>
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })}
+
+                    {steps.length > 0 && (
+                      <div style={{ ...S.card, marginBottom: 20 }}>
+                        <p style={{ fontWeight: 800, margin: "0 0 8px", fontSize: 14 }}>Suggested next steps</p>
+                        <ol style={{ margin: 0, paddingLeft: 20 }}>
+                          {steps.map((st, i) => (
+                            <li key={i} style={{ marginBottom: 6, fontSize: 13.5, lineHeight: 1.5 }}>{st.step}</li>
+                          ))}
+                        </ol>
+                      </div>
+                    )}
+
                     <p style={{ color: C.slate, fontSize: 12.5, marginTop: 8 }}>
                       This assessment reflects your own answers and organizes the gaps -- it doesn't certify, validate,
                       or verify anything, and isn't legal or compliance advice. Confirm with a CDW AI Factory specialist.
                     </p>
+
+                    <div style={{ borderTop: `2px solid ${C.charcoal}`, marginTop: 18, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>Jay B. Carlile</div>
+                        <div style={{ fontSize: 11, color: C.slate }}>AI Solutions Executive &middot; CDW AI Factory</div>
+                      </div>
+                      <div style={{ fontSize: 11, color: C.slate, textAlign: "right" }}>Next step: bring these gaps to<br />a CDW AI Factory specialist</div>
+                    </div>
                   </div>
                 )}
               </div>
