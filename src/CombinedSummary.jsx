@@ -30,6 +30,7 @@ function fmtValue(key, value) {
   if (value == null) return "—";
   if (typeof value === "number") {
     const k = key.toLowerCase();
+    if (k === "payback") return `${value} months`;
     if ((k.includes("pct") || k.includes("roi")) && Math.abs(value) <= 5) {
       return `${(value * 100).toFixed(1)}%`;
     }
@@ -41,10 +42,21 @@ function fmtValue(key, value) {
   return String(value);
 }
 
+// Known acronyms get their own casing rather than the generic
+// first-letter-capitalized treatment ("Gpu" -> "GPU", "Roi" -> "ROI").
+const ACRONYMS = ["GPU", "ROI", "AI", "TCO", "FTE"];
+
 function labelize(key) {
-  return key
+  const spaced = key
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/^./, (c) => c.toUpperCase());
+  return spaced
+    .split(" ")
+    .map((word) => {
+      const upper = word.toUpperCase();
+      return ACRONYMS.includes(upper) ? upper : word;
+    })
+    .join(" ");
 }
 
 function CombinedSummaryInner() {
