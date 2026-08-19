@@ -18,140 +18,401 @@ const GRAY_TEXT = "#595959";
 const BG = "#FFFFFF";
 
 const styles = {
-  page: { background: BG, minHeight: "100vh", fontFamily: "'Inter', system-ui, sans-serif", padding: "0 24px 48px", color: CHARCOAL },
-  header: { display: "flex", alignItems: "center", gap: 16, padding: "24px 0", marginBottom: 24, borderBottom: `1px solid ${GRAY_BORDER}` },
-  eyebrow: { fontSize: 11, fontWeight: 700, letterSpacing: 1, color: RED, textTransform: "uppercase" },
-  title: { fontSize: 20, fontWeight: 700, color: CHARCOAL, margin: 0 },
-  versionPill: { fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 6, background: RED, color: "#fff", whiteSpace: "nowrap" },
-  logoWordmark: { fontSize: 22, fontWeight: 800, color: RED, letterSpacing: -0.5 },
+  page: {
+    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+    background: BG,
+    color: CHARCOAL,
+    maxWidth: 1100,
+    margin: "0 auto",
+    padding: "0 16px 48px",
+  },
+  header: {
+    display: "flex",
+    alignItems: "center",
+    gap: 12,
+    borderBottom: `1px solid ${GRAY_BORDER}`,
+    padding: "20px 0",
+    marginBottom: 24,
+    flexWrap: "wrap",
+  },
+  logoWordmark: {
+    fontWeight: 800,
+    fontSize: 20,
+    color: RED,
+    letterSpacing: "-0.02em",
+  },
+  eyebrow: {
+    color: RED,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: 700,
+    margin: "2px 0 0",
+    color: CHARCOAL,
+  },
+  versionPill: {
+    marginLeft: "auto",
+    background: RED,
+    color: "#fff",
+    fontSize: 11,
+    fontWeight: 700,
+    padding: "4px 10px",
+    borderRadius: 999,
+    letterSpacing: "0.03em",
+  },
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "minmax(0,1.1fr) minmax(0,0.9fr)",
+    gap: 24,
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionHeader: {
+    background: RED,
+    color: "#fff",
+    fontSize: 12,
+    fontWeight: 700,
+    letterSpacing: "0.04em",
+    textTransform: "uppercase",
+    padding: "8px 12px",
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  field: {
+    marginBottom: 14,
+  },
+  fieldLabelRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 4,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: 600,
+    color: CHARCOAL,
+  },
+  inputRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    border: `1px solid ${GRAY_BORDER}`,
+    borderRadius: 6,
+    padding: "8px 10px",
+    fontSize: 14,
+    fontFamily: "inherit",
+    color: CHARCOAL,
+    background: "#fff",
+  },
+  inputError: {
+    borderColor: RED,
+  },
+  unit: {
+    fontSize: 12,
+    color: GRAY_TEXT,
+    minWidth: 48,
+  },
+  errorText: {
+    fontSize: 11,
+    color: RED,
+    marginTop: 3,
+  },
+  tipDot: {
+    width: 16,
+    height: 16,
+    borderRadius: "50%",
+    border: `1.5px solid ${RED}`,
+    color: RED,
+    fontSize: 10,
+    fontWeight: 700,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    background: "#fff",
+    flexShrink: 0,
+  },
+  tipBackdrop: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.4)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1000,
+    padding: 20,
+  },
+  tipCard: {
+    background: "#fff",
+    border: `1.5px solid ${RED}`,
+    borderRadius: 10,
+    padding: 18,
+    maxWidth: 360,
+    boxShadow: "0 12px 32px rgba(0,0,0,0.2)",
+    position: "relative",
+  },
+  tipClose: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: "50%",
+    border: "none",
+    background: "#f2f2f2",
+    color: CHARCOAL,
+    fontSize: 14,
+    cursor: "pointer",
+  },
+  tipText: {
+    fontSize: 13,
+    lineHeight: 1.5,
+    color: CHARCOAL,
+    paddingRight: 20,
+  },
+  resultsCard: {
+    background: CHARCOAL,
+    borderRadius: 12,
+    padding: 20,
+    color: "#fff",
+    position: "sticky",
+    top: 16,
+  },
+  resultsSectionHeader: {
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    color: "#F5A3A3",
+    borderBottom: "1px solid rgba(255,255,255,0.15)",
+    paddingBottom: 6,
+    marginBottom: 10,
+    marginTop: 18,
+  },
+  resultRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginBottom: 8,
+    gap: 10,
+  },
+  resultLabel: {
+    fontSize: 13,
+    color: "rgba(255,255,255,0.85)",
+  },
+  resultLabelSecondary: {
+    fontSize: 12,
+    color: "rgba(255,255,255,0.55)",
+    fontStyle: "italic",
+  },
+  resultValue: {
+    fontSize: 15,
+    fontWeight: 700,
+    whiteSpace: "nowrap",
+  },
+  resultValueSecondary: {
+    fontSize: 13,
+    fontWeight: 500,
+    color: "rgba(255,255,255,0.6)",
+    whiteSpace: "nowrap",
+  },
+  headlineValue: {
+    fontSize: 30,
+    fontWeight: 800,
+    borderBottom: `3px solid ${RED}`,
+    display: "inline-block",
+    paddingBottom: 2,
+  },
+  note: {
+    fontSize: 11,
+    color: "rgba(255,255,255,0.55)",
+    lineHeight: 1.5,
+    marginTop: 4,
+  },
+  guardrail: {
+    marginTop: 20,
+    padding: 12,
+    border: `1px solid ${RED}`,
+    borderRadius: 8,
+    fontSize: 12,
+    fontStyle: "italic",
+    fontWeight: 600,
+    color: RED,
+    lineHeight: 1.5,
+  },
+  expandToggle: {
+    background: "none",
+    border: "none",
+    color: "#F5A3A3",
+    fontSize: 12,
+    cursor: "pointer",
+    padding: 0,
+    marginBottom: 8,
+    textDecoration: "underline",
+  },
+  guardText: {
+    fontSize: 13,
+    fontWeight: 700,
+    color: "#F5A3A3",
+  },
 };
 
-function fmtInt(n) {
-  return Math.round(n).toLocaleString();
-}
-function fmtUsd(n) {
-  const abs = Math.abs(n);
-  if (abs >= 1e6) return `${n < 0 ? "-" : ""}$${(abs / 1e6).toFixed(2)}M`;
-  return `${n < 0 ? "-" : ""}$${Math.round(abs).toLocaleString()}`;
-}
-function fmtPct(n) {
-  return `${(n * 100).toFixed(0)}%`;
-}
+// ---------------------------------------------------------------------------
+// TipDot / TipBox — modal tooltip, matches the GPU Sizing Tool's v1.6 pattern:
+// closes on any tap outside the card (document pointerdown, capture phase),
+// Escape key, or the close button. Not backdrop-geometry dependent.
+// ---------------------------------------------------------------------------
+function TipDot({ id, text, openTipId, setOpenTipId }) {
+  const cardRef = useRef(null);
+  const isOpen = openTipId === id;
 
-function TipDot({ tip }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
   useEffect(() => {
-    if (!open) return;
-    function onOutside(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    if (!isOpen) return;
+    function handlePointerDown(e) {
+      if (cardRef.current && !cardRef.current.contains(e.target)) {
+        setOpenTipId(null);
+      }
     }
-    function onKey(e) {
-      if (e.key === "Escape") setOpen(false);
+    function handleKey(e) {
+      if (e.key === "Escape") setOpenTipId(null);
     }
-    document.addEventListener("pointerdown", onOutside, true);
-    document.addEventListener("keydown", onKey);
+    document.addEventListener("pointerdown", handlePointerDown, true);
+    document.addEventListener("keydown", handleKey);
     return () => {
-      document.removeEventListener("pointerdown", onOutside, true);
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("pointerdown", handlePointerDown, true);
+      document.removeEventListener("keydown", handleKey);
     };
-  }, [open]);
+  }, [isOpen, setOpenTipId]);
+
   return (
-    <span style={{ position: "relative", display: "inline-block", marginLeft: 6 }}>
+    <>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
         aria-label="More info"
-        style={{ width: 16, height: 16, borderRadius: 8, border: `1.5px solid ${RED}`, background: "transparent", color: RED, fontSize: 10, fontWeight: 700, lineHeight: "14px", padding: 0, cursor: "pointer" }}
+        style={styles.tipDot}
+        onClick={() => setOpenTipId(isOpen ? null : id)}
       >
         ?
       </button>
-      {open && (
-        <div ref={ref} style={{ position: "absolute", zIndex: 30, top: 22, left: 0, width: 260, background: "#fff", border: `1.5px solid ${RED}`, borderRadius: 10, padding: 12, fontSize: 12, color: CHARCOAL, boxShadow: "0 8px 24px rgba(0,0,0,0.15)" }}>
-          {tip}
-        </div>
+      {isOpen && typeof document !== "undefined" && createPortal(
+        <div style={styles.tipBackdrop}>
+          <div ref={cardRef} style={styles.tipCard}>
+            <button
+              type="button"
+              aria-label="Close"
+              style={styles.tipClose}
+              onClick={() => setOpenTipId(null)}
+            >
+              ×
+            </button>
+            <div style={styles.tipText}>{text}</div>
+          </div>
+        </div>,
+        document.body
       )}
-    </span>
+    </>
   );
 }
 
-function Field({ label, tip, children }) {
+// ---------------------------------------------------------------------------
+// Field — a labeled, bounded input with an optional tooltip and inline error
+// ---------------------------------------------------------------------------
+function Field({
+  label, unit, value, onChange, error, tip, id, openTipId, setOpenTipId,
+  step = "any", isPercent = false,
+}) {
+  const displayValue = isPercent && value !== "" ? value * 100 : value;
+  const handleChange = (e) => {
+    const raw = e.target.value;
+    if (raw === "") { onChange(""); return; }
+    const num = Number(raw);
+    onChange(isPercent ? num / 100 : num);
+  };
   return (
-    <div style={{ marginBottom: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", fontSize: 13, fontWeight: 600, color: CHARCOAL, marginBottom: 4 }}>
-        {label}
-        {tip && <TipDot tip={tip} />}
+    <div style={styles.field}>
+      <div style={styles.fieldLabelRow}>
+        <span style={styles.fieldLabel}>{label}</span>
+        {tip && <TipDot id={id} text={tip} openTipId={openTipId} setOpenTipId={setOpenTipId} />}
       </div>
-      {children}
+      <div style={styles.inputRow}>
+        <input
+          type="number"
+          step={step}
+          style={{ ...styles.input, ...(error ? styles.inputError : {}) }}
+          value={displayValue}
+          onChange={handleChange}
+        />
+        <span style={styles.unit}>{unit}</span>
+      </div>
+      {error && <div style={styles.errorText}>{error}</div>}
     </div>
   );
 }
 
-function NumberField({ value, onChange, unit, min, max }) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <input
-        type="number"
-        value={value}
-        min={min}
-        max={max}
-        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        style={{ flex: 1, border: `1px solid ${GRAY_BORDER}`, borderRadius: 8, padding: "9px 12px", fontSize: 14, color: CHARCOAL }}
-      />
-      {unit && <span style={{ fontSize: 12, color: GRAY_TEXT }}>{unit}</span>}
-    </div>
-  );
-}
+// ---------------------------------------------------------------------------
+// Formatting helpers
+// ---------------------------------------------------------------------------
+const fmtCurrency = (v) => v == null ? NA_TEXT :
+  `$${excelRound(v, 0).toLocaleString("en-US")}`;
+const fmtHours = (v) => v == null ? NA_TEXT :
+  `${excelRound(v, 0).toLocaleString("en-US")} hrs/yr`;
+const fmtPercent = (v) => v == null ? NA_TEXT : `${(v * 100).toFixed(1)}%`;
+const fmtMonths = (v) => v == null ? PAYBACK_GUARD_TEXT : `${v.toFixed(1)} months`;
+const fmtFte = (v) => v == null ? NA_TEXT : `~${v.toFixed(1)} FTE-years`;
 
-function SectionHeader({ children }) {
-  return (
-    <div style={{ background: RED, color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: 0.3, padding: "10px 16px", borderRadius: 8, marginBottom: 16, textTransform: "uppercase" }}>
-      {children}
-    </div>
-  );
-}
-
-function CapacityPanel({ inputs, engine }) {
-  return (
-    <div style={{ background: CHARCOAL, color: "#fff", borderRadius: 12, padding: 16, minWidth: 220 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: "#ABABAB", textTransform: "uppercase", marginBottom: 4 }}>Capacity (current state)</div>
-      <div style={{ fontSize: 28, fontWeight: 700 }}>{fmtInt(engine.grossCapacity)}</div>
-      <div style={{ fontSize: 11, color: "#ABABAB" }}>gross capacity (tasks/yr)</div>
-    </div>
-  );
-}
-
-function ResultTile({ label, value, sub }) {
-  return (
-    <div style={{ background: "#F7F7F7", borderRadius: 10, padding: 14, flex: 1, minWidth: 160 }}>
-      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 0.6, color: GRAY_TEXT, textTransform: "uppercase", marginBottom: 4 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 700, color: CHARCOAL }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: GRAY_TEXT, marginTop: 2 }}>{sub}</div>}
-    </div>
-  );
-}
-
-function AppInner() {
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
+function RoiCalculatorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
 
   const [inputs, setInputs] = useState(DEFAULT_INPUTS);
+  const [openTipId, setOpenTipId] = useState(null);
+  const [showFte, setShowFte] = useState(false);
+  const [showUpside, setShowUpside] = useState(false);
   const [view, setView] = useState("calc");
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches
+  );
 
-  const isMobile = false;
-  const set = (key) => (val) => setInputs((prev) => ({ ...prev, [key]: val }));
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const mq = window.matchMedia("(max-width: 720px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener?.("change", update);
+    return () => mq.removeEventListener?.("change", update);
+  }, []);
+
   const errors = useMemo(() => validateInputs(inputs), [inputs]);
-  const engine = useMemo(() => (errors.length ? null : computeEngine(inputs)), [inputs, errors]);
+  const hasErrors = Object.keys(errors).length > 0;
+  const engine = useMemo(
+    () => (hasErrors ? null : computeEngine(inputs)),
+    [inputs, hasErrors]
+  );
+
+  const set = (key) => (val) => setInputs((prev) => ({ ...prev, [key]: val }));
 
   function requestReport() {
     if (isLoggedIn && !needsSetup && account) {
       setLead({ name: account.name || "", company: account.company || "", email: account.email || "" });
       logDownloadEvent("roi", {
-        peoplePerformingTask: inputs.peoplePerformingTask,
-        tasksPerPersonPerDay: inputs.tasksPerPersonPerDay,
-        annualSavings: engine?.annualSavings ?? null,
-        paybackMonths: engine?.paybackMonths ?? null,
+        people: inputs.people,
+        tasksPerDay: inputs.tasksPerDay,
+        reductionPct: inputs.reductionPct,
+        year1Net: engine?.year1Net ?? null,
+        horizonROI: engine?.horizonROI ?? null,
+        payback: engine?.payback ?? null,
       });
       setView("report");
     } else {
@@ -185,6 +446,8 @@ function AppInner() {
         <span style={{
           ...styles.versionPill,
           marginLeft: isMobile ? 0 : "auto",
+          flexBasis: isMobile ? "100%" : "auto",
+          width: isMobile ? "fit-content" : "auto",
         }}>PROTOTYPE v1.0</span>
       </div>
 
@@ -197,7 +460,8 @@ function AppInner() {
           <div style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 12, padding: 24 }}>
             <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4, color: CHARCOAL }}>Get the full ROI report</div>
             <div style={{ fontSize: 12, color: GRAY_TEXT, marginBottom: 16 }}>
-              The report includes the full scenario economics -- capacity, savings, payback -- as an executive-summary-ready artifact.
+              The report includes the full scenario economics -- capacity created, its economic value, and the
+              investment result -- as an executive-summary-ready artifact.
             </div>
             {["name", "company", "email"].map((f) => (
               <input
@@ -242,33 +506,46 @@ function AppInner() {
           </div>
           <div style={{ fontSize: 12, color: GRAY_TEXT, marginBottom: 16 }}>{new Date().toLocaleDateString()}</div>
 
-          <div style={{ background: engine.annualSavings > 0 ? "#FBEAEA" : "#F1F1F1", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: RED, textTransform: "uppercase" }}>Annual Savings</div>
-            <div style={{ fontSize: 30, fontWeight: 700, color: RED }}>{fmtUsd(engine.annualSavings)}</div>
+          <div style={{ background: "#FBEAEA", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: RED, textTransform: "uppercase" }}>Year 1 Net Benefit</div>
+            <div style={{ fontSize: 30, fontWeight: 700, color: RED }}>{fmtCurrency(engine.year1Net)}</div>
             <div style={{ fontSize: 12, color: CHARCOAL }}>
-              Payback: {engine.paybackMonths != null ? `${excelRound(engine.paybackMonths)} months` : PAYBACK_GUARD_TEXT}
+              Payback: {fmtMonths(engine.payback)} &middot; {inputs.horizonYears}-yr ROI: {fmtPercent(engine.horizonROI)}
             </div>
           </div>
 
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: GRAY_TEXT, textTransform: "uppercase", marginBottom: 8 }}>Scenario inputs</div>
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: GRAY_TEXT, textTransform: "uppercase", marginBottom: 8 }}>Capacity created</div>
           <div style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 10, padding: 14, marginBottom: 16, fontSize: 13, color: CHARCOAL }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 6, columnGap: 12 }}>
-              <div style={{ color: GRAY_TEXT }}>People performing this task</div><div>{fmtInt(inputs.peoplePerformingTask)}</div>
-              <div style={{ color: GRAY_TEXT }}>Tasks per person per working day</div><div>{inputs.tasksPerPersonPerDay}</div>
+              <div style={{ color: GRAY_TEXT }}>Gross capacity created</div><div>{fmtHours(engine.grossCapacity)}</div>
+              <div style={{ color: GRAY_TEXT }}>Productively redeployable</div><div>{fmtHours(engine.redeployableCapacity)}</div>
+              <div style={{ color: GRAY_TEXT }}>FTE-equivalent</div><div>{fmtFte(engine.fteEquivalent)}</div>
+            </div>
+            <div style={{ fontSize: 11, color: GRAY_TEXT, marginTop: 8 }}>Capacity created, not a staffing recommendation.</div>
+          </div>
+
+          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: GRAY_TEXT, textTransform: "uppercase", marginBottom: 8 }}>Economic value &amp; investment result</div>
+          <div style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 10, padding: 14, marginBottom: 16, fontSize: 13, color: CHARCOAL }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 6, columnGap: 12 }}>
+              <div style={{ color: GRAY_TEXT }}>Steady-state economic value</div><div>{fmtCurrency(engine.steadyStateValue)}/yr</div>
+              <div style={{ color: GRAY_TEXT }}>Year 1 realized value (ramped)</div><div>{fmtCurrency(engine.year1Value)}/yr</div>
+              <div style={{ color: GRAY_TEXT }}>Year 1 net benefit</div><div>{fmtCurrency(engine.year1Net)}</div>
+              <div style={{ color: GRAY_TEXT }}>{inputs.horizonYears}-yr horizon net benefit</div><div>{fmtCurrency(engine.horizonNet)}</div>
+              <div style={{ color: GRAY_TEXT }}>{inputs.horizonYears}-yr horizon ROI</div><div>{fmtPercent(engine.horizonROI)}</div>
+              <div style={{ color: GRAY_TEXT }}>Estimated payback period</div><div>{fmtMonths(engine.payback)}</div>
             </div>
           </div>
 
-          <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: GRAY_TEXT, textTransform: "uppercase", marginBottom: 8 }}>Capacity &amp; economics</div>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 16 }}>
-            <ResultTile label="Gross capacity" value={fmtInt(engine.grossCapacity)} sub="tasks/yr, current state" />
-            {engine.hoursSavedAnnual != null && <ResultTile label="Hours saved / yr" value={fmtInt(engine.hoursSavedAnnual)} />}
-            {engine.roiPct != null && <ResultTile label="ROI" value={fmtPct(engine.roiPct)} />}
+          <div style={{ ...styles.guardrail, marginBottom: 16 }}>
+            These results represent capacity created and its economic value, not headcount reduction. No output in
+            this report should be read as a staffing recommendation.
           </div>
 
           <div style={{ fontSize: 11, color: GRAY_TEXT, padding: 14, background: "#F7F7F7", borderRadius: 10, marginBottom: 16, lineHeight: 1.5 }}>
-            This is a directional scenario model based on the inputs above, not a validated business case. Actual
-            savings depend on real adoption rates, task complexity, and change-management execution. Confirm with a
-            CDW AI Factory specialist before using these figures in a formal business case.
+            This is a directional scenario model based on the inputs shown, not a validated business case. Loaded
+            cost/hr is a proxy for the value of usable capacity, not an assertion that payroll expense drops. Actual
+            results depend on real adoption, task complexity, and change-management execution. Confirm with a CDW
+            AI Factory specialist before using these figures in a formal business case.
           </div>
 
           <div style={{ borderTop: `2px solid ${CHARCOAL}`, marginTop: 8, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
@@ -282,45 +559,213 @@ function AppInner() {
       )}
 
       {view === "calc" && (
-      <>
-      <SectionHeader>Workload (current state)</SectionHeader>
-      <div style={{ display: "flex", gap: 24, flexWrap: "wrap", marginBottom: 32 }}>
-        <div style={{ flex: 2, minWidth: 280 }}>
-          <Field label="People performing this task" tip="How many people currently do this task, at least part of their role.">
-            <NumberField value={inputs.peoplePerformingTask} onChange={set("peoplePerformingTask")} unit="count" min={BOUNDS.peoplePerformingTask?.min} max={BOUNDS.peoplePerformingTask?.max} />
-          </Field>
-          <Field label="Tasks per person per working day" tip="How many times one person completes this task on a typical working day.">
-            <NumberField value={inputs.tasksPerPersonPerDay} onChange={set("tasksPerPersonPerDay")} min={BOUNDS.tasksPerPersonPerDay?.min} max={BOUNDS.tasksPerPersonPerDay?.max} />
-          </Field>
-        </div>
-        {engine && <CapacityPanel inputs={inputs} engine={engine} />}
-      </div>
-
-      {errors.length > 0 ? (
-        <div style={{ background: "#FBEAEA", border: "1px solid #CC0000", borderRadius: 10, padding: 16, marginBottom: 24 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: RED, marginBottom: 6, textTransform: "uppercase" }}>Fix these before continuing</div>
-          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 13, color: CHARCOAL }}>
-            {errors.map((e, i) => <li key={i}>{e}</li>)}
-          </ul>
-        </div>
-      ) : engine && (
-        <>
-          <SectionHeader>Results</SectionHeader>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 24 }}>
-            <ResultTile label="Annual savings" value={fmtUsd(engine.annualSavings)} />
-            <ResultTile label="Payback" value={engine.paybackMonths != null ? `${excelRound(engine.paybackMonths)} mo` : NA_TEXT} />
-            {engine.hoursSavedAnnual != null && <ResultTile label="Hours saved / yr" value={fmtInt(engine.hoursSavedAnnual)} />}
+      <div className="no-print">
+      <div style={{
+        ...styles.grid,
+        gridTemplateColumns: isMobile ? "minmax(0,1fr)" : styles.grid.gridTemplateColumns,
+        gap: isMobile ? 16 : styles.grid.gap,
+      }}>
+        {/* ---------------- INPUTS COLUMN ---------------- */}
+        <div>
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>Workload (current state)</div>
+            <Field id="people" openTipId={openTipId} setOpenTipId={setOpenTipId} label="People performing this task" unit="count"
+              value={inputs.people} onChange={set("people")} error={errors.people}
+              tip="Employees whose work includes this task today." />
+            <Field id="tasksPerDay" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Tasks per person per working day" unit="tasks/day"
+              value={inputs.tasksPerDay} onChange={set("tasksPerDay")} error={errors.tasksPerDay}
+              tip="Average, not peak." />
+            <Field id="workingDays" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Working days per year" unit="days" step="1"
+              value={inputs.workingDays} onChange={set("workingDays")} error={errors.workingDays}
+              tip="Excludes weekends/holidays/PTO if you want a realistic base." />
+            <Field id="minutesPerTask" openTipId={openTipId} setOpenTipId={setOpenTipId} label="End-to-end minutes per task (before AI)" unit="minutes"
+              value={inputs.minutesPerTask} onChange={set("minutesPerTask")} error={errors.minutesPerTask}
+              tip="Total time for the whole task today, start to finish." />
+            <Field id="loadedCost" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Loaded cost per hour" unit="$/hr"
+              value={inputs.loadedCost} onChange={set("loadedCost")} error={errors.loadedCost}
+              tip="Fully loaded (salary + benefits + overhead), not base wage alone." />
           </div>
 
-          <button
-            onClick={requestReport}
-            style={{ width: "100%", fontWeight: 700, fontSize: 15, padding: 14, borderRadius: 10, border: "none", cursor: "pointer", background: RED, color: "#fff" }}
-          >
-            Get the full ROI report
-          </button>
-        </>
-      )}
-      </>
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>AI Impact</div>
+            <Field id="reductionPct" openTipId={openTipId} setOpenTipId={setOpenTipId} label="AI time reduction" unit="%" isPercent
+              value={inputs.reductionPct} onChange={set("reductionPct")} error={errors.reductionPct}
+              tip="The % drop in the TOTAL task time, start to finish — not just the AI-assisted sub-step. A 50% faster research step inside a 30-minute task is not a 50% faster task; convert to end-to-end % first." />
+            <Field id="adoptionPct" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Adoption rate" unit="%" isPercent
+              value={inputs.adoptionPct} onChange={set("adoptionPct")} error={errors.adoptionPct}
+              tip="Share of this task's volume actually run through the AI workflow." />
+            <Field id="realizationPct" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Productive redeployment realization" unit="%" isPercent
+              value={inputs.realizationPct} onChange={set("realizationPct")} error={errors.realizationPct}
+              tip="Of the capacity created, the % expected to be productively used elsewhere (vs. absorbed as slack). One combined field by design." />
+            <Field id="rampPct" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Year 1 benefit realization / ramp" unit="%" isPercent
+              value={inputs.rampPct} onChange={set("rampPct")} error={errors.rampPct}
+              tip="Share of steady-state benefit actually realized in Year 1, to account for implementation and rollout time. Default 100% = no ramp assumed. Years 2+ are always full steady state." />
+          </div>
+
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>AI Cost</div>
+            <Field id="initialCost" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Initial implementation cost" unit="$"
+              value={inputs.initialCost} onChange={set("initialCost")} error={errors.initialCost}
+              tip="One-time: integration, deployment, change management." />
+            <Field id="recurringCost" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Annual recurring AI cost" unit="$/yr"
+              value={inputs.recurringCost} onChange={set("recurringCost")} error={errors.recurringCost}
+              tip="Licensing, API/compute spend, ongoing support/ops." />
+          </div>
+
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>Optional / Advanced</div>
+            <Field id="upliftPerHr" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Redeployment value uplift (illustrative only)" unit="$/hr"
+              value={inputs.upliftPerHr} onChange={set("upliftPerHr")} error={errors.upliftPerHr}
+              tip="Value differential if redeployed time moves to higher-value work. Defaults to $0 and stays out of the headline ROI. Softest number in the model — don't let it carry the pitch." />
+          </div>
+
+          <div style={styles.section}>
+            <div style={styles.sectionHeader}>Analysis Settings</div>
+            <Field id="horizonYears" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Analysis horizon" unit="years" step="1"
+              value={inputs.horizonYears} onChange={set("horizonYears")} error={errors.horizonYears} />
+            <Field id="hoursPerWorkday" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Hours per workday (FTE basis)" unit="hrs/day"
+              value={inputs.hoursPerWorkday} onChange={set("hoursPerWorkday")} error={errors.hoursPerWorkday}
+              tip="Used only to express capacity as an FTE-equivalent (secondary detail), never as a staffing recommendation." />
+          </div>
+        </div>
+
+        {/* ---------------- RESULTS COLUMN ---------------- */}
+        <div>
+          <div style={{
+            ...styles.resultsCard,
+            position: isMobile ? "static" : "sticky",
+            top: isMobile ? "auto" : styles.resultsCard.top,
+            padding: isMobile ? 16 : styles.resultsCard.padding,
+          }}>
+            {hasErrors || !engine ? (
+              <div style={styles.guardText}>
+                Fix the highlighted inputs to see results.
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.55)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                  Capacity Created — Operational Result
+                </div>
+                <div style={{ marginTop: 10 }}>
+                  <span style={{ ...styles.headlineValue, fontSize: isMobile ? 26 : styles.headlineValue.fontSize }}>{fmtHours(engine.grossCapacity)}</span>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>
+                    gross capacity created — the operationally established result
+                  </div>
+                </div>
+                <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid rgba(255,255,255,0.15)" }}>
+                  <div style={{ fontSize: 22, fontWeight: 700, color: "#fff" }}>
+                    {fmtHours(engine.redeployableCapacity)}
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
+                    productively redeployable, after a {fmtPercent(inputs.realizationPct)} realization assumption
+                  </div>
+                </div>
+                <button style={styles.expandToggle} onClick={() => setShowFte(!showFte)}>
+                  {showFte ? "Hide" : "Show"} FTE-equivalent detail
+                </button>
+                {showFte && (
+                  <div style={{
+                      ...styles.resultRow,
+                      alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                      flexWrap: isMobile ? "wrap" : "nowrap",
+                    }}>
+                    <span style={styles.resultLabelSecondary}>Redeployable Capacity Equivalent</span>
+                    <span style={{ ...styles.resultValueSecondary, whiteSpace: isMobile ? "normal" : styles.resultValueSecondary.whiteSpace }}>{fmtFte(engine.fteEquivalent)}</span>
+                  </div>
+                )}
+                <div style={styles.note}>Capacity created, not a staffing recommendation.</div>
+
+                <div style={styles.resultsSectionHeader}>Economic Value of Redeployed Capacity</div>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
+                  <span style={styles.resultLabel}>Steady-state economic value</span>
+                  <span style={{ ...styles.resultValue, whiteSpace: isMobile ? "normal" : styles.resultValue.whiteSpace }}>{fmtCurrency(engine.steadyStateValue)}/yr</span>
+                </div>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
+                  <span style={styles.resultLabel}>Year 1 realized value (ramped)</span>
+                  <span style={{ ...styles.resultValue, whiteSpace: isMobile ? "normal" : styles.resultValue.whiteSpace }}>{fmtCurrency(engine.year1Value)}/yr</span>
+                </div>
+                {engine.illustrativeUpside > 0 && (
+                  <>
+                    <button style={styles.expandToggle} onClick={() => setShowUpside(!showUpside)}>
+                      {showUpside ? "Hide" : "Show"} illustrative upside
+                    </button>
+                    {showUpside && (
+                      <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
+                        <span style={styles.resultLabelSecondary}>Illustrative upside (excluded from ROI)</span>
+                        <span style={{ ...styles.resultValueSecondary, whiteSpace: isMobile ? "normal" : styles.resultValueSecondary.whiteSpace }}>{fmtCurrency(engine.illustrativeUpside)}/yr</span>
+                      </div>
+                    )}
+                  </>
+                )}
+                <div style={styles.note}>
+                  Loaded cost/hr is a proxy for the value of usable capacity, not an assertion that payroll expense drops.
+                </div>
+
+                <div style={styles.resultsSectionHeader}>Investment Result</div>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
+                  <span style={styles.resultLabel}>Year 1 net benefit</span>
+                  <span style={{ ...styles.resultValue, whiteSpace: isMobile ? "normal" : styles.resultValue.whiteSpace }}>{fmtCurrency(engine.year1Net)}</span>
+                </div>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
+                  <span style={styles.resultLabel}>{inputs.horizonYears}-yr horizon net benefit</span>
+                  <span style={{ ...styles.resultValue, whiteSpace: isMobile ? "normal" : styles.resultValue.whiteSpace }}>{fmtCurrency(engine.horizonNet)}</span>
+                </div>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
+                  <span style={styles.resultLabel}>{inputs.horizonYears}-yr horizon ROI</span>
+                  <span style={{ ...styles.resultValue, whiteSpace: isMobile ? "normal" : styles.resultValue.whiteSpace }}>{fmtPercent(engine.horizonROI)}</span>
+                </div>
+                <div style={{
+                    ...styles.resultRow,
+                    alignItems: isMobile ? "flex-start" : styles.resultRow.alignItems,
+                    flexWrap: isMobile ? "wrap" : "nowrap",
+                  }}>
+                  <span style={styles.resultLabel}>Estimated payback period</span>
+                  <span style={engine.payback == null ? styles.guardText : styles.resultValue}>
+                    {fmtMonths(engine.payback)}
+                  </span>
+                </div>
+                <div style={styles.note}>
+                  Simplified estimate based on average Year-1 realized benefit, spread evenly across 12 months. Actual timing will vary with implementation timing and the shape of the adoption ramp — not a worst-case figure.
+                </div>
+                <button
+                  onClick={requestReport}
+                  style={{ width: "100%", marginTop: 14, fontWeight: 700, fontSize: 14, padding: "11px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: RED, color: "#fff" }}
+                >
+                  Get the full ROI report
+                </button>
+              </>
+            )}
+          </div>
+          <div style={styles.guardrail}>
+            These results represent capacity created and its economic value, not headcount reduction. No output in this tool should be read as a staffing recommendation.
+          </div>
+        </div>
+      </div>
+      </div>
       )}
     </div>
   );
@@ -329,7 +774,7 @@ function AppInner() {
 export default function RoiCalculator() {
   return (
     <AuthProvider>
-      <AppInner />
+      <RoiCalculatorInner />
     </AuthProvider>
   );
 }
