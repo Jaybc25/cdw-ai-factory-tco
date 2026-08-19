@@ -30,7 +30,7 @@ function fmtValue(key, value) {
   if (value == null) return "—";
   if (typeof value === "number") {
     const k = key.toLowerCase();
-    if (k === "payback") return `${value} months`;
+    if (k.includes("payback")) return `${value} months`;
     if ((k.includes("pct") || k.includes("roi")) && Math.abs(value) <= 5) {
       return `${(value * 100).toFixed(1)}%`;
     }
