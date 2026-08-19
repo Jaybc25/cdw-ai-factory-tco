@@ -473,17 +473,6 @@ function AppInner() {
   );
   const t = r.tot(horizon);
 
-  useAutosaveSnapshot("tco", inputsObj, {
-    savings: t.saveAdj,
-    cloudCost: t.cloud,
-    onPremCost: t.onAdj,
-    recommendedFleet: `${r.sysAdj} x ${ownSys}`,
-    horizonYears: horizon,
-    provider,
-    gpuClass,
-    monthlyBill: bill,
-  });
-
   // Minimum viable spend: smallest monthly bill where on-prem beats cloud at the selected horizon, current settings (spend-based path)
   const minViable = useMemo(() => {
     for (let b = 20000; b <= 2000000; b *= 1.1) {
@@ -495,6 +484,25 @@ function AppInner() {
   const tier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
   const maxBar = Math.max(t.cloud, t.onAdj, t.onFlr, 1);
   const isSelf = facility !== "Equinix";
+
+  useAutosaveSnapshot("tco", inputsObj, {
+    savings: t.saveAdj,
+    floorCaseSavings: t.saveFlr,
+    cloudCost: t.cloud,
+    onPremCost: t.onAdj,
+    recommendedFleet: `${r.sysAdj} x ${ownSys}`,
+    facility,
+    capexPlusOneTime: r.adj.capex + r.oneTime,
+    monthlyOpex: r.adj.opex,
+    residualCredit: r.adj.resid,
+    paybackMonths: r.payback,
+    confidence: tier,
+    horizonYears: horizon,
+    provider,
+    gpuClass,
+    monthlyBill: bill,
+  });
+
 
   return (
     <div className="tco-root" style={{ background: C.bg, minHeight: "100vh", color: C.ink, fontFamily: "'Inter', system-ui, sans-serif" }}>
