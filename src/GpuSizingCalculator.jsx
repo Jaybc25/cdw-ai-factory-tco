@@ -713,8 +713,15 @@ function GPUSizingCalculatorInner() {
           mode,
           model: modelLabel,
           gpuClass: result.selectedClass,
+          minTechnical: result.minTechnical,
           recommended: result.recommended,
+          lowerCostClass: result.lowerCost.class,
+          lowerCostCount: result.lowerCost.recommended,
+          higherGrowthClass: result.higherGrowth.class,
+          higherGrowthCount: result.higherGrowth.recommended,
+          confidence: result.confidence.level,
           budget: result.budget?.recommended?.amount ?? null,
+          utilizationPct: mode === "Inference" ? result.utilization?.recommended ?? null : null,
         }
       : null
   );

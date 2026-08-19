@@ -318,9 +318,16 @@ function ModelAdvisorInner() {
     result.cards[0]
       ? {
           topModel: result.cards[0].model.canonical_model_id,
+          topModelLicense: result.cards[0].model.license,
+          topModelConfidence: result.cards[0].model.confidence,
+          topModelParams: result.cards[0].model.param_count_billion,
           eligibleCount: result.eligibleCount,
           totalCount: result.totalCount,
+          otherEligibleCount: result.otherEligible.length,
+          verificationCandidateCount: result.verificationCandidates.length,
           primaryWorkload,
+          qualityPriority,
+          optimizationPriority,
         }
       : null
   );

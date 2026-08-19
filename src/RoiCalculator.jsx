@@ -408,10 +408,16 @@ function RoiCalculatorInner() {
     inputs,
     engine
       ? {
-          year1Net: engine.year1Net,
-          horizonROI: engine.horizonROI,
-          payback: engine.payback,
           grossCapacity: engine.grossCapacity,
+          redeployableCapacity: engine.redeployableCapacity,
+          fteEquivalent: engine.fteEquivalent,
+          steadyStateValue: engine.steadyStateValue,
+          year1Value: engine.year1Value,
+          year1Net: engine.year1Net,
+          horizonNet: engine.horizonNet,
+          horizonROI: engine.horizonROI,
+          horizonYears: inputs.horizonYears,
+          payback: engine.payback,
         }
       : null
   );

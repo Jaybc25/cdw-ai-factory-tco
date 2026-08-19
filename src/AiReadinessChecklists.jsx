@@ -221,13 +221,25 @@ function AiReadinessChecklistsInner() {
   const branch = door ? routedBranch(door, routes) : null;
   const doorsComplete = checklistData.doors.filter((d) => completionOf(d, routes, answers).state === "complete").length;
 
+  const doorStatuses = {};
+  checklistData.doors.forEach((d) => {
+    const comp = completionOf(d, routes, answers);
+    const readiness = readinessOf(d, routes, answers);
+    doorStatuses[d.label] =
+      comp.state === "complete" && readiness ? readiness.label
+      : comp.state === "in_progress" ? `In progress (${comp.answered}/${comp.total})`
+      : "Not started";
+  });
+
   useAutosaveSnapshot(
     "readiness",
     { routes, answers },
     {
+      ...doorStatuses,
       doorsComplete,
       doorsTotal: checklistData.doors.length,
       suggestedStepCount: steps.length,
+      topSuggestedStep: steps[0]?.step ?? null,
     }
   );
 
