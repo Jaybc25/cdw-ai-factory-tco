@@ -43,6 +43,12 @@ export default function AuthWidget() {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: CHARCOAL }}>
         <span>{account?.name || account?.email}</span>
+        <a
+          href="/summary"
+          style={{ color: RED, fontSize: 12, fontWeight: 600, textDecoration: "none" }}
+        >
+          My Summary
+        </a>
         <button
           onClick={signOut}
           style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 12, textDecoration: "underline", padding: 0 }}

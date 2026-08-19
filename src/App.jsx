@@ -7,6 +7,7 @@ import ModelAdvisor from "./ModelAdvisor.jsx";
 import UseCaseExplorer from "./UseCaseExplorer.jsx";
 import RoiCalculator from "./RoiCalculator.jsx";
 import AiReadinessChecklists from "./AiReadinessChecklists.jsx";
+import CombinedSummary from "./CombinedSummary.jsx";
 export default function App() {
   return (
     <BrowserRouter>
@@ -18,6 +19,7 @@ export default function App() {
         <Route path="/use-cases" element={<UseCaseExplorer />} />
         <Route path="/roi" element={<RoiCalculator />} />
         <Route path="/readiness" element={<AiReadinessChecklists />} />
+        <Route path="/summary" element={<CombinedSummary />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
