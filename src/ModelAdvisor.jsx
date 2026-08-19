@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { ChevronDown, X, ArrowRight } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
-import { AuthProvider, useAuth } from "./AuthContext";
+import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import {
   getCatalog, CATALOG_META, buildRecommendations, explainCard, explainVerificationCandidate, explainOtherEligible,
@@ -311,6 +311,20 @@ function ModelAdvisorInner() {
   );
 
   const showGovernanceNudge = (dataSensitivity === "regulated" || dataSensitivity === "air-gapped") && governance === "none";
+
+  useAutosaveSnapshot(
+    "model-advisor",
+    { ...inputs, checkedWorkloads: checkedWorkloads.join(",") },
+    result.cards[0]
+      ? {
+          topModel: result.cards[0].model.canonical_model_id,
+          eligibleCount: result.eligibleCount,
+          totalCount: result.totalCount,
+          primaryWorkload,
+        }
+      : null
+  );
+
 
   function requestReport() {
     if (isLoggedIn && !needsSetup && account) {

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import cdwLogo from "./cdw-logo.png";
-import { AuthProvider, useAuth } from "./AuthContext";
+import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import {
   DEFAULT_INPUTS, BOUNDS, validateInputs, computeEngine,
@@ -402,6 +402,20 @@ function RoiCalculatorInner() {
   );
 
   const set = (key) => (val) => setInputs((prev) => ({ ...prev, [key]: val }));
+
+  useAutosaveSnapshot(
+    "roi",
+    inputs,
+    engine
+      ? {
+          year1Net: engine.year1Net,
+          horizonROI: engine.horizonROI,
+          payback: engine.payback,
+          grossCapacity: engine.grossCapacity,
+        }
+      : null
+  );
+
 
   function requestReport() {
     if (isLoggedIn && !needsSetup && account) {

@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import cdwLogo from "./cdw-logo.png";
-import { AuthProvider, useAuth } from "./AuthContext";
+import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import checklistData from "./checklists.json";
 
@@ -220,6 +220,16 @@ function AiReadinessChecklistsInner() {
   const door = view.doorId ? doorById(view.doorId) : null;
   const branch = door ? routedBranch(door, routes) : null;
   const doorsComplete = checklistData.doors.filter((d) => completionOf(d, routes, answers).state === "complete").length;
+
+  useAutosaveSnapshot(
+    "readiness",
+    { routes, answers },
+    {
+      doorsComplete,
+      doorsTotal: checklistData.doors.length,
+      suggestedStepCount: steps.length,
+    }
+  );
 
   function requestSummary() {
     if (isLoggedIn && !needsSetup && account) {

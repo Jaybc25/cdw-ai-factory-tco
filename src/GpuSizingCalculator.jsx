@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Cpu, Zap, TrendingDown, TrendingUp, Info, ChevronDown, X } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
-import { AuthProvider, useAuth } from "./AuthContext";
+import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 
 // ---------------------------------------------------------------------------
@@ -704,6 +704,21 @@ function GPUSizingCalculatorInner() {
   const result = mode === "Inference" ? inferenceResult : trainingResult;
   const errors = mode === "Inference" ? infErrors : trainErrors;
   const modelLabel = mode === "Inference" ? infModel.label : trainModel.label;
+
+  useAutosaveSnapshot(
+    "gpu-sizing",
+    mode === "Inference" ? infInputs : trainInputs,
+    result
+      ? {
+          mode,
+          model: modelLabel,
+          gpuClass: result.selectedClass,
+          recommended: result.recommended,
+          budget: result.budget?.recommended?.amount ?? null,
+        }
+      : null
+  );
+
 
   function requestReport() {
     if (isLoggedIn && !needsSetup && account) {
