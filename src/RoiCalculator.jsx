@@ -548,10 +548,12 @@ function RoiCalculatorInner() {
           <div style={{ fontSize: 12, color: GRAY_TEXT, marginBottom: 16 }}>{new Date().toLocaleDateString()}</div>
 
           <div style={{ background: "#FBEAEA", borderRadius: 10, padding: "14px 16px", marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: RED, textTransform: "uppercase" }}>Year 1 Net Benefit</div>
-            <div style={{ fontSize: 30, fontWeight: 700, color: RED }}>{fmtCurrency(engine.year1Net)}</div>
+            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: RED, textTransform: "uppercase" }}>
+              {inputs.horizonYears}-Yr Net Benefit
+            </div>
+            <div style={{ fontSize: 30, fontWeight: 700, color: RED }}>{fmtCurrency(engine.horizonNet)}</div>
             <div style={{ fontSize: 12, color: CHARCOAL }}>
-              Payback: {fmtMonths(engine.payback)} &middot; {inputs.horizonYears}-yr ROI: {fmtPercent(engine.horizonROI)}
+              Year 1 net: {fmtCurrency(engine.year1Net)} &middot; Payback: {fmtMonths(engine.payback)} &middot; {inputs.horizonYears}-yr ROI: {fmtPercent(engine.horizonROI)}
             </div>
           </div>
 
