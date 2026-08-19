@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { Cpu, Zap, TrendingDown, TrendingUp, Info, ChevronDown, X } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
-import { AuthProvider } from "./AuthContext";
+import { AuthProvider, useAuth } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 
 // ---------------------------------------------------------------------------
@@ -105,60 +105,15 @@ const MODELS = [
   { id: "llama31-405b", label: "Llama 3.1 405B Instruct", totalParamsB: 405, layers: 126, kvHeads: 8, headDim: 128, status: "VERIFIED" },
   { id: "llama33-70b", label: "Llama 3.3 70B Instruct", totalParamsB: 70.6, layers: 80, kvHeads: 8, headDim: 128, status: "VERIFIED" },
   { id: "mixtral-8x7b", label: "Mixtral 8x7B Instruct", totalParamsB: 46.7, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  // Meta Muse Glimmer 30B (released Aug 10 2026, meta-models/Muse-Glimmer-30B) --
-  // dense text decoder specs confirmed via NVIDIA NIM model card + vLLM recipes
-  // page: 29.6B params, 52 layers, hidden 6656, head_dim 128, 128K context.
-  // kvHeads CORRECTED 2026-08-13: originally shipped as 8 (from the NIM/vLLM
-  // secondary sources above), but the model's own production config.json
-  // (fetched directly) states num_key_value_heads: 2 -- the secondary
-  // sources either didn't surface this or got it wrong. The 8 value had
-  // been overstating this model's KV cache by roughly 4x since v1.10.
-  // Ships with a separate ~1.8B ViT-G/14 vision encoder not counted
-  // here (this tool sizes the text decoder, same simplification as every other
-  // entry) and a small DFlash speculative-decoding drafter, a serving detail,
-  // not a sizing input.
   { id: "muse-glimmer-30b", label: "Meta Muse Glimmer 30B", totalParamsB: 29.6, layers: 52, kvHeads: 2, headDim: 128, status: "VERIFIED" },
-  // Llama 4 Scout (meta-llama/Llama-4-Scout-17B-16E-Instruct) -- 109B total /
-  // 17B active (MoE, 16 experts). Standard GQA text decoder, confirmed
-  // directly from the model's own config.json (text_config block, fetched
-  // 2026-08-13): 48 layers, 8 KV heads, head_dim 128. Vision encoder (34
-  // layers, separate config block) not counted, same simplification as the
-  // other multimodal entries in this list.
   { id: "llama4-scout", label: "Llama 4 Scout 17B-16E", totalParamsB: 109, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  // Llama 4 Maverick (meta-llama/Llama-4-Maverick-17B-128E-Instruct) -- 402B
-  // total / 17B active (MoE, 128 experts). Same text-decoder architecture
-  // shape as Scout, confirmed directly from config.json (text_config block,
-  // fetched 2026-08-13): 48 layers, 8 KV heads, head_dim 128.
   { id: "llama4-maverick", label: "Llama 4 Maverick 17B-128E", totalParamsB: 402, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  // Gemma 3 27B (google/gemma-3-27b-it) -- dense text decoder. Confirmed
-  // directly from config.json (text_config block, fetched 2026-08-13): 62
-  // layers, 16 KV heads, head_dim 128. Vision encoder (SigLIP, separate
-  // config block) not counted, same simplification as other entries.
   { id: "gemma3-27b", label: "Gemma 3 27B", totalParamsB: 27, layers: 62, kvHeads: 16, headDim: 128, status: "VERIFIED" },
-  // DeepSeek V3 (deepseek-ai/DeepSeek-V3) -- 671B total / 37B active (MoE,
-  // 256 routed experts + 1 shared, 8 activated per token). Uses Multi-head
-  // Latent Attention (MLA), not standard GQA -- confirmed directly from the
-  // model's own config.json (fetched 2026-08-13): 61 layers, kv_lora_rank
-  // 512, qk_rope_head_dim 64 (128 attention heads share this one compressed
-  // latent -- there is no per-head K/V cache to speak of, which is the
-  // entire point of MLA). See computeInference() below: MLA models compute
-  // KV cache size from kvLoraRank + qkRopeHeadDim, NOT from
-  // layers/kvHeads/headDim like every other entry in this list.
   { id: "deepseek-v3", label: "DeepSeek V3", totalParamsB: 671, layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64, status: "VERIFIED" },
-  // DeepSeek R1 (deepseek-ai/DeepSeek-R1) -- per DeepSeek's own model card,
-  // "DeepSeek-R1-Zero & DeepSeek-R1 are trained based on DeepSeek-V3-Base
-  // ... refer to the DeepSeek-V3 repository" for architecture, i.e. same
-  // dimensions as V3, same MLA sizing applies unchanged.
   { id: "deepseek-r1", label: "DeepSeek R1", totalParamsB: 671, layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64, status: "VERIFIED" },
   { id: "custom", label: "Custom model...", totalParamsB: null, layers: null, kvHeads: null, headDim: null, status: "CUSTOM" },
 ];
 
-// order matters: index 0 = lowest VRAM class, last = highest -- used for
-// "lower-cost" and "higher-growth" alternative picks, same as the workbook.
-// nodeSize = GPUs per smallest deployable unit -- 8 for standard DGX nodes,
-// 72 for GB200 NVL72 (a real rack-scale system, not divisible smaller).
-// This must match the TCO Calculator's SYSTEMS registry (src/TcoCalculator.jsx)
-// exactly, since GB200 is sold/deployed as one 72-GPU rack, not 9 nodes of 8.
 const GPU_SPECS = [
   { id: "A100", vram: 80, bf16: 312, fp8: null, anchor: 615, anchorPrecision: "BF16", confidence: "EST", source: "Derived from peak-FLOPS ratio vs H100; no official MLPerf Llama-2-70B submission exists for A100", nodeSize: 8 },
   { id: "H100", vram: 80, bf16: 989, fp8: 1979, anchor: 3902, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, Dell PowerEdge XE9680 8xH100 (entry 5.0-0020): 31,216.8 tok/s offline / 8", nodeSize: 8 },
@@ -168,17 +123,6 @@ const GPU_SPECS = [
   { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%", nodeSize: 8 },
 ];
 
-// Budgetary pricing -- SINGLE SOURCE OF TRUTH with the TCO Calculator.
-// H200/B200/B300/GB200 figures are computed directly from the TCO tool's
-// SYSTEMS registry (src/TcoCalculator.jsx: perSys / gpus), the same NVIDIA
-// DGX TCO capture used there -- fully loaded (system + software suite +
-// fabrics + professional services), NOT bare hardware. Update both files
-// together if either changes; there is currently no shared module, so this
-// is a manually-synced duplicate of TCO's numbers, not an independent source.
-// A100/H100 aren't in TCO's registry at all -- NVIDIA's current DGX line
-// starts at H200, and per Jay, A100/H100 are essentially legacy/GPUaaS-only
-// at this point, not something CDW sells new. Kept as rough EST for
-// completeness since some clients still ask, clearly flagged as such.
 const GPU_PRICE_USD = {
   A100: { amount: 18000, confidence: "EST", source: "Legacy generation -- not part of CDW's current DGX purchase line (starts at H200); rough estimate only, relevant mainly for GPUaaS/rental comparisons" },
   H100: { amount: 40000, confidence: "EST", source: "Legacy-adjacent -- not in the TCO Calculator's SYSTEMS registry; rough estimate only, relevant mainly for GPUaaS/rental comparisons" },
@@ -190,20 +134,13 @@ const GPU_PRICE_USD = {
 
 const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
 
-// RTX-class workstation GPU is not a candidate in the main auto-recommend
-// fork -- it's only ever surfaced as a conditional alternative for small,
-// non-production workloads. No MLPerf datacenter submission exists for it
-// (workstation cards aren't submitted to that category), so its anchor is
-// derived, not listed, and it stays capped at MEDIUM confidence. Not in
-// TCO's SYSTEMS registry either (workstation, not a DGX system) -- kept
-// as an independent citation.
 const RTX_SPEC = {
   id: "RTX PRO 6000 Blackwell",
   vram: 96,
-  anchor: 2095, // EST: H100 FP8 anchor (3,902) x bandwidth ratio (1.8 TB/s / 3.35 TB/s)
+  anchor: 2095,
   anchorPrecision: "FP8",
   source: "EST, derived from memory-bandwidth ratio vs H100 -- no MLPerf datacenter submission exists for workstation-class GPUs; community vLLM benchmarks (CloudRift, Oct 2025) confirm the same bandwidth-bound scaling pattern on smaller models",
-  maxWorkstationGPUs: 4, // PCIe-only, no NVLink domain -- stops making sense past a small card count
+  maxWorkstationGPUs: 4,
   price: { amount: 8500, confidence: "LISTED", source: "StorageReview.com RTX PRO 6000 Workstation review, listed retail price" },
 };
 
@@ -211,12 +148,6 @@ function ceilDiv(a, b) {
   return Math.ceil(a / b);
 }
 
-// ---------------------------------------------------------------------------
-// Input validation -- returns a list of plain-language problems, or an
-// empty array when the inputs are sane enough to compute against. Checked
-// before either math function runs; a non-empty list blocks the results
-// panel and shows the problems instead of a nonsense or NaN/Infinity result.
-// ---------------------------------------------------------------------------
 function validateInference(inputs) {
   const errors = [];
   const isCustom = inputs.model.id === "custom";
@@ -249,9 +180,6 @@ function validateTraining(inputs) {
   return errors;
 }
 
-// ---------------------------------------------------------------------------
-// Inference math -- mirrors Engine!B4:F27 in the workbook exactly
-// ---------------------------------------------------------------------------
 function computeInference(inputs) {
   const model = inputs.model.id === "custom"
     ? { totalParamsB: inputs.customParamsB, layers: inputs.customLayers, kvHeads: inputs.customKvHeads, headDim: inputs.customHeadDim, status: "CUSTOM" }
@@ -260,10 +188,6 @@ function computeInference(inputs) {
   const quantBytes = QUANT_BYTES[inputs.quant];
   const weightMemoryGB = model.totalParamsB * quantBytes;
   const avgTokens = inputs.avgInputTokens + inputs.avgOutputTokens;
-  // MLA (DeepSeek V3/R1) caches one compressed latent per layer, shared
-  // across every attention head -- no separate per-head K and V, so no x2
-  // factor and no kvHeads/headDim term. Every other model here uses
-  // standard GQA/MHA, where K and V are each cached per head.
   const kvBytesPerToken = model.attentionType === "MLA"
     ? model.layers * (model.kvLoraRank + model.qkRopeHeadDim) * inputs.kvBytesPerElement
     : 2 * model.layers * model.kvHeads * model.headDim * inputs.kvBytesPerElement;
@@ -294,11 +218,6 @@ function computeInference(inputs) {
       ? { level: "MEDIUM", note: "Architecture verified; throughput anchor is an extrapolated estimate (no MLPerf submission exists)" }
       : { level: "HIGH", note: "Architecture verified; throughput anchor sourced from an official or independently-observed MLPerf submission" };
 
-  // RTX-class workstation alternative -- only computed and surfaced for
-  // small, non-production workloads. Real GPU count (no node-rounding --
-  // workstation cards aren't sold/deployed as 8-GPU nodes), capped at a
-  // sane workstation card count since PCIe-only scaling doesn't hold up
-  // past a handful of cards.
   const rtxGpusMem = ceilDiv(totalMemoryGB, RTX_SPEC.vram);
   const rtxGpusPerf = ceilDiv(totalThroughputNeeded, RTX_SPEC.anchor);
   const rtxWorkload = Math.max(rtxGpusMem, rtxGpusPerf);
@@ -311,12 +230,6 @@ function computeInference(inputs) {
     overCap: rtxWorkload > RTX_SPEC.maxWorkstationGPUs,
   };
 
-  // ---- Budgetary estimate ----------------------------------------------
-  // Same pricing basis as the TCO Calculator (see GPU_PRICE_USD comment):
-  // fully-loaded system cost x deployed count. Not a quote -- see UI
-  // disclaimer. Node-rounding uses each class's own deployable unit size
-  // (72 for GB200 NVL72, 8 for everything else) -- must match, or this
-  // tool would round a rack-scale system to the wrong increment.
   function budgetFor(gpuId, deployedCount) {
     const price = GPU_PRICE_USD[gpuId];
     if (!price) return null;
@@ -331,15 +244,6 @@ function computeInference(inputs) {
     higherGrowth: budgetFor(higherGrowth.id, higherGrowthCount),
   };
 
-  // ---- Utilization --------------------------------------------------
-  // Two distinct things the SME asked for:
-  // (1) class-comparison utilization -- for a fixed workload, how full does
-  //     each candidate class run once deployed at its node-rounded count.
-  //     A bigger/newer class sized for the same demand runs LESS utilized,
-  //     which is the visual for "this buys growth headroom" vs "right-sized."
-  // (2) a working-day utilization curve -- business-hours demand vs
-  //     after-hours idle capacity, so idle GPU-hours can be named and
-  //     pointed at other uses (batch jobs, resale, etc).
   function utilizationFor(gpuAnchor, deployedCount) {
     const capacity = deployedCount * gpuAnchor;
     return capacity > 0 ? Math.min(totalThroughputNeeded / capacity, 1) : 0;
@@ -375,9 +279,6 @@ function computeInference(inputs) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Training math -- mirrors Engine!B46:G61 in the workbook exactly
-// ---------------------------------------------------------------------------
 function computeTraining(inputs) {
   const model = inputs.model.id === "custom"
     ? { totalParamsB: inputs.customParamsB, status: "CUSTOM" }
@@ -439,10 +340,6 @@ function computeTraining(inputs) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// UI
-// ---------------------------------------------------------------------------
-
 const RED = "#CC0000";
 const CHARCOAL = "#2D2D2D";
 
@@ -491,15 +388,6 @@ function NumberInput({ value, onChange, min = 0, step = 1 }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sample output preview -- SME feedback: raw "tokens/sec" is an abstract
-// number to a buyer. Streaming a sample response at the actual target rate
-// makes the tradeoff (fewer GPUs, slower stream) visible and felt in real
-// time, rather than explained. Word-level reveal, not real tokenization --
-// precision isn't the point, the felt sense of speed is. One fixed sample
-// text on purpose: this isn't meant to vary by workload profile or model
-// choice, just to demonstrate the number directly above it.
-// ---------------------------------------------------------------------------
 const SAMPLE_RESPONSE =
   "Sure, here's a quick summary. Cloud compute spend rose eight percent quarter over quarter, while storage stayed roughly flat. The biggest driver was GPU instance hours during the fine-tuning sprint in March. Moving that workload on-prem could meaningfully reduce recurring costs over the next three years, especially as usage keeps growing.";
 
@@ -508,8 +396,6 @@ function SampleOutputPreview({ tokPerSec }) {
   const [count, setCount] = useState(0);
   const rate = tokPerSec > 0 ? tokPerSec : 0;
 
-  // Restart the demo from scratch whenever the rate changes, so the
-  // slow-down (or speed-up) is visible from the very first word.
   React.useEffect(() => {
     setCount(0);
   }, [rate]);
@@ -517,8 +403,8 @@ function SampleOutputPreview({ tokPerSec }) {
   React.useEffect(() => {
     if (!(rate > 0)) return;
     const atEnd = count >= words.length;
-    const msPerWord = Math.max(1000 / rate, 16); // guard against runaway rates
-    const delay = atEnd ? 1400 : msPerWord; // brief pause at the end before looping
+    const msPerWord = Math.max(1000 / rate, 16);
+    const delay = atEnd ? 1400 : msPerWord;
     const id = setTimeout(() => {
       setCount((c) => (c >= words.length ? 0 : c + 1));
     }, delay);
@@ -585,7 +471,6 @@ function CopySummaryButton({ mode, result, modelLabel }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // clipboard API unavailable (e.g. insecure context) -- fall back to a visible textarea select
       const ta = document.createElement("textarea");
       ta.value = text;
       ta.style.position = "fixed";
@@ -598,7 +483,7 @@ function CopySummaryButton({ mode, result, modelLabel }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       } catch {
-        /* no-op: worst case the user manually selects the text area */
+        /* no-op */
       }
       document.body.removeChild(ta);
     }
@@ -678,11 +563,6 @@ function BudgetPanel({ budget }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Utilization -- two SME-requested views:
-// (1) a compact per-candidate comparison (right-sizing vs growth headroom)
-// (2) a 24-hour business-hours-vs-idle curve for the recommended config
-// ---------------------------------------------------------------------------
 function UtilizationBar({ label, gpuClass, pct }) {
   const pctDisplay = Math.round(pct * 100);
   const color = pct > 0.85 ? "#B00000" : pct > 0.5 ? RED : "#999";
@@ -701,10 +581,8 @@ function UtilizationBar({ label, gpuClass, pct }) {
 
 function DayCurve({ workingDayHours, utilizationPct }) {
   const hours = Array.from({ length: 24 }, (_, h) => h);
-  // simple business-hours-centered window, e.g. 10 working hours -> 7am-5pm
   const startHour = Math.max(0, Math.round(12 - workingDayHours / 2));
   const endHour = Math.min(24, startHour + workingDayHours);
-  const barW = 100 / 24;
   return (
     <svg viewBox="0 0 240 60" className="w-full h-14" preserveAspectRatio="none">
       {hours.map((h) => {
@@ -771,12 +649,6 @@ function UtilizationPanel({ result, workingDayHours, onWorkingDayHoursChange }) 
   );
 }
 
-// ---------------------------------------------------------------------------
-// Pod Sizing handoff -- reserved spot for a future, separate tool (full
-// deployment build-out: networking, storage, power). Not built yet -- this
-// SME explicitly called it "its own tool, a much grander effort." Mirrors
-// how the Model Advisor hands off into this tool.
-// ---------------------------------------------------------------------------
 function PodSizingHandoff() {
   return (
     <div className="mb-6 rounded-xl p-4 border border-dashed border-gray-300 bg-gray-50 flex items-center justify-between gap-3">
@@ -789,11 +661,6 @@ function PodSizingHandoff() {
   );
 }
 
-// ─── cross-tool handoff: read incoming URL params on first render ────────────
-// Populated by Use Case Explorer's handoff links (?workloadType=simulation-
-// rendering&mode=Training&sourceUseCase=omniverse-dsx-digital-twin). Falls
-// back to existing defaults if no recognized params are present -- a direct
-// visit to /gpu-sizing behaves exactly as before.
 function getIncomingParams() {
   if (typeof window === "undefined") return null;
   return new URLSearchParams(window.location.search);
@@ -818,19 +685,20 @@ function getInitialWorkloadType() {
 function getInitialInfModel() {
   const params = getIncomingParams();
   const modelId = params?.get("model");
-  if (!modelId) return MODELS[1]; // existing default: Llama 3.1 70B
+  if (!modelId) return MODELS[1];
   const match = MODELS.find((m) => m.id === modelId);
   return match || MODELS[1];
 }
 
 function GPUSizingCalculatorInner() {
+  const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
+
   const [mode, setMode] = useState(getInitialMode);
   const [pathLevel, setPathLevel] = useState("simple");
   const [sourceUseCase] = useState(getInitialSourceUseCase);
   const [incomingWorkloadType] = useState(getInitialWorkloadType);
   const [incomingModelId] = useState(() => getIncomingParams()?.get("model") || null);
 
-  // inference state
   const [infModel, setInfModel] = useState(getInitialInfModel);
   const [quant, setQuant] = useState("FP8");
   const [concurrentUsers, setConcurrentUsers] = useState(100);
@@ -847,7 +715,6 @@ function GPUSizingCalculatorInner() {
   const [customHeadDim, setCustomHeadDim] = useState(128);
   const [workingDayHours, setWorkingDayHours] = useState(10);
 
-  // training state
   const [trainModel, setTrainModel] = useState(MODELS[1]);
   const [taskType, setTaskType] = useState("Full fine-tune");
   const [precision, setPrecision] = useState("BF16");
@@ -855,6 +722,10 @@ function GPUSizingCalculatorInner() {
   const [targetDays, setTargetDays] = useState(14);
   const [mfu, setMfu] = useState(0.4);
   const [trainGpuOverride, setTrainGpuOverride] = useState("Auto-recommend");
+
+  const [view, setView] = useState("calc");
+  const [lead, setLead] = useState({ name: "", company: "", email: "" });
+  const [leadStatus, setLeadStatus] = useState("");
 
   const infInputs = {
     model: infModel,
@@ -900,9 +771,33 @@ function GPUSizingCalculatorInner() {
 
   const result = mode === "Inference" ? inferenceResult : trainingResult;
   const errors = mode === "Inference" ? infErrors : trainErrors;
+  const modelLabel = mode === "Inference" ? infModel.label : trainModel.label;
+
+  function requestReport() {
+    if (isLoggedIn && !needsSetup && account) {
+      setLead({ name: account.name || "", company: account.company || "", email: account.email || "" });
+      logDownloadEvent("gpu-sizing", {
+        mode,
+        model: mode === "Inference" ? infModel.id : trainModel.id,
+        gpuClass: result.selectedClass,
+        recommended: result.recommended,
+      });
+      setView("report");
+    } else {
+      setView("gate");
+    }
+  }
+
+  function submitLead() {
+    if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) { setLeadStatus("Please enter a valid email address."); return; }
+    setLeadStatus("");
+    setView("report");
+  }
 
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>
       {/* Header */}
       <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
         <a href="/" className="flex-shrink-0" aria-label="AI Factory Tools home">
@@ -912,13 +807,165 @@ function GPUSizingCalculatorInner() {
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>GPU Sizing Tool</div>
         </div>
-        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.14</span>
+        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.15</span>
       </div>
 
-      <div className="border-b border-gray-100 px-6 py-2 flex items-center justify-end">
+      <div className="no-print border-b border-gray-100 px-6 py-2 flex items-center justify-end">
         <AuthWidget />
       </div>
 
+      {view === "gate" && (
+        <div className="max-w-lg mx-auto px-6 py-10">
+          <div className="rounded-xl border border-gray-200 p-6">
+            <div className="text-lg font-bold mb-1" style={{ color: CHARCOAL }}>Get the full sizing report</div>
+            <div className="text-xs text-gray-500 mb-4">
+              The report includes the recommended configuration, every assumption behind it, lower-cost and
+              higher-growth alternatives, and the caveats to bring into a real sizing conversation.
+            </div>
+            {["name", "company", "email"].map((f) => (
+              <input
+                key={f}
+                placeholder={f === "name" ? "Full name" : f === "company" ? "Company" : "Work email"}
+                value={lead[f]}
+                type={f === "email" ? "email" : "text"}
+                onChange={(e) => setLead({ ...lead, [f]: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm mb-2"
+              />
+            ))}
+            {leadStatus && <div className="text-xs mb-2" style={{ color: RED }}>{leadStatus}</div>}
+            <div className="flex gap-2 mt-2">
+              <button
+                onClick={submitLead}
+                className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white"
+                style={{ background: RED }}
+              >
+                View my report
+              </button>
+              <button
+                onClick={() => setView("calc")}
+                className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600"
+              >
+                Back
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {view === "report" && result && (
+        <div className="max-w-3xl mx-auto px-6 py-10">
+          <div className="no-print flex gap-2 mb-6">
+            <button
+              onClick={() => window.print()}
+              className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white"
+              style={{ background: CHARCOAL }}
+            >
+              Print / Save as PDF
+            </button>
+            <button
+              onClick={() => setView("calc")}
+              className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600"
+            >
+              Back to calculator
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 mb-2">
+            <img src={cdwLogo} alt="CDW" className="h-8 w-auto" />
+            <div className="text-xs font-bold tracking-widest text-gray-500 uppercase">AI Factory &middot; GPU Sizing Report</div>
+          </div>
+          <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>
+            Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}
+          </div>
+          <div className="text-xs text-gray-500 mb-6">
+            {new Date().toLocaleDateString()} &middot; {mode} sizing &middot; {modelLabel}
+          </div>
+
+          <div className="mb-6">
+            <ConfidenceBadge level={result.confidence.level} />
+            <p className="text-xs text-gray-500 mt-2">{result.confidence.note}</p>
+          </div>
+
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Recommended configuration</div>
+          <div className="flex flex-wrap gap-3 mb-6">
+            <ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" />
+            <ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent />
+          </div>
+
+          <BudgetPanel budget={result.budget} />
+
+          {mode === "Inference" && (
+            <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />
+          )}
+
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2 mt-6">Assumptions used</div>
+          <div className="rounded-xl border border-gray-200 p-4 mb-6 text-sm" style={{ color: CHARCOAL }}>
+            <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
+              <div className="text-gray-500">Model</div><div>{modelLabel}</div>
+              {mode === "Inference" ? (
+                <>
+                  <div className="text-gray-500">Quantization</div><div>{quant}</div>
+                  <div className="text-gray-500">Peak concurrent users</div><div>{concurrentUsers.toLocaleString()}</div>
+                  <div className="text-gray-500">Target tokens/sec per user</div><div>{targetTokPerUser}</div>
+                  <div className="text-gray-500">Environment</div><div>{environment}</div>
+                  <div className="text-gray-500">Avg input / output tokens</div><div>{avgInputTokens.toLocaleString()} / {avgOutputTokens.toLocaleString()}</div>
+                  <div className="text-gray-500">KV cache precision</div><div>{kvBytesPerElement} bytes/element</div>
+                  <div className="text-gray-500">Runtime/activation overhead</div><div>{Math.round(overheadPct * 100)}%</div>
+                  <div className="text-gray-500">GPU class</div><div>{infGpuOverride}</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-gray-500">Task type</div><div>{taskType}</div>
+                  <div className="text-gray-500">Precision</div><div>{precision}</div>
+                  <div className="text-gray-500">Dataset size</div><div>{datasetTokensB}B tokens</div>
+                  <div className="text-gray-500">Target time to train</div><div>{targetDays} days</div>
+                  <div className="text-gray-500">MFU</div><div>{Math.round(mfu * 100)}%</div>
+                  <div className="text-gray-500">GPU class</div><div>{trainGpuOverride}</div>
+                </>
+              )}
+            </div>
+          </div>
+
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Alternatives considered</div>
+          <div className="flex flex-wrap gap-3 mb-6">
+            <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} />
+            <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} />
+          </div>
+
+          {mode === "Inference" && environment === "Dev/Test/POC" && result.rtxAlt.eligible && (
+            <div className="mb-6 rounded-xl p-4 bg-blue-50 border border-blue-200">
+              <div className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-1">Workstation alternative</div>
+              <div className="text-lg font-bold text-blue-900 mb-1">
+                {result.rtxAlt.gpus} &times; {result.rtxAlt.class} ({result.rtxAlt.vram}GB)
+              </div>
+              <p className="text-xs text-blue-800">
+                Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Estimate only --
+                no MLPerf datacenter submission exists for this class.
+              </p>
+            </div>
+          )}
+
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Caveats &amp; methodology</div>
+          <div className="text-xs text-gray-500 p-4 bg-gray-50 rounded-lg mb-6 leading-relaxed">
+            {mode === "Inference"
+              ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + KV cache + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
+              : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}
+            {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems
+            are deployed as whole nodes. This is a directional sizing estimate, not a final bill of materials --
+            confirm with a CDW AI Factory specialist before purchasing.
+          </div>
+
+          <div className="border-t-2 pt-4 flex justify-between" style={{ borderColor: CHARCOAL }}>
+            <div>
+              <div className="text-sm font-bold" style={{ color: CHARCOAL }}>Jay B. Carlile</div>
+              <div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div>
+            </div>
+            <div className="text-xs text-gray-500 text-right">Next step: bring your actual<br />workload data for a validated sizing</div>
+          </div>
+        </div>
+      )}
+
+      {view === "calc" && (
       <div className="max-w-5xl mx-auto px-6 py-8">
         {(sourceUseCase || incomingModelId) && (
           <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}>
@@ -1120,12 +1167,21 @@ function GPUSizingCalculatorInner() {
 
             <PodSizingHandoff />
 
-            <CopySummaryButton mode={mode} result={result} modelLabel={mode === "Inference" ? infModel.label : trainModel.label} />
+            <button
+              onClick={requestReport}
+              className="mt-3 w-full text-sm font-bold py-2.5 rounded-lg text-white"
+              style={{ background: RED }}
+            >
+              Get the full sizing report
+            </button>
+
+            <CopySummaryButton mode={mode} result={result} modelLabel={modelLabel} />
             </>
             )}
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
