@@ -30,11 +30,12 @@ function fmtValue(key, value) {
   if (value == null) return "—";
   if (typeof value === "number") {
     const k = key.toLowerCase();
-    if (k.includes("payback")) return `${value} months`;
+    if (k.includes("payback")) return `${value.toFixed(1)} months`;
     if ((k.includes("pct") || k.includes("roi")) && Math.abs(value) <= 5) {
       return `${(value * 100).toFixed(1)}%`;
     }
-    if (k.includes("cost") || k.includes("savings") || k.includes("value") || k.includes("budget") || k.includes("net") || k.includes("bill")) {
+    const MONEY_WORDS = ["cost", "savings", "value", "budget", "net", "bill", "opex", "capex", "credit", "spend", "price", "amount"];
+    if (MONEY_WORDS.some((w) => k.includes(w))) {
       return `$${Math.round(value).toLocaleString()}`;
     }
     return value.toLocaleString();
