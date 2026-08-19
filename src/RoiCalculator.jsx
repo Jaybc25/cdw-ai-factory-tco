@@ -757,11 +757,11 @@ function RoiCalculatorInner() {
                 >
                   Get the full ROI report
                 </button>
+                <div style={{ ...styles.guardrail, marginTop: 14, marginBottom: 0, background: "rgba(255,255,255,0.06)" }}>
+                  These results represent capacity created and its economic value, not headcount reduction. No output in this tool should be read as a staffing recommendation.
+                </div>
               </>
             )}
-          </div>
-          <div style={styles.guardrail}>
-            These results represent capacity created and its economic value, not headcount reduction. No output in this tool should be read as a staffing recommendation.
           </div>
         </div>
       </div>
