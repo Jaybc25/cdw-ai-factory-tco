@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import cdwLogo from "./cdw-logo.png";
+import { AuthProvider } from "./AuthContext";
+import AuthWidget from "./AuthWidget";
 import checklistData from "./checklists.json";
 
 // ---------------------------------------------------------------------------
@@ -172,7 +174,7 @@ const S = {
 const STATUS_COLORS = { "Ready": C.greenOk, "Mostly ready": "#4E8A1F", "Needs attention": C.red, "Gaps to investigate": C.amber };
 const COMPLETION_LABELS = { not_started: "Not started", in_progress: "In progress", complete: "Complete" };
 
-export default function AiReadinessChecklists() {
+function AiReadinessChecklistsInner() {
   const [store, setStore] = useState(() => {
     const saved = loadState();
     if (saved && saved.content_version === checklistData.content_version) return { state: saved, versionNotice: false };
@@ -231,6 +233,10 @@ export default function AiReadinessChecklists() {
           </a>
           <span style={S.protoBadge}>PROTOTYPE v1.0</span>
         </header>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", padding: "8px 0", borderBottom: "1px solid #eee", marginBottom: 12 }}>
+          <AuthWidget />
+        </div>
 
         {store.versionNotice && (
           <div style={{ ...S.card, borderColor: C.amber }}>
@@ -423,5 +429,13 @@ function BranchView({ door, branch, answers, onAnswer, onBack, onReroute }) {
         <button style={S.primaryBtn} onClick={onBack}>Back to summary</button>
       </div>
     </>
+  );
+}
+
+export default function AiReadinessChecklists() {
+  return (
+    <AuthProvider>
+      <AiReadinessChecklistsInner />
+    </AuthProvider>
   );
 }

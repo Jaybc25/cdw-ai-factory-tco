@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import cdwLogo from "./cdw-logo.png";
 import blueprintData from "./blueprints.json";
 import crosswalkData from "./ModelAdvisorCrosswalk.json";
+import { AuthProvider } from "./AuthContext";
+import AuthWidget from "./AuthWidget";
 
 // ─── cross-tool handoff: build param-carrying URLs from the crosswalk ────────
 // Maps a crosswalk umbrella label to the exact `value` string Model Advisor's
@@ -681,7 +683,7 @@ function DetailModal({ bp, contextLabel, contextDisplayName, contextFit, trigger
 
 // ─── main component ────────────────────────────────────────────────────────────
 
-export default function UseCaseExplorer() {
+function UseCaseExplorerInner() {
   const [view, setView] = useState("home");
   const [selectedIndustry, setSelectedIndustry] = useState(null);
   const [selectedFunction, setSelectedFunction] = useState(null);
@@ -751,6 +753,10 @@ export default function UseCaseExplorer() {
           <span style={{ fontSize: 17, fontWeight: 700, color: CDW_DARK, lineHeight: 1.2 }}>AI Use Case Explorer</span>
         </div>
         <span style={{ marginLeft: "auto", fontSize: 10, color: "#999", fontWeight: 500, border: "1px solid #e0e0e0", borderRadius: 4, padding: "2px 8px" }}>v2.2</span>
+      </div>
+
+      <div style={{ background: "#fff", borderBottom: `1px solid ${CDW_BORDER}`, padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+        <AuthWidget />
       </div>
 
       {/* breadcrumb */}
@@ -917,5 +923,13 @@ export default function UseCaseExplorer() {
         />
       )}
     </div>
+  );
+}
+
+export default function UseCaseExplorer() {
+  return (
+    <AuthProvider>
+      <UseCaseExplorerInner />
+    </AuthProvider>
   );
 }

@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 import cdwLogo from "./cdw-logo.png";
+import { AuthProvider } from "./AuthContext";
+import AuthWidget from "./AuthWidget";
 import {
   DEFAULT_INPUTS, BOUNDS, validateInputs, computeEngine,
   PAYBACK_GUARD_TEXT, NA_TEXT, excelRound,
@@ -369,7 +371,7 @@ const fmtFte = (v) => v == null ? NA_TEXT : `~${v.toFixed(1)} FTE-years`;
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
-export default function RoiCalculator() {
+function RoiCalculatorInner() {
   const [inputs, setInputs] = useState(DEFAULT_INPUTS);
   const [openTipId, setOpenTipId] = useState(null);
   const [showFte, setShowFte] = useState(false);
@@ -417,6 +419,10 @@ export default function RoiCalculator() {
           flexBasis: isMobile ? "100%" : "auto",
           width: isMobile ? "fit-content" : "auto",
         }}>PROTOTYPE v1.0</span>
+      </div>
+
+      <div style={{ padding: "0 0 12px", display: "flex", justifyContent: "flex-end", borderBottom: `1px solid ${GRAY_BORDER}`, marginBottom: 16 }}>
+        <AuthWidget />
       </div>
 
       <div style={{
@@ -619,5 +625,13 @@ export default function RoiCalculator() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RoiCalculator() {
+  return (
+    <AuthProvider>
+      <RoiCalculatorInner />
+    </AuthProvider>
   );
 }

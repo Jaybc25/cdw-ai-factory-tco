@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { Cpu, Zap, TrendingDown, TrendingUp, Info, ChevronDown, X } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
+import { AuthProvider } from "./AuthContext";
+import AuthWidget from "./AuthWidget";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -821,7 +823,7 @@ function getInitialInfModel() {
   return match || MODELS[1];
 }
 
-export default function GPUSizingCalculator() {
+function GPUSizingCalculatorInner() {
   const [mode, setMode] = useState(getInitialMode);
   const [pathLevel, setPathLevel] = useState("simple");
   const [sourceUseCase] = useState(getInitialSourceUseCase);
@@ -911,6 +913,10 @@ export default function GPUSizingCalculator() {
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>GPU Sizing Tool</div>
         </div>
         <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.14</span>
+      </div>
+
+      <div className="border-b border-gray-100 px-6 py-2 flex items-center justify-end">
+        <AuthWidget />
       </div>
 
       <div className="max-w-5xl mx-auto px-6 py-8">
@@ -1121,5 +1127,13 @@ export default function GPUSizingCalculator() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function GPUSizingCalculator() {
+  return (
+    <AuthProvider>
+      <GPUSizingCalculatorInner />
+    </AuthProvider>
   );
 }
