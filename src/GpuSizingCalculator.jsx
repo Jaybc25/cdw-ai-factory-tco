@@ -656,12 +656,37 @@ function getInitialWorkloadType() {
   return params?.get("workloadType") || null;
 }
 
+// Model Advisor's canonical_model_id (HuggingFace-derived, e.g. "llama-3.1-8b",
+// "llama-4-scout", "gemma-3-27b") uses a different slug convention than this
+// file's own MODELS[].id (e.g. "llama31-8b", "llama4-scout", "gemma3-27b") --
+// the family name and version number are separated by a hyphen on one side and
+// not the other. Verified against the real model_specs.json registry: 7 of 11
+// tracked models mismatch. An explicit table, not a derived pattern, so a
+// future model with an unexpected name fails visibly (see getInitialInfModel)
+// rather than silently matching wrong or breaking a clever regex.
+const MODEL_ADVISOR_ID_TO_GPU_SIZING_ID = {
+  "llama-3.1-8b": "llama31-8b",
+  "llama-3.1-70b": "llama31-70b",
+  "llama-3.1-405b": "llama31-405b",
+  "llama-3.3-70b": "llama33-70b",
+  "mixtral-8x7b": "mixtral-8x7b",
+  "llama-4-scout": "llama4-scout",
+  "llama-4-maverick": "llama4-maverick",
+  "gemma-3-27b": "gemma3-27b",
+  "deepseek-v3": "deepseek-v3",
+  "deepseek-r1": "deepseek-r1",
+  "muse-glimmer-30b": "muse-glimmer-30b",
+};
+
 function getInitialInfModel() {
   const params = getIncomingParams();
   const modelId = params?.get("model");
-  if (!modelId) return MODELS[1];
-  const match = MODELS.find((m) => m.id === modelId);
-  return match || MODELS[1];
+  if (!modelId) return { model: MODELS[1], matched: null }; // no handoff at all -- ordinary default, nothing to warn about
+  const normalized = MODEL_ADVISOR_ID_TO_GPU_SIZING_ID[modelId] || modelId;
+  const match = MODELS.find((m) => m.id === normalized);
+  // matched: true (found), false (a model= param arrived but nothing matches it,
+  // even after normalization -- don't silently substitute, tell the user)
+  return match ? { model: match, matched: true } : { model: MODELS[1], matched: false };
 }
 
 function GPUSizingCalculatorInner() {
@@ -673,7 +698,8 @@ function GPUSizingCalculatorInner() {
   const [incomingWorkloadType] = useState(getInitialWorkloadType);
   const [incomingModelId] = useState(() => getIncomingParams()?.get("model") || null);
 
-  const [infModel, setInfModel] = useState(getInitialInfModel);
+  const [modelHandoff] = useState(getInitialInfModel); // { model, matched: true | false | null }
+  const [infModel, setInfModel] = useState(modelHandoff.model);
   const [quant, setQuant] = useState("FP8");
   const [concurrentUsers, setConcurrentUsers] = useState(100);
   const [targetTokPerUser, setTargetTokPerUser] = useState(30);
@@ -966,7 +992,15 @@ function GPUSizingCalculatorInner() {
         {(sourceUseCase || incomingModelId) && (
           <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}>
             {incomingModelId && !sourceUseCase && (
-              <>Model pre-set to <strong>{incomingModelId}</strong>, carried over from Model Advisor. Adjust anything below to refine the estimate.</>
+              modelHandoff.matched === false ? (
+                <>
+                  Model Advisor recommended <strong>{incomingModelId}</strong>, but this calculator doesn't have a sizing
+                  profile for that model yet. Showing default settings ({infModel.label}) instead -- pick the right model
+                  below rather than relying on this pre-fill.
+                </>
+              ) : (
+                <>Model pre-set to <strong>{infModel.label}</strong>, carried over from Model Advisor. Adjust anything below to refine the estimate.</>
+              )
             )}
             {sourceUseCase && (
               <>
