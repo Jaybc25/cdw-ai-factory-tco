@@ -44,6 +44,10 @@ const FIELD_FORMAT = {
   grossCapacity: "count", redeployableCapacity: "count", fteEquivalent: "count",
   steadyStateValue: "money", year1Value: "money", year1Net: "money", horizonNet: "money",
   horizonROI: "percent", horizonYears: "count", payback: "months",
+  // Readiness (its per-door status values are dynamic, config-driven keys and always
+  // strings -- typeof already guards those regardless of key name, so only its fixed
+  // numeric metadata fields need an entry here)
+  doorsComplete: "count", doorsTotal: "count", suggestedStepCount: "count",
 };
 
 // Lightweight formatter for values coming out of each tool's "summary"
