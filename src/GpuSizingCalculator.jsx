@@ -610,7 +610,7 @@ const TCO_OWN_SYS_FOR_CLASS = {
 
 function TcoHandoff({ selectedClass, recommended }) {
   const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
-  const href = `/tco?ownSys=${encodeURIComponent(ownSys)}`;
+  const href = `/tco?ownSys=${encodeURIComponent(ownSys)}&gpuCount=${encodeURIComponent(recommended)}`;
   return (
     <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-gray-50 flex items-center justify-between gap-3">
       <div>

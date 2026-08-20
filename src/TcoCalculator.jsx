@@ -408,6 +408,17 @@ function getInitialOwnSys() {
   return raw && OWN_TARGETS.includes(raw) ? raw : "DGX B200";
 }
 
+// GPU Sizing's node-rounded GPU count for the recommended class, e.g. 24 for
+// "24 x B300". Distinct from ownSys: this is the technical requirement, not
+// a target system pick, and it's never used to override spend-derived TCO
+// math -- only to display GPU Sizing's own recommendation alongside it.
+function getInitialGpuCount() {
+  const params = getIncomingParams();
+  const raw = params?.get("gpuCount");
+  const n = raw ? parseInt(raw, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function AppInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const [ov, setOv] = useState({});
@@ -416,6 +427,7 @@ function AppInner() {
   const [gpuClass, setGpuClass] = useState("H100");
   const [ownSys, setOwnSys] = useState(getInitialOwnSys);
   const [arrivedFromGpuSizing] = useState(() => !!getIncomingParams()?.get("ownSys"));
+  const [gpuSizingCount] = useState(getInitialGpuCount);
   const [trainShare, setTrainShare] = useState(0.5);
   const [odShare, setOdShare] = useState(0);
   const [storageAuto, setStorageAuto] = useState(true); // v2.3: Tier 1 derives storage from the bill; manual entry = Tier 2/3
@@ -484,6 +496,13 @@ function AppInner() {
     [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelSize, quant, horizon, provider, ov]
   );
   const t = r.tot(horizon);
+
+  // GPU Sizing's technical recommendation, expressed in the same "X x system"
+  // shape as the spend-derived fleet, but computed independently: node-rounded
+  // GPU count / GPUs-per-system for whichever ownSys is currently selected.
+  // Never fed into run() -- capex/opex/payback/headroom stay spend-derived.
+  const gpuSizingSystems = gpuSizingCount ? Math.max(1, Math.ceil(gpuSizingCount / SYSTEMS[ownSys].gpus)) : null;
+  const fleetsDisagree = gpuSizingSystems !== null && gpuSizingSystems !== r.sysAdj;
 
   // Minimum viable spend: smallest monthly bill where on-prem beats cloud at the selected horizon, current settings (spend-based path)
   const minViable = useMemo(() => {
@@ -598,6 +617,9 @@ function AppInner() {
             <Row label="Residual value credit" value={`−${fmt(r.adj.resid)}`} sub={`${Math.round(residPct * 100)}% of systems + storage capex at horizon`} />
             {r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`} sub={`${modelSize} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
             <Row label="Your current consumption (reconstructed)" value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`} sub={tier3Hrs > 0 ? "from your invoice" : `from spend at ${provider} ${gpuClass} list rates (${RATES_ASOF})`} />
+            {gpuSizingSystems && (
+              <Row label="GPU Sizing technical recommendation" value={`${gpuSizingSystems} × ${ownSys}`} sub={`${gpuSizingCount} GPUs, node-rounded -- workload requirement, not spend-derived${fleetsDisagree ? "; differs from the build above" : ""}`} />
+            )}
             <div style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
               Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
             </div>
@@ -624,6 +646,7 @@ function AppInner() {
                   ["Redundancy / residual", `${redundancy ? "N+1 on" : "off"} / ${Math.round(residPct * 100)}%`],
                   ["Reconstructed GPU-hours", `${Math.round(r.gpuHrs).toLocaleString()}/mo`],
                   ["Systems (adjusted / floor)", `${r.sysAdj} / ${r.sysFloor}`],
+                  ...(gpuSizingSystems ? [["GPU Sizing technical recommendation", `${gpuSizingSystems} × ${ownSys} (${gpuSizingCount} GPUs, node-rounded)`]] : []),
                   ["Fleet by year (adjusted)", r.fleetAdj.slice(0, horizon).join(" → ")],
                   ["Capex / one-time / residual credit", `${fmt(r.adj.capex)} / ${fmt(r.oneTime)} / −${fmt(r.adj.resid)}`],
                   ["On-prem opex", `${fmt(r.adj.opex)}/mo`],
@@ -665,8 +688,16 @@ function AppInner() {
         {view === "calc" && (<div>
         {arrivedFromGpuSizing && (
           <div style={{ background: "#F5F5F5", border: "1px solid #ddd", borderRadius: 10, padding: "12px 16px", marginBottom: 14, fontSize: 13, color: "#444" }}>
-            Target system pre-set to <strong>{ownSys}</strong>, based on your GPU Sizing recommendation. Enter your
+            Target system pre-set to <strong>{ownSys}</strong>, based on your GPU Sizing recommendation
+            {gpuSizingSystems ? <> of <strong>{gpuSizingSystems} x {ownSys}</strong> ({gpuSizingCount} GPUs)</> : null}. Enter your
             current monthly cloud spend below to see whether owning it costs less than what you're paying today.
+            {gpuSizingSystems && fleetsDisagree ? (
+              <div style={{ marginTop: 6, color: "#666" }}>
+                The fleet size below is derived from your cloud spend, not this technical recommendation, so it may
+                differ. Cloud spend reflects your current usage and pricing; GPU Sizing reflects the workload's
+                technical requirement -- they can legitimately disagree.
+              </div>
+            ) : null}
           </div>
         )}
         {/* RESULTS */}
