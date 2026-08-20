@@ -388,6 +388,11 @@ function getInitialInputs() {
   };
 }
 
+function getInitialPlanningBasis() {
+  const raw = getIncomingParams()?.get("planningBasis");
+  return raw === "workload" || raw === "spend" ? raw : null;
+}
+
 function RoiCalculatorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
 
@@ -396,6 +401,7 @@ function RoiCalculatorInner() {
     const params = getIncomingParams();
     return !!(params?.get("initialCost") || params?.get("recurringCost"));
   });
+  const [tcoPlanningBasis] = useState(getInitialPlanningBasis);
   const [openTipId, setOpenTipId] = useState(null);
   const [showFte, setShowFte] = useState(false);
   const [showUpside, setShowUpside] = useState(false);
@@ -439,6 +445,7 @@ function RoiCalculatorInner() {
           horizonROI: engine.horizonROI,
           horizonYears: inputs.horizonYears,
           payback: engine.payback,
+          costSource: tcoPlanningBasis ? `TCO Calculator (${tcoPlanningBasis === "workload" ? "Workload Requirement" : "Existing Cloud Spend"})` : "Manual entry",
         }
       : null
   );
@@ -568,6 +575,12 @@ function RoiCalculatorInner() {
           </div>
 
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: GRAY_TEXT, textTransform: "uppercase", marginBottom: 8 }}>Economic value &amp; investment result</div>
+          {arrivedFromTco && (
+            <div style={{ fontSize: 11, color: GRAY_TEXT, marginBottom: 8 }}>
+              Initial ({fmtCurrency(inputs.initialCost)}) and recurring ({fmtCurrency(inputs.recurringCost)}/yr) AI cost sourced from the TCO
+              Calculator{tcoPlanningBasis === "workload" ? " (Workload Requirement fleet sizing)" : tcoPlanningBasis === "spend" ? " (reported cloud spend)" : ""}.
+            </div>
+          )}
           <div style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 10, padding: 14, marginBottom: 16, fontSize: 13, color: CHARCOAL }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 6, columnGap: 12 }}>
               <div style={{ color: GRAY_TEXT }}>Steady-state economic value</div><div>{fmtCurrency(engine.steadyStateValue)}/yr</div>
@@ -605,8 +618,17 @@ function RoiCalculatorInner() {
       <div className="no-print">
       {arrivedFromTco && (
         <div style={{ background: "#F5F5F5", border: `1px solid ${GRAY_BORDER}`, borderRadius: 10, padding: "12px 16px", marginBottom: 16, fontSize: 13, color: "#444" }}>
-          Initial and recurring AI cost pre-filled from your TCO Calculator results. Adjust the workload fields
-          below to see the full ROI case.
+          Initial and recurring AI cost pre-filled from your TCO Calculator results
+          {tcoPlanningBasis === "workload" ? (
+            <> (based on the Workload Requirement fleet sizing, not a reported cloud bill)</>
+          ) : tcoPlanningBasis === "spend" ? (
+            <> (based on your reported cloud spend)</>
+          ) : null}
+          . Adjust the workload fields below to see the full ROI case.
+          <div style={{ marginTop: 6, color: "#666" }}>
+            These costs and the task-automation inputs below are independent: make sure the workflow you're describing
+            here is actually what that infrastructure spend is meant to accelerate, this tool doesn't verify that for you.
+          </div>
         </div>
       )}
       <div style={{
