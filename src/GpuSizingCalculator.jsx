@@ -621,7 +621,7 @@ function TcoHandoff({ selectedClass, recommended, mode, workingDayHours }) {
       <div>
         <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Next: Cost comparison</div>
         <div className="text-xs text-gray-500">
-          See whether buying {recommended} x {selectedClass} costs less than your current cloud spend, in the TCO Calculator.
+          Compare the cost of owning this recommended GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator.
         </div>
       </div>
       <a
