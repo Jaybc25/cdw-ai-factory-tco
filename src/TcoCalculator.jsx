@@ -140,22 +140,93 @@ const store = {
   },
 };
 
+/* ============ v2.9: WORKLOAD-MODE ENGINE PIECES ============
+   Added for the GPU-Sizing handoff: a second, workload-driven comparison mode
+   alongside the original spend-derived bake-off mode below. Reviewed against
+   an external methodology pass (Aug 2026) before being built. Key decisions
+   from that review, reflected here:
+   - genPF is a benchmark-derived, workload-normalized generational capability
+     factor (from MLPerf-class throughput ratios), NOT a raw/universal physical
+     hardware constant -- it already carries some system/software effect from
+     how the underlying benchmarks are run, so it's directional, not exact.
+   - Only genPF (hardware generation capability) converts technical GPU-hours
+     into rented-class-equivalent hours. fNet/fSw/fNvaie (network, scheduling,
+     inference-stack gains) are deliberately EXCLUDED from this conversion --
+     those are advantages of OWNING infrastructure, not something a cloud
+     renter gets, so folding them into a rental-cost estimate would be
+     circular (using "how much better owning is" to price renting).
+   - Full npf = genPF x fNet x fSw x fNvaie remains scoped to the existing
+     bake-off methodology below, unchanged.
+   - A future "operational efficiency" layer (showing what fNet/fSw/fNvaie
+     could additionally save) is an intentionally separate v2.10 addition,
+     not part of this base workload comparison -- kept structurally separate
+     here (hardwareEquivalentCloudCost) so that layer can be added later
+     without touching this function. */
+
+// Benchmark-derived generational capability factor: how much more work the
+// target/own-side GPU class does per hour than the rented class, blended by
+// workload mix. Directional (MLPerf-class throughput ratios), not a
+// universal physical conversion constant -- treat it as workload-normalized.
+function computeGenPF(ownSys, gpuClass, trainShare) {
+  const tgt = SYS_CLASS[ownSys];
+  const genTrain = IDX.train[tgt] / IDX.train[gpuClass];
+  const genInfer = IDX.infer[tgt] / IDX.infer[gpuClass];
+  return 1 / (trainShare / genTrain + (1 - trainShare) / genInfer);
+}
+
+// Converts a technical GPU-hour requirement (already expressed at the target/
+// own GPU class) into an estimated cloud cost at the rented class, using ONLY
+// the hardware capability ratio (genPF). Deliberately does not apply fNet/
+// fSw/fNvaie -- see note above. genPFUsed=1 gives the floor case (no
+// generational credit assumed, the conservative/no-crossover-biased estimate).
+function hardwareEquivalentCloudCost(technicalGpuHrs, genPFUsed, blended) {
+  const rentedGpuHrsEquivalent = technicalGpuHrs * genPFUsed;
+  return { rentedGpuHrsEquivalent, monthlyCompute: rentedGpuHrsEquivalent * blended };
+}
+
+// Generalized fleet trajectory: shared by both modes. baseHrsFn(y) supplies
+// the demand hours for year y (rented-hours/npf in spend mode, technical
+// GPU-hours directly in workload mode -- already the right units by the time
+// this is called, so this function itself is mode-agnostic). Fleet never
+// shrinks; technicalFloorSys (workload mode only) sets a hard floor so the
+// fleet is never sized below the known technical requirement.
+function buildTrajectory(baseHrsFn, perSysHrs, S, RC, nPlus, storCapex, storSup, totPB, isEquinix, powerRate, technicalFloorSys) {
+  const rows = [];
+  let prevSys = 0, prevRacks = 0;
+  for (let y = 0; y < 5; y++) {
+    const eff = baseHrsFn(y);
+    let base = eff > 0 ? Math.max(1, Math.ceil(eff / perSysHrs)) + nPlus : 0;
+    if (technicalFloorSys) base = Math.max(base, technicalFloorSys);
+    const sys = Math.max(prevSys, base);
+    const racks = Math.ceil(sys / S.perRack);
+    const capexAdd =
+      (y === 0 ? RC.cluster + storCapex : 0) +
+      (sys - prevSys) * RC.perSysCost +
+      (racks - prevRacks) * S.rackCost;
+    const opexMo0 = isEquinix
+      ? sys * RC.equinixMo + storSup
+      : (sys * RC.sysKw + totPB * RC.kwPerPB) * powerRate +
+        RC.netMo + (RC.setupRack * (racks + totPB * RC.racksPerPB)) / 36 +
+        ((sys / RC.adminRatio) * RC.opFTE) / 12 + storSup;
+    rows.push({ sys, racks, capexAdd, opexMo0, opexYr: 12 * opexMo0 * Math.pow(1 + RC.opsGrowth, y) });
+    prevSys = sys; prevRacks = racks;
+  }
+  return rows;
+}
+
 /* ============ ENGINE (mirrors validated spreadsheet Engine tab; v2.3-lineage, audit-complete after 9 external rounds) ============ */
 function run(inp, RC) {
+  const isWorkloadMode = inp.mode === "workload" && !!inp.gpuSizingCount;
+
   const blended =
     (inp.odShare * (RC.instOD + RC.nvaieOD) +
       (1 - inp.odShare) * (RC.instRes + RC.nvaieRes)) *
     (1 + RC.paasUplift);
-  const computeSpend = inp.bill * inp.computeShare;
-  const instHrs = blended > 0 ? computeSpend / blended : 0;
-  const gpuHrs = inp.tier3Hrs > 0 ? inp.tier3Hrs : instHrs; // rates are per GPU-hr
 
-  const tgt = SYS_CLASS[inp.ownSys];
-  const genTrain = IDX.train[tgt] / IDX.train[inp.gpuClass];
-  const genInfer = IDX.infer[tgt] / IDX.infer[inp.gpuClass];
+  const genPF = computeGenPF(inp.ownSys, inp.gpuClass, inp.trainShare);
   // v2.0: harmonic (GPU-hour-correct) blend — workload shares are hour shares, so the slower
-  // factor consumes proportionally more replacement capacity (audit finding P0-2)
-  const genPF = 1 / (inp.trainShare / genTrain + (1 - inp.trainShare) / genInfer);
+  // factor consumes proportionally more replacement capacity (audit finding P0-2). npf stays
+  // scoped to bake-off mode (see v2.9 note above) -- workload mode uses genPF alone.
   const npf = genPF * inp.fNet * inp.fSw * inp.fNvaie;
 
   const S = SYSTEMS[inp.ownSys];
@@ -175,58 +246,64 @@ function run(inp, RC) {
   const storCapex = fast * RC.fastPB + bulk * RC.bulkPB;
   const storSup = (fast * RC.fastSupPB + bulk * RC.bulkSupPB) / 12;
   const exitEgress = totPB * 1e6 * RC.egressGB;
-  const oneTime =
-    (isRetrofit ? inp.retrofit : 0) + inp.migration + inp.dualRun * inp.bill + exitEgress;
 
-  // v2.0: dynamic fleet trajectory — systems, racks, capex additions and opex recomputed per year
-  // as demand growth exhausts capacity (audit finding P0-1). Fleet never shrinks. Storage held static.
-  const traj = (npfUsed) => {
-    const rows = [];
-    let prevSys = 0, prevRacks = 0;
-    for (let y = 0; y < 5; y++) {
-      const eff = (gpuHrs * Math.pow(1 + inp.growth, y)) / npfUsed;
-      const base = gpuHrs > 0 ? Math.max(1, Math.ceil(eff / perSysHrs)) + nPlus : 0;
-      const sys = Math.max(prevSys, base);
-      const racks = Math.ceil(sys / S.perRack);
-      const capexAdd =
-        (y === 0 ? RC.cluster + storCapex : 0) +
-        (sys - prevSys) * perSys +
-        (racks - prevRacks) * S.rackCost;
-      const opexMo0 = isEquinix
-        ? sys * RC.equinixMo + storSup
-        : (sys * RC.sysKw + totPB * RC.kwPerPB) * inp.powerRate +
-          RC.netMo + (RC.setupRack * (racks + totPB * RC.racksPerPB)) / 36 +
-          ((sys / RC.adminRatio) * RC.opFTE) / 12 + storSup;
-      rows.push({ sys, racks, capexAdd, opexMo0, opexYr: 12 * opexMo0 * Math.pow(1 + RC.opsGrowth, y) });
-      prevSys = sys; prevRacks = racks;
-    }
-    return rows;
-  };
-  const adjT = traj(npf);
-  const flrT = traj(1);
+  let gpuHrs, adjT, flrT, cloudYears, cloudYearsFloor, technicalSystems = null, monthlyCloudBaseline;
+
+  if (isWorkloadMode) {
+    // Workload mode: technical GPU requirement (already at the target/own class) drives BOTH
+    // sides. Fleet size is fixed by the requirement, not derived from any performance factor,
+    // so adjusted/floor fleets are identical -- the floor/adjusted split instead lives on the
+    // CLOUD side (genPF-adjusted vs genPF=1, i.e. no generational credit assumed).
+    const technicalGpuHrs = inp.gpuSizingCount * RC.hrsMo * inp.util;
+    gpuHrs = technicalGpuHrs;
+    technicalSystems = Math.max(1, Math.ceil(technicalGpuHrs / perSysHrs));
+    adjT = buildTrajectory((y) => technicalGpuHrs * Math.pow(1 + inp.growth, y), perSysHrs, S, RC, nPlus, storCapex, storSup, totPB, isEquinix, inp.powerRate, technicalSystems);
+    flrT = adjT;
+    const adjCloud = hardwareEquivalentCloudCost(technicalGpuHrs, genPF, blended);
+    const flrCloud = hardwareEquivalentCloudCost(technicalGpuHrs, 1, blended);
+    cloudYears = [0, 1, 2, 3, 4].map((y) => 12 * (adjCloud.monthlyCompute * Math.pow(1 + inp.growth, y) + cloudStorage * Math.pow(1 + RC.opsGrowth, y)));
+    cloudYearsFloor = [0, 1, 2, 3, 4].map((y) => 12 * (flrCloud.monthlyCompute * Math.pow(1 + inp.growth, y) + cloudStorage * Math.pow(1 + RC.opsGrowth, y)));
+    monthlyCloudBaseline = adjCloud.monthlyCompute + cloudStorage; // the actual comparable figure in this mode, not the entered bill
+  } else {
+    // Bake-off mode: unchanged from v2.8 -- spend backward-derives gpuHrs, cloud cost is the
+    // entered bill escalated by growth, fleet trajectory divides by full npf (genPF x the three
+    // operational factors), and floor forces npf to 1.
+    const computeSpend = inp.bill * inp.computeShare;
+    const instHrs = blended > 0 ? computeSpend / blended : 0;
+    gpuHrs = inp.tier3Hrs > 0 ? inp.tier3Hrs : instHrs;
+    adjT = buildTrajectory((y) => (gpuHrs * Math.pow(1 + inp.growth, y)) / npf, perSysHrs, S, RC, nPlus, storCapex, storSup, totPB, isEquinix, inp.powerRate, null);
+    flrT = buildTrajectory((y) => (gpuHrs * Math.pow(1 + inp.growth, y)) / 1, perSysHrs, S, RC, nPlus, storCapex, storSup, totPB, isEquinix, inp.powerRate, null);
+    cloudYears = [0, 1, 2, 3, 4].map((y) =>
+      12 * (inp.bill * inp.computeShare * Math.pow(1 + inp.growth, y) + inp.bill * (1 - inp.computeShare) * Math.pow(1 + RC.opsGrowth, y))
+    );
+    cloudYearsFloor = cloudYears;
+    monthlyCloudBaseline = inp.bill;
+  }
+
+  const oneTime =
+    (isRetrofit ? inp.retrofit : 0) + inp.migration + inp.dualRun * monthlyCloudBaseline + exitEgress;
+
   const sysAdj = adjT[0].sys;
   const sysFloor = flrT[0].sys;
   const prodSys = Math.max(1, sysAdj - nPlus); // productive systems: the N+1 spare is failover, not growth capacity (audit round 4)
-  const headroom = sysAdj > 0 ? 1 - gpuHrs / npf / (prodSys * perSysHrs) : 0;
+  const headroom = isWorkloadMode
+    ? (sysAdj > 0 ? 1 - gpuHrs / (prodSys * perSysHrs) : 0) // already target-class hours -- no capability conversion needed
+    : (sysAdj > 0 ? 1 - gpuHrs / npf / (prodSys * perSysHrs) : 0);
 
   // residual basis excludes professional services (no resale value — audit finding) and cluster/racks/one-time
   const residAt = (T, n) => inp.residPct * (T[n - 1].sys * (perSys - S.prof - S.sw) + storCapex); // hardware only: prof svcs and SW subscriptions have no resale value
   const adj = { capex: adjT[0].capexAdd, opex: adjT[0].opexMo0, resid: residAt(adjT, inp.horizon) };
   const flr = { capex: flrT[0].capexAdd, opex: flrT[0].opexMo0, resid: residAt(flrT, inp.horizon) };
 
-  const cloudYears = [0, 1, 2, 3, 4].map((y) =>
-    12 *
-    (inp.bill * inp.computeShare * Math.pow(1 + inp.growth, y) +
-      inp.bill * (1 - inp.computeShare) * Math.pow(1 + RC.opsGrowth, y))
-  );
   const tot = (n) => {
     const cloud = cloudYears.slice(0, n).reduce((a, b) => a + b, 0);
+    const cloudFloor = cloudYearsFloor.slice(0, n).reduce((a, b) => a + b, 0);
     const onAdj = adjT.slice(0, n).reduce((a, r2) => a + r2.capexAdd + r2.opexYr, 0) + oneTime - residAt(adjT, n);
     const onFlr = flrT.slice(0, n).reduce((a, r2) => a + r2.capexAdd + r2.opexYr, 0) + oneTime - residAt(flrT, n);
-    return { cloud, onAdj, onFlr, saveAdj: cloud - onAdj, saveFlr: cloud - onFlr };
+    return { cloud, cloudFloor, onAdj, onFlr, saveAdj: cloud - onAdj, saveFlr: cloudFloor - onFlr };
   };
   const payback =
-    inp.bill - adj.opex > 0 ? (adj.capex + oneTime) / (inp.bill - adj.opex) : null; // SECONDARY static metric
+    monthlyCloudBaseline - adj.opex > 0 ? (adj.capex + oneTime) / (monthlyCloudBaseline - adj.opex) : null; // SECONDARY static metric
   // v2.2: crossover from cumulative monthly cash flows (audit round 4) — capex charged at the
   // start of the year it's incurred (incl. growth-driven fleet additions); residual excluded
   let crossoverMo = null;
@@ -266,6 +343,7 @@ function run(inp, RC) {
   };
   const storageBudget = inp.bill * (1 - inp.computeShare);
   return { blended, gpuHrs, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, storageBudget, oneTime, exitEgress, tot, payback, crossoverMo, exhaustYrs, perSysHrs, cap,
+    isWorkloadMode, technicalSystems, monthlyCloudBaseline,
     fleetAdj: adjT.map((r2) => r2.sys), fleetFlr: flrT.map((r2) => r2.sys) };
 }
 
@@ -428,6 +506,7 @@ function AppInner() {
   const [ownSys, setOwnSys] = useState(getInitialOwnSys);
   const [arrivedFromGpuSizing] = useState(() => !!getIncomingParams()?.get("ownSys"));
   const [gpuSizingCount] = useState(getInitialGpuCount);
+  const [mode, setMode] = useState(() => gpuSizingCount ? "workload" : "spend"); // v2.9: bake-off (spend-derived) vs workload (technical-requirement-driven)
   const [trainShare, setTrainShare] = useState(0.5);
   const [odShare, setOdShare] = useState(0);
   const [storageAuto, setStorageAuto] = useState(true); // v2.3: Tier 1 derives storage from the bill; manual entry = Tier 2/3
@@ -484,16 +563,18 @@ function AppInner() {
   const rateInfo = RATES[provider][gpuClass];
 
   // Auto mode: size PB so implied cloud storage+egress consumes the non-compute budget (25/75 fast/bulk split)
+  // v2.9: workload mode has no bill to derive storage from, so it's always manual there regardless of the toggle.
+  const effectiveStorageAuto = storageAuto && mode !== "workload";
   const perPBCost = 0.25 * 1e6 * rc.fastGB + 0.75 * 1e6 * rc.bulkGB + 1e6 * egressPct * rc.egressGB;
   const autoPB = perPBCost > 0 ? Math.max(0, (bill * (1 - computeShare)) / perPBCost) : 0;
-  const fastPB = storageAuto ? Math.round(autoPB * 0.25 * 100) / 100 : fastPBm;
-  const bulkPB = storageAuto ? Math.round(autoPB * 0.75 * 100) / 100 : bulkPBm;
-  const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (storageAuto) setBulkPBm(bulkPB); };
-  const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (storageAuto) setFastPBm(fastPB); };
-  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelSize, quant, horizon };
+  const fastPB = effectiveStorageAuto ? Math.round(autoPB * 0.25 * 100) / 100 : fastPBm;
+  const bulkPB = effectiveStorageAuto ? Math.round(autoPB * 0.75 * 100) / 100 : bulkPBm;
+  const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (effectiveStorageAuto) setBulkPBm(bulkPB); };
+  const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (effectiveStorageAuto) setFastPBm(fastPB); };
+  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelSize, quant, horizon, mode, gpuSizingCount };
   const r = useMemo(
     () => run(inputsObj, rc),
-    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelSize, quant, horizon, provider, ov]
+    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelSize, quant, horizon, provider, ov, mode, gpuSizingCount]
   );
   const t = r.tot(horizon);
 
@@ -504,16 +585,17 @@ function AppInner() {
   const gpuSizingSystems = gpuSizingCount ? Math.max(1, Math.ceil(gpuSizingCount / SYSTEMS[ownSys].gpus)) : null;
   const fleetsDisagree = gpuSizingSystems !== null && gpuSizingSystems !== r.sysAdj;
 
-  // Minimum viable spend: smallest monthly bill where on-prem beats cloud at the selected horizon, current settings (spend-based path)
+  // Minimum viable spend: smallest monthly bill where on-prem beats cloud at the selected horizon (bake-off mode only -- workload mode's cost isn't driven by the bill, so this question doesn't apply there)
   const minViable = useMemo(() => {
+    if (mode === "workload") return null;
     for (let b = 20000; b <= 2000000; b *= 1.1) {
       const rr = run({ ...inputsObj, bill: Math.round(b), tier3Hrs: 0 }, rc);
       if (rr.tot(horizon).saveAdj > 0) return Math.round(b / 5000) * 5000;
     }
     return null;
-  }, [gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, retrofit, migration, dualRun, redundancy, residPct, computeShare, odShare, provider, ov, horizon]);
+  }, [gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, retrofit, migration, dualRun, redundancy, residPct, computeShare, odShare, provider, ov, horizon, mode]);
   const tier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
-  const maxBar = Math.max(t.cloud, t.onAdj, t.onFlr, 1);
+  const maxBar = Math.max(t.cloud, t.cloudFloor, t.onAdj, t.onFlr, 1);
   const isSelf = facility !== "Equinix";
 
   useAutosaveSnapshot("tco", inputsObj, {
@@ -523,6 +605,7 @@ function AppInner() {
     onPremCost: t.onAdj,
     recommendedFleet: `${r.sysAdj} x ${ownSys}`,
     gpuSizingFleet: gpuSizingSystems ? `${gpuSizingSystems} x ${ownSys}` : null,
+    planningBasis: mode === "workload" ? "Workload Requirement" : "Existing Cloud Spend",
     facility,
     capexPlusOneTime: r.adj.capex + r.oneTime,
     monthlyOpex: r.adj.opex,
@@ -611,52 +694,70 @@ function AppInner() {
                 </div>
               </div>
             )}
-            <Row label={`Recommended build`} value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`} sub={`${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
+            <Row label="Planning basis" value={r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend"} sub={r.isWorkloadMode ? "both sides costed from the GPU Sizing technical requirement" : "on-prem sized from your reported cloud spend"} />
+            <Row label={`Recommended build`} value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`} sub={r.isWorkloadMode ? `fixed to the workload's technical requirement · ${facility}` : `${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
             <Row label="Total capex + one-time transition" value={fmtM(r.adj.capex + r.oneTime)} sub={`incl. ${fmtM(r.oneTime)} migration, dual-run, and exit costs`} />
             <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
-            <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub="capex + one-time vs. current monthly cloud bill" />
+            <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub={r.isWorkloadMode ? "capex + one-time vs. estimated workload-equivalent cloud cost" : "capex + one-time vs. current monthly cloud bill"} />
             <Row label="Residual value credit" value={`−${fmt(r.adj.resid)}`} sub={`${Math.round(residPct * 100)}% of systems + storage capex at horizon`} />
             {r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`} sub={`${modelSize} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
-            <Row label="Your current consumption (reconstructed)" value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`} sub={tier3Hrs > 0 ? "from your invoice" : `from spend at ${provider} ${gpuClass} list rates (${RATES_ASOF})`} />
-            {gpuSizingSystems && (
-              <Row label="GPU Sizing technical recommendation" value={`${gpuSizingSystems} × ${ownSys}`} sub={`${gpuSizingCount} GPUs, node-rounded -- workload requirement, not spend-derived${fleetsDisagree ? "; differs from the build above" : ""}`} />
+            {r.isWorkloadMode ? (
+              <Row label="Technical workload requirement" value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`} sub={`${gpuSizingCount} GPUs at ${ownSys}'s target utilization -- drives both sides of this comparison`} />
+            ) : (
+              <>
+                <Row label="Your current consumption (reconstructed)" value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`} sub={tier3Hrs > 0 ? "from your invoice" : `from spend at ${provider} ${gpuClass} list rates (${RATES_ASOF})`} />
+                {gpuSizingSystems && (
+                  <Row label="GPU Sizing technical recommendation" value={`${gpuSizingSystems} × ${ownSys}`} sub={`${gpuSizingCount} GPUs, node-rounded -- workload requirement, not spend-derived${fleetsDisagree ? "; differs from the build above" : ""}`} />
+                )}
+              </>
             )}
             <div style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
-              Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+              {r.isWorkloadMode ? (
+                <>
+                  Methodology (Workload Requirement mode, v2.9): cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). The on-prem fleet is sized directly to the GPU Sizing technical requirement ({gpuSizingCount} GPUs at {ownSys}), not derived from spend, and grows year over year on the same growth rate applied to that requirement. The cloud-side estimate converts that same technical requirement into rented {gpuClass} hours using ONLY the hardware generational capability factor ({r.genPF.toFixed(2)}x, benchmark-derived from MLPerf-class throughput ratios for {ownSys} vs {gpuClass} -- directional and workload-normalized, not a universal physical conversion constant). Network, scheduling, and inference-stack efficiency factors (fNet/fSw/fNvaie) are deliberately excluded from this conversion, since those are advantages of owning infrastructure, not something a cloud renter gets; applying them to price a rental would be circular. The floor case instead assumes zero generational credit (1.00x), the conservative case if that capability ratio is overstated. Storage is a direct input (no bill to auto-scale it from). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026); residual value applies to hardware only. This is a directional analysis for a workload that may not yet exist at this scale in your current cloud environment.
+                </>
+              ) : (
+                <>
+                  Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+                </>
+              )}
             </div>
             <div style={{ marginTop: 14 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX — FULL INPUTS & OUTPUTS (for independent reproduction)</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 14px", fontSize: 11 }}>
                 {[
-                  ["Monthly cloud AI spend", `${fmt(bill)}/mo`],
+                  ["Planning basis", r.isWorkloadMode ? "Workload Requirement (v2.9)" : "Existing Cloud Spend"],
+                  [r.isWorkloadMode ? "Reported monthly cloud spend (context only)" : "Monthly cloud AI spend", `${fmt(bill)}/mo`],
                   ["Provider / rented GPU class", `${provider} / ${gpuClass} (${RATES[provider][gpuClass].conf})`],
                   ["On-prem target system", ownSys],
                   ["Training / inference mix", `${Math.round(trainShare * 100)}% / ${Math.round((1 - trainShare) * 100)}%`],
                   ["On-demand share", `${Math.round(odShare * 100)}%`],
                   ["Compute share of bill", `${Math.round(computeShare * 100)}%`],
-                  ["Fast / bulk storage", `${fastPB.toFixed(2)} / ${bulkPB.toFixed(2)} PB (${storageAuto ? "auto from bill" : "manual"})`],
+                  ["Fast / bulk storage", `${fastPB.toFixed(2)} / ${bulkPB.toFixed(2)} PB (${effectiveStorageAuto ? "auto from bill" : "manual"})`],
                   ["Egress", `${Math.round(egressPct * 100)}%/mo`],
                   ["Annual compute growth", `${Math.round(growth * 100)}%`],
                   ["Facility", facility],
                   ["Power rate", `$${powerRate}/kW-mo`],
                   ["Target utilization", `${Math.round(util * 100)}%`],
-                  ["Factors net / sw / NVAIE", `${fNet.toFixed(2)}x / ${fSw.toFixed(2)}x / ${fNvaie.toFixed(2)}x`],
-                  ["Generational / NPF", `${r.genPF.toFixed(2)}x / ${r.npf.toFixed(2)}x`],
+                  ...(r.isWorkloadMode
+                    ? [["Generational capability factor (genPF)", `${r.genPF.toFixed(2)}x -- benchmark-derived, directional; fNet/fSw/fNvaie excluded (see methodology)`]]
+                    : [["Factors net / sw / NVAIE", `${fNet.toFixed(2)}x / ${fSw.toFixed(2)}x / ${fNvaie.toFixed(2)}x`],
+                       ["Generational / NPF", `${r.genPF.toFixed(2)}x / ${r.npf.toFixed(2)}x`]]),
                   ["Tier 3 GPU-hours", tier3Hrs > 0 ? tier3Hrs.toLocaleString() : "not provided"],
                   ["Migration / dual-run / retrofit", `${fmtM(migration)} / ${dualRun}mo / ${facility === "Self-hosted (retrofit)" ? fmtM(retrofit) : "n/a"}`],
                   ["Redundancy / residual", `${redundancy ? "N+1 on" : "off"} / ${Math.round(residPct * 100)}%`],
-                  ["Reconstructed GPU-hours", `${Math.round(r.gpuHrs).toLocaleString()}/mo`],
+                  [r.isWorkloadMode ? "Technical GPU-hours (target class)" : "Reconstructed GPU-hours", `${Math.round(r.gpuHrs).toLocaleString()}/mo`],
                   ["Systems (adjusted / floor)", `${r.sysAdj} / ${r.sysFloor}`],
-                  ...(gpuSizingSystems ? [["GPU Sizing technical recommendation", `${gpuSizingSystems} × ${ownSys} (${gpuSizingCount} GPUs, node-rounded)`]] : []),
+                  ...(gpuSizingSystems && !r.isWorkloadMode ? [["GPU Sizing technical recommendation", `${gpuSizingSystems} × ${ownSys} (${gpuSizingCount} GPUs, node-rounded)`]] : []),
                   ["Fleet by year (adjusted)", r.fleetAdj.slice(0, horizon).join(" → ")],
                   ["Capex / one-time / residual credit", `${fmt(r.adj.capex)} / ${fmt(r.oneTime)} / −${fmt(r.adj.resid)}`],
                   ["On-prem opex", `${fmt(r.adj.opex)}/mo`],
-                  [`Cloud vs on-prem (${horizon}yr)`, `${fmt(t.cloud)} vs ${fmt(t.onAdj)}`],
+                  [`Cloud vs on-prem (${horizon}yr)`, `${fmt(t.cloud)} vs ${fmt(t.onAdj)}${r.isWorkloadMode ? ` (floor cloud: ${fmt(t.cloudFloor)})` : ""}`],
                   ["Savings (adjusted / floor)", `${fmt(t.saveAdj)} / ${fmt(t.saveFlr)}`],
                   ["Model / quantization (capacity est.)", `${modelSize} / ${quant}`],
                   ["Est. users / $ per 1M tokens", r.cap.fits ? `${r.cap.users.toLocaleString()} / $${r.cap.perM.toFixed(2)} (vs API $${r.cap.cloudPerM.toFixed(2)})` : "model does not fit fleet"],
                   ["Rate card overrides", editedCount > 0 ? Object.keys(ov).join(", ") : "none — all defaults"],
-                  ["Spend/storage reconciliation", `${fmt(r.cloudStorage)}/mo implied vs ${fmt(r.storageBudget)}/mo non-compute budget — ${r.cloudStorage > r.storageBudget * 1.02 ? `OVERALLOCATED by ${fmt(r.cloudStorage - r.storageBudget)}` : "within tolerance"}`],
+                  ...(r.isWorkloadMode ? [] : [["Spend/storage reconciliation", `${fmt(r.cloudStorage)}/mo implied vs ${fmt(r.storageBudget)}/mo non-compute budget — ${r.cloudStorage > r.storageBudget * 1.02 ? `OVERALLOCATED by ${fmt(r.cloudStorage - r.storageBudget)}` : "within tolerance"}`]]),
                   ["Crossover (cumulative) / static payback", `${r.crossoverMo ? `month ${r.crossoverMo}` : "none ≤60mo"} / ${r.payback ? r.payback.toFixed(0) + " mo" : "n/a"}`],
                   ["— APPLIED RATES (snapshot) —", ""],
                   ["Cloud $/GPU-hr OD / reserved", `$${rc.instOD} / $${rc.instRes} (${RATES[provider][gpuClass].conf})`],
@@ -687,18 +788,41 @@ function AppInner() {
 
 
         {view === "calc" && (<div>
-        {arrivedFromGpuSizing && (
+        {arrivedFromGpuSizing && gpuSizingSystems && (
           <div style={{ background: "#F5F5F5", border: "1px solid #ddd", borderRadius: 10, padding: "12px 16px", marginBottom: 14, fontSize: 13, color: "#444" }}>
-            Target system pre-set to <strong>{ownSys}</strong>, based on your GPU Sizing recommendation
-            {gpuSizingSystems ? <> of <strong>{gpuSizingSystems} x {ownSys}</strong> ({gpuSizingCount} GPUs)</> : null}. Enter your
-            current monthly cloud spend below to see whether owning it costs less than what you're paying today.
-            {gpuSizingSystems && fleetsDisagree ? (
-              <div style={{ marginTop: 6, color: "#666" }}>
-                The fleet size below is derived from your cloud spend, not this technical recommendation, so it may
-                differ. Cloud spend reflects your current usage and pricing; GPU Sizing reflects the workload's
-                technical requirement -- they can legitimately disagree.
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
+              <span style={{ ...mono, fontSize: 10, letterSpacing: 1, color: "#888" }}>PLANNING BASIS</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                {[["workload", "Workload Requirement"], ["spend", "Existing Cloud Spend"]].map(([mv, label]) => (
+                  <button key={mv} onClick={() => setMode(mv)}
+                    style={{ ...disp, fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
+                      border: mode === mv ? "none" : "1px solid #ccc", background: mode === mv ? "#CC0000" : "transparent",
+                      color: mode === mv ? "#fff" : "#666" }}>{label}</button>
+                ))}
               </div>
-            ) : null}
+            </div>
+            {mode === "workload" ? (
+              <>
+                Comparing <strong>{gpuSizingSystems} x {ownSys}</strong> ({gpuSizingCount} GPUs, your GPU Sizing recommendation)
+                against the estimated cloud cost of running that <em>same workload</em>, not your entered spend. Storage is
+                now a direct input below (no bill to auto-derive it from). Switch to "Existing Cloud Spend" above for the
+                original bake-off against what you're paying today.
+              </>
+            ) : (
+              <>
+                Target system pre-set to <strong>{ownSys}</strong>, based on your GPU Sizing recommendation of{" "}
+                <strong>{gpuSizingSystems} x {ownSys}</strong> ({gpuSizingCount} GPUs). Enter your current monthly cloud
+                spend below to see whether owning it costs less than what you're paying today.
+                {fleetsDisagree ? (
+                  <div style={{ marginTop: 6, color: "#666" }}>
+                    The fleet size below is derived from your cloud spend, not this technical recommendation, so it may
+                    differ. Cloud spend reflects your current usage and pricing; GPU Sizing reflects the workload's
+                    technical requirement -- they can legitimately disagree. Switch to "Workload Requirement" above for
+                    a fair comparison based on what the workload actually needs.
+                  </div>
+                ) : null}
+              </>
+            )}
           </div>
         )}
         {/* RESULTS */}
@@ -722,7 +846,7 @@ function AppInner() {
                 {fmtM(t.saveAdj)}
               </div>
               <div style={{ fontSize: 12, color: "#D0D0D0", marginBottom: 10 }}>
-                {(t.cloud > 0 ? (t.saveAdj / t.cloud) * 100 : 0).toFixed(0)}% below cloud · floor case (no perf factors): <span style={{ ...mono, color: "#C9C9C9" }}>{fmtM(t.saveFlr)}</span>
+                {(t.cloud > 0 ? (t.saveAdj / t.cloud) * 100 : 0).toFixed(0)}% below cloud · floor case ({r.isWorkloadMode ? "no generational credit" : "no perf factors"}): <span style={{ ...mono, color: "#C9C9C9" }}>{fmtM(t.saveFlr)}</span>
               </div>
             </>
           ) : (
@@ -735,9 +859,19 @@ function AppInner() {
             </div>
           )}
           <div style={{ background: "#1F1F1F", borderRadius: 8, padding: "10px 12px" }}>
-            <Bar label={`Stay in cloud (${horizon}yr)`} value={t.cloud} max={maxBar} color={"#8A8A8A"} />
-            <Bar label={`Own it — adjusted (${r.sysAdj} × ${ownSys}${redundancy ? " incl. N+1" : ""})`} value={t.onAdj} max={maxBar} color={"#CC0000"} />
-            <Bar label={`Own it — floor case (${r.sysFloor} × ${ownSys}${redundancy ? " incl. N+1" : ""})`} value={t.onFlr} max={maxBar} color={"#C9C9C9"} />
+            {r.isWorkloadMode ? (
+              <>
+                <Bar label={`Stay in cloud — adjusted (workload-equivalent)`} value={t.cloud} max={maxBar} color={"#8A8A8A"} />
+                <Bar label={`Stay in cloud — floor case (no generational credit)`} value={t.cloudFloor} max={maxBar} color={"#C9C9C9"} />
+                <Bar label={`Own it (${r.sysAdj} × ${ownSys}${redundancy ? " incl. N+1" : ""}, fixed by workload requirement)`} value={t.onAdj} max={maxBar} color={"#CC0000"} />
+              </>
+            ) : (
+              <>
+                <Bar label={`Stay in cloud (${horizon}yr)`} value={t.cloud} max={maxBar} color={"#8A8A8A"} />
+                <Bar label={`Own it — adjusted (${r.sysAdj} × ${ownSys}${redundancy ? " incl. N+1" : ""})`} value={t.onAdj} max={maxBar} color={"#CC0000"} />
+                <Bar label={`Own it — floor case (${r.sysFloor} × ${ownSys}${redundancy ? " incl. N+1" : ""})`} value={t.onFlr} max={maxBar} color={"#C9C9C9"} />
+              </>
+            )}
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 10 }}>
             {[
@@ -756,8 +890,15 @@ function AppInner() {
 
         {/* TIER 1 */}
         <Section title="Start here" badge="TIER 1">
-          <Slider label="Monthly cloud AI spend" value={bill} min={20000} max={2000000} step={5000}
+          <Slider label={mode === "workload" ? "Reported monthly cloud spend (context only)" : "Monthly cloud AI spend"} value={bill} min={20000} max={2000000} step={5000}
             onChange={setBill} display={fmtM(bill) + "/mo"} tip={TIPS.spend} />
+          {mode === "workload" && (
+            <div style={{ fontSize: 11, color: C.sub, background: "#F5F5F5", borderRadius: 6, padding: "6px 9px", marginTop: -2, marginBottom: 6 }}>
+              In workload mode this isn't used to size anything — it's shown only so you can compare it against the estimated
+              cost of actually running this workload in the cloud: <strong>{fmtM(r.monthlyCloudBaseline)}/mo</strong>.
+              {r.monthlyCloudBaseline > bill * 1.5 ? " That's substantially higher than the reported spend, which likely means this workload isn't fully running in the cloud today at this scale." : ""}
+            </div>
+          )}
           <TipLabel text="Primary provider" tip={TIPS.provider} />
           <Seg options={PROVIDERS} value={provider} onChange={setProvider} />
           <div style={{ fontSize: 11, color: C.green, background: C.greenSoft, borderRadius: 6, padding: "6px 9px" }}>
@@ -780,10 +921,10 @@ function AppInner() {
           <Slider label="On-demand share of billing" value={odShare} min={0} max={1} step={0.05}
             onChange={setOdShare} display={`${Math.round(odShare * 100)}% OD`} tip={TIPS.odShare} />
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-            <span style={{ ...mono, fontSize: 9, letterSpacing: 1, color: storageAuto ? "#CC0000" : C.sub, border: `1px solid ${storageAuto ? "#CC0000" : C.line}`, borderRadius: 3, padding: "1px 6px" }}>
-              {storageAuto ? "STORAGE: AUTO (scaled to bill)" : "STORAGE: MANUAL"}
+            <span style={{ ...mono, fontSize: 9, letterSpacing: 1, color: effectiveStorageAuto ? "#CC0000" : C.sub, border: `1px solid ${effectiveStorageAuto ? "#CC0000" : C.line}`, borderRadius: 3, padding: "1px 6px" }}>
+              {effectiveStorageAuto ? "STORAGE: AUTO (scaled to bill)" : mode === "workload" ? "STORAGE: MANUAL (workload mode — no bill to scale from)" : "STORAGE: MANUAL"}
             </span>
-            {!storageAuto && (
+            {!effectiveStorageAuto && mode !== "workload" && (
               <button onClick={() => setStorageAuto(true)} style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.sub, borderRadius: 4, padding: "1px 8px", fontSize: 11, cursor: "pointer" }}>
                 back to auto
               </button>
@@ -795,7 +936,7 @@ function AppInner() {
             onChange={setBulkPB} display={`${bulkPB.toFixed(2)} PB`} tip={TIPS.bulkStorage} />
           <Slider label="Egress" value={egressPct} min={0} max={0.3} step={0.01}
             onChange={setEgressPct} display={`${Math.round(egressPct * 100)}% /mo`} tip={TIPS.egress} />
-          {!storageAuto && r.cloudStorage > r.storageBudget * 1.02 && (
+          {mode !== "workload" && !storageAuto && r.cloudStorage > r.storageBudget * 1.02 && (
             <div style={{ fontSize: 12, color: "#B4530A", background: "#FBF3EC", borderRadius: 6, padding: "8px 10px", margin: "4px 0 8px" }}>
               The entered storage implies {fmt(r.cloudStorage)}/mo of cloud storage + egress, but only {fmt(r.storageBudget)}/mo of the stated bill is non-compute. Reduce storage, raise the bill, or{" "}
               <button onClick={() => {
@@ -847,15 +988,26 @@ function AppInner() {
         {/* FACTORS */}
         <Section title="Performance factors" badge="RANGE · DEFAULT · BREAKEVEN" defaultOpen={false}>
           <TipLabel text="What these factors are" tip={TIPS.factorsGroup} style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }} />
+          {r.isWorkloadMode && (
+            <div style={{ fontSize: 11, color: C.sub, background: "#F5F5F5", borderRadius: 6, padding: "6px 9px", marginBottom: 6 }}>
+              In Workload Requirement mode, only the generational capability factor below is used. The three sliders
+              (network, scheduling, NVAIE) are ownership-side operational advantages, not rental-pricing inputs, so
+              they don't affect this comparison -- see the report methodology for why.
+            </div>
+          )}
           <Row label="Generational (from lookup)" value={`${r.genPF.toFixed(2)}x`}
-            sub={`${gpuClass} → ${ownSys}, weighted by workload mix · ${EST_IDX.includes(SYS_CLASS[ownSys]) || EST_IDX.includes(gpuClass) ? "provisional (EST) pending NVIDIA-sourced factors" : "MLPerf-derived"}`} tip={TIPS.genSpeedup} />
+            sub={`${gpuClass} → ${ownSys}, weighted by workload mix · ${EST_IDX.includes(SYS_CLASS[ownSys]) || EST_IDX.includes(gpuClass) ? "provisional (EST) pending NVIDIA-sourced factors" : "MLPerf-derived"} · benchmark-derived, directional -- not a universal physical conversion constant`} tip={TIPS.genSpeedup} />
           <Slider label="Reference-architecture network" value={fNet} min={1} max={2.5} step={0.05}
             onChange={setFNet} display={`${fNet.toFixed(2)}x`} tip={TIPS.network} />
           <Slider label="AI Factory software (Run:ai / Mission Control)" value={fSw} min={1} max={3} step={0.05}
             onChange={setFSw} display={`${fSw.toFixed(2)}x`} tip={TIPS.runai} />
           <Slider label="NVAIE / NIMs" value={fNvaie} min={1} max={5} step={0.05}
             onChange={setFNvaie} display={`${fNvaie.toFixed(2)}x`} tip={TIPS.nvaie} />
-          <Row label="Net Performance Factor" value={`${r.npf.toFixed(2)}x`} sub="Your cloud GPU-hours ÷ NPF = on-prem hours needed" />
+          {r.isWorkloadMode ? (
+            <Row label="Net Performance Factor" value="not used in this mode" sub="workload mode uses the generational factor alone -- see methodology" />
+          ) : (
+            <Row label="Net Performance Factor" value={`${r.npf.toFixed(2)}x`} sub="Your cloud GPU-hours ÷ NPF = on-prem hours needed" />
+          )}
         </Section>
 
         {/* CAPACITY & UNIT ECONOMICS (v1.9) */}
