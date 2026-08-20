@@ -522,6 +522,7 @@ function AppInner() {
     cloudCost: t.cloud,
     onPremCost: t.onAdj,
     recommendedFleet: `${r.sysAdj} x ${ownSys}`,
+    gpuSizingFleet: gpuSizingSystems ? `${gpuSizingSystems} x ${ownSys}` : null,
     facility,
     capexPlusOneTime: r.adj.capex + r.oneTime,
     monthlyOpex: r.adj.opex,
