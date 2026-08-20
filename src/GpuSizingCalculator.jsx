@@ -10,7 +10,7 @@ import AuthWidget from "./AuthWidget";
 // ---------------------------------------------------------------------------
 const TIPS = {
   infModel: "The model you plan to run. If you're not sure yet, Llama 3.1 70B is a reasonable default for a general-purpose assistant -- pick 8B for lightweight/cheap, or 405B if you need frontier-level quality.",
-  quant: "How compressed the model's weights are in memory. FP8 is the safe default for H100/H200-class hardware; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300) and roughly halves memory again.",
+  quant: "How compressed the model's weights are in memory. FP8 is the safe default for H200-class hardware and up; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300) and roughly halves memory again.",
   concurrentUsers: "How many people will be generating a response at the same moment, not your total user count. A team of 500 might only have 20-50 concurrent at peak -- when unsure, estimate 5-10% of total users at peak hours.",
   targetTokPerUser: "How fast each user's response should stream in. 20-30 tokens/sec feels roughly like natural reading speed for a chat experience; lower it for batch/offline jobs where speed matters less.",
   environment: "Whether this is a real production deployment or something lighter-weight. Dev/Test/POC unlocks a note about cheaper workstation-class GPUs, since production reliability requirements don't apply yet.",
@@ -115,8 +115,6 @@ const MODELS = [
 ];
 
 const GPU_SPECS = [
-  { id: "A100", vram: 80, bf16: 312, fp8: null, anchor: 615, anchorPrecision: "BF16", confidence: "EST", source: "Derived from peak-FLOPS ratio vs H100; no official MLPerf Llama-2-70B submission exists for A100", nodeSize: 8 },
-  { id: "H100", vram: 80, bf16: 989, fp8: 1979, anchor: 3902, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, Dell PowerEdge XE9680 8xH100 (entry 5.0-0020): 31,216.8 tok/s offline / 8", nodeSize: 8 },
   { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8", nodeSize: 8 },
   { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)", nodeSize: 8 },
   { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified", nodeSize: 72 },
@@ -124,8 +122,6 @@ const GPU_SPECS = [
 ];
 
 const GPU_PRICE_USD = {
-  A100: { amount: 18000, confidence: "EST", source: "Legacy generation -- not part of CDW's current DGX purchase line (starts at H200); rough estimate only, relevant mainly for GPUaaS/rental comparisons" },
-  H100: { amount: 40000, confidence: "EST", source: "Legacy-adjacent -- not in the TCO Calculator's SYSTEMS registry; rough estimate only, relevant mainly for GPUaaS/rental comparisons" },
   H200: { amount: 68721, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX H200 $549,764 / 8 GPUs (NVIDIA DGX TCO tool capture)" },
   B200: { amount: 93099, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX B200 $744,793 / 8 GPUs (NVIDIA DGX TCO tool capture)" },
   "GB200 NVL72": { amount: 108909, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX GB200 NVL-72 $7,841,432 / 72 GPUs (NVIDIA DGX TCO tool capture)" },
@@ -214,8 +210,6 @@ function computeInference(inputs) {
   const confidence =
     model.status !== "VERIFIED"
       ? { level: "LOW", note: "Model architecture not yet verified (custom entry)" }
-      : selected.id === "A100"
-      ? { level: "MEDIUM", note: "Architecture verified; throughput anchor is an extrapolated estimate (no MLPerf submission exists)" }
       : { level: "HIGH", note: "Architecture verified; throughput anchor sourced from an official or independently-observed MLPerf submission" };
 
   const rtxGpusMem = ceilDiv(totalMemoryGB, RTX_SPEC.vram);
@@ -593,15 +587,13 @@ function PodSizingHandoff() {
   );
 }
 
-// GPU Sizing's classes (A100/H100/H200/B200/GB200 NVL72/B300) don't share
-// naming with TCO's "system you'd buy" field (DGX H200/B200/B300/GB200
-// NVL-72/GB300 NVL-72) -- different tools, different vocabularies. TCO also
-// doesn't sell A100/H100 as new DGX systems (its purchase line starts at
-// H200), so those two fall back to the closest current-generation option
-// rather than a class that isn't actually for sale.
+// GPU Sizing's classes (H200/B200/GB200 NVL72/B300) don't share naming with
+// TCO's "system you'd buy" field (DGX H200/B200/B300/GB200 NVL-72/GB300
+// NVL-72) -- different tools, different vocabularies, mapped 1:1 below.
+// A100/H100 were removed from GPU_SPECS entirely (not just this mapping) --
+// CDW's purchase line starts at H200, and recommending a class that isn't
+// actually for sale produced a purchase recommendation with nothing to buy.
 const TCO_OWN_SYS_FOR_CLASS = {
-  A100: "DGX H200",
-  H100: "DGX H200",
   H200: "DGX H200",
   B200: "DGX B200",
   "GB200 NVL72": "DGX GB200 NVL-72",
