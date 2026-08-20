@@ -22,21 +22,58 @@ const TOOL_LABELS = {
 // the tools rather than a random list.
 const TOOL_ORDER = ["tco", "gpu-sizing", "model-advisor", "roi", "readiness"];
 
-// Lightweight, generic formatter for values coming out of each tool's
-// "summary" object -- these are deliberately loose per-tool shapes (see
-// each tool's useAutosaveSnapshot call), so this renders them sensibly
-// without needing a bespoke formatter per tool.
+// Explicit format for every field currently produced by any tool's
+// useAutosaveSnapshot call (TCO, GPU Sizing, Model Advisor, ROI). This
+// replaces a substring-matching heuristic that silently dollar-formatted
+// lowerCostCount (an integer GPU count) because the key contains "cost" --
+// the underlying GPU Sizing data was always correct, this renderer was
+// misreading it. Explicit keys are unambiguous; add new fields here when a
+// tool's snapshot payload changes rather than relying on word-guessing.
+const FIELD_FORMAT = {
+  // TCO
+  savings: "money", floorCaseSavings: "money", cloudCost: "money", onPremCost: "money",
+  capexPlusOneTime: "money", monthlyOpex: "money", residualCredit: "money", monthlyBill: "money",
+  paybackMonths: "months",
+  // GPU Sizing
+  budget: "money", lowerCostCount: "count", higherGrowthCount: "count", minTechnical: "count",
+  recommended: "count", utilizationPct: "percent",
+  // Model Advisor
+  topModelParams: "count", eligibleCount: "count", totalCount: "count",
+  otherEligibleCount: "count", verificationCandidateCount: "count",
+  // ROI
+  grossCapacity: "count", redeployableCapacity: "count", fteEquivalent: "count",
+  steadyStateValue: "money", year1Value: "money", year1Net: "money", horizonNet: "money",
+  horizonROI: "percent", horizonYears: "count", payback: "months",
+};
+
+// Lightweight formatter for values coming out of each tool's "summary"
+// object. Known fields use the explicit table above; anything not yet in
+// the table falls back to a heuristic, hardened to never money-format a
+// key that ends in Count/Class/Years (a strong signal it's not a dollar
+// figure even if it contains a money-ish substring elsewhere).
 function fmtValue(key, value) {
   if (value == null) return "—";
   if (typeof value === "number") {
+    const known = FIELD_FORMAT[key];
+    if (known === "months") return `${value.toFixed(1)} months`;
+    if (known === "percent") return `${(value * 100).toFixed(1)}%`;
+    if (known === "money") return `$${Math.round(value).toLocaleString()}`;
+    if (known === "count") return value.toLocaleString();
+
+    // Fallback for fields not yet in FIELD_FORMAT (e.g. a newly added
+    // snapshot key). Never trust a money-word match against a key that's
+    // clearly a count/class/year field, regardless of substring content.
     const k = key.toLowerCase();
-    if (k.includes("payback")) return `${value.toFixed(1)} months`;
-    if ((k.includes("pct") || k.includes("roi")) && Math.abs(value) <= 5) {
-      return `${(value * 100).toFixed(1)}%`;
-    }
-    const MONEY_WORDS = ["cost", "savings", "value", "budget", "net", "bill", "opex", "capex", "credit", "spend", "price", "amount"];
-    if (MONEY_WORDS.some((w) => k.includes(w))) {
-      return `$${Math.round(value).toLocaleString()}`;
+    const isCountLike = /count|class|years?$/i.test(key);
+    if (!isCountLike) {
+      if (k.includes("payback")) return `${value.toFixed(1)} months`;
+      if ((k.includes("pct") || k.includes("roi")) && Math.abs(value) <= 5) {
+        return `${(value * 100).toFixed(1)}%`;
+      }
+      const MONEY_WORDS = ["cost", "savings", "value", "budget", "net", "bill", "opex", "capex", "credit", "spend", "price", "amount"];
+      if (MONEY_WORDS.some((w) => k.includes(w))) {
+        return `$${Math.round(value).toLocaleString()}`;
+      }
     }
     return value.toLocaleString();
   }
