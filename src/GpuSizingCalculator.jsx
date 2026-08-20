@@ -608,9 +608,14 @@ const TCO_OWN_SYS_FOR_CLASS = {
   B300: "DGX B300",
 };
 
-function TcoHandoff({ selectedClass, recommended }) {
+function TcoHandoff({ selectedClass, recommended, mode, workingDayHours }) {
   const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
-  const href = `/tco?ownSys=${encodeURIComponent(ownSys)}&gpuCount=${encodeURIComponent(recommended)}`;
+  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass });
+  // Duty cycle only carries real meaning for inference (business-hours load pattern); training
+  // runs to completion rather than on a daily cycle, so it's omitted there and TCO falls back to
+  // its own utilization assumption for the cloud-hours estimate.
+  if (mode === "Inference" && workingDayHours) params.set("workingDayHours", String(workingDayHours));
+  const href = `/tco?${params.toString()}`;
   return (
     <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-gray-50 flex items-center justify-between gap-3">
       <div>
@@ -1156,7 +1161,7 @@ function GPUSizingCalculatorInner() {
               {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).
             </div>
 
-            <TcoHandoff selectedClass={result.selectedClass} recommended={result.recommended} />
+            <TcoHandoff selectedClass={result.selectedClass} recommended={result.recommended} mode={mode} workingDayHours={workingDayHours} />
 
             <PodSizingHandoff />
 
