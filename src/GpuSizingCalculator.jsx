@@ -206,8 +206,15 @@ function computeInference(inputs) {
     ? autoRecommended
     : candidates.find((c) => c.id === inputs.gpuClassOverride);
 
-  const lowerCost = candidates[0];
-  const higherGrowth = candidates[candidates.length - 1];
+  // Alternatives must be genuinely distinct from the recommendation. candidates
+  // is ordered cheapest-to-most-capable, so "lower cost" only exists when the
+  // recommendation isn't already the cheapest class, and "higher growth" only
+  // exists when it isn't already the most capable one -- previously these were
+  // unconditionally candidates[0]/candidates[last], which silently duplicated
+  // the recommendation whenever it landed on either boundary class.
+  const recommendedIndex = candidates.findIndex((c) => c.id === selected.id);
+  const lowerCost = recommendedIndex > 0 ? candidates[0] : null;
+  const higherGrowth = recommendedIndex < candidates.length - 1 ? candidates[candidates.length - 1] : null;
 
   const confidence =
     model.status !== "VERIFIED"
@@ -232,12 +239,12 @@ function computeInference(inputs) {
     return { amount: deployedCount * price.amount, confidence: price.confidence, source: price.source };
   }
   const recommendedCount = Math.ceil(selected.gpusWorkload / selected.nodeSize) * selected.nodeSize;
-  const lowerCostCount = Math.ceil(lowerCost.gpusWorkload / lowerCost.nodeSize) * lowerCost.nodeSize;
-  const higherGrowthCount = Math.ceil(higherGrowth.gpusWorkload / higherGrowth.nodeSize) * higherGrowth.nodeSize;
+  const lowerCostCount = lowerCost ? Math.ceil(lowerCost.gpusWorkload / lowerCost.nodeSize) * lowerCost.nodeSize : null;
+  const higherGrowthCount = higherGrowth ? Math.ceil(higherGrowth.gpusWorkload / higherGrowth.nodeSize) * higherGrowth.nodeSize : null;
   const budget = {
     recommended: budgetFor(selected.id, recommendedCount),
-    lowerCost: budgetFor(lowerCost.id, lowerCostCount),
-    higherGrowth: budgetFor(higherGrowth.id, higherGrowthCount),
+    lowerCost: lowerCost ? budgetFor(lowerCost.id, lowerCostCount) : null,
+    higherGrowth: higherGrowth ? budgetFor(higherGrowth.id, higherGrowthCount) : null,
   };
 
   function utilizationFor(gpuAnchor, deployedCount) {
@@ -246,8 +253,8 @@ function computeInference(inputs) {
   }
   const utilization = {
     recommended: utilizationFor(selected.anchor, recommendedCount),
-    lowerCost: utilizationFor(lowerCost.anchor, lowerCostCount),
-    higherGrowth: utilizationFor(higherGrowth.anchor, higherGrowthCount),
+    lowerCost: lowerCost ? utilizationFor(lowerCost.anchor, lowerCostCount) : null,
+    higherGrowth: higherGrowth ? utilizationFor(higherGrowth.anchor, higherGrowthCount) : null,
   };
   const workingDayHours = inputs.workingDayHours;
   const afterHours = 24 - workingDayHours;
@@ -262,8 +269,8 @@ function computeInference(inputs) {
     selectedNodeSize: selected.nodeSize,
     minTechnical: selected.gpusWorkload,
     recommended: recommendedCount,
-    lowerCost: { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount },
-    higherGrowth: { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount },
+    lowerCost: lowerCost ? { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount } : { class: null, workload: null, recommended: null },
+    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount } : { class: null, workload: null, recommended: null },
     confidence,
     rtxAlt,
     budget,
@@ -299,8 +306,12 @@ function computeTraining(inputs) {
     ? autoRecommended
     : candidates.find((c) => c.id === inputs.gpuClassOverride);
 
-  const lowerCost = candidates[0];
-  const higherGrowth = candidates[candidates.length - 1];
+  // Same fix as the Inference block above: alternatives must be genuinely
+  // distinct from the recommendation, not unconditionally the two boundary
+  // classes.
+  const recommendedIndex = candidates.findIndex((c) => c.id === selected.id);
+  const lowerCost = recommendedIndex > 0 ? candidates[0] : null;
+  const higherGrowth = recommendedIndex < candidates.length - 1 ? candidates[candidates.length - 1] : null;
 
   const confidence =
     model.status !== "VERIFIED"
@@ -308,8 +319,8 @@ function computeTraining(inputs) {
       : { level: "MEDIUM-HIGH", note: "Architecture verified; FLOPs are NVIDIA published spec-sheet values, MFU default sourced from Meta's Llama 3 paper" };
 
   const recommendedCount = Math.ceil(selected.gpusWorkload / selected.nodeSize) * selected.nodeSize;
-  const lowerCostCount = Math.ceil(lowerCost.gpusWorkload / lowerCost.nodeSize) * lowerCost.nodeSize;
-  const higherGrowthCount = Math.ceil(higherGrowth.gpusWorkload / higherGrowth.nodeSize) * higherGrowth.nodeSize;
+  const lowerCostCount = lowerCost ? Math.ceil(lowerCost.gpusWorkload / lowerCost.nodeSize) * lowerCost.nodeSize : null;
+  const higherGrowthCount = higherGrowth ? Math.ceil(higherGrowth.gpusWorkload / higherGrowth.nodeSize) * higherGrowth.nodeSize : null;
   function budgetFor(gpuId, deployedCount) {
     const price = GPU_PRICE_USD[gpuId];
     if (!price) return null;
@@ -317,8 +328,8 @@ function computeTraining(inputs) {
   }
   const budget = {
     recommended: budgetFor(selected.id, recommendedCount),
-    lowerCost: budgetFor(lowerCost.id, lowerCostCount),
-    higherGrowth: budgetFor(higherGrowth.id, higherGrowthCount),
+    lowerCost: lowerCost ? budgetFor(lowerCost.id, lowerCostCount) : null,
+    higherGrowth: higherGrowth ? budgetFor(higherGrowth.id, higherGrowthCount) : null,
   };
 
   return {
@@ -329,8 +340,8 @@ function computeTraining(inputs) {
     selectedNodeSize: selected.nodeSize,
     minTechnical: selected.gpusWorkload,
     recommended: recommendedCount,
-    lowerCost: { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount },
-    higherGrowth: { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount },
+    lowerCost: lowerCost ? { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount } : { class: null, workload: null, recommended: null },
+    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount } : { class: null, workload: null, recommended: null },
     confidence,
     budget,
   };
@@ -447,6 +458,20 @@ function ConfidenceBadge({ level }) {
 }
 
 function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent }) {
+  if (gpuClass == null) {
+    return (
+      <div
+        className="rounded-xl p-5 flex-1 min-w-[220px]"
+        style={{ background: accent ? CHARCOAL : "#F7F7F7", color: accent ? "white" : CHARCOAL }}
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <Icon className="w-4 h-4" style={{ color: RED }} />
+          <span className="text-xs font-bold uppercase tracking-wide" style={{ opacity: 0.8 }}>{title}</span>
+        </div>
+        <div className="text-sm" style={{ opacity: 0.7 }}>No {title.toLowerCase()} in the current supported catalog -- the recommendation is already at that end of the class list.</div>
+      </div>
+    );
+  }
   return (
     <div
       className="rounded-xl p-5 flex-1 min-w-[220px]"
@@ -496,6 +521,7 @@ function BudgetPanel({ budget }) {
 }
 
 function UtilizationBar({ label, gpuClass, pct }) {
+  if (gpuClass == null || pct == null) return null;
   const pctDisplay = Math.round(pct * 100);
   const color = pct > 0.85 ? "#B00000" : pct > 0.5 ? RED : "#999";
   return (
