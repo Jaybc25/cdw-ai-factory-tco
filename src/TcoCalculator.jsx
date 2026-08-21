@@ -377,8 +377,30 @@ function run(inp, RC) {
     cloudPerM: RC.cloudTok, onPremMonthly,
   };
   const storageBudget = inp.bill * (1 - inp.computeShare);
+  const cloudYear1 = cloudYears[0]; // Year 1 cloud cost alone, for a Year-1 cost breakdown chart
+  // Pure cumulative cash flow by year -- deliberately NOT tot(n), which
+  // subtracts a horizon-n-specific residual credit for a "TCO if exited at
+  // year n" metric (a real, different question, used elsewhere in this
+  // file). A chart labeled "cumulative spend" needs actual cash paid, with
+  // no residual netted out, or its on-prem line quietly understates spend
+  // by a growing residual credit at every point except year 0. This mirrors
+  // the exact same accumulation the crossoverMo loop above already uses
+  // (capex charged at the start of its year, cloud and opex accrued through
+  // it), so the plotted lines and the crossover marker agree on one
+  // definition of "cumulative spend" instead of two different ones.
+  const cumulativeByYear = (() => {
+    const pts = [];
+    let cc = 0, oc = oneTime;
+    for (let y = 0; y < 5; y++) {
+      oc += adjT[y].capexAdd;
+      cc += cloudYears[y];
+      oc += adjT[y].opexYr;
+      pts.push({ year: y + 1, cloud: cc, onPrem: oc });
+    }
+    return pts;
+  })();
   return { blended, gpuHrs, gpuHrsCloud, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, storageBudget, oneTime, exitEgress, tot, payback, crossoverMo, exhaustYrs, perSysHrs, cap,
-    isWorkloadMode, technicalSystems, monthlyCloudBaseline, sourceConversion,
+    isWorkloadMode, technicalSystems, monthlyCloudBaseline, sourceConversion, cloudYear1, cumulativeByYear,
     fleetAdj: adjT.map((r2) => r2.sys), fleetFlr: flrT.map((r2) => r2.sys) };
 }
 
@@ -478,6 +500,82 @@ function Bar({ label, value, max, color }) {
         <div style={{ width: `${w}%`, height: "100%", background: color, borderRadius: 4, transition: "width .3s" }} />
       </div>
     </div>
+  );
+}
+
+// "Where the Money Goes in Year 1": cloud (single bar) vs on-prem (stacked
+// capital + operating), same width-scaling convention as Bar above so it
+// reads as part of the same visual system, not a bolted-on chart type.
+function YearOneBreakdown({ cloudYear1, capital, operating }) {
+  const onPremTotal = capital + operating;
+  const max = Math.max(cloudYear1, onPremTotal, 1);
+  const onPremPct = Math.max(2, (onPremTotal / max) * 100);
+  const capPct = onPremTotal > 0 ? (capital / onPremTotal) * 100 : 0;
+  const opPct = 100 - capPct;
+  return (
+    <div>
+      <Bar label="Cloud (Year 1, recurring)" value={cloudYear1} max={max} color="#8A8A8A" />
+      <div style={{ margin: "8px 0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+          <span style={{ color: "#B5B5B5" }}>On-Prem (Year 1, upfront + operating)</span>
+          <span style={{ ...mono, color: "#FFFFFF", fontWeight: 600 }}>{fmtM(onPremTotal)}</span>
+        </div>
+        <div style={{ height: 14, background: "#151515", borderRadius: 4, overflow: "hidden", width: `${onPremPct}%`, display: "flex" }}>
+          <div style={{ width: `${capPct}%`, height: "100%", background: "#CC0000" }} title={`Upfront capital + transition: ${fmtM(capital)}`} />
+          <div style={{ width: `${opPct}%`, height: "100%", background: "#5A87A8" }} title={`Year 1 operating: ${fmtM(operating)}`} />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 14, fontSize: 10, color: "#ABABAB", marginTop: 2 }}>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#CC0000", borderRadius: 2, marginRight: 4 }} />Upfront capital + transition</span>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#5A87A8", borderRadius: 2, marginRight: 4 }} />Year 1 operating</span>
+      </div>
+      <div style={{ fontSize: 10, color: "#8A8A8A", marginTop: 6, fontStyle: "italic" }}>
+        Upfront costs occur primarily at deployment; operating costs recur every year. Year 1 cash outlay only -- later years reflect growth assumptions, not this run rate.
+      </div>
+    </div>
+  );
+}
+
+// Cumulative spend crossover chart: hand-rolled SVG, no charting library --
+// this is a live production tool, adding a new dependency for two lines and
+// five points isn't worth the risk. Plots cloud vs on-prem cumulative totals
+// through the selected horizon, with the crossover month (if within that
+// horizon) marked as a dashed vertical line.
+function CrossoverChart({ points, horizon, crossoverMo }) {
+  const shown = points.slice(0, Math.max(2, horizon));
+  const W = 600, H = 200, padL = 55, padR = 15, padT = 15, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxVal = Math.max(1, ...shown.map((p) => Math.max(p.cloud, p.onPrem)));
+  const n = shown.length;
+  const xFor = (i) => padL + (n > 1 ? (i / (n - 1)) * plotW : 0);
+  const yFor = (v) => padT + plotH - (v / maxVal) * plotH;
+  const cloudPts = shown.map((p, i) => `${xFor(i)},${yFor(p.cloud)}`).join(" ");
+  const onPremPts = shown.map((p, i) => `${xFor(i)},${yFor(p.onPrem)}`).join(" ");
+  const crossoverYear = crossoverMo ? crossoverMo / 12 : null;
+  const crossoverX = crossoverYear != null && crossoverYear >= 1 && crossoverYear <= n
+    ? padL + ((crossoverYear - 1) / (n - 1 || 1)) * plotW : null;
+
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: "block", overflow: "visible" }}>
+      {shown.map((_, i) => (
+        <line key={"g" + i} x1={xFor(i)} y1={padT} x2={xFor(i)} y2={padT + plotH} stroke="#2A2A2A" strokeWidth="1" />
+      ))}
+      {crossoverX != null && (
+        <line x1={crossoverX} y1={padT} x2={crossoverX} y2={padT + plotH} stroke="#FFFFFF" strokeWidth="1" strokeDasharray="4,3" opacity="0.45" />
+      )}
+      <polyline points={cloudPts} fill="none" stroke="#8A8A8A" strokeWidth="2.5" />
+      <polyline points={onPremPts} fill="none" stroke="#CC0000" strokeWidth="2.5" />
+      {shown.map((p, i) => (
+        <circle key={"cc" + i} cx={xFor(i)} cy={yFor(p.cloud)} r="3" fill="#8A8A8A" />
+      ))}
+      {shown.map((p, i) => (
+        <circle key={"oc" + i} cx={xFor(i)} cy={yFor(p.onPrem)} r="3" fill="#CC0000" />
+      ))}
+      {shown.map((p, i) => (
+        <text key={"yl" + i} x={xFor(i)} y={H - 6} textAnchor="middle" fontSize="10" fill="#ABABAB">{`Yr ${i + 1}`}</text>
+      ))}
+      <text x={padL} y={padT - 3} fontSize="9" fill="#8A8A8A">{fmtM(maxVal)}</text>
+    </svg>
   );
 }
 
@@ -722,6 +820,13 @@ function AppInner() {
     provider,
     gpuClass,
     monthlyBill: bill,
+    cloudYear1: r.cloudYear1,
+    onPremYear1Capital: r.adj.capex + r.oneTime,
+    onPremYear1Operating: r.adj.opex * 12,
+    // cumulativeByYear intentionally NOT included here -- it's an array of
+    // objects, not cross-tool report state, and stays local to TCO's own
+    // live chart above. My Summary and the deliverable generator get the
+    // three Year-1 scalars, which are what they'd actually build from.
   });
 
 
@@ -1015,6 +1120,23 @@ function AppInner() {
                 <div style={{ fontSize: 10, color: "#ABABAB" }}>{s}</div>
               </div>
             ))}
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: 1, color: "#ABABAB", marginBottom: 6 }}>WHERE THE MONEY GOES IN YEAR 1</div>
+            <YearOneBreakdown cloudYear1={r.cloudYear1} capital={r.adj.capex + r.oneTime} operating={r.adj.opex * 12} />
+          </div>
+
+          <div style={{ marginTop: 14 }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: 1, color: "#ABABAB", marginBottom: 6 }}>CUMULATIVE SPEND, {Math.max(2, horizon)}-YEAR VIEW{horizon < 2 ? " (min. 2yr shown for a readable trend)" : ""}</div>
+            <CrossoverChart points={r.cumulativeByYear} horizon={horizon} crossoverMo={r.crossoverMo} />
+            <div style={{ display: "flex", gap: 14, fontSize: 10, color: "#ABABAB", marginTop: 4 }}>
+              <span><span style={{ display: "inline-block", width: 10, height: 2, background: "#8A8A8A", marginRight: 4, verticalAlign: "middle" }} />Stay in cloud (cumulative)</span>
+              <span><span style={{ display: "inline-block", width: 10, height: 2, background: "#CC0000", marginRight: 4, verticalAlign: "middle" }} />Own it (cumulative)</span>
+              {r.crossoverMo && r.crossoverMo <= horizon * 12 && (
+                <span style={{ color: "#FFFFFF" }}>Crosses over month {r.crossoverMo}</span>
+              )}
+            </div>
           </div>
         </div>
 
