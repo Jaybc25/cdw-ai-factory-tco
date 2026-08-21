@@ -543,7 +543,7 @@ function YearOneBreakdown({ cloudYear1, capital, operating }) {
 // horizon) marked as a dashed vertical line.
 function CrossoverChart({ points, horizon, crossoverMo }) {
   const shown = points.slice(0, Math.max(2, horizon));
-  const W = 600, H = 200, padL = 55, padR = 15, padT = 15, padB = 26;
+  const W = 600, H = 210, padL = 55, padR = 15, padT = 26, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const maxVal = Math.max(1, ...shown.map((p) => Math.max(p.cloud, p.onPrem)));
   const n = shown.length;
@@ -572,9 +572,14 @@ function CrossoverChart({ points, horizon, crossoverMo }) {
         <circle key={"oc" + i} cx={xFor(i)} cy={yFor(p.onPrem)} r="3" fill="#CC0000" />
       ))}
       {shown.map((p, i) => (
+        <text key={"cl" + i} x={xFor(i)} y={yFor(p.cloud) - 8} textAnchor="middle" fontSize="10" fill="#DDDDDD">{fmtM(p.cloud)}</text>
+      ))}
+      {shown.map((p, i) => (
+        <text key={"ol" + i} x={xFor(i)} y={yFor(p.onPrem) + 16} textAnchor="middle" fontSize="10" fill="#FF9999">{fmtM(p.onPrem)}</text>
+      ))}
+      {shown.map((p, i) => (
         <text key={"yl" + i} x={xFor(i)} y={H - 6} textAnchor="middle" fontSize="10" fill="#ABABAB">{`Yr ${i + 1}`}</text>
       ))}
-      <text x={padL} y={padT - 3} fontSize="9" fill="#8A8A8A">{fmtM(maxVal)}</text>
     </svg>
   );
 }
@@ -623,7 +628,7 @@ function YearOneBreakdownReport({ cloudYear1, capital, operating }) {
 
 function CrossoverChartReport({ points, horizon, crossoverMo }) {
   const shown = points.slice(0, Math.max(2, horizon));
-  const W = 600, H = 190, padL = 55, padR = 15, padT = 15, padB = 26;
+  const W = 600, H = 205, padL = 55, padR = 15, padT = 28, padB = 26;
   const plotW = W - padL - padR, plotH = H - padT - padB;
   const maxVal = Math.max(1, ...shown.map((p) => Math.max(p.cloud, p.onPrem)));
   const n = shown.length;
@@ -648,8 +653,9 @@ function CrossoverChartReport({ points, horizon, crossoverMo }) {
         <polyline points={onPremPts} fill="none" stroke={C.green} strokeWidth="2.5" />
         {shown.map((p, i) => <circle key={"cc" + i} cx={xFor(i)} cy={yFor(p.cloud)} r="3" fill="#9A9A9A" />)}
         {shown.map((p, i) => <circle key={"oc" + i} cx={xFor(i)} cy={yFor(p.onPrem)} r="3" fill={C.green} />)}
+        {shown.map((p, i) => <text key={"cl" + i} x={xFor(i)} y={yFor(p.cloud) - 8} textAnchor="middle" fontSize="10" fill={C.sub}>{fmtM(p.cloud)}</text>)}
+        {shown.map((p, i) => <text key={"ol" + i} x={xFor(i)} y={yFor(p.onPrem) + 16} textAnchor="middle" fontSize="10" fill={C.green}>{fmtM(p.onPrem)}</text>)}
         {shown.map((p, i) => <text key={"yl" + i} x={xFor(i)} y={H - 6} textAnchor="middle" fontSize="10" fill={C.sub}>{`Yr ${i + 1}`}</text>)}
-        <text x={padL} y={padT - 3} fontSize="9" fill={C.sub}>{fmtM(maxVal)}</text>
       </svg>
       <div style={{ display: "flex", gap: 14, fontSize: 10, color: C.sub, marginTop: 4 }}>
         <span><span style={{ display: "inline-block", width: 10, height: 2, background: "#9A9A9A", marginRight: 4, verticalAlign: "middle" }} />Stay in cloud (cumulative)</span>
