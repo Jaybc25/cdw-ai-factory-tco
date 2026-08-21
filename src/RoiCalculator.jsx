@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
+import { loadSessionState, saveSessionState } from "./sessionState.js";
 import {
   DEFAULT_INPUTS, BOUNDS, validateInputs, computeEngine,
   PAYBACK_GUARD_TEXT, NA_TEXT, excelRound,
@@ -376,13 +377,14 @@ function getIncomingParams() {
   return new URLSearchParams(window.location.search);
 }
 
-function getInitialInputs() {
+function getInitialInputs(savedInputs) {
   const params = getIncomingParams();
   const initialCost = params?.get("initialCost");
   const recurringCost = params?.get("recurringCost");
-  if (initialCost == null && recurringCost == null) return DEFAULT_INPUTS;
+  const base = savedInputs ?? DEFAULT_INPUTS;
+  if (initialCost == null && recurringCost == null) return base;
   return {
-    ...DEFAULT_INPUTS,
+    ...base,
     ...(initialCost != null && !Number.isNaN(+initialCost) ? { initialCost: +initialCost } : {}),
     ...(recurringCost != null && !Number.isNaN(+recurringCost) ? { recurringCost: +recurringCost } : {}),
   };
@@ -396,21 +398,40 @@ function getInitialPlanningBasis() {
 function RoiCalculatorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
 
-  const [inputs, setInputs] = useState(getInitialInputs);
   const [arrivedFromTco] = useState(() => {
     const params = getIncomingParams();
     return !!(params?.get("initialCost") || params?.get("recurringCost"));
   });
   const [tcoPlanningBasis] = useState(getInitialPlanningBasis);
+
+  // Saved session state always loads, regardless of an incoming handoff.
+  // Field-level precedence, not all-or-nothing: getInitialInputs only
+  // overrides initialCost/recurringCost when a real TCO handoff carries
+  // them, merged onto this saved base -- every other input (workforce
+  // assumptions, ramp, horizon, etc.) was never part of any handoff, so it
+  // keeps restoring from the last saved session either way.
+  const saved = loadSessionState("roi");
+
+  const [inputs, setInputs] = useState(() => getInitialInputs(saved?.inputs));
   const [openTipId, setOpenTipId] = useState(null);
-  const [showFte, setShowFte] = useState(false);
-  const [showUpside, setShowUpside] = useState(false);
+  const [showFte, setShowFte] = useState(saved?.showFte ?? false);
+  const [showUpside, setShowUpside] = useState(saved?.showUpside ?? false);
   const [view, setView] = useState("calc");
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches
   );
+
+  // Persist inputs and display toggles (not view/lead/leadStatus/openTipId --
+  // transient UI flow and lead-capture PII don't belong in session-restored
+  // state) so leaving for another tool and coming back restores exactly
+  // where this tab left off, instead of resetting to defaults on every full
+  // page load (every cross-tool link is a plain <a href>, not client-side
+  // routing, so the whole page reloads and every component remounts fresh).
+  useEffect(() => {
+    saveSessionState("roi", { inputs, showFte, showUpside });
+  }, [inputs, showFte, showUpside]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
@@ -499,7 +520,10 @@ function RoiCalculatorInner() {
         }}>PROTOTYPE v1.0</span>
       </div>
 
-      <div className="no-print" style={{ padding: "0 0 12px", display: "flex", justifyContent: "flex-end", borderBottom: `1px solid ${GRAY_BORDER}`, marginBottom: 16 }}>
+      <div className="no-print" style={{ padding: "0 0 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, borderBottom: `1px solid ${GRAY_BORDER}`, marginBottom: 16 }}>
+        {arrivedFromTco ? (
+          <a href="/tco" style={{ fontSize: 12, fontWeight: 600, color: RED, textDecoration: "none" }}>&larr; Adjust TCO assumptions</a>
+        ) : <span />}
         <AuthWidget />
       </div>
 

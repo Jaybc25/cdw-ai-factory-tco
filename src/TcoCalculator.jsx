@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
+import { loadSessionState, saveSessionState } from "./sessionState.js";
 
 /* ============ CLOUD RATES: per-GPU-hour LIST prices, by provider x GPU class ============
    Sources: provider pricing pages via trackers (gpucloudcost.com, Silicon Analysts,
@@ -256,10 +257,12 @@ function run(inp, RC) {
     // genPF=1, i.e. no generational credit assumed).
 
     // Cross-class correction: GPU Sizing's count is only expressed in the TARGET class's terms
-    // when its source class matches the target (B200->DGX B200, B300->DGX B300, etc). A100 and
-    // H100 both map to DGX H200 (a more capable class TCO actually sells), so a raw pass-through
-    // would overstate the H200 fleet -- 40 H100-equivalent GPUs is NOT 40 H200s. Normalize using
-    // the same genPF machinery, just between (target, source) instead of (target, rented).
+    // when its source class matches the target. Retained defensively for legacy/bookmarked
+    // handoffs or a future catalog divergence -- GPU Sizing's current purchase classes (H200,
+    // B200, GB200 NVL72, B300) each map 1:1 to their TCO target, so this branch shouldn't fire
+    // from today's live UI, but a stale link or a future GPU Sizing class this file doesn't yet
+    // sell should still normalize correctly rather than silently overstate the fleet.
+    // Same genPF machinery as the rented-class conversion, just between (target, source).
     const tgtClass = SYS_CLASS[inp.ownSys];
     const srcClassNormalized = inp.sourceClass ? normalizeSourceClass(inp.sourceClass) : tgtClass;
     let technicalGpuCount = inp.gpuSizingCount;
@@ -557,42 +560,68 @@ function normalizeSourceClass(sourceClass) {
 
 function AppInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
-  const [ov, setOv] = useState({});
-  const [bill, setBill] = useState(105000);
-  const [provider, setProvider] = useState("AWS");
-  const [gpuClass, setGpuClass] = useState("H100");
-  const [ownSys, setOwnSys] = useState(getInitialOwnSys);
   const [arrivedFromGpuSizing] = useState(() => !!getIncomingParams()?.get("ownSys"));
   const [gpuSizingCount] = useState(getInitialGpuCount);
   const [sourceClass] = useState(getInitialSourceClass);
   const [workingDayHours] = useState(getInitialWorkingDayHours);
-  const [mode, setMode] = useState(() => gpuSizingCount ? "workload" : "spend"); // v2.9: bake-off (spend-derived) vs workload (technical-requirement-driven)
-  const [trainShare, setTrainShare] = useState(0.5);
-  const [odShare, setOdShare] = useState(0);
-  const [storageAuto, setStorageAuto] = useState(true); // v2.3: Tier 1 derives storage from the bill; manual entry = Tier 2/3
-  const [fastPBm, setFastPBm] = useState(0.25);
-  const [bulkPBm, setBulkPBm] = useState(0.75);
-  const [egressPct, setEgressPct] = useState(0.05);
-  const [computeShare, setComputeShare] = useState(0.5);
-  const [growth, setGrowth] = useState(0.25);
-  const [facility, setFacility] = useState("Self-hosted (AI-ready)");
-  const [powerRate, setPowerRate] = useState(300);
-  const [util, setUtil] = useState(0.85);
-  const [fNet, setFNet] = useState(1.0);
-  const [fSw, setFSw] = useState(1.3);
-  const [fNvaie, setFNvaie] = useState(1.3);
-  const [tier3Hrs, setTier3Hrs] = useState(0);
-  const [horizon, setHorizon] = useState(3);
-  const [retrofit, setRetrofit] = useState(300000);
-  const [migration, setMigration] = useState(100000);
-  const [dualRun, setDualRun] = useState(2);
-  const [redundancy, setRedundancy] = useState(false);
-  const [residPct, setResidPct] = useState(0.15);
-  const [modelSize, setModelSize] = useState("70B");
-  const [quant, setQuant] = useState("FP8");
+
+  // Saved session state always loads, regardless of an incoming handoff.
+  // Field-level precedence, not all-or-nothing: only ownSys and mode below
+  // (the two fields a GPU Sizing handoff can actually specify) get
+  // overridden by it. Every other field -- bill, provider, storage,
+  // performance factors, transition costs, etc. -- was never part of any
+  // handoff, so it should always prefer saved state over resetting to
+  // hardcoded defaults just because an unrelated handoff arrived.
+  const saved = loadSessionState("tco");
+
+  const [ownSys, setOwnSys] = useState(() => (arrivedFromGpuSizing ? getInitialOwnSys() : saved?.ownSys ?? getInitialOwnSys()));
+  const [ov, setOv] = useState(saved?.ov ?? {});
+  const [bill, setBill] = useState(saved?.bill ?? 105000);
+  const [provider, setProvider] = useState(saved?.provider ?? "AWS");
+  const [gpuClass, setGpuClass] = useState(saved?.gpuClass ?? "H100");
+  const [mode, setMode] = useState(() => (arrivedFromGpuSizing ? (gpuSizingCount ? "workload" : "spend") : saved?.mode ?? (gpuSizingCount ? "workload" : "spend"))); // v2.9: bake-off (spend-derived) vs workload (technical-requirement-driven)
+  const [trainShare, setTrainShare] = useState(saved?.trainShare ?? 0.5);
+  const [odShare, setOdShare] = useState(saved?.odShare ?? 0);
+  const [storageAuto, setStorageAuto] = useState(saved?.storageAuto ?? true); // v2.3: Tier 1 derives storage from the bill; manual entry = Tier 2/3
+  const [fastPBm, setFastPBm] = useState(saved?.fastPBm ?? 0.25);
+  const [bulkPBm, setBulkPBm] = useState(saved?.bulkPBm ?? 0.75);
+  const [egressPct, setEgressPct] = useState(saved?.egressPct ?? 0.05);
+  const [computeShare, setComputeShare] = useState(saved?.computeShare ?? 0.5);
+  const [growth, setGrowth] = useState(saved?.growth ?? 0.25);
+  const [facility, setFacility] = useState(saved?.facility ?? "Self-hosted (AI-ready)");
+  const [powerRate, setPowerRate] = useState(saved?.powerRate ?? 300);
+  const [util, setUtil] = useState(saved?.util ?? 0.85);
+  const [fNet, setFNet] = useState(saved?.fNet ?? 1.0);
+  const [fSw, setFSw] = useState(saved?.fSw ?? 1.3);
+  const [fNvaie, setFNvaie] = useState(saved?.fNvaie ?? 1.3);
+  const [tier3Hrs, setTier3Hrs] = useState(saved?.tier3Hrs ?? 0);
+  const [horizon, setHorizon] = useState(saved?.horizon ?? 3);
+  const [retrofit, setRetrofit] = useState(saved?.retrofit ?? 300000);
+  const [migration, setMigration] = useState(saved?.migration ?? 100000);
+  const [dualRun, setDualRun] = useState(saved?.dualRun ?? 2);
+  const [redundancy, setRedundancy] = useState(saved?.redundancy ?? false);
+  const [residPct, setResidPct] = useState(saved?.residPct ?? 0.15);
+  const [modelSize, setModelSize] = useState(saved?.modelSize ?? "70B");
+  const [quant, setQuant] = useState(saved?.quant ?? "FP8");
   const [view, setView] = useState("calc"); // calc | gate | report
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
+
+  // Persist every tweakable input (not view/lead/leadStatus -- transient UI
+  // flow and lead-capture PII don't belong in session-restored state) so
+  // leaving for another tool and coming back restores exactly where this
+  // tab left off, instead of resetting to defaults on every full page load.
+  useEffect(() => {
+    saveSessionState("tco", {
+      ov, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
+      fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
+      fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
+      residPct, modelSize, quant,
+    });
+  }, [ov, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
+      fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
+      fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
+      residPct, modelSize, quant]);
 
   async function submitLead() {
     if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
@@ -643,9 +672,10 @@ function AppInner() {
   // (computed independently, never fed into the spend-derived math below). In
   // workload mode (v2.9+) the equivalent, source-class-corrected figure IS
   // what drives run() -- see r.technicalSystems, which this should match.
-  // Applies the same cross-class correction as run() (A100/H100 -> DGX H200
-  // isn't a 1:1 GPU count) so this display figure doesn't itself understate
-  // the same bug the engine now corrects for.
+  // Applies the same cross-class correction as run(), retained defensively for
+  // legacy/bookmarked handoffs or a future catalog divergence -- today's live
+  // GPU Sizing classes each map 1:1 to their TCO target, so this display
+  // figure and r.technicalSystems should already agree without it firing.
   const gpuSizingSystems = gpuSizingCount ? (() => {
     const tgtClass = SYS_CLASS[ownSys];
     const srcClassNormalized = sourceClass ? normalizeSourceClass(sourceClass) : tgtClass;
@@ -710,7 +740,10 @@ function AppInner() {
             <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 6, background: C.green, color: "#fff", whiteSpace: "nowrap" }}>PROTOTYPE v2.8</span>
           </div>
           <div style={{ fontSize: 13, color: C.sub, marginTop: 8 }}>What your current AIaaS spend buys you if you owned it instead.</div>
-          <div style={{ marginTop: 10, display: "flex", justifyContent: "flex-end" }}>
+          <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            {arrivedFromGpuSizing ? (
+              <a href="/gpu-sizing" style={{ fontSize: 12, fontWeight: 600, color: C.green, textDecoration: "none" }}>&larr; Adjust GPU sizing</a>
+            ) : <span />}
             <AuthWidget />
           </div>
         </div>

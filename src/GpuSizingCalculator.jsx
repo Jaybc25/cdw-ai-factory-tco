@@ -1,8 +1,9 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Cpu, Zap, TrendingDown, TrendingUp, Info, ChevronDown, X } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
+import { loadSessionState, saveSessionState } from "./sessionState.js";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -684,40 +685,70 @@ function getInitialInfModel() {
 function GPUSizingCalculatorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
 
-  const [mode, setMode] = useState(getInitialMode);
-  const [pathLevel, setPathLevel] = useState("simple");
   const [sourceUseCase] = useState(getInitialSourceUseCase);
   const [incomingWorkloadType] = useState(getInitialWorkloadType);
   const [incomingModelId] = useState(() => getIncomingParams()?.get("model") || null);
 
-  const [modelHandoff] = useState(getInitialInfModel); // { model, matched: true | false | null }
-  const [infModel, setInfModel] = useState(modelHandoff.model);
-  const [quant, setQuant] = useState("FP8");
-  const [concurrentUsers, setConcurrentUsers] = useState(100);
-  const [targetTokPerUser, setTargetTokPerUser] = useState(30);
-  const [environment, setEnvironment] = useState("Production");
-  const [avgInputTokens, setAvgInputTokens] = useState(2000);
-  const [avgOutputTokens, setAvgOutputTokens] = useState(500);
-  const [kvBytesPerElement, setKvBytesPerElement] = useState(2);
-  const [overheadPct, setOverheadPct] = useState(0.15);
-  const [infGpuOverride, setInfGpuOverride] = useState("Auto-recommend");
-  const [customParamsB, setCustomParamsB] = useState(70);
-  const [customLayers, setCustomLayers] = useState(80);
-  const [customKvHeads, setCustomKvHeads] = useState(8);
-  const [customHeadDim, setCustomHeadDim] = useState(128);
-  const [workingDayHours, setWorkingDayHours] = useState(10);
+  // Saved session state always loads, regardless of an incoming handoff.
+  // Field-level precedence, not all-or-nothing: only the specific fields a
+  // handoff actually carries (mode, infModel below) get overridden by it.
+  // Everything else -- concurrency, duty cycle, quant, custom model fields,
+  // training settings -- is never part of any handoff, so it should keep
+  // restoring from the last saved session even when a new model/workload
+  // arrives for the fields that ARE part of that handoff.
+  const saved = loadSessionState("gpu-sizing");
 
-  const [trainModel, setTrainModel] = useState(MODELS[1]);
-  const [taskType, setTaskType] = useState("Full fine-tune");
-  const [precision, setPrecision] = useState("BF16");
-  const [datasetTokensB, setDatasetTokensB] = useState(50);
-  const [targetDays, setTargetDays] = useState(14);
-  const [mfu, setMfu] = useState(0.4);
-  const [trainGpuOverride, setTrainGpuOverride] = useState("Auto-recommend");
+  const [mode, setMode] = useState(() => ((sourceUseCase || incomingWorkloadType) ? getInitialMode() : saved?.mode ?? getInitialMode()));
+  const [pathLevel, setPathLevel] = useState(saved?.pathLevel ?? "simple");
+
+  const [modelHandoff] = useState(getInitialInfModel); // { model, matched: true | false | null }
+  const [infModel, setInfModel] = useState(() => {
+    if (incomingModelId) return modelHandoff.model; // a real model= handoff always wins
+    return (saved?.infModelId && MODELS.find((m) => m.id === saved.infModelId)) || modelHandoff.model;
+  });
+  const [quant, setQuant] = useState(saved?.quant ?? "FP8");
+  const [concurrentUsers, setConcurrentUsers] = useState(saved?.concurrentUsers ?? 100);
+  const [targetTokPerUser, setTargetTokPerUser] = useState(saved?.targetTokPerUser ?? 30);
+  const [environment, setEnvironment] = useState(saved?.environment ?? "Production");
+  const [avgInputTokens, setAvgInputTokens] = useState(saved?.avgInputTokens ?? 2000);
+  const [avgOutputTokens, setAvgOutputTokens] = useState(saved?.avgOutputTokens ?? 500);
+  const [kvBytesPerElement, setKvBytesPerElement] = useState(saved?.kvBytesPerElement ?? 2);
+  const [overheadPct, setOverheadPct] = useState(saved?.overheadPct ?? 0.15);
+  const [infGpuOverride, setInfGpuOverride] = useState(saved?.infGpuOverride ?? "Auto-recommend");
+  const [customParamsB, setCustomParamsB] = useState(saved?.customParamsB ?? 70);
+  const [customLayers, setCustomLayers] = useState(saved?.customLayers ?? 80);
+  const [customKvHeads, setCustomKvHeads] = useState(saved?.customKvHeads ?? 8);
+  const [customHeadDim, setCustomHeadDim] = useState(saved?.customHeadDim ?? 128);
+  const [workingDayHours, setWorkingDayHours] = useState(saved?.workingDayHours ?? 10);
+
+  const [trainModel, setTrainModel] = useState(() => (saved?.trainModelId && MODELS.find((m) => m.id === saved.trainModelId)) || MODELS[1]);
+  const [taskType, setTaskType] = useState(saved?.taskType ?? "Full fine-tune");
+  const [precision, setPrecision] = useState(saved?.precision ?? "BF16");
+  const [datasetTokensB, setDatasetTokensB] = useState(saved?.datasetTokensB ?? 50);
+  const [targetDays, setTargetDays] = useState(saved?.targetDays ?? 14);
+  const [mfu, setMfu] = useState(saved?.mfu ?? 0.4);
+  const [trainGpuOverride, setTrainGpuOverride] = useState(saved?.trainGpuOverride ?? "Auto-recommend");
 
   const [view, setView] = useState("calc");
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
+
+  // Persist every tweakable input (not view/lead/leadStatus -- transient UI
+  // flow and lead-capture PII don't belong in session-restored state) so
+  // leaving for another tool and coming back restores exactly where this
+  // tab left off, instead of resetting to defaults on every full page load.
+  useEffect(() => {
+    saveSessionState("gpu-sizing", {
+      mode, pathLevel,
+      infModelId: infModel.id, quant, concurrentUsers, targetTokPerUser, environment,
+      avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,
+      customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
+      trainModelId: trainModel.id, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,
+    });
+  }, [mode, pathLevel, infModel, quant, concurrentUsers, targetTokPerUser, environment,
+      avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,
+      customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
+      trainModel, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride]);
 
   const infInputs = {
     model: infModel,
@@ -824,7 +855,10 @@ function GPUSizingCalculatorInner() {
         <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.15</span>
       </div>
 
-      <div className="no-print border-b border-gray-100 px-6 py-2 flex items-center justify-end">
+      <div className="no-print border-b border-gray-100 px-6 py-2 flex items-center justify-between gap-3">
+        {incomingModelId ? (
+          <a href="/model-advisor" style={{ fontSize: 12, fontWeight: 600, color: RED, textDecoration: "none" }}>&larr; Change model recommendation</a>
+        ) : <span />}
         <AuthWidget />
       </div>
 
