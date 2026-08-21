@@ -579,6 +579,87 @@ function CrossoverChart({ points, horizon, crossoverMo }) {
   );
 }
 
+// Light-theme counterparts for the printable report section (white
+// background, C.* tokens) -- the report is a separate rendering path from
+// the live on-screen results above, so it needs its own styled versions
+// rather than reusing the dark-theme components directly.
+function YearOneBreakdownReport({ cloudYear1, capital, operating }) {
+  const onPremTotal = capital + operating;
+  const max = Math.max(cloudYear1, onPremTotal, 1);
+  const onPremPct = Math.max(2, (onPremTotal / max) * 100);
+  const capPct = onPremTotal > 0 ? (capital / onPremTotal) * 100 : 0;
+  const opPct = 100 - capPct;
+  return (
+    <div>
+      <div style={{ margin: "6px 0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+          <span style={{ color: C.sub }}>Cloud (Year 1, recurring)</span>
+          <span style={{ ...mono, color: C.ink, fontWeight: 600 }}>{fmtM(cloudYear1)}</span>
+        </div>
+        <div style={{ height: 12, background: "#EFEFEF", borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ width: `${Math.max(2, (cloudYear1 / max) * 100)}%`, height: "100%", background: "#9A9A9A", borderRadius: 4 }} />
+        </div>
+      </div>
+      <div style={{ margin: "6px 0" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 3 }}>
+          <span style={{ color: C.sub }}>On-Prem (Year 1, upfront + operating)</span>
+          <span style={{ ...mono, color: C.ink, fontWeight: 600 }}>{fmtM(onPremTotal)}</span>
+        </div>
+        <div style={{ height: 12, background: "#EFEFEF", borderRadius: 4, overflow: "hidden", width: `${onPremPct}%`, display: "flex" }}>
+          <div style={{ width: `${capPct}%`, height: "100%", background: C.green }} title={`Upfront capital + transition: ${fmtM(capital)}`} />
+          <div style={{ width: `${opPct}%`, height: "100%", background: "#5A87A8" }} title={`Year 1 operating: ${fmtM(operating)}`} />
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 14, fontSize: 10, color: C.sub, marginTop: 4 }}>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, background: C.green, borderRadius: 2, marginRight: 4 }} />Upfront capital + transition</span>
+        <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#5A87A8", borderRadius: 2, marginRight: 4 }} />Year 1 operating</span>
+      </div>
+      <div style={{ fontSize: 10, color: C.sub, marginTop: 6, fontStyle: "italic" }}>
+        Upfront costs occur primarily at deployment; operating costs recur every year. Year 1 cash outlay only -- later years reflect growth assumptions, not this run rate.
+      </div>
+    </div>
+  );
+}
+
+function CrossoverChartReport({ points, horizon, crossoverMo }) {
+  const shown = points.slice(0, Math.max(2, horizon));
+  const W = 600, H = 190, padL = 55, padR = 15, padT = 15, padB = 26;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const maxVal = Math.max(1, ...shown.map((p) => Math.max(p.cloud, p.onPrem)));
+  const n = shown.length;
+  const xFor = (i) => padL + (n > 1 ? (i / (n - 1)) * plotW : 0);
+  const yFor = (v) => padT + plotH - (v / maxVal) * plotH;
+  const cloudPts = shown.map((p, i) => `${xFor(i)},${yFor(p.cloud)}`).join(" ");
+  const onPremPts = shown.map((p, i) => `${xFor(i)},${yFor(p.onPrem)}`).join(" ");
+  const crossoverYear = crossoverMo ? crossoverMo / 12 : null;
+  const crossoverX = crossoverYear != null && crossoverYear >= 1 && crossoverYear <= n
+    ? padL + ((crossoverYear - 1) / (n - 1 || 1)) * plotW : null;
+
+  return (
+    <div>
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: "block", overflow: "visible" }}>
+        {shown.map((_, i) => (
+          <line key={"g" + i} x1={xFor(i)} y1={padT} x2={xFor(i)} y2={padT + plotH} stroke={C.line} strokeWidth="1" />
+        ))}
+        {crossoverX != null && (
+          <line x1={crossoverX} y1={padT} x2={crossoverX} y2={padT + plotH} stroke={C.ink} strokeWidth="1" strokeDasharray="4,3" opacity="0.35" />
+        )}
+        <polyline points={cloudPts} fill="none" stroke="#9A9A9A" strokeWidth="2.5" />
+        <polyline points={onPremPts} fill="none" stroke={C.green} strokeWidth="2.5" />
+        {shown.map((p, i) => <circle key={"cc" + i} cx={xFor(i)} cy={yFor(p.cloud)} r="3" fill="#9A9A9A" />)}
+        {shown.map((p, i) => <circle key={"oc" + i} cx={xFor(i)} cy={yFor(p.onPrem)} r="3" fill={C.green} />)}
+        {shown.map((p, i) => <text key={"yl" + i} x={xFor(i)} y={H - 6} textAnchor="middle" fontSize="10" fill={C.sub}>{`Yr ${i + 1}`}</text>)}
+        <text x={padL} y={padT - 3} fontSize="9" fill={C.sub}>{fmtM(maxVal)}</text>
+      </svg>
+      <div style={{ display: "flex", gap: 14, fontSize: 10, color: C.sub, marginTop: 4 }}>
+        <span><span style={{ display: "inline-block", width: 10, height: 2, background: "#9A9A9A", marginRight: 4, verticalAlign: "middle" }} />Stay in cloud (cumulative)</span>
+        <span><span style={{ display: "inline-block", width: 10, height: 2, background: C.green, marginRight: 4, verticalAlign: "middle" }} />Own it (cumulative)</span>
+        {crossoverMo && crossoverMo <= horizon * 12 && <span style={{ color: C.ink }}>Crosses over month {crossoverMo}</span>}
+      </div>
+    </div>
+  );
+}
+
 function RateField({ k, label, eff, defaults, ov, setOv, fmt: f, step }) {
   const edited = k in ov;
   const ratio = defaults[k] > 0 ? eff[k] / defaults[k] : 1;
@@ -938,6 +1019,14 @@ function AppInner() {
                   Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
                 </>
               )}
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 6 }}>WHERE THE MONEY GOES IN YEAR 1</div>
+              <YearOneBreakdownReport cloudYear1={r.cloudYear1} capital={r.adj.capex + r.oneTime} operating={r.adj.opex * 12} />
+            </div>
+            <div style={{ marginTop: 16 }}>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 6 }}>CUMULATIVE SPEND, {Math.max(2, horizon)}-YEAR VIEW{horizon < 2 ? " (min. 2yr shown for a readable trend)" : ""}</div>
+              <CrossoverChartReport points={r.cumulativeByYear} horizon={horizon} crossoverMo={r.crossoverMo} />
             </div>
             <div style={{ marginTop: 14 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX — FULL INPUTS & OUTPUTS (for independent reproduction)</div>
