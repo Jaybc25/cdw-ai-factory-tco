@@ -206,15 +206,47 @@ function computeInference(inputs) {
     ? autoRecommended
     : candidates.find((c) => c.id === inputs.gpuClassOverride);
 
-  // Alternatives must be genuinely distinct from the recommendation. candidates
-  // is ordered cheapest-to-most-capable, so "lower cost" only exists when the
-  // recommendation isn't already the cheapest class, and "higher growth" only
-  // exists when it isn't already the most capable one -- previously these were
-  // unconditionally candidates[0]/candidates[last], which silently duplicated
-  // the recommendation whenever it landed on either boundary class.
-  const recommendedIndex = candidates.findIndex((c) => c.id === selected.id);
-  const lowerCost = recommendedIndex > 0 ? candidates[0] : null;
-  const higherGrowth = recommendedIndex < candidates.length - 1 ? candidates[candidates.length - 1] : null;
+  function budgetFor(gpuId, deployedCount) {
+    const price = GPU_PRICE_USD[gpuId];
+    if (!price) return null;
+    return { amount: deployedCount * price.amount, confidence: price.confidence, source: price.source };
+  }
+
+  // Node-rounded deployed count and priced total for every candidate, not
+  // just the recommendation -- needed to pick alternatives by actual
+  // economics rather than array position (see below).
+  const priced = candidates.map((c) => {
+    const count = Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize;
+    const b = budgetFor(c.id, count);
+    return { ...c, deployedCount: count, deployedCost: b ? b.amount : null };
+  });
+  const selectedPriced = priced.find((c) => c.id === selected.id);
+  const nonRecommended = priced.filter((c) => c.id !== selected.id);
+
+  // Lower-cost alternative: the actual cheapest deployed total among the
+  // other classes, not "whichever class happens to sit first in the array."
+  // Node-rounding can make a nominally pricier-per-GPU class cheaper as a
+  // deployed solution than a nominally cheaper one that rounds up to a much
+  // larger fleet -- confirmed this actually happens with real catalog
+  // prices, not just a theoretical risk. Only kept if it's genuinely
+  // cheaper than the recommendation; if the recommendation is already the
+  // cheapest deployed option, there's honestly no lower-cost alternative.
+  const pricedOthers = nonRecommended.filter((c) => c.deployedCost != null);
+  const cheapestOther = pricedOthers.length
+    ? pricedOthers.reduce((best, c) => (c.deployedCost < best.deployedCost ? c : best))
+    : null;
+  const lowerCost = cheapestOther && selectedPriced.deployedCost != null && cheapestOther.deployedCost < selectedPriced.deployedCost
+    ? cheapestOther : null;
+
+  // Higher-growth alternative: the other class with genuinely more real
+  // capability (throughput anchor), not just "whichever is last in the
+  // array" -- the catalog isn't strictly capability-ordered internally
+  // (GB200 NVL72's anchor is actually lower than B200's). Only kept if
+  // it's genuinely more capable than the recommendation.
+  const mostCapableOther = nonRecommended.length
+    ? nonRecommended.reduce((best, c) => (c.anchor > best.anchor ? c : best))
+    : null;
+  const higherGrowth = mostCapableOther && mostCapableOther.anchor > selected.anchor ? mostCapableOther : null;
 
   const confidence =
     model.status !== "VERIFIED"
@@ -233,14 +265,9 @@ function computeInference(inputs) {
     overCap: rtxWorkload > RTX_SPEC.maxWorkstationGPUs,
   };
 
-  function budgetFor(gpuId, deployedCount) {
-    const price = GPU_PRICE_USD[gpuId];
-    if (!price) return null;
-    return { amount: deployedCount * price.amount, confidence: price.confidence, source: price.source };
-  }
-  const recommendedCount = Math.ceil(selected.gpusWorkload / selected.nodeSize) * selected.nodeSize;
-  const lowerCostCount = lowerCost ? Math.ceil(lowerCost.gpusWorkload / lowerCost.nodeSize) * lowerCost.nodeSize : null;
-  const higherGrowthCount = higherGrowth ? Math.ceil(higherGrowth.gpusWorkload / higherGrowth.nodeSize) * higherGrowth.nodeSize : null;
+  const recommendedCount = selectedPriced.deployedCount;
+  const lowerCostCount = lowerCost ? lowerCost.deployedCount : null;
+  const higherGrowthCount = higherGrowth ? higherGrowth.deployedCount : null;
   const budget = {
     recommended: budgetFor(selected.id, recommendedCount),
     lowerCost: lowerCost ? budgetFor(lowerCost.id, lowerCostCount) : null,
@@ -306,26 +333,45 @@ function computeTraining(inputs) {
     ? autoRecommended
     : candidates.find((c) => c.id === inputs.gpuClassOverride);
 
-  // Same fix as the Inference block above: alternatives must be genuinely
-  // distinct from the recommendation, not unconditionally the two boundary
-  // classes.
-  const recommendedIndex = candidates.findIndex((c) => c.id === selected.id);
-  const lowerCost = recommendedIndex > 0 ? candidates[0] : null;
-  const higherGrowth = recommendedIndex < candidates.length - 1 ? candidates[candidates.length - 1] : null;
+  function budgetFor(gpuId, deployedCount) {
+    const price = GPU_PRICE_USD[gpuId];
+    if (!price) return null;
+    return { amount: deployedCount * price.amount, confidence: price.confidence, source: price.source };
+  }
+
+  // Same fix as the Inference block above: alternatives are chosen by
+  // actual deployed cost / real capability, not array position -- see the
+  // Inference block's comments for why array position isn't reliable here
+  // (node-rounding can make a nominally cheaper class more expensive as a
+  // deployed solution, and the catalog isn't strictly capability-ordered).
+  const priced = candidates.map((c) => {
+    const count = Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize;
+    const b = budgetFor(c.id, count);
+    return { ...c, deployedCount: count, deployedCost: b ? b.amount : null };
+  });
+  const selectedPriced = priced.find((c) => c.id === selected.id);
+  const nonRecommended = priced.filter((c) => c.id !== selected.id);
+
+  const pricedOthers = nonRecommended.filter((c) => c.deployedCost != null);
+  const cheapestOther = pricedOthers.length
+    ? pricedOthers.reduce((best, c) => (c.deployedCost < best.deployedCost ? c : best))
+    : null;
+  const lowerCost = cheapestOther && selectedPriced.deployedCost != null && cheapestOther.deployedCost < selectedPriced.deployedCost
+    ? cheapestOther : null;
+
+  const mostCapableOther = nonRecommended.length
+    ? nonRecommended.reduce((best, c) => (c.anchor > best.anchor ? c : best))
+    : null;
+  const higherGrowth = mostCapableOther && mostCapableOther.anchor > selected.anchor ? mostCapableOther : null;
 
   const confidence =
     model.status !== "VERIFIED"
       ? { level: "LOW", note: "Model architecture not yet verified (custom entry)" }
       : { level: "MEDIUM-HIGH", note: "Architecture verified; FLOPs are NVIDIA published spec-sheet values, MFU default sourced from Meta's Llama 3 paper" };
 
-  const recommendedCount = Math.ceil(selected.gpusWorkload / selected.nodeSize) * selected.nodeSize;
-  const lowerCostCount = lowerCost ? Math.ceil(lowerCost.gpusWorkload / lowerCost.nodeSize) * lowerCost.nodeSize : null;
-  const higherGrowthCount = higherGrowth ? Math.ceil(higherGrowth.gpusWorkload / higherGrowth.nodeSize) * higherGrowth.nodeSize : null;
-  function budgetFor(gpuId, deployedCount) {
-    const price = GPU_PRICE_USD[gpuId];
-    if (!price) return null;
-    return { amount: deployedCount * price.amount, confidence: price.confidence, source: price.source };
-  }
+  const recommendedCount = selectedPriced.deployedCount;
+  const lowerCostCount = lowerCost ? lowerCost.deployedCount : null;
+  const higherGrowthCount = higherGrowth ? higherGrowth.deployedCount : null;
   const budget = {
     recommended: budgetFor(selected.id, recommendedCount),
     lowerCost: lowerCost ? budgetFor(lowerCost.id, lowerCostCount) : null,
