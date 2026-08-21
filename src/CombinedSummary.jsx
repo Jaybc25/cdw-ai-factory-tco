@@ -33,6 +33,7 @@ const FIELD_FORMAT = {
   // TCO
   savings: "money", floorCaseSavings: "money", cloudCost: "money", onPremCost: "money",
   capexPlusOneTime: "money", monthlyOpex: "money", residualCredit: "money", monthlyBill: "money",
+  cloudYear1: "money", onPremYear1Capital: "money", onPremYear1Operating: "money",
   paybackMonths: "months",
   // GPU Sizing
   budget: "money", lowerCostCount: "count", higherGrowthCount: "count", minTechnical: "count",
@@ -212,7 +213,9 @@ function CombinedSummaryInner() {
                 </div>
                 {s.summary ? (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 6, columnGap: 12, fontSize: 13 }}>
-                    {Object.entries(s.summary).map(([k, v]) => (
+                    {Object.entries(s.summary)
+                      .filter(([, v]) => v === null || typeof v !== "object")
+                      .map(([k, v]) => (
                       <React.Fragment key={k}>
                         <div style={{ color: GRAY_TEXT }}>{labelize(k)}</div>
                         <div>{fmtValue(k, v)}</div>
