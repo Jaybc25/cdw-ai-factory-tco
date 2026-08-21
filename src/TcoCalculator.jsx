@@ -3,6 +3,7 @@ import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
+import { CLOUD_RATES_VERIFIED_AT, ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
 
 /* ============ CLOUD RATES: per-GPU-hour LIST prices, by provider x GPU class ============
    Sources: provider pricing pages via trackers (gpucloudcost.com, Silicon Analysts,
@@ -47,7 +48,10 @@ const KV_OVERHEAD = 1.2;      // memory overhead for KV cache / activations (EST
 const TOK_PER_USER = 10;      // sustained tok/s per concurrent interactive user (EST)
 
 const RES_MULT = 0.60; // 1-yr reserved = 40% off list (estimated for all; exact for AWS B200)
-const RATES_ASOF = "Jul–Aug 2026";
+const RATES_ASOF = fmtVerifiedDate(CLOUD_RATES_VERIFIED_AT); // human-readable, matches prior "Jul–Aug 2026" style display
+const ONPREM_ASOF = fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT);
+const cloudRatesStaleness = stalenessOf(CLOUD_RATES_VERIFIED_AT);
+const onpremStaleness = stalenessOf(ONPREM_PRICING_VERIFIED_AT);
 
 const BASE_RC = {
   nvaieOD: 1.0, nvaieRes: 0.36,
@@ -822,11 +826,11 @@ function AppInner() {
             <div style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
               {r.isWorkloadMode ? (
                 <>
-                  Methodology (Workload Requirement mode, v2.9): cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). The on-prem fleet is sized directly to the GPU Sizing technical requirement ({gpuSizingCount} GPUs{r.sourceConversion ? ` at ${sourceClass}, normalized to ${ownSys} using a ${r.sourceConversion.toFixed(2)}x generational capability ratio since the recommended class isn't sold new as that system` : ` at ${ownSys}`}), not derived from spend, and grows year over year on the same growth rate applied to that requirement; fleet size is independent of duty cycle, since owned hardware must be present whether or not it's continuously in use. The cloud-side estimate instead uses {workingDayHours ? `a ${workingDayHours}-hour/day duty cycle from GPU Sizing's own workload timing` : `the on-prem target utilization (${Math.round(util * 100)}%) as a fallback, since no duty-cycle data came through with this handoff -- likely an overstatement for a business-hours workload`}, converted into rented {gpuClass} hours using ONLY the hardware generational capability factor ({r.genPF.toFixed(2)}x, benchmark-derived from MLPerf-class throughput ratios for {ownSys} vs {gpuClass} -- directional and workload-normalized, not a universal physical conversion constant). Network, scheduling, and inference-stack efficiency factors (fNet/fSw/fNvaie) are deliberately excluded from this conversion, since those are advantages of owning infrastructure, not something a cloud renter gets; applying them to price a rental would be circular. The floor case instead assumes zero generational credit (1.00x), the conservative case if that capability ratio is overstated. Storage is a direct input (no bill to auto-scale it from). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026); residual value applies to hardware only. This is a directional analysis for a workload that may not yet exist at this scale in your current cloud environment.
+                  Methodology (Workload Requirement mode, v2.9): cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). The on-prem fleet is sized directly to the GPU Sizing technical requirement ({gpuSizingCount} GPUs{r.sourceConversion ? ` at ${sourceClass}, normalized to ${ownSys} using a ${r.sourceConversion.toFixed(2)}x generational capability ratio since the recommended class isn't sold new as that system` : ` at ${ownSys}`}), not derived from spend, and grows year over year on the same growth rate applied to that requirement; fleet size is independent of duty cycle, since owned hardware must be present whether or not it's continuously in use. The cloud-side estimate instead uses {workingDayHours ? `a ${workingDayHours}-hour/day duty cycle from GPU Sizing's own workload timing` : `the on-prem target utilization (${Math.round(util * 100)}%) as a fallback, since no duty-cycle data came through with this handoff -- likely an overstatement for a business-hours workload`}, converted into rented {gpuClass} hours using ONLY the hardware generational capability factor ({r.genPF.toFixed(2)}x, benchmark-derived from MLPerf-class throughput ratios for {ownSys} vs {gpuClass} -- directional and workload-normalized, not a universal physical conversion constant). Network, scheduling, and inference-stack efficiency factors (fNet/fSw/fNvaie) are deliberately excluded from this conversion, since those are advantages of owning infrastructure, not something a cloud renter gets; applying them to price a rental would be circular. The floor case instead assumes zero generational credit (1.00x), the conservative case if that capability ratio is overstated. Storage is a direct input (no bill to auto-scale it from). On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}); residual value applies to hardware only. This is a directional analysis for a workload that may not yet exist at this scale in your current cloud environment.
                 </>
               ) : (
                 <>
-                  Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference (Jul 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+                  Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
                 </>
               )}
             </div>
@@ -868,6 +872,7 @@ function AppInner() {
                   ...(r.isWorkloadMode ? [] : [["Spend/storage reconciliation", `${fmt(r.cloudStorage)}/mo implied vs ${fmt(r.storageBudget)}/mo non-compute budget — ${r.cloudStorage > r.storageBudget * 1.02 ? `OVERALLOCATED by ${fmt(r.cloudStorage - r.storageBudget)}` : "within tolerance"}`]]),
                   ["Crossover (cumulative) / static payback", `${r.crossoverMo ? `month ${r.crossoverMo}` : "none ≤60mo"} / ${r.payback ? r.payback.toFixed(0) + " mo" : "n/a"}`],
                   ["— APPLIED RATES (snapshot) —", ""],
+                  ["Pricing verified", `Cloud ${RATES_ASOF} (${cloudRatesStaleness.days}d ago, ${cloudRatesStaleness.level}) · On-prem ${ONPREM_ASOF} (${onpremStaleness.days}d ago, ${onpremStaleness.level})`],
                   ["Cloud $/GPU-hr OD / reserved", `$${rc.instOD} / $${rc.instRes} (${RATES[provider][gpuClass].conf})`],
                   ["NVAIE $/GPU-hr OD / reserved", `$${rc.nvaieOD} / $${rc.nvaieRes}`],
                   ["Cloud storage fast / bulk $/GB-mo", `$${rc.fastGB} / $${rc.bulkGB}`],
@@ -1030,6 +1035,13 @@ function AppInner() {
             {provider} {gpuClass}: ${rateInfo.od.toFixed(2)}/GPU-hr on-demand · confidence: {rateInfo.conf}
             {rateInfo.conf === "QUOTE" ? " (estimate — verify with provider)" : ""}{rateInfo.note ? ` (${rateInfo.note})` : ""} · reserved = 40% off list (est.) · rates as of {RATES_ASOF}. Override any rate below.
           </div>
+          {cloudRatesStaleness.level !== "current" && (
+            <div style={{ fontSize: 11, color: cloudRatesStaleness.level === "stale" ? "#B91C1C" : "#B45309", background: cloudRatesStaleness.level === "stale" ? "#FEF2F2" : "#FFFBEB", border: `1px solid ${cloudRatesStaleness.level === "stale" ? "#FECACA" : "#FDE68A"}`, borderRadius: 6, padding: "6px 9px", marginTop: 6 }}>
+              {cloudRatesStaleness.level === "stale"
+                ? `Cloud rates last verified ${cloudRatesStaleness.days} days ago — refresh against current provider pricing before using this in front of a client.`
+                : `Cloud rates last verified ${cloudRatesStaleness.days} days ago — a review is due soon.`}
+            </div>
+          )}
         </Section>
 
         {/* TIER 2 */}
@@ -1168,7 +1180,7 @@ function AppInner() {
         <Section title="Rate card" badge={editedCount > 0 ? `${editedCount} EDITED` : "EDITABLE"}
           badgeColor={editedCount > 0 ? "#CC0000" : undefined} defaultOpen={false}>
           <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>
-            Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem defaults = NVIDIA DGX TCO tool (Jul 2026). Edits stick until reset, including across provider switches.
+            Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem defaults = NVIDIA DGX TCO tool ({ONPREM_ASOF}). Edits stick until reset, including across provider switches.
           </div>
           {editedCount > 0 && (
             <button onClick={() => setOv({})}
@@ -1191,7 +1203,12 @@ function AppInner() {
           <RateField k="cluster" label="Cluster mgmt nodes $ (fixed per cluster — amortizes across fleet)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="fastPB" label="Fast storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="bulkPB" label="Bulk storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
-          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>OPERATIONS · NVIDIA TCO tool, Jul 2026 (Equinix bundle Aug 2026)</div>
+          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>OPERATIONS · NVIDIA TCO tool, {ONPREM_ASOF} (Equinix bundle Aug 2026)</div>
+          {onpremStaleness.level !== "current" && (
+            <div style={{ fontSize: 11, color: onpremStaleness.level === "stale" ? "#B91C1C" : "#B45309", marginBottom: 4 }}>
+              On-prem pricing last verified {onpremStaleness.days} days ago{onpremStaleness.level === "stale" ? " — refresh before client use" : " — review due soon"}.
+            </div>
+          )}
           <RateField k="sysKw" label={`Power kW per ${ownSys} (avg load)`} eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.1} />
           <RateField k="equinixMo" label="Equinix bundle $/system/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={100} fmt={fmt} />
           <RateField k="adminRatio" label="Systems per admin FTE" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1} />
@@ -1217,7 +1234,7 @@ function AppInner() {
           <div style={{ fontSize: 11, color: C.sub, marginTop: 10 }}>
             {editedCount > 0
               ? `Running on a modified rate card (${editedCount} value${editedCount > 1 ? "s" : ""} edited).`
-              : `Running on list rates (${provider} ${gpuClass}, ${RATES_ASOF}) + NVIDIA TCO tool on-prem defaults (Jul 2026) + MLPerf-derived factors.`}
+              : `Running on list rates (${provider} ${gpuClass}, ${RATES_ASOF}) + NVIDIA TCO tool on-prem defaults (${ONPREM_ASOF}) + MLPerf-derived factors.`}
             {" "}OCI note: egress is $0 on OCI as of Feb 2026 — zero the egress rate when modeling OCI exits. Still excluded: refresh cadence beyond residual, NPV, commitment early-termination, stranded capacity, hybrid burst. Saved rate profiles and auto-scaling fleet: v2.
           </div>
         </Section>

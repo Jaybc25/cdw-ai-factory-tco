@@ -4,6 +4,7 @@ import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
+import { ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -470,6 +471,7 @@ function fmtUsd(n) {
 function BudgetPanel({ budget }) {
   if (!budget?.recommended) return null;
   const legacyClass = budget.recommended.confidence === "EST";
+  const onpremBudgetStaleness = stalenessOf(ONPREM_PRICING_VERIFIED_AT);
   return (
     <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-gray-50">
       <div className="flex items-center justify-between mb-1">
@@ -485,6 +487,9 @@ function BudgetPanel({ budget }) {
           : "Same pricing basis as the Cloud vs On-Prem TCO Calculator (system + software suite + fabrics + professional services)."}{" "}
         Excludes cluster management nodes, racks, power/cooling, and ongoing operations -- not a quote. See the
         TCO Calculator for full lifecycle cost, or confirm with a CDW AI Factory specialist.
+      </p>
+      <p className="text-xs" style={{ color: onpremBudgetStaleness.level === "stale" ? "#B91C1C" : onpremBudgetStaleness.level === "review" ? "#B45309" : "#9CA3AF", marginTop: 4 }}>
+        Pricing basis last verified {fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)} ({onpremBudgetStaleness.days} days ago){onpremBudgetStaleness.level === "stale" ? " -- refresh before client use" : onpremBudgetStaleness.level === "review" ? " -- review due soon" : "."}
       </p>
     </div>
   );
