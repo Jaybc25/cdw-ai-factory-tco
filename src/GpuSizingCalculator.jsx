@@ -325,7 +325,7 @@ function computeTraining(inputs) {
     const gpusFit = ceilDiv(trainingMemoryGB, gpu.vram);
     const achievableFlopsPerSec = peakTFLOPS * 1e12 * inputs.mfu;
     const gpusTime = ceilDiv(flopsRequired, achievableFlopsPerSec * secondsTarget);
-    return { ...gpu, gpusFit, gpusTime, gpusWorkload: Math.max(gpusFit, gpusTime) };
+    return { ...gpu, peakTFLOPS, gpusFit, gpusTime, gpusWorkload: Math.max(gpusFit, gpusTime) };
   });
 
   const autoRecommended = candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), candidates[0]);
@@ -359,10 +359,16 @@ function computeTraining(inputs) {
   const lowerCost = cheapestOther && selectedPriced.deployedCost != null && cheapestOther.deployedCost < selectedPriced.deployedCost
     ? cheapestOther : null;
 
+  // Training's capability metric is peakTFLOPS (precision-aware, the same
+  // value the sizing calculation above uses), not anchor -- anchor is an
+  // inference-throughput measure and doesn't reflect training capability.
+  // These genuinely diverge: B200/GB200 NVL72/B300 all tie at 2250 bf16
+  // TFLOPS, but anchor ranks them as three different values, which would
+  // have manufactured a "higher growth" claim training doesn't support.
   const mostCapableOther = nonRecommended.length
-    ? nonRecommended.reduce((best, c) => (c.anchor > best.anchor ? c : best))
+    ? nonRecommended.reduce((best, c) => (c.peakTFLOPS > best.peakTFLOPS ? c : best))
     : null;
-  const higherGrowth = mostCapableOther && mostCapableOther.anchor > selected.anchor ? mostCapableOther : null;
+  const higherGrowth = mostCapableOther && mostCapableOther.peakTFLOPS > selected.peakTFLOPS ? mostCapableOther : null;
 
   const confidence =
     model.status !== "VERIFIED"
@@ -503,7 +509,7 @@ function ConfidenceBadge({ level }) {
   );
 }
 
-function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent }) {
+function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent, emptyMessage }) {
   if (gpuClass == null) {
     return (
       <div
@@ -514,7 +520,7 @@ function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent }) {
           <Icon className="w-4 h-4" style={{ color: RED }} />
           <span className="text-xs font-bold uppercase tracking-wide" style={{ opacity: 0.8 }}>{title}</span>
         </div>
-        <div className="text-sm" style={{ opacity: 0.7 }}>No {title.toLowerCase()} in the current supported catalog -- the recommendation is already at that end of the class list.</div>
+        <div className="text-sm" style={{ opacity: 0.7 }}>{emptyMessage || `No qualifying ${title.toLowerCase()} in the current supported catalog.`}</div>
       </div>
     );
   }
@@ -1053,8 +1059,8 @@ function GPUSizingCalculatorInner() {
 
           <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Alternatives considered</div>
           <div className="flex flex-wrap gap-3 mb-6">
-            <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} />
-            <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} />
+            <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />
+            <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." />
           </div>
 
           {mode === "Inference" && environment === "Dev/Test/POC" && result.rtxAlt.eligible && (
@@ -1254,8 +1260,8 @@ function GPUSizingCalculatorInner() {
             </div>
 
             <div className="flex flex-wrap gap-3 mb-6">
-              <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} />
-              <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} />
+              <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />
+              <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." />
             </div>
 
             <BudgetPanel budget={result.budget} />
