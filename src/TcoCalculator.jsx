@@ -816,6 +816,19 @@ function AppInner() {
   const [sourceClass] = useState(getInitialSourceClass);
   const [workingDayHours] = useState(getInitialWorkingDayHours);
 
+  // Consume the handoff: by the time this effect runs, every lazy useState
+  // initializer above has already read whatever it needed from the URL, so
+  // stripping the query string here is safe and doesn't lose anything. What
+  // it prevents: without this, a browser Back that reloads this page (or a
+  // hard refresh) while the URL still shows ?ownSys=... would re-run those
+  // initializers and treat it as a brand-new handoff arrival all over
+  // again, silently overwriting any edits made since the original arrival.
+  useEffect(() => {
+    if (arrivedFromGpuSizing && typeof window !== "undefined") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only, after initial param capture
+
   // Saved session state always loads, regardless of an incoming handoff.
   // Field-level precedence, not all-or-nothing: only ownSys and mode below
   // (the two fields a GPU Sizing handoff can actually specify) get

@@ -488,6 +488,15 @@ function RoiCalculatorInner() {
   });
   const [tcoPlanningBasis] = useState(getInitialPlanningBasis);
 
+  // Consume the handoff -- see TcoCalculator.jsx's identical fix for the
+  // full rationale. Runs once, after every lazy initializer above has
+  // already captured whatever it needed from the URL.
+  useEffect(() => {
+    if (arrivedFromTco && typeof window !== "undefined") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only, after initial param capture
+
   // Shared, field-level truth for whether each TCO-handed-off value still
   // matches what was actually sent -- computed once here, reused by the
   // audit trail, the normal report's summary sentence, and the snapshot's

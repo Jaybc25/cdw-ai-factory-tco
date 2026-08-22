@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { ChevronDown, X, ArrowRight } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
@@ -303,6 +303,14 @@ function ModelAdvisorInner() {
   const [checkedWorkloads, setCheckedWorkloads] = useState(getInitialCheckedWorkloads);
   const [primaryWorkload, setPrimaryWorkload] = useState(() => getInitialPrimaryWorkload(getInitialCheckedWorkloads()));
   const [sourceUseCase] = useState(getInitialSourceUseCase);
+
+  // Consume the handoff -- see TcoCalculator.jsx's identical fix for the
+  // full rationale.
+  useEffect(() => {
+    if (sourceUseCase && typeof window !== "undefined") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only, after initial param capture
   const [qualityPriority, setQualityPriority] = useState("strong");
   const [contextWindow, setContextWindow] = useState("none");
   const [multimodal, setMultimodal] = useState("none");

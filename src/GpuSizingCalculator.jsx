@@ -843,6 +843,15 @@ function GPUSizingCalculatorInner() {
   const [incomingWorkloadType] = useState(getInitialWorkloadType);
   const [incomingModelId] = useState(() => getIncomingParams()?.get("model") || null);
 
+  // Consume the handoff -- see TcoCalculator.jsx's identical fix for the
+  // full rationale. GPU Sizing can arrive from either Use Case Explorer or
+  // Model Advisor, so this covers every param any of those handoffs sends.
+  useEffect(() => {
+    if ((sourceUseCase || incomingWorkloadType || incomingModelId) && typeof window !== "undefined") {
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only, after initial param capture
+
   // Saved session state always loads, regardless of an incoming handoff.
   // Field-level precedence, not all-or-nothing: only the specific fields a
   // handoff actually carries (mode, infModel below) get overridden by it.
