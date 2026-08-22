@@ -367,7 +367,7 @@ const fmtHours = (v) => v == null ? NA_TEXT :
   `${excelRound(v, 0).toLocaleString("en-US")} hrs/yr`;
 const fmtPercent = (v) => v == null ? NA_TEXT : `${(v * 100).toFixed(1)}%`;
 const fmtMonths = (v) => v == null ? PAYBACK_GUARD_TEXT : `${v.toFixed(1)} months`;
-const fmtFte = (v) => v == null ? NA_TEXT : `~${v.toFixed(1)} FTE-years`;
+const fmtFte = (v) => v == null ? NA_TEXT : `~${v.toFixed(1)} FTE-equivalent`;
 
 // ---------------------------------------------------------------------------
 // Main component
@@ -395,6 +395,76 @@ function getInitialPlanningBasis() {
   return raw === "workload" || raw === "spend" ? raw : null;
 }
 
+function AuditFormula({ label, formula, substituted, result }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: CHARCOAL, marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 10.5, color: GRAY_TEXT }}>{formula}</div>
+      <div style={{ fontSize: 10.5, color: GRAY_TEXT }}>{substituted}</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: CHARCOAL, marginTop: 2 }}>= {result}</div>
+    </div>
+  );
+}
+
+// Genuine reconciliation: "calculated" redoes the arithmetic in the audit's
+// own rendering code, starting only from already-engine-provided
+// intermediate values (never re-deriving those intermediates itself), and
+// compares the result to the engine's own field for that same formula --
+// two independent evaluations of the same arithmetic, not one property read
+// twice.
+function ReconCheck({ label, parts, calculated, engineValue, format }) {
+  if (engineValue == null || calculated == null) {
+    return (
+      <div style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 8, padding: "12px 14px", marginBottom: 10, background: "#F7F7F7" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: CHARCOAL, marginBottom: 4 }}>{label}</div>
+        <div style={{ fontSize: 11, color: GRAY_TEXT }}>Not applicable in this scenario ({PAYBACK_GUARD_TEXT.toLowerCase()}).</div>
+      </div>
+    );
+  }
+  const isPercent = format === "percent";
+  const fmt = isPercent ? fmtPercent : fmtCurrency;
+  const diff = Math.abs(calculated - engineValue);
+  const pass = diff < (isPercent ? 0.0005 : 1); // percent is stored as a decimal ratio (0.0005 = 0.05 percentage points); currency needs sub-dollar tolerance for floating point only
+  return (
+    <div style={{ border: `1px solid ${pass ? "#1E7A3D" : RED}`, borderRadius: 8, padding: "12px 14px", marginBottom: 10, background: pass ? "#EAF6EE" : "#FEF2F2" }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: CHARCOAL, marginBottom: 6 }}>{label}</div>
+      {parts.map((p, i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: GRAY_TEXT, marginBottom: 2 }}>
+          <span>{p.label}</span><span>{p.value}</span>
+        </div>
+      ))}
+      <div style={{ borderTop: `1px solid ${GRAY_BORDER}`, marginTop: 4, paddingTop: 4, display: "flex", justifyContent: "space-between", fontSize: 11.5, fontWeight: 600, color: CHARCOAL }}>
+        <span>Reconstructed from constituent parts above</span><span>{fmt(calculated)}</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: GRAY_TEXT }}>
+        <span>Engine's own value (separate code path)</span><span>{fmt(engineValue)}</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, fontWeight: 700, marginTop: 4, color: pass ? "#1E7A3D" : RED }}>
+        <span>Difference: {isPercent ? `${(diff * 100).toFixed(2)} pts` : diff < 0.001 ? "$0" : fmtCurrency(diff)}</span><span>{pass ? "RECONCILED" : "MISMATCH — FLAG THIS"}</span>
+      </div>
+    </div>
+  );
+}
+
+function AuditRow({ label, value, sub }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", padding: "5px 0", fontSize: 12 }}>
+      <div style={{ color: GRAY_TEXT }}>{label}{sub && <div style={{ fontSize: 10, color: "#8A8A8A" }}>{sub}</div>}</div>
+      <div style={{ color: CHARCOAL, fontWeight: 600, textAlign: "right" }}>{value}</div>
+    </div>
+  );
+}
+
+// Distinguishes three real states rather than a single permanent
+// "sourced from TCO" flag: a value can be untouched since handoff, or
+// prefilled and then adjusted -- those aren't the same claim, and the
+// audit shouldn't keep attributing an edited number to TCO.
+function tcoProvenanceFor(currentValue, originalValue) {
+  if (originalValue == null) return "entered directly";
+  if (currentValue === originalValue) return "prefilled from the TCO Calculator, unmodified";
+  return `prefilled from the TCO Calculator (${fmtCurrency(originalValue)}), then adjusted here to ${fmtCurrency(currentValue)}`;
+}
+
 function RoiCalculatorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
 
@@ -402,7 +472,28 @@ function RoiCalculatorInner() {
     const params = getIncomingParams();
     return !!(params?.get("initialCost") || params?.get("recurringCost"));
   });
+  // The original values as handed off, captured once and never updated --
+  // needed to tell "still exactly what TCO sent" apart from "arrived from
+  // TCO, then the user changed it here." arrivedFromTco alone can't make
+  // that distinction, since it stays true forever after handoff regardless
+  // of later edits.
+  const [tcoOriginalValues] = useState(() => {
+    const params = getIncomingParams();
+    const ic = params?.get("initialCost");
+    const rc = params?.get("recurringCost");
+    return {
+      initialCost: ic != null && !Number.isNaN(+ic) ? +ic : null,
+      recurringCost: rc != null && !Number.isNaN(+rc) ? +rc : null,
+    };
+  });
   const [tcoPlanningBasis] = useState(getInitialPlanningBasis);
+
+  // Shared, field-level truth for whether each TCO-handed-off value still
+  // matches what was actually sent -- computed once here, reused by the
+  // audit trail, the normal report's summary sentence, and the snapshot's
+  // costSource, so none of the three can silently drift from the others.
+  // Field-level, not one collapsed flag: only one of the two costs may have
+  // been touched, and callers that need that distinction can see it.
 
   // Saved session state always loads, regardless of an incoming handoff.
   // Field-level precedence, not all-or-nothing: getInitialInputs only
@@ -416,7 +507,7 @@ function RoiCalculatorInner() {
   const [openTipId, setOpenTipId] = useState(null);
   const [showFte, setShowFte] = useState(saved?.showFte ?? false);
   const [showUpside, setShowUpside] = useState(saved?.showUpside ?? false);
-  const [view, setView] = useState("calc");
+  const [view, setView] = useState("calc"); // calc | report | audit
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
   const [isMobile, setIsMobile] = useState(
@@ -449,6 +540,10 @@ function RoiCalculatorInner() {
     [inputs, hasErrors]
   );
 
+  const initialCostModified = tcoOriginalValues.initialCost != null && inputs.initialCost !== tcoOriginalValues.initialCost;
+  const recurringCostModified = tcoOriginalValues.recurringCost != null && inputs.recurringCost !== tcoOriginalValues.recurringCost;
+  const tcoCostsModified = initialCostModified || recurringCostModified;
+
   const set = (key) => (val) => setInputs((prev) => ({ ...prev, [key]: val }));
 
   useAutosaveSnapshot(
@@ -466,7 +561,7 @@ function RoiCalculatorInner() {
           horizonROI: engine.horizonROI,
           horizonYears: inputs.horizonYears,
           payback: engine.payback,
-          costSource: tcoPlanningBasis ? `TCO Calculator (${tcoPlanningBasis === "workload" ? "Workload Requirement" : "Existing Cloud Spend"})` : "Manual entry",
+          costSource: tcoPlanningBasis ? `TCO Calculator (${tcoPlanningBasis === "workload" ? "Workload Requirement" : "Existing Cloud Spend"}) — ${tcoCostsModified ? "subsequently adjusted in ROI" : "unmodified"}` : "Manual entry",
         }
       : null
   );
@@ -564,6 +659,9 @@ function RoiCalculatorInner() {
             <button onClick={() => window.print()} style={{ flex: 1, fontWeight: 700, fontSize: 13, padding: 10, borderRadius: 8, border: "none", cursor: "pointer", background: CHARCOAL, color: "#fff" }}>
               Print / Save as PDF
             </button>
+            <button onClick={() => setView("audit")} style={{ fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, cursor: "pointer", background: "#fff", color: CHARCOAL }}>
+              Calculation Methodology &amp; Audit Trail
+            </button>
             <button onClick={() => setView("calc")} style={{ fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, cursor: "pointer", background: "#fff", color: GRAY_TEXT }}>
               Back to calculator
             </button>
@@ -601,8 +699,12 @@ function RoiCalculatorInner() {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: GRAY_TEXT, textTransform: "uppercase", marginBottom: 8 }}>Economic value &amp; investment result</div>
           {arrivedFromTco && (
             <div style={{ fontSize: 11, color: GRAY_TEXT, marginBottom: 8 }}>
-              Initial ({fmtCurrency(inputs.initialCost)}) and recurring ({fmtCurrency(inputs.recurringCost)}/yr) AI cost sourced from the TCO
-              Calculator{tcoPlanningBasis === "workload" ? " (Workload Requirement fleet sizing)" : tcoPlanningBasis === "spend" ? " (reported cloud spend)" : ""}.
+              {!tcoCostsModified ? (
+                <>Initial ({fmtCurrency(inputs.initialCost)}) and recurring ({fmtCurrency(inputs.recurringCost)}/yr) AI cost sourced from the TCO
+                Calculator{tcoPlanningBasis === "workload" ? " (Workload Requirement fleet sizing)" : tcoPlanningBasis === "spend" ? " (reported cloud spend)" : ""}.</>
+              ) : (
+                <>AI costs were initially prefilled from the TCO Calculator{tcoPlanningBasis === "workload" ? " (Workload Requirement fleet sizing)" : tcoPlanningBasis === "spend" ? " (reported cloud spend)" : ""}; {initialCostModified && recurringCostModified ? "both the initial and recurring costs have" : initialCostModified ? "the initial cost has" : "the recurring cost has"} since been adjusted here (now {initialCostModified && <>initial {fmtCurrency(inputs.initialCost)}</>}{initialCostModified && recurringCostModified ? ", " : ""}{recurringCostModified && <>recurring {fmtCurrency(inputs.recurringCost)}/yr</>}).</>
+              )}
             </div>
           )}
           <div style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 10, padding: 14, marginBottom: 16, fontSize: 13, color: CHARCOAL }}>
@@ -634,6 +736,193 @@ function RoiCalculatorInner() {
               <div style={{ fontSize: 11, color: GRAY_TEXT }}>AI Solutions Executive &middot; CDW AI Factory</div>
             </div>
             <div style={{ fontSize: 11, color: GRAY_TEXT, textAlign: "right" }}>Next step: bring your actual<br />workload data for a validated model</div>
+          </div>
+        </div>
+      )}
+
+      {view === "audit" && engine && (
+        <div style={{ maxWidth: 720, margin: "0 auto", padding: "12px 0" }}>
+          <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+            <button onClick={() => window.print()} style={{ flex: 1, fontWeight: 700, fontSize: 13, padding: 10, borderRadius: 8, border: "none", cursor: "pointer", background: CHARCOAL, color: "#fff" }}>
+              Print / Save as PDF
+            </button>
+            <button onClick={() => setView("report")} style={{ fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, cursor: "pointer", background: "#fff", color: GRAY_TEXT }}>
+              Back to report
+            </button>
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <img src={cdwLogo} alt="CDW" style={{ height: 32, width: "auto" }} />
+            <div style={{ fontSize: 10, letterSpacing: 1.5, color: GRAY_TEXT, textTransform: "uppercase" }}>AI Factory &middot; Calculation Methodology &amp; Audit Trail</div>
+          </div>
+          <div style={{ fontSize: 21, fontWeight: 700, margin: "4px 0 2px", color: CHARCOAL }}>
+            Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}
+          </div>
+          <div style={{ fontSize: 12, color: GRAY_TEXT, marginBottom: 4 }}>{new Date().toLocaleDateString()} &middot; Reproducible derivation of the material calculations supporting the {inputs.horizonYears}-year ROI result shown in the main report</div>
+          <div style={{ fontSize: 11, color: GRAY_TEXT, marginBottom: 16, fontStyle: "italic" }}>
+            This document formats and explains the same calculation the main report already ran -- it does not run a separate or independent calculation. Every figure below traces to the same engine output shown on screen.
+          </div>
+
+          {/* SECTION 1: SCENARIO OVERVIEW */}
+          <div style={{ fontSize: 11, letterSpacing: 1, color: CHARCOAL, marginBottom: 8, borderBottom: `2px solid ${CHARCOAL}`, paddingBottom: 4, textTransform: "uppercase" }}>1. Scenario Overview</div>
+          <div style={{ fontSize: 11, fontWeight: 700, color: GRAY_TEXT, marginTop: 6, marginBottom: 2 }}>What you told us -- workflow</div>
+          <AuditRow label="People performing this task" value={inputs.people.toLocaleString()} />
+          <AuditRow label="Tasks per person per day" value={inputs.tasksPerDay.toLocaleString()} />
+          <AuditRow label="Working days per year" value={inputs.workingDays.toLocaleString()} />
+          <AuditRow label="Minutes per task" value={inputs.minutesPerTask.toLocaleString()} />
+          <AuditRow label="Loaded cost per hour" value={fmtCurrency(inputs.loadedCost)} />
+          <AuditRow label="Hours per workday (for FTE-equivalent)" value={inputs.hoursPerWorkday.toLocaleString()} />
+
+          <div style={{ fontSize: 11, fontWeight: 700, color: GRAY_TEXT, marginTop: 12, marginBottom: 2 }}>What you told us -- capture assumptions</div>
+          <AuditRow label="Task time reduction" value={fmtPercent(inputs.reductionPct)} sub="how much of each task's time is eliminated" />
+          <AuditRow label="Adoption" value={fmtPercent(inputs.adoptionPct)} sub="share of eligible work actually using the new approach" />
+          <AuditRow label="Realization" value={fmtPercent(inputs.realizationPct)} sub="share of freed time actually captured as productive redeployment, not lost to friction" />
+          <AuditRow label="Year 1 ramp" value={fmtPercent(inputs.rampPct)} sub="Year 1 value as a share of full steady-state (100% = no ramp)" />
+          {inputs.upliftPerHr > 0 && <AuditRow label="Illustrative uplift per hour" value={fmtCurrency(inputs.upliftPerHr)} sub="a separate, illustrative-only figure -- not included in the horizon net benefit or ROI below" />}
+
+          <div style={{ fontSize: 11, fontWeight: 700, color: GRAY_TEXT, marginTop: 12, marginBottom: 2 }}>Investment assumptions</div>
+          <AuditRow label="Initial (one-time) cost" value={fmtCurrency(inputs.initialCost)} sub={`${tcoProvenanceFor(inputs.initialCost, tcoOriginalValues.initialCost)}${arrivedFromTco && !initialCostModified && tcoPlanningBasis ? (tcoPlanningBasis === "workload" ? " (Workload Requirement fleet sizing)" : " (reported cloud spend)") : ""}`} />
+          <AuditRow label="Recurring (annual) cost" value={`${fmtCurrency(inputs.recurringCost)}/yr`} sub={tcoProvenanceFor(inputs.recurringCost, tcoOriginalValues.recurringCost)} />
+          <AuditRow label="Analysis horizon" value={`${inputs.horizonYears} years`} />
+
+          <div style={{ fontSize: 11, color: CHARCOAL, marginTop: 12, marginBottom: 14, background: "#F7F7F7", borderRadius: 8, padding: "10px 12px" }}>
+            <b>Key assumptions worth stress-testing:</b> realization (the gap between time freed and value actually captured), adoption, the loaded cost per hour, and the recurring cost, since it repeats every year of the horizon while the initial cost is paid once.
+          </div>
+
+          {/* SECTION 2: CAPACITY CALCULATION */}
+          <div style={{ fontSize: 11, letterSpacing: 1, color: CHARCOAL, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${CHARCOAL}`, paddingBottom: 4, textTransform: "uppercase" }}>2. How Capacity Created Was Calculated</div>
+          <AuditFormula
+            label="Baseline hours (total time this task consumes today, per year)"
+            formula="baselineHours = people × tasksPerDay × workingDays × (minutesPerTask ÷ 60)"
+            substituted={`= ${inputs.people.toLocaleString()} × ${inputs.tasksPerDay} × ${inputs.workingDays} × (${inputs.minutesPerTask} ÷ 60)`}
+            result={`${Math.round(engine.baselineHours).toLocaleString()} hrs/yr`}
+          />
+          <AuditFormula
+            label="Gross capacity created"
+            formula="grossCapacity = baselineHours × reduction × adoption"
+            substituted={`= ${Math.round(engine.baselineHours).toLocaleString()} × ${fmtPercent(inputs.reductionPct)} × ${fmtPercent(inputs.adoptionPct)}`}
+            result={fmtHours(engine.grossCapacity)}
+          />
+          <AuditFormula
+            label="Productively redeployable capacity"
+            formula="redeployableCapacity = grossCapacity × realization"
+            substituted={`= ${Math.round(engine.grossCapacity).toLocaleString()} × ${fmtPercent(inputs.realizationPct)}`}
+            result={fmtHours(engine.redeployableCapacity)}
+          />
+          <div style={{ fontSize: 11, color: GRAY_TEXT, marginBottom: 6 }}>Capacity created describes freed-up productive time, not a staffing recommendation.</div>
+
+          {/* SECTION 3: VALUE & INVESTMENT CALCULATION */}
+          <div style={{ fontSize: 11, letterSpacing: 1, color: CHARCOAL, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${CHARCOAL}`, paddingBottom: 4, textTransform: "uppercase" }}>3. How Value &amp; Investment Were Calculated</div>
+          <AuditFormula
+            label="Steady-state economic value"
+            formula="steadyStateValue = redeployableCapacity × loadedCost"
+            substituted={`= ${Math.round(engine.redeployableCapacity).toLocaleString()} hrs × ${fmtCurrency(inputs.loadedCost)}/hr`}
+            result={`${fmtCurrency(engine.steadyStateValue)}/yr`}
+          />
+          <AuditFormula
+            label="Year 1 value (ramped)"
+            formula="year1Value = steadyStateValue × ramp"
+            substituted={`= ${fmtCurrency(engine.steadyStateValue)} × ${fmtPercent(inputs.rampPct)}`}
+            result={`${fmtCurrency(engine.year1Value)}/yr`}
+          />
+          <AuditFormula
+            label="Year 1 net benefit"
+            formula="year1Net = year1Value − (initialCost + recurringCost)"
+            substituted={`= ${fmtCurrency(engine.year1Value)} − (${fmtCurrency(inputs.initialCost)} + ${fmtCurrency(inputs.recurringCost)})`}
+            result={fmtCurrency(engine.year1Net)}
+          />
+          <div style={{ fontSize: 11, color: GRAY_TEXT, marginBottom: 10 }}>Only Year 1 ramps. Years 2 through {inputs.horizonYears} are each valued at the full steady-state figure above, not a multi-year ramp curve.</div>
+          <AuditFormula
+            label={`${inputs.horizonYears}-year horizon value`}
+            formula="horizonValue = year1Value + steadyStateValue × (horizonYears − 1)"
+            substituted={`= ${fmtCurrency(engine.year1Value)} + ${fmtCurrency(engine.steadyStateValue)} × (${inputs.horizonYears} − 1)`}
+            result={fmtCurrency(engine.horizonValue)}
+          />
+          <AuditFormula
+            label={`${inputs.horizonYears}-year horizon cost`}
+            formula="horizonCost = initialCost + recurringCost × horizonYears"
+            substituted={`= ${fmtCurrency(inputs.initialCost)} + ${fmtCurrency(inputs.recurringCost)} × ${inputs.horizonYears}`}
+            result={fmtCurrency(engine.horizonCost)}
+          />
+          <AuditFormula
+            label={`${inputs.horizonYears}-year net benefit`}
+            formula="horizonNet = horizonValue − horizonCost"
+            substituted={`= ${fmtCurrency(engine.horizonValue)} − ${fmtCurrency(engine.horizonCost)}`}
+            result={fmtCurrency(engine.horizonNet)}
+          />
+          <AuditFormula
+            label={`${inputs.horizonYears}-year ROI`}
+            formula="horizonROI = horizonNet ÷ horizonCost"
+            substituted={engine.horizonCost === 0 ? "horizonCost = 0 -- ROI is not defined" : `= ${fmtCurrency(engine.horizonNet)} ÷ ${fmtCurrency(engine.horizonCost)}`}
+            result={fmtPercent(engine.horizonROI)}
+          />
+          <AuditFormula
+            label="Estimated payback period"
+            formula="payback = initialCost ÷ (year1Value/12 − recurringCost/12)"
+            substituted={engine.payback == null ? `Year 1's monthly net benefit is zero or negative -- ${PAYBACK_GUARD_TEXT}` : `= ${fmtCurrency(inputs.initialCost)} ÷ (${fmtCurrency(engine.year1Value / 12)} − ${fmtCurrency(inputs.recurringCost / 12)})`}
+            result={fmtMonths(engine.payback)}
+          />
+          <AuditFormula
+            label="FTE-equivalent"
+            formula="fteEquivalent = redeployableCapacity ÷ (workingDays × hoursPerWorkday)"
+            substituted={`= ${Math.round(engine.redeployableCapacity).toLocaleString()} ÷ (${inputs.workingDays} × ${inputs.hoursPerWorkday})`}
+            result={fmtFte(engine.fteEquivalent)}
+          />
+
+          {/* SECTION 4: RECONCILIATION */}
+          <div style={{ fontSize: 11, letterSpacing: 1, color: CHARCOAL, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${CHARCOAL}`, paddingBottom: 4, textTransform: "uppercase" }}>4. Reconciliation</div>
+          <div style={{ fontSize: 11, color: GRAY_TEXT, marginBottom: 10 }}>Each check below redoes the arithmetic from already-shown intermediate values and compares the result to the engine's own field for that formula -- not the same number read twice.</div>
+          <ReconCheck
+            label={`${inputs.horizonYears}-year horizon value`}
+            parts={[
+              { label: "Year 1 value", value: fmtCurrency(engine.year1Value) },
+              { label: `Steady-state value × (${inputs.horizonYears} − 1) years`, value: fmtCurrency(engine.steadyStateValue * (inputs.horizonYears - 1)) },
+            ]}
+            calculated={engine.year1Value + engine.steadyStateValue * (inputs.horizonYears - 1)}
+            engineValue={engine.horizonValue}
+            format="currency"
+          />
+          <ReconCheck
+            label={`${inputs.horizonYears}-year horizon cost`}
+            parts={[
+              { label: "Initial cost", value: fmtCurrency(inputs.initialCost) },
+              { label: `Recurring cost × ${inputs.horizonYears} years`, value: fmtCurrency(inputs.recurringCost * inputs.horizonYears) },
+            ]}
+            calculated={inputs.initialCost + inputs.recurringCost * inputs.horizonYears}
+            engineValue={engine.horizonCost}
+            format="currency"
+          />
+          <ReconCheck
+            label={`${inputs.horizonYears}-year net benefit`}
+            parts={[
+              { label: "Horizon value (above)", value: fmtCurrency(engine.horizonValue) },
+              { label: "Less: horizon cost (above)", value: `−${fmtCurrency(engine.horizonCost)}` },
+            ]}
+            calculated={engine.horizonValue - engine.horizonCost}
+            engineValue={engine.horizonNet}
+            format="currency"
+          />
+          <ReconCheck
+            label={`${inputs.horizonYears}-year ROI`}
+            parts={[
+              { label: "Horizon net (above)", value: fmtCurrency(engine.horizonNet) },
+              { label: "÷ horizon cost (above)", value: fmtCurrency(engine.horizonCost) },
+            ]}
+            calculated={engine.horizonCost === 0 ? null : engine.horizonNet / engine.horizonCost}
+            engineValue={engine.horizonROI}
+            format="percent"
+          />
+
+          <div style={{ fontSize: 10.5, color: GRAY_TEXT, marginTop: 12, lineHeight: 1.5 }}>
+            All figures on this page are directional planning estimates derived from the inputs shown above, using the same calculation the main report already ran. This is a directional scenario model, not a validated business case. Loaded cost/hr is a proxy for the value of usable capacity, not an assertion that payroll expense drops. Confirm with a CDW AI Factory specialist before using these figures in a formal business case.
+          </div>
+
+          <div style={{ borderTop: `2px solid ${CHARCOAL}`, marginTop: 16, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: CHARCOAL }}>Jay B. Carlile</div>
+              <div style={{ fontSize: 11, color: GRAY_TEXT }}>AI Solutions Executive &middot; CDW AI Factory</div>
+            </div>
+            <div style={{ fontSize: 11, color: GRAY_TEXT, textAlign: "right" }}>Questions about this derivation?<br />Bring your actual workload data for a validated pass</div>
           </div>
         </div>
       )}
