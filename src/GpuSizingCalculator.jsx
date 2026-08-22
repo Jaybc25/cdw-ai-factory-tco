@@ -306,6 +306,7 @@ function computeInference(inputs) {
     afterHours,
     idleGpuHoursAfterHours,
     headroomGpuHoursDuringDay,
+    model, quantBytes, weightMemoryGB, kvBytesPerToken, kvCacheGBPerSeq, kvCacheTotalGB, runtimeOverheadGB,
   };
 }
 
@@ -396,6 +397,7 @@ function computeTraining(inputs) {
     higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount } : { class: null, workload: null, recommended: null },
     confidence,
     budget,
+    model, precisionBytes, multiplier, secondsTarget,
   };
 }
 
@@ -1199,7 +1201,7 @@ function GPUSizingCalculatorInner() {
           </div>
           <div className="text-xs text-gray-500 mb-1">{new Date().toLocaleDateString()} &middot; Reproducible derivation of the material calculations supporting the {mode} sizing result shown in the main report</div>
           <div className="text-xs text-gray-500 mb-6 italic">
-            This document formats and explains the same calculation the main report already ran -- it does not run a separate or independent calculation. Every figure below traces to the same engine output shown on screen.
+            This document formats and explains the same calculation the main report already ran -- it does not run a separate or independent calculation. Every result below traces to the same inputs, catalog values, and engine outputs used by the main sizing calculation.
           </div>
 
           {/* SECTION 1: SCENARIO OVERVIEW */}
@@ -1235,19 +1237,55 @@ function GPUSizingCalculatorInner() {
           {mode === "Inference" ? (() => {
             const selected = result.candidates.find((c) => c.id === result.selectedClass);
             const boundBy = selected.gpusMem >= selected.gpusPerf ? "memory" : "throughput";
+            const m = result.model;
+            const isMLA = m.attentionType === "MLA";
+            const avgTokens = avgInputTokens + avgOutputTokens;
             return (
               <>
                 <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>2. How the Technical Requirement Was Calculated</div>
                 <AuditFormula
-                  label="Model weight memory"
+                  label={`Model weight memory (${modelLabel}, ${m.totalParamsB}B params)`}
                   formula="weightMemoryGB = totalParamsB × bytesPerParam(quant)"
-                  substituted={`= model params × ${quant} quantization`}
-                  result={`${result.totalMemoryGB > 0 ? "included below" : "—"}`}
+                  substituted={`= ${m.totalParamsB}B × ${result.quantBytes} byte/param (${quant})`}
+                  result={`${result.weightMemoryGB.toFixed(1)} GB`}
+                />
+                {isMLA ? (
+                  <AuditFormula
+                    label="KV cache bytes/token (MLA attention)"
+                    formula="kvBytesPerToken = layers × (kvLoraRank + qkRopeHeadDim) × bytesPerElement"
+                    substituted={`= ${m.layers} × (${m.kvLoraRank} + ${m.qkRopeHeadDim}) × ${kvBytesPerElement}`}
+                    result={`${result.kvBytesPerToken.toLocaleString()} bytes/token`}
+                  />
+                ) : (
+                  <AuditFormula
+                    label="KV cache bytes/token (standard attention)"
+                    formula="kvBytesPerToken = 2 × layers × kvHeads × headDim × bytesPerElement"
+                    substituted={`= 2 × ${m.layers} × ${m.kvHeads} × ${m.headDim} × ${kvBytesPerElement}`}
+                    result={`${result.kvBytesPerToken.toLocaleString()} bytes/token`}
+                  />
+                )}
+                <AuditFormula
+                  label="KV cache per sequence"
+                  formula="kvCacheGBPerSeq = (kvBytesPerToken × avgTokens) ÷ 1e9"
+                  substituted={`= (${result.kvBytesPerToken.toLocaleString()} × ${avgTokens.toLocaleString()}) ÷ 1e9`}
+                  result={`${result.kvCacheGBPerSeq.toFixed(4)} GB`}
                 />
                 <AuditFormula
-                  label="Total memory required (weights + KV cache + overhead)"
-                  formula="totalMemoryGB = weightMemoryGB + kvCacheTotalGB + (weightMemoryGB + kvCacheTotalGB) × overhead%"
-                  substituted={`KV cache scales with concurrent users (${concurrentUsers.toLocaleString()}) and avg tokens/session (${(avgInputTokens + avgOutputTokens).toLocaleString()})`}
+                  label="Total KV cache"
+                  formula="kvCacheTotalGB = kvCacheGBPerSeq × concurrentUsers"
+                  substituted={`= ${result.kvCacheGBPerSeq.toFixed(4)} × ${concurrentUsers.toLocaleString()}`}
+                  result={`${result.kvCacheTotalGB.toFixed(1)} GB`}
+                />
+                <AuditFormula
+                  label="Runtime/activation overhead"
+                  formula="runtimeOverheadGB = (weightMemoryGB + kvCacheTotalGB) × overhead%"
+                  substituted={`= (${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)}) × ${Math.round(overheadPct * 100)}%`}
+                  result={`${result.runtimeOverheadGB.toFixed(1)} GB`}
+                />
+                <AuditFormula
+                  label="Total memory required"
+                  formula="totalMemoryGB = weightMemoryGB + kvCacheTotalGB + runtimeOverheadGB"
+                  substituted={`= ${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)} + ${result.runtimeOverheadGB.toFixed(1)}`}
                   result={`${result.totalMemoryGB.toFixed(1)} GB`}
                 />
                 <AuditFormula
@@ -1256,18 +1294,59 @@ function GPUSizingCalculatorInner() {
                   substituted={`= ${concurrentUsers.toLocaleString()} × ${targetTokPerUser}`}
                   result={`${result.totalThroughputNeeded.toLocaleString()} tok/s`}
                 />
-                <AuditFormula
-                  label={`GPUs needed, memory-bound (${result.selectedClass})`}
-                  formula="gpusMem = CEILING(totalMemoryGB ÷ vramPerGPU)"
-                  substituted={`= CEILING(${result.totalMemoryGB.toFixed(1)} ÷ vram)`}
-                  result={`${selected.gpusMem} GPUs`}
-                />
-                <AuditFormula
-                  label={`GPUs needed, performance-bound (${result.selectedClass})`}
-                  formula="gpusPerf = CEILING(totalThroughputNeeded ÷ anchorTokPerSec)"
-                  substituted={`= CEILING(${result.totalThroughputNeeded.toLocaleString()} ÷ anchor)`}
-                  result={`${selected.gpusPerf} GPUs`}
-                />
+                {(() => {
+                  const autoWinner = result.candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), result.candidates[0]);
+                  const tiedCandidates = result.candidates.filter((c) => c.gpusWorkload === autoWinner.gpusWorkload);
+                  const isTie = tiedCandidates.length > 1;
+                  const tieList = tiedCandidates.map((c) => c.id).join(", ");
+                  const otherTied = tiedCandidates.filter((c) => c.id !== result.selectedClass).map((c) => c.id).join(", ");
+                  const isOverride = infGpuOverride !== "Auto-recommend";
+                  return (
+                    <>
+                      <div className="text-xs font-semibold mt-4 mb-2" style={{ color: CHARCOAL }}>GPU class selection -- {isOverride ? "Manual override" : "Auto-recommend"}</div>
+                      <div className="text-xs text-gray-500 mb-2">
+                        {isOverride ? (
+                          <>Auto-recommend would have selected <b style={{ color: CHARCOAL }}>{autoWinner.id}</b>{isTie ? <> ({tieList} tied at {autoWinner.gpusWorkload} technical GPUs; catalog order determined the auto-recommend candidate)</> : <> based on minimum technical GPU count</>} (memory-bound and performance-bound, before node rounding). <b style={{ color: CHARCOAL }}>{result.selectedClass}</b> was manually selected for this scenario. Every calculation below sizes {result.selectedClass} against the same workload.</>
+                        ) : isTie ? (
+                          <>Evaluated every supported class. {result.selectedClass} tied with {otherTied} for the lowest technical GPU requirement ({autoWinner.gpusWorkload} GPUs, memory-bound and performance-bound, before node rounding); ties are resolved by supported-catalog order, so {result.selectedClass} was selected:</>
+                        ) : (
+                          <>Evaluated every supported class and selected {result.selectedClass} because it required the fewest GPUs (memory-bound and performance-bound, before node rounding):</>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+                <div className="overflow-x-auto mb-3">
+                  <table className="w-full text-xs" style={{ color: CHARCOAL }}>
+                    <thead>
+                      <tr className="text-gray-500 border-b" style={{ borderColor: "#D1D5DB" }}>
+                        <th className="text-left py-1 pr-2">GPU</th>
+                        <th className="text-right py-1 pr-2">Memory-bound</th>
+                        <th className="text-right py-1 pr-2">Perf-bound</th>
+                        <th className="text-right py-1 pr-2">Technical GPUs</th>
+                        <th className="text-right py-1">Node-rounded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const autoWinner = result.candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), result.candidates[0]);
+                        return result.candidates.map((c) => {
+                          const isSelected = c.id === result.selectedClass;
+                          const isAutoWinner = c.id === autoWinner.id && c.id !== result.selectedClass;
+                          return (
+                            <tr key={c.id} className={isSelected ? "font-bold" : ""} style={{ color: isSelected ? RED : CHARCOAL }}>
+                              <td className="py-1 pr-2">{c.id}{isSelected ? " (selected)" : isAutoWinner ? " (auto winner)" : ""}</td>
+                              <td className="text-right py-1 pr-2">{c.gpusMem.toLocaleString()}</td>
+                              <td className="text-right py-1 pr-2">{c.gpusPerf.toLocaleString()}</td>
+                              <td className="text-right py-1 pr-2">{c.gpusWorkload.toLocaleString()}</td>
+                              <td className="text-right py-1">{(Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize).toLocaleString()}</td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
                 <div className="text-xs text-gray-500 mb-4">
                   Minimum technical requirement = MAX(memory-bound, performance-bound) = <b style={{ color: CHARCOAL }}>{result.minTechnical} GPUs</b>, {boundBy === "memory" ? "bound by memory" : "bound by throughput"} at this scale.
                 </div>
@@ -1276,33 +1355,87 @@ function GPUSizingCalculatorInner() {
           })() : (() => {
             const selected = result.candidates.find((c) => c.id === result.selectedClass);
             const boundBy = selected.gpusFit >= selected.gpusTime ? "fitting the model in memory" : "hitting the time target";
+            const m = result.model;
             return (
               <>
                 <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>2. How the Technical Requirement Was Calculated</div>
                 <AuditFormula
-                  label="Training memory required"
+                  label={`Training memory required (${modelLabel}, ${m.totalParamsB}B params)`}
                   formula="trainingMemoryGB = totalParamsB × bytesPerParam(precision) × multiplier"
-                  substituted={`multiplier is task-type-dependent (${taskType})`}
+                  substituted={`= ${m.totalParamsB}B × ${result.precisionBytes} byte/param (${precision}) × ${result.multiplier} (${taskType})`}
                   result={`${result.trainingMemoryGB.toFixed(1)} GB`}
                 />
                 <AuditFormula
                   label="Total training compute required"
                   formula="flopsRequired = 6 × totalParamsB × datasetTokensB × 1e18"
-                  substituted={`standard 6ND FLOPs-per-token approximation, dataset = ${datasetTokensB}B tokens`}
+                  substituted={`= 6 × ${m.totalParamsB}B × ${datasetTokensB}B tokens × 1e18`}
                   result={`${result.flopsRequired.toExponential(2)} FLOPs`}
                 />
                 <AuditFormula
-                  label={`GPUs needed to fit the model (${result.selectedClass})`}
+                  label={`GPUs needed to fit the model (${result.selectedClass}, ${selected.vram} GB VRAM)`}
                   formula="gpusFit = CEILING(trainingMemoryGB ÷ vramPerGPU)"
-                  substituted={`= CEILING(${result.trainingMemoryGB.toFixed(1)} ÷ vram)`}
+                  substituted={`= CEILING(${result.trainingMemoryGB.toFixed(1)} ÷ ${selected.vram} GB/GPU)`}
                   result={`${selected.gpusFit} GPUs`}
                 />
                 <AuditFormula
-                  label={`GPUs needed to hit the time target (${result.selectedClass})`}
+                  label={`GPUs needed to hit the time target (${result.selectedClass}, ${selected.peakTFLOPS.toLocaleString()} ${precision} TFLOPS/GPU)`}
                   formula="gpusTime = CEILING(flopsRequired ÷ (peakTFLOPS × 1e12 × MFU × targetSeconds))"
-                  substituted={`target = ${targetDays} days at ${Math.round(mfu * 100)}% MFU`}
+                  substituted={`= CEILING(${result.flopsRequired.toExponential(2)} ÷ (${selected.peakTFLOPS.toLocaleString()}e12 × ${Math.round(mfu * 100)}% × ${result.secondsTarget.toLocaleString()}s))`}
                   result={`${selected.gpusTime} GPUs`}
                 />
+                {(() => {
+                  const autoWinner = result.candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), result.candidates[0]);
+                  const tiedCandidates = result.candidates.filter((c) => c.gpusWorkload === autoWinner.gpusWorkload);
+                  const isTie = tiedCandidates.length > 1;
+                  const tieList = tiedCandidates.map((c) => c.id).join(", ");
+                  const otherTied = tiedCandidates.filter((c) => c.id !== result.selectedClass).map((c) => c.id).join(", ");
+                  const isOverride = trainGpuOverride !== "Auto-recommend";
+                  return (
+                    <>
+                      <div className="text-xs font-semibold mt-4 mb-2" style={{ color: CHARCOAL }}>GPU class selection -- {isOverride ? "Manual override" : "Auto-recommend"}</div>
+                      <div className="text-xs text-gray-500 mb-2">
+                        {isOverride ? (
+                          <>Auto-recommend would have selected <b style={{ color: CHARCOAL }}>{autoWinner.id}</b>{isTie ? <> ({tieList} tied at {autoWinner.gpusWorkload} technical GPUs; catalog order determined the auto-recommend candidate)</> : <> based on minimum technical GPU count</>} (fit and time, before node rounding). <b style={{ color: CHARCOAL }}>{result.selectedClass}</b> was manually selected for this scenario. Every calculation below sizes {result.selectedClass} against the same workload.</>
+                        ) : isTie ? (
+                          <>Evaluated every supported class. {result.selectedClass} tied with {otherTied} for the lowest technical GPU requirement ({autoWinner.gpusWorkload} GPUs, fit and time, before node rounding); ties are resolved by supported-catalog order, so {result.selectedClass} was selected:</>
+                        ) : (
+                          <>Evaluated every supported class and selected {result.selectedClass} because it required the fewest GPUs (fit and time, before node rounding):</>
+                        )}
+                      </div>
+                    </>
+                  );
+                })()}
+                <div className="overflow-x-auto mb-3">
+                  <table className="w-full text-xs" style={{ color: CHARCOAL }}>
+                    <thead>
+                      <tr className="text-gray-500 border-b" style={{ borderColor: "#D1D5DB" }}>
+                        <th className="text-left py-1 pr-2">GPU</th>
+                        <th className="text-right py-1 pr-2">Fit-bound</th>
+                        <th className="text-right py-1 pr-2">Time-bound</th>
+                        <th className="text-right py-1 pr-2">Technical GPUs</th>
+                        <th className="text-right py-1">Node-rounded</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(() => {
+                        const autoWinner = result.candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), result.candidates[0]);
+                        return result.candidates.map((c) => {
+                          const isSelected = c.id === result.selectedClass;
+                          const isAutoWinner = c.id === autoWinner.id && c.id !== result.selectedClass;
+                          return (
+                            <tr key={c.id} className={isSelected ? "font-bold" : ""} style={{ color: isSelected ? RED : CHARCOAL }}>
+                              <td className="py-1 pr-2">{c.id}{isSelected ? " (selected)" : isAutoWinner ? " (auto winner)" : ""}</td>
+                              <td className="text-right py-1 pr-2">{c.gpusFit.toLocaleString()}</td>
+                              <td className="text-right py-1 pr-2">{c.gpusTime.toLocaleString()}</td>
+                              <td className="text-right py-1 pr-2">{c.gpusWorkload.toLocaleString()}</td>
+                              <td className="text-right py-1">{(Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize).toLocaleString()}</td>
+                            </tr>
+                          );
+                        });
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
                 <div className="text-xs text-gray-500 mb-4">
                   Minimum technical requirement = MAX(fit, time) = <b style={{ color: CHARCOAL }}>{result.minTechnical} GPUs</b>, bound by {boundBy} at this scale.
                 </div>
@@ -1375,6 +1508,46 @@ function GPUSizingCalculatorInner() {
                   engineValue={result.budget.recommended ? result.budget.recommended.amount : null}
                   format="currency"
                 />
+              </>
+            );
+          })()}
+
+          {/* SECTION 5: SOURCES, CONFIDENCE & TECHNICAL CAVEATS */}
+          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>5. Sources, Confidence &amp; Technical Caveats</div>
+          {(() => {
+            const selected = result.candidates.find((c) => c.id === result.selectedClass);
+            const m = result.model;
+            const priceInfo = GPU_PRICE_USD[result.selectedClass];
+            const onpremStaleness = stalenessOf(ONPREM_PRICING_VERIFIED_AT);
+            return (
+              <>
+                <div className="text-xs font-semibold mb-1" style={{ color: CHARCOAL }}>Selected model -- {modelLabel}</div>
+                <AuditRow label="Architecture status" value={m.status === "VERIFIED" ? "VERIFIED" : "CUSTOM (unverified entry)"} />
+                <AuditRow label="Parameters" value={`${m.totalParamsB}B`} />
+                {m.attentionType === "MLA" ? (
+                  <AuditRow label="KV configuration" value={`MLA -- kvLoraRank ${m.kvLoraRank}, qkRopeHeadDim ${m.qkRopeHeadDim}, ${m.layers} layers`} />
+                ) : (
+                  <AuditRow label="KV configuration" value={m.kvHeads != null ? `${m.layers} layers, ${m.kvHeads} KV heads, ${m.headDim} head dim` : "not applicable to training sizing"} />
+                )}
+
+                <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Selected GPU -- {result.selectedClass}</div>
+                <AuditRow label="VRAM" value={`${selected.vram} GB`} />
+                {mode === "Inference" ? (
+                  <AuditRow label="Throughput anchor" value={`${selected.anchor.toLocaleString()} tok/s (${selected.anchorPrecision})`} sub={`Confidence: ${selected.confidence} -- ${selected.source}`} />
+                ) : (
+                  <AuditRow label={`Peak TFLOPS (${precision})`} value={selected.peakTFLOPS.toLocaleString()} sub={`Confidence: ${result.confidence.level} -- NVIDIA published spec-sheet values (not the inference throughput anchor above, which is benchmark-derived and doesn't establish this figure)`} />
+                )}
+
+                <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Pricing</div>
+                <AuditRow label={`Loaded cost per ${result.selectedClass} GPU`} value={priceInfo ? fmtUsdPrecise(priceInfo.amount) : "—"} sub={priceInfo ? `Confidence: ${priceInfo.confidence} -- ${priceInfo.source}` : undefined} />
+                <AuditRow label="Pricing last verified" value={fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)} sub={`${onpremStaleness.days} days ago${onpremStaleness.level === "stale" ? " -- refresh before client use" : onpremStaleness.level === "review" ? " -- review due soon" : ""}`} />
+
+                {mode === "Training" && (
+                  <>
+                    <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Training-specific assumption</div>
+                    <AuditRow label="MFU (model FLOPs utilization)" value={`${Math.round(mfu * 100)}%`} sub={mfu === 0.4 ? "default value, sourced from Meta's Llama 3 paper" : `adjusted from the 40% default (Meta's Llama 3 paper) to ${Math.round(mfu * 100)}%`} />
+                  </>
+                )}
               </>
             );
           })()}
