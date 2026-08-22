@@ -5,6 +5,7 @@ import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import {
   getCatalog, CATALOG_META, buildRecommendations, explainCard, explainVerificationCandidate, explainOtherEligible,
+  applyHardFilters, METRIC_LABELS,
 } from "./modelAdvisorEngine.js";
 
 const RED = "#CC0000";
@@ -270,6 +271,31 @@ function getInitialSourceUseCase() {
   return params?.get("sourceUseCase") || null;
 }
 
+function DecisionRow({ label, value, sub }) {
+  return (
+    <div className="grid grid-cols-2 py-1 text-xs">
+      <div className="text-gray-500">{label}{sub && <div className="text-[10px] text-gray-400">{sub}</div>}</div>
+      <div className="text-right font-semibold" style={{ color: CHARCOAL }}>{value}</div>
+    </div>
+  );
+}
+
+// Shows one candidate's score against the qualifying threshold for a given
+// slot decision -- pass/fail is read directly from the already-computed
+// qualified pool (membership check), never re-derived from the margin
+// arithmetic itself.
+function ScoreCompare({ model, metric, score, threshold, qualified, note }) {
+  const pass = qualified;
+  return (
+    <div className="rounded-lg border p-3 mb-2" style={{ borderColor: pass ? "#1E7A3D" : "#D1D5DB", background: pass ? "#EAF6EE" : "#F9FAFB" }}>
+      <div className="flex justify-between text-xs font-semibold mb-1" style={{ color: CHARCOAL }}>
+        <span>{model}</span><span>{score != null ? score : "—"}</span>
+      </div>
+      <div className="text-[11px] text-gray-500">{note}</div>
+    </div>
+  );
+}
+
 function ModelAdvisorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const catalog = useMemo(() => getCatalog(), []);
@@ -287,7 +313,7 @@ function ModelAdvisorInner() {
   const [dataSensitivity, setDataSensitivity] = useState("general");
   const [optimizationPriority, setOptimizationPriority] = useState("balanced");
 
-  const [view, setView] = useState("calc");
+  const [view, setView] = useState("calc"); // calc | report | audit
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
 
@@ -411,6 +437,9 @@ function ModelAdvisorInner() {
             <button onClick={() => window.print()} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>
               Print / Save as PDF
             </button>
+            <button onClick={() => setView("audit")} className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300" style={{ color: CHARCOAL }}>
+              Recommendation Methodology &amp; Decision Trace
+            </button>
             <button onClick={() => setView("calc")} className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">
               Back to advisor
             </button>
@@ -530,6 +559,240 @@ function ModelAdvisorInner() {
               <div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div>
             </div>
             <div className="text-xs text-gray-500 text-right">Next step: bring your actual<br />deployment constraints for a validated shortlist</div>
+          </div>
+        </div>
+      )}
+
+      {view === "audit" && (
+        <div className="max-w-3xl mx-auto px-6 py-10">
+          <div className="no-print flex gap-2 mb-6">
+            <button onClick={() => window.print()} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>
+              Print / Save as PDF
+            </button>
+            <button onClick={() => setView("report")} className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">
+              Back to report
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 mb-2">
+            <img src={cdwLogo} alt="CDW" className="h-8 w-auto" />
+            <div className="text-xs font-bold tracking-widest text-gray-500 uppercase">AI Factory &middot; Recommendation Methodology &amp; Decision Trace</div>
+          </div>
+          <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>
+            Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}
+          </div>
+          <div className="text-xs text-gray-500 mb-1">{new Date().toLocaleDateString()} &middot; Why this model, why not the alternatives, and what data this trace relied on</div>
+          <div className="text-xs text-gray-500 mb-6 italic">
+            This document explains the same recommendation shown in the main report -- it does not re-rank models independently. Every score, threshold, and eligibility outcome below comes from the same engine functions that produced the recommendation on screen.
+          </div>
+
+          {/* SECTION 1: YOUR REQUIREMENTS */}
+          <div className="text-xs uppercase tracking-wide mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>1. Your Requirements</div>
+          <DecisionRow label="Workloads selected" value={checkedWorkloads.map((w) => labelFor(WORKLOAD_OPTIONS, w)).join(", ")} />
+          <DecisionRow label="Primary workload (drives ranking)" value={labelFor(WORKLOAD_OPTIONS, primaryWorkload)} sub="Ranking uses only this workload's metric, since a model strong at one task isn't necessarily strong at every task checked" />
+          <DecisionRow label="Ranking dimension" value={METRIC_LABELS[result.metric]} sub={`Selected from primary workload: ${primaryWorkload} -> ${result.metric}`} />
+          <DecisionRow label="Quality priority" value={labelFor(QUALITY_OPTIONS, qualityPriority)} />
+          <DecisionRow label="Optimization priority" value={labelFor(OPTIMIZATION_OPTIONS, optimizationPriority)} sub="Determines which slot fills 'Best Overall Fit'" />
+          <DecisionRow label="Context window" value={labelFor(CONTEXT_OPTIONS, contextWindow)} />
+          <DecisionRow label="Multimodal need" value={labelFor(MULTIMODAL_OPTIONS, multimodal)} />
+          <DecisionRow label="License requirement" value={labelFor(LICENSE_OPTIONS, license)} />
+          <DecisionRow label="Governance / origin" value={labelFor(GOVERNANCE_OPTIONS, governance)} />
+          <DecisionRow label="Data sensitivity" value={labelFor(SENSITIVITY_OPTIONS, dataSensitivity)} />
+
+          {/* SECTION 2: ELIGIBILITY GATE */}
+          {(() => {
+            // Re-calls the real, already-exported applyHardFilters with the
+            // same catalog and inputs already used for the recommendation --
+            // not a re-derivation, the literal same deterministic function,
+            // just called once more to see the full FAIL-inclusive list it
+            // already computes and (in the main flow) discards after PASS
+            // filtering.
+            const fullList = applyHardFilters(catalog, inputs);
+            const failedModels = fullList.filter((m) => m.filterState === "FAIL");
+            const tally = { license: 0, governance: 0, context: 0, modality: 0 };
+            failedModels.forEach((m) => {
+              if (m.filterDetails.licenseState === "FAIL") tally.license++;
+              if (m.filterDetails.govState === "FAIL") tally.governance++;
+              if (m.filterDetails.contextState === "FAIL") tally.context++;
+              if (m.filterDetails.modalityState === "FAIL") tally.modality++;
+            });
+            const topModel = result.cards[0]?.model;
+            const topDetails = topModel ? fullList.find((m) => m.canonical_model_id === topModel.canonical_model_id)?.filterDetails : null;
+            return (
+              <>
+                <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>2. Eligibility Gate</div>
+                <div className="grid grid-cols-3 gap-3 mb-3">
+                  <div className="rounded-lg border p-2 text-center" style={{ borderColor: "#1E7A3D" }}>
+                    <div className="text-lg font-bold" style={{ color: "#1E7A3D" }}>{result.eligibleCount}</div>
+                    <div className="text-[10px] text-gray-500 uppercase">Eligible</div>
+                  </div>
+                  <div className="rounded-lg border p-2 text-center" style={{ borderColor: "#a66a00" }}>
+                    <div className="text-lg font-bold" style={{ color: "#a66a00" }}>{result.verificationCount}</div>
+                    <div className="text-[10px] text-gray-500 uppercase">Verification required</div>
+                  </div>
+                  <div className="rounded-lg border p-2 text-center" style={{ borderColor: RED }}>
+                    <div className="text-lg font-bold" style={{ color: RED }}>{failedModels.length}</div>
+                    <div className="text-[10px] text-gray-500 uppercase">Excluded</div>
+                  </div>
+                </div>
+                <div className="text-[11px] text-gray-500 mb-3">
+                  Of {result.totalCount} tracked models: {result.eligibleCount} clearly satisfy every stated requirement, {result.verificationCount} have data too uncertain to safely treat as eligible without confirmation (never silently treated as passing or failing), and {failedModels.length} have known evidence against a stated requirement.
+                </div>
+                {failedModels.length > 0 && (
+                  <div className="rounded-lg border border-gray-200 p-3 mb-3 text-xs">
+                    <div className="font-semibold mb-1" style={{ color: CHARCOAL }}>Excluded, by reason (a model can appear in more than one)</div>
+                    {tally.license > 0 && <div className="text-gray-500">License requirement not met: {tally.license}</div>}
+                    {tally.governance > 0 && <div className="text-gray-500">Governance/origin requirement not met: {tally.governance}</div>}
+                    {tally.context > 0 && <div className="text-gray-500">Context window requirement not met: {tally.context}</div>}
+                    {tally.modality > 0 && <div className="text-gray-500">Modality requirement not met: {tally.modality}</div>}
+                  </div>
+                )}
+                {topModel && topDetails && (
+                  <div className="text-xs text-gray-500 mb-4">
+                    <b style={{ color: CHARCOAL }}>{topModel.canonical_model_id}</b> cleared every check: license {topDetails.licenseState}, governance {topDetails.govState}, context window {topDetails.contextState}, modality {topDetails.modalityState}.
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
+          {/* SECTION 3: RANKING DECISION */}
+          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. Ranking Decision</div>
+          <div className="text-xs text-gray-500 mb-2">
+            Ranked by <b style={{ color: CHARCOAL }}>{METRIC_LABELS[result.metric]}</b> ({result.metric}), a capability index from the tracked capability registry (synced {new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()}) -- not an externally standardized benchmark score; see Section 6 for what it does and doesn't represent.
+          </div>
+          {result.ranking.bestPerformanceIsFallback && (
+            <div className="text-xs rounded-lg p-2 mb-2" style={{ background: "#FFF8E6", border: "1px solid #E8CE8A", color: CHARCOAL }}>
+              No eligible model has a {METRIC_LABELS[result.metric]} score. Best Performance fell back to ranking by overall capability (intelligence_index) instead.
+            </div>
+          )}
+          {result.ranking.restarted && (
+            <div className="text-xs rounded-lg p-2 mb-2" style={{ background: "#FFF8E6", border: "1px solid #E8CE8A", color: CHARCOAL }}>
+              No eligible model has a {METRIC_LABELS[result.metric]} score, so the Efficiency and Balanced size decisions restarted using overall capability (intelligence_index) and its own margins, not the {METRIC_LABELS[result.metric]} margins below.
+            </div>
+          )}
+          <div className="text-xs font-semibold mb-1" style={{ color: CHARCOAL }}>Tier 1 -- models with a {METRIC_LABELS[result.metric]} score, ranked</div>
+          <div className="overflow-x-auto mb-3">
+            <table className="w-full text-xs" style={{ color: CHARCOAL }}>
+              <thead>
+                <tr className="text-gray-500 border-b" style={{ borderColor: "#D1D5DB" }}>
+                  <th className="text-left py-1 pr-2">Model</th>
+                  <th className="text-right py-1 pr-2">{METRIC_LABELS[result.metric]}</th>
+                  <th className="text-right py-1 pr-2">Params (B)</th>
+                  <th className="text-right py-1">Confidence</th>
+                </tr>
+              </thead>
+              <tbody>
+                {result.ranking.tier1.map((m) => (
+                  <tr key={m.canonical_model_id} className={m.canonical_model_id === result.ranking.bestPerformance?.canonical_model_id ? "font-bold" : ""} style={{ color: m.canonical_model_id === result.ranking.bestPerformance?.canonical_model_id ? RED : CHARCOAL }}>
+                    <td className="py-1 pr-2">{m.canonical_model_id}</td>
+                    <td className="text-right py-1 pr-2">{m[result.metric]}</td>
+                    <td className="text-right py-1 pr-2">{m.param_count_billion ?? "unverified"}</td>
+                    <td className="text-right py-1">{m.confidence}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <DecisionRow label={`Quality margin (${qualityPriority})`} value={`${result.ranking.sizeSlotFullMargin} points`} sub={result.ranking.restarted ? "intelligence_index margin (restarted decision)" : `${METRIC_LABELS[result.metric]} margin`} />
+          <DecisionRow label="Efficiency qualifying threshold" value={result.ranking.sizeSlotTopScore != null ? `>= ${(result.ranking.sizeSlotTopScore - result.ranking.sizeSlotFullMargin).toFixed(1)}` : "n/a"} sub="Top score minus the full margin above" />
+          <DecisionRow label="Balanced qualifying threshold" value={result.ranking.sizeSlotTopScore != null ? `>= ${(result.ranking.sizeSlotTopScore - result.ranking.sizeSlotHalfMargin).toFixed(1)}` : "n/a"} sub="Top score minus half the margin -- a tighter bar than Efficiency" />
+
+          {/* SECTION 4: WHY THESE RECOMMENDATIONS */}
+          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>4. Why These Recommendations</div>
+          <div className="text-xs text-gray-500 mb-3">Each badge below is traced to its own decision -- a model that lost Best Performance can still be the correct Efficiency or Balanced pick, and vice versa.</div>
+          {result.cards.map((card) => (
+            <div key={card.model.canonical_model_id} className="mb-4">
+              <div className="text-sm font-bold mb-1" style={{ color: CHARCOAL }}>{card.model.canonical_model_id}</div>
+              {card.badges.map((badge) => {
+                if (badge === "Best Performance") {
+                  const runnerUp = result.ranking.tier1[1];
+                  return (
+                    <div key={badge} className="text-xs text-gray-500 mb-2">
+                      <b style={{ color: CHARCOAL }}>Best Performance:</b> {card.model[result.metric]} {METRIC_LABELS[result.metric]}
+                      {runnerUp ? <>, ahead of the next-highest eligible model ({runnerUp.canonical_model_id}, {runnerUp[result.metric]}) by {(card.model[result.metric] - runnerUp[result.metric]).toFixed(1)} points.</> : ", the only eligible model with this metric."}
+                    </div>
+                  );
+                }
+                if (badge === "Most Efficient Qualifying Model") {
+                  const pool = [...result.ranking.efficiencyQualified].sort((a, b) => a.param_count_billion - b.param_count_billion);
+                  const nextSmallest = pool.find((m) => m.canonical_model_id !== card.model.canonical_model_id);
+                  return (
+                    <div key={badge} className="text-xs text-gray-500 mb-2">
+                      <b style={{ color: CHARCOAL }}>Most Efficient Qualifying Model:</b> {card.model.param_count_billion}B params, smallest among the {pool.length} model{pool.length === 1 ? "" : "s"} scoring within the quality margin of the top {result.ranking.sizeSlotMetric === "intelligence_index" ? METRIC_LABELS.intelligence_index : METRIC_LABELS[result.metric]} score.
+                      {nextSmallest && <> Next smallest qualifying model: {nextSmallest.canonical_model_id} at {nextSmallest.param_count_billion}B.</>}
+                    </div>
+                  );
+                }
+                if (badge === "Best Overall Fit") {
+                  const basis = optimizationPriority === "best-capability" ? "Best Performance" : optimizationPriority === "infrastructure-efficiency" ? "Most Efficient Qualifying Model" : "Balanced (within half the quality margin)";
+                  return (
+                    <div key={badge} className="text-xs text-gray-500 mb-2">
+                      <b style={{ color: CHARCOAL }}>Best Overall Fit:</b> your optimization priority ({labelFor(OPTIMIZATION_OPTIONS, optimizationPriority)}) maps this slot to the same decision as {basis}
+                      {!card.badges.includes(basis) && basis === "Balanced (within half the quality margin)" && (() => {
+                        const pool = [...result.ranking.balancedQualified].sort((a, b) => a.param_count_billion - b.param_count_billion);
+                        return pool.length ? <> -- {card.model.param_count_billion}B params, smallest among {pool.length} model{pool.length === 1 ? "" : "s"} within half the quality margin.</> : ".";
+                      })()}.
+                    </div>
+                  );
+                }
+                return null;
+              })}
+            </div>
+          ))}
+
+          {/* SECTION 5: WHY NOT THE ALTERNATIVES */}
+          {result.otherEligible.length > 0 && (
+            <>
+              <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>5. Why Not the Alternatives</div>
+              {result.otherEligible.map((m) => {
+                const score = m[result.metric];
+                const inEfficiencyPool = result.ranking.efficiencyQualified.some((e) => e.canonical_model_id === m.canonical_model_id);
+                const threshold = result.ranking.sizeSlotTopScore != null ? result.ranking.sizeSlotTopScore - result.ranking.sizeSlotFullMargin : null;
+                let reason;
+                if (score == null) {
+                  reason = `No ${METRIC_LABELS[result.metric]} score on record -- not in Tier 1, so not eligible for any size-based slot regardless of size.`;
+                } else if (inEfficiencyPool) {
+                  reason = `Scored ${score} (within the quality margin, threshold ${threshold?.toFixed(1)}), but ${m.param_count_billion}B is not the smallest qualifying model, so it lost the Efficiency slot on size.`;
+                } else if (threshold != null) {
+                  reason = `Scored ${score}, below the ${threshold.toFixed(1)} qualifying threshold for a size-based slot -- ${(threshold - score).toFixed(1)} points short.`;
+                } else {
+                  reason = `Did not qualify for a size-based slot at this quality priority.`;
+                }
+                return (
+                  <ScoreCompare key={m.canonical_model_id} model={m.canonical_model_id} score={score} qualified={inEfficiencyPool} note={reason} />
+                );
+              })}
+            </>
+          )}
+
+          {/* SECTION 6: SOURCES, HEURISTICS & LIMITATIONS */}
+          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>6. Sources, Heuristics &amp; Limitations</div>
+          <DecisionRow label="Model specs last synced" value={new Date(CATALOG_META.specsSyncedAt).toLocaleDateString()} />
+          <DecisionRow label="Capability scores last synced" value={new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()} />
+          <DecisionRow label="Models tracked" value={CATALOG_META.recordCount} />
+          <div className="text-xs text-gray-500 mt-3 mb-2 leading-relaxed">
+            <b style={{ color: CHARCOAL }}>Capability scores:</b> intelligence_index, coding_index, and agentic_index are capability indices from the tracked capability registry above -- composite indicators, not a single externally standardized benchmark. Treat point differences as directional, not as a precise, universally comparable scale.
+          </div>
+          <div className="text-xs text-gray-500 mb-2 leading-relaxed">
+            <b style={{ color: CHARCOAL }}>License-permissiveness heuristic:</b> a license is treated as permitting commercial use when its text matches a known-permissive pattern (Apache, MIT, Llama 3.1/3.3/4, Gemma, Mixtral). This is a simplified check, not a legal determination -- Meta's Llama licenses in particular carry a &gt;700M-monthly-active-user commercial exception most customers won't hit, but a customer at that scale would need separate legal review. A license CDW's data doesn't recognize, or has no license on record, is marked "verification required," never silently passed or failed.
+          </div>
+          <div className="text-xs text-gray-500 mb-2 leading-relaxed">
+            <b style={{ color: CHARCOAL }}>Governance / developer-origin check:</b> based on a tracked developer-country field. The "approved vendor families" governance option is informational only in this version -- no specific vendor-family list is enforced.
+          </div>
+          <div className="text-xs text-gray-500 mb-2 leading-relaxed">
+            <b style={{ color: CHARCOAL }}>Missing-data treatment:</b> a requirement is only marked FAIL when known evidence contradicts it. When the underlying data is missing or unverified, the result is "verification required," never collapsed into a pass or a fail.
+          </div>
+          <div className="text-xs text-gray-500 mb-4 leading-relaxed">
+            <b style={{ color: CHARCOAL }}>Confidence tiers:</b> {CONFIDENCE_BADGE.HIGH.label} means the model's spec was independently verified; {CONFIDENCE_BADGE.MEDIUM.label} means it's inferred from the model's size class rather than confirmed directly.
+          </div>
+
+          <div className="border-t-2 pt-4 flex justify-between" style={{ borderColor: CHARCOAL }}>
+            <div>
+              <div className="text-sm font-bold" style={{ color: CHARCOAL }}>Jay B. Carlile</div>
+              <div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div>
+            </div>
+            <div className="text-xs text-gray-500 text-right">Questions about this trace?<br />Bring your actual deployment constraints for a validated pass</div>
           </div>
         </div>
       )}

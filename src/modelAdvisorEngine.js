@@ -210,6 +210,19 @@ export function rankModels(eligible, metric, qualityPriority) {
   let efficiency = smallest(sizeQualified(fullMargin));
   let balanced = smallest(sizeQualified(halfMargin));
 
+  // Decision-trace intermediates for the size slots specifically -- kept
+  // separate from fullMargin/halfMargin above because those describe the
+  // PRIMARY metric's margin, which is not necessarily what actually governed
+  // the size-slot decision once the zero-Tier-1 restart (below) fires. An
+  // audit trail showing fullMargin/halfMargin for a restarted decision would
+  // be citing the wrong number for that specific choice.
+  let sizeSlotMetric = metric;
+  let sizeSlotFullMargin = fullMargin;
+  let sizeSlotHalfMargin = halfMargin;
+  let sizeSlotTopScore = tier1.length ? tier1[0][metric] : null;
+  let efficiencyQualified = sizeQualified(fullMargin);
+  let balancedQualified = sizeQualified(halfMargin);
+
   // Spec 8.1 zero-Tier-1 restart: if the selected metric has no Tier 1
   // candidates at all, restart size-slot ranking using intelligence_index
   // for the whole eligible pool, with intelligence_index's own margins.
@@ -227,12 +240,24 @@ export function rankModels(eligible, metric, qualityPriority) {
       const qualHalf = intelTier1.filter((m) => m.intelligence_index >= top - iHalf - EPSILON && m.param_count_billion != null);
       efficiency = smallest(qualFull);
       balanced = smallest(qualHalf);
+      sizeSlotMetric = "intelligence_index";
+      sizeSlotFullMargin = iFull;
+      sizeSlotHalfMargin = iHalf;
+      sizeSlotTopScore = top;
+      efficiencyQualified = qualFull;
+      balancedQualified = qualHalf;
+    } else {
+      sizeSlotTopScore = null;
+      efficiencyQualified = [];
+      balancedQualified = [];
     }
   }
 
   return {
     tier1, tier2, bestPerformance, bestPerformanceIsFallback,
     efficiency, balanced, metric, fullMargin, halfMargin, restarted,
+    sizeSlotMetric, sizeSlotFullMargin, sizeSlotHalfMargin, sizeSlotTopScore,
+    efficiencyQualified, balancedQualified,
   };
 }
 
