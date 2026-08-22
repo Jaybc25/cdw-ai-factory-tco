@@ -204,16 +204,23 @@ function buildTrajectory(baseHrsFn, perSysHrs, S, RC, nPlus, storCapex, storSup,
     if (technicalFloorSys) base = Math.max(base, technicalFloorSys);
     const sys = Math.max(prevSys, base);
     const racks = Math.ceil(sys / S.perRack);
-    const capexAdd =
-      (y === 0 ? RC.cluster + storCapex : 0) +
-      (sys - prevSys) * RC.perSysCost +
-      (racks - prevRacks) * S.rackCost;
-    const opexMo0 = isEquinix
-      ? sys * RC.equinixMo + storSup
-      : (sys * RC.sysKw + totPB * RC.kwPerPB) * powerRate +
-        RC.netMo + (RC.setupRack * (racks + totPB * RC.racksPerPB)) / 36 +
-        ((sys / RC.adminRatio) * RC.opFTE) / 12 + storSup;
-    rows.push({ sys, racks, capexAdd, opexMo0, opexYr: 12 * opexMo0 * Math.pow(1 + RC.opsGrowth, y) });
+    const clusterAndStorageCapex = y === 0 ? RC.cluster + storCapex : 0;
+    const systemsCapex = (sys - prevSys) * RC.perSysCost;
+    const racksCapex = (racks - prevRacks) * S.rackCost;
+    const capexAdd = clusterAndStorageCapex + systemsCapex + racksCapex;
+    const powerCost = isEquinix ? 0 : (sys * RC.sysKw + totPB * RC.kwPerPB) * powerRate;
+    const networkingCost = isEquinix ? 0 : RC.netMo;
+    const rackAmortCost = isEquinix ? 0 : (RC.setupRack * (racks + totPB * RC.racksPerPB)) / 36;
+    const adminCost = isEquinix ? 0 : (sys / RC.adminRatio) * RC.opFTE / 12;
+    const equinixBundleCost = isEquinix ? sys * RC.equinixMo : 0;
+    const opexMo0 = isEquinix ? equinixBundleCost + storSup : powerCost + networkingCost + rackAmortCost + adminCost + storSup;
+    rows.push({
+      sys, racks, capexAdd, opexMo0, opexYr: 12 * opexMo0 * Math.pow(1 + RC.opsGrowth, y),
+      capexBreakdown: { clusterAndStorage: clusterAndStorageCapex, systems: systemsCapex, racks: racksCapex },
+      opexBreakdown: isEquinix
+        ? { isEquinix: true, equinixBundle: equinixBundleCost, storageSupport: storSup }
+        : { isEquinix: false, power: powerCost, networking: networkingCost, rackAmortization: rackAmortCost, admin: adminCost, storageSupport: storSup },
+    });
     prevSys = sys; prevRacks = racks;
   }
   return rows;
@@ -401,7 +408,8 @@ function run(inp, RC) {
   })();
   return { blended, gpuHrs, gpuHrsCloud, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, storageBudget, oneTime, exitEgress, tot, payback, crossoverMo, exhaustYrs, perSysHrs, cap,
     isWorkloadMode, technicalSystems, monthlyCloudBaseline, sourceConversion, cloudYear1, cumulativeByYear,
-    fleetAdj: adjT.map((r2) => r2.sys), fleetFlr: flrT.map((r2) => r2.sys) };
+    fleetAdj: adjT.map((r2) => r2.sys), fleetFlr: flrT.map((r2) => r2.sys),
+    year0CapexBreakdown: adjT[0].capexBreakdown, year0OpexBreakdown: adjT[0].opexBreakdown };
 }
 
 /* ============ UI ============ */
@@ -747,6 +755,60 @@ function normalizeSourceClass(sourceClass) {
   return GPU_SIZING_CLASS_TO_TCO_CLASS[sourceClass] || sourceClass;
 }
 
+function AuditFormula({ label, formula, substituted, result }) {
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color: C.ink, marginBottom: 3 }}>{label}</div>
+      <div style={{ ...mono, fontSize: 10.5, color: C.sub }}>{formula}</div>
+      <div style={{ ...mono, fontSize: 10.5, color: C.sub }}>{substituted}</div>
+      <div style={{ ...mono, fontSize: 13, fontWeight: 700, color: C.ink, marginTop: 2 }}>= {result}</div>
+    </div>
+  );
+}
+
+// Genuine reconciliation: "calculated" must come from summing constituent
+// parts already emitted by the engine (a different code path than the
+// engine's own total), never the same property read twice -- that would be
+// tautological, not verification. See the comment above each call site for
+// which constituent parts feed each check.
+function ReconCheck({ label, parts, calculated, engineValue }) {
+  const diff = Math.abs(calculated - engineValue);
+  const pass = diff < 1; // sub-dollar tolerance for floating point only
+  return (
+    <div style={{ border: `1px solid ${pass ? C.green : "#CC0000"}`, borderRadius: 8, padding: "12px 14px", marginBottom: 10, background: pass ? C.greenSoft : "#FEF2F2" }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: C.ink, marginBottom: 6 }}>{label}</div>
+      {parts.map((p, i) => (
+        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.sub, marginBottom: 2 }}>
+          <span>{p.label}</span><span style={mono}>{p.value}</span>
+        </div>
+      ))}
+      <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 4, paddingTop: 4, display: "flex", justifyContent: "space-between", fontSize: 11.5, fontWeight: 600, color: C.ink }}>
+        <span>Reconstructed from constituent parts above</span><span style={mono}>{fmt(calculated)}</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: C.sub }}>
+        <span>Engine's own total (separate code path)</span><span style={mono}>{fmt(engineValue)}</span>
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, fontWeight: 700, marginTop: 4, color: pass ? C.green : "#CC0000" }}>
+        <span>Difference: {fmt(diff)}</span><span>{pass ? "RECONCILED" : "MISMATCH — FLAG THIS"}</span>
+      </div>
+    </div>
+  );
+}
+
+function AuditSourceRow({ label, value, source, basis, confidence, verified, est }) {
+  return (
+    <div style={{ borderBottom: `1px solid ${C.line}`, padding: "7px 0" }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <span style={{ fontSize: 11.5, color: C.ink }}>{label}{est && <span style={{ color: "#B45309", fontWeight: 700, marginLeft: 5 }}>EST</span>}</span>
+        <span style={{ ...mono, fontSize: 11.5, fontWeight: 600 }}>{value}</span>
+      </div>
+      <div style={{ fontSize: 10, color: C.sub, marginTop: 1 }}>
+        Source: {source}{basis ? ` · ${basis}` : ""}{confidence ? ` · Confidence: ${confidence}` : ""}{verified ? ` · Verified: ${verified}` : ""}
+      </div>
+    </div>
+  );
+}
+
 function AppInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const [arrivedFromGpuSizing] = useState(() => !!getIncomingParams()?.get("ownSys"));
@@ -792,7 +854,7 @@ function AppInner() {
   const [residPct, setResidPct] = useState(saved?.residPct ?? 0.15);
   const [modelSize, setModelSize] = useState(saved?.modelSize ?? "70B");
   const [quant, setQuant] = useState(saved?.quant ?? "FP8");
-  const [view, setView] = useState("calc"); // calc | gate | report
+  const [view, setView] = useState("calc"); // calc | gate | report | audit
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
 
@@ -973,6 +1035,7 @@ function AppInner() {
           <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
             <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <button onClick={() => window.print()} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 13, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: C.ink, color: "#fff" }}>Print / Save as PDF</button>
+              <button onClick={() => setView("audit")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.ink }}>Calculation Methodology &amp; Audit Trail</button>
               <button onClick={() => setView("calc")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.sub }}>Back to calculator</button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
@@ -1099,6 +1162,279 @@ function AppInner() {
           </div>
         )}
 
+
+        {view === "audit" && (
+          <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
+            <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              <button onClick={() => window.print()} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 13, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: C.ink, color: "#fff" }}>Print / Save as PDF</button>
+              <button onClick={() => setView("report")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.sub }}>Back to report</button>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+              <img src={cdwLogo} alt="CDW" style={{ height: 34, width: "auto" }} />
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: C.sub }}>AI FACTORY · CALCULATION METHODOLOGY &amp; AUDIT TRAIL</div>
+            </div>
+            <div style={{ ...disp, fontSize: 21, fontWeight: 700, margin: "4px 0 2px" }}>Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}</div>
+            <div style={{ fontSize: 12, color: C.sub, marginBottom: 4 }}>{new Date().toLocaleDateString()} · Reproducible derivation of the material calculations supporting the {horizon}-year TCO result shown in the main report</div>
+            <div style={{ fontSize: 11, color: C.sub, marginBottom: 16, fontStyle: "italic" }}>
+              This document formats and explains the same calculation the main report already ran -- it does not run a separate or independent calculation. Every figure below traces to the same engine output shown on screen.
+            </div>
+
+            {/* SECTION 1: SCENARIO OVERVIEW */}
+            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>1. SCENARIO OVERVIEW</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.sub, marginTop: 6, marginBottom: 2 }}>What you told us</div>
+            <Row label="Planning basis" value={r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend"} />
+            {r.isWorkloadMode ? (
+              <Row label="Technical GPU requirement" value={`${gpuSizingCount} × ${sourceClass || gpuClass} (from GPU Sizing)`} />
+            ) : (
+              <Row label="Reported monthly cloud bill" value={fmt(bill)} />
+            )}
+            <Row label="Cloud provider / rented GPU class" value={`${provider} / ${gpuClass}`} />
+            <Row label="Target on-prem system" value={ownSys} />
+            <Row label="On-demand vs. reserved mix" value={`${Math.round(odShare * 100)}% on-demand / ${Math.round((1 - odShare) * 100)}% reserved`} />
+            {r.isWorkloadMode && <Row label="Duty cycle" value={`${workingDayHours} hrs/day`} />}
+            <Row label="Annual compute growth" value={`${Math.round(growth * 100)}%/yr`} />
+            <Row label="Facility" value={facility} />
+            <Row label="Analysis horizon" value={`${horizon} years`} />
+            <Row label="Residual value assumption" value={`${Math.round(residPct * 100)}% of hardware value at horizon`} />
+
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.sub, marginTop: 12, marginBottom: 2 }}>Model-supplied assumptions (editable rate card, not your inputs)</div>
+            <Row label="On-demand rate" value={`$${rc.instOD.toFixed(2)}/GPU-hr`} sub={`${provider} ${gpuClass}`} />
+            <Row label="Reserved rate" value={`$${rc.instRes.toFixed(2)}/GPU-hr`} sub="60% of on-demand, standard 1-yr reserved discount" />
+            <Row label="NVAIE software rate (on-demand / reserved)" value={`$${rc.nvaieOD.toFixed(2)} / $${rc.nvaieRes.toFixed(2)} per GPU-hr`} />
+            <Row label="PaaS uplift" value={`${(rc.paasUplift * 100).toFixed(0)}%`} />
+            {(() => {
+              // Every editable rate-card field this document's equations use,
+              // human-readable label matching the same labels shown in the
+              // live rate-override UI -- generated from ov, not a hand-picked
+              // subset, so an override never silently keeps its registry
+              // attribution. instOD/perSysCost already get full dedicated
+              // rows below with their own default-reference comparison, so
+              // they're excluded here to avoid double-disclosure.
+              const RATE_LABELS = {
+                instRes: "Cloud $/GPU-hr, 1-yr reserved", nvaieRes: "NVAIE support $/GPU-hr, reserved",
+                nvaieOD: "NVAIE support $/GPU-hr, on-demand", fastGB: "Fast storage $/GB/mo",
+                bulkGB: "Bulk storage $/GB/mo", cloudTok: "Managed API blended $/1M tokens",
+                egressGB: "Egress $/GB", cluster: "Cluster mgmt nodes $ (fixed per cluster)",
+                fastPB: "Fast storage $/PB", bulkPB: "Bulk storage $/PB",
+                sysKw: `Power kW per ${ownSys}`, equinixMo: "Equinix bundle $/system/mo",
+                adminRatio: "Systems per admin FTE", opFTE: "Admin FTE loaded $/yr",
+                netMo: "Network/VPN/firewall $/mo",
+              };
+              const overridden = Object.keys(ov).filter((k) => k in RATE_LABELS);
+              if (!overridden.length) return null;
+              return (
+                <div style={{ fontSize: 11, color: C.ink, marginTop: 8, background: "#FFF8E6", border: "1px solid #E8CE8A", borderRadius: 8, padding: "10px 12px" }}>
+                  <b>Rate card overrides in this scenario:</b> {overridden.map((k) => RATE_LABELS[k]).join(", ")}. Source: User/client supplied -- these values were entered directly rather than taken from the reference registry below. Unmodified assumptions continue to use the reference sources shown in Section 6.
+                </div>
+              );
+            })()}
+
+            <div style={{ fontSize: 11, color: C.ink, marginTop: 12, marginBottom: 14, background: "#F7F7F7", borderRadius: 8, padding: "10px 12px" }}>
+              <b>Key assumptions worth stress-testing:</b> the blended cloud $/GPU-hr rate (Section 2), the generational capability factor between your rented and target GPU classes, annual compute growth, on-prem system cost, and any unusually large infrastructure or transition costs specific to this scenario.
+            </div>
+
+            {/* SECTION 2: CLOUD CALCULATION */}
+            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>2. HOW THE CLOUD COST WAS CALCULATED</div>
+            <AuditFormula
+              label="Blended cloud rate (instance + software, weighted by your on-demand/reserved mix)"
+              formula="blended = [odShare × (instOD + nvaieOD) + (1 − odShare) × (instRes + nvaieRes)] × (1 + paasUplift)"
+              substituted={`= [${odShare.toFixed(2)} × ($${rc.instOD.toFixed(2)} + $${rc.nvaieOD.toFixed(2)}) + ${(1 - odShare).toFixed(2)} × ($${rc.instRes.toFixed(2)} + $${rc.nvaieRes.toFixed(2)})] × ${(1 + rc.paasUplift).toFixed(2)}`}
+              result={`$${r.blended.toFixed(2)}/GPU-hr`}
+            />
+            {SYS_CLASS[ownSys] === gpuClass ? (
+              <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>Cloud-rented class ({gpuClass}) and on-prem target class ({SYS_CLASS[ownSys]}) are the same; generational conversion factor = <b>{r.genPF.toFixed(2)}×</b>.</div>
+            ) : (
+              <AuditFormula
+                label="Generational capability factor (cloud-rented class differs from on-prem target class)"
+                formula="genPF = benchmark-derived capability ratio, target class vs. rented class"
+                substituted={`${gpuClass} → ${SYS_CLASS[ownSys]}`}
+                result={`${r.genPF.toFixed(2)}×`}
+              />
+            )}
+            {r.sourceConversion && (
+              <div style={{ fontSize: 11, color: C.sub, marginBottom: 10, background: "#F7F7F7", borderRadius: 6, padding: "8px 10px" }}>
+                <b>Separate normalization:</b> the GPU Sizing handoff's source class ({sourceClass}) differs from the on-prem target class ({SYS_CLASS[ownSys]}). The incoming GPU count was converted at <b>{r.sourceConversion.toFixed(2)}×</b> before fleet sizing below. This is unrelated to the cloud-rented-class factor above.
+              </div>
+            )}
+            {r.isWorkloadMode ? (
+              <>
+                <AuditFormula
+                  label="Rented-hours equivalent"
+                  formula="rentedGpuHrsEquivalent = technicalGpuHrs × genPF"
+                  substituted={`= ${r.gpuHrsCloud.toLocaleString(undefined, { maximumFractionDigits: 0 })} hrs/mo × ${r.genPF.toFixed(2)}`}
+                  result={`${(r.gpuHrsCloud * r.genPF).toLocaleString(undefined, { maximumFractionDigits: 0 })} hrs/mo`}
+                />
+                <AuditFormula
+                  label="Monthly compute cost"
+                  formula="monthlyCompute = rentedGpuHrsEquivalent × blended"
+                  substituted={`= ${(r.gpuHrsCloud * r.genPF).toLocaleString(undefined, { maximumFractionDigits: 0 })} hrs × $${r.blended.toFixed(2)}/hr`}
+                  result={fmt(r.monthlyCloudBaseline - r.cloudStorage)}
+                />
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>In Existing Cloud Spend mode, your reported monthly bill <b>is</b> the cloud cost -- it is not derived from the blended rate. The blended rate is used only to reverse-estimate how many GPU-hours that bill represents, for sizing the comparable on-prem fleet below.</div>
+                <AuditFormula
+                  label="Reconstructed GPU-hours (for on-prem fleet sizing only)"
+                  formula={tier3Hrs > 0 ? "gpuHrs = your entered Tier 3 actual GPU-hours (overrides the estimate)" : "gpuHrs = (monthly bill × compute share) ÷ blended rate"}
+                  substituted={tier3Hrs > 0 ? `= ${tier3Hrs.toLocaleString()} hrs/mo (Tier 3 actual)` : `= (${fmt(bill)} × ${Math.round(computeShare * 100)}%) ÷ $${r.blended.toFixed(2)}/hr`}
+                  result={`${r.gpuHrs.toLocaleString(undefined, { maximumFractionDigits: 0 })} hrs/mo`}
+                />
+                <AuditFormula
+                  label="On-prem fleet sizing basis (full operational factor, not cloud genPF alone)"
+                  formula="npf = genPF × fNet × fSw × fNvaie"
+                  substituted={`= ${r.genPF.toFixed(2)} × ${fNet.toFixed(2)} × ${fSw.toFixed(2)} × ${fNvaie.toFixed(2)}`}
+                  result={`${(r.genPF * fNet * fSw * fNvaie).toFixed(2)}×`}
+                />
+                <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>Your monthly bill: <b style={{ color: C.ink }}>{fmt(bill)}/mo</b> ({fmt(bill * computeShare)} compute + {fmt(bill * (1 - computeShare))} non-compute).</div>
+              </>
+            )}
+            <AuditFormula
+              label="Cloud storage (fast + bulk + egress)"
+              formula="storage = fastPB × $/GB(fast) + bulkPB × $/GB(bulk) + totalPB × egress% × $/GB(egress)"
+              substituted={`${fastPB} + ${bulkPB} PB`}
+              result={fmt(r.cloudStorage)}
+            />
+            {r.isWorkloadMode ? (
+              <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>Year 1 cloud total (compute + storage) = {fmt(r.monthlyCloudBaseline - r.cloudStorage)} + {fmt(r.cloudStorage)} = <b style={{ color: C.ink }}>{fmt(r.monthlyCloudBaseline)}/mo</b>. The compute portion grows {Math.round(growth * 100)}%/yr; the storage portion grows {Math.round(rc.opsGrowth * 100)}%/yr -- these are different rates, not a single blended escalation.</div>
+            ) : (
+              <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>Year 1 cloud total = your reported bill = <b style={{ color: C.ink }}>{fmt(bill)}/mo</b>. The compute-share portion grows {Math.round(growth * 100)}%/yr; the non-compute-share portion grows {Math.round(rc.opsGrowth * 100)}%/yr -- these are different rates, not a single blended escalation.</div>
+            )}
+
+            {/* SECTION 3: ON-PREM CALCULATION */}
+            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>3. HOW THE ON-PREM FLEET AND COST WAS CALCULATED</div>
+            <AuditFormula
+              label="System count"
+              formula="systems = CEILING(technicalGpuHrs / perSystemHrs)"
+              substituted={r.isWorkloadMode ? "sized directly from the GPU Sizing technical requirement" : "sized from workload-equivalent hours at target utilization"}
+              result={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`}
+            />
+            <AuditFormula
+              label="Initial infrastructure capital (Year 1)"
+              formula="capital = fixed cluster infrastructure + storage capacity + (systems purchased × loaded system cost) + (racks added × rack cost)"
+              substituted={`${fmt(r.year0CapexBreakdown.clusterAndStorage)} (cluster + storage) + ${fmt(r.year0CapexBreakdown.systems)} (systems) + ${fmt(r.year0CapexBreakdown.racks)} (racks)`}
+              result={fmt(r.adj.capex)}
+            />
+            <AuditFormula
+              label="One-time transition"
+              formula={`migration${facility === "Self-hosted (retrofit)" ? " + facility retrofit" : ""} + (dual-run months × comparable monthly cloud cost) + exit egress`}
+              substituted={`${fmt(migration)} migration${facility === "Self-hosted (retrofit)" ? ` + ${fmt(retrofit)} retrofit` : ""} + (${dualRun} mo × ${fmt(r.monthlyCloudBaseline)}) + ${fmt(r.exitEgress)} egress`}
+              result={fmt(r.oneTime)}
+            />
+            <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>Initial capital + transition = {fmt(r.adj.capex)} + {fmt(r.oneTime)} = <b style={{ color: C.ink }}>{fmt(r.adj.capex + r.oneTime)}</b></div>
+            {r.year0OpexBreakdown.isEquinix ? (
+              <AuditFormula
+                label="Monthly operating cost (Equinix)"
+                formula="opex = (systems × Equinix bundle rate) + storage support"
+                substituted={`${fmt(r.year0OpexBreakdown.equinixBundle)} bundle + ${fmt(r.year0OpexBreakdown.storageSupport)} storage support`}
+                result={`${fmt(r.adj.opex)}/mo`}
+              />
+            ) : (
+              <AuditFormula
+                label="Monthly operating cost (self-hosted)"
+                formula="opex = power + networking + rack-setup amortization + admin labor + storage support"
+                substituted={`${fmt(r.year0OpexBreakdown.power)} power + ${fmt(r.year0OpexBreakdown.networking)} network + ${fmt(r.year0OpexBreakdown.rackAmortization)} rack amort. + ${fmt(r.year0OpexBreakdown.admin)} admin + ${fmt(r.year0OpexBreakdown.storageSupport)} storage`}
+                result={`${fmt(r.adj.opex)}/mo`}
+              />
+            )}
+            <AuditFormula
+              label="Residual value credit (applied at horizon)"
+              formula="residual = residPct × (systemsValue − profSvcs − swSuite + storageCapex)"
+              substituted={`${Math.round(residPct * 100)}% of hardware value (professional services and software subscriptions excluded -- no resale value)`}
+              result={fmt(r.adj.resid)}
+            />
+
+            {/* SECTION 4: YEAR-BY-YEAR CASH FLOW & CROSSOVER */}
+            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>4. YEAR-BY-YEAR CUMULATIVE CASH FLOW</div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 11, marginBottom: 10 }}>
+              <div style={{ fontWeight: 700, color: C.sub }}>Year</div>
+              <div style={{ fontWeight: 700, color: C.sub }}>Cumulative cloud</div>
+              <div style={{ fontWeight: 700, color: C.sub }}>Cumulative on-prem</div>
+              {r.cumulativeByYear.slice(0, Math.max(horizon, 1)).map((p) => (
+                <React.Fragment key={p.year}>
+                  <div>Year {p.year}</div>
+                  <div style={mono}>{fmt(p.cloud)}</div>
+                  <div style={mono}>{fmt(p.onPrem)}</div>
+                </React.Fragment>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: C.sub, marginBottom: 14 }}>
+              {r.crossoverMo ? `Cumulative on-prem spend drops below cumulative cloud spend at month ${r.crossoverMo}${r.crossoverMo <= horizon * 12 ? " -- inside your selected horizon." : ", which falls outside your selected horizon."}` : "No crossover found within 60 months at these settings."}
+            </div>
+
+            {/* SECTION 5: RECONCILIATION */}
+            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>5. RECONCILIATION</div>
+            <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>Each check below sums figures from a different part of this document and compares the total to the engine's own horizon total -- not the same number read twice.</div>
+            {(() => {
+              // Individual-year values, derived by subtracting consecutive cumulative
+              // points already emitted by the engine -- not a new calculation of the
+              // underlying economics, just arithmetic on numbers already shown above.
+              const pts = r.cumulativeByYear.slice(0, horizon);
+              const cloudByYear = pts.map((p, i) => (i === 0 ? p.cloud : p.cloud - pts[i - 1].cloud));
+              const onPremByYear = pts.map((p, i) => (i === 0 ? p.onPrem : p.onPrem - pts[i - 1].onPrem));
+              const cloudSum = cloudByYear.reduce((a, b) => a + b, 0);
+              const onPremCashSum = onPremByYear.reduce((a, b) => a + b, 0);
+              const onPremReconciled = onPremCashSum - r.adj.resid;
+              return (
+                <>
+                  <ReconCheck
+                    label="Cloud total"
+                    parts={cloudByYear.map((v, i) => ({ label: `Year ${i + 1} cloud cash flow`, value: fmt(v) }))}
+                    calculated={cloudSum}
+                    engineValue={t.cloud}
+                  />
+                  <ReconCheck
+                    label="On-prem total (net of residual)"
+                    parts={[
+                      ...onPremByYear.map((v, i) => ({ label: `Year ${i + 1} on-prem cash flow (capital + operating)`, value: fmt(v) })),
+                      { label: "Less: residual value credit at horizon", value: `−${fmt(r.adj.resid)}` },
+                    ]}
+                    calculated={onPremReconciled}
+                    engineValue={t.onAdj}
+                  />
+                  <ReconCheck
+                    label={`${horizon}-year savings`}
+                    parts={[
+                      { label: "Cloud total (above)", value: fmt(t.cloud) },
+                      { label: "Less: on-prem total (above)", value: `−${fmt(t.onAdj)}` },
+                    ]}
+                    calculated={t.cloud - t.onAdj}
+                    engineValue={t.saveAdj}
+                  />
+                </>
+              );
+            })()}
+
+            {/* SECTION 6: SOURCES & CAVEATS */}
+            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>6. SOURCES, CONFIDENCE, AND CAVEATS</div>
+            <AuditSourceRow
+              label="Cloud on-demand rate" value={`$${rc.instOD.toFixed(2)}/hr`}
+              source={"instOD" in ov ? "User/client override" : "Public provider pricing, normalized from tracked pricing sources"}
+              basis={"instOD" in ov ? `Default reference: $${defaults.instOD.toFixed(2)}/hr, ${RATES[provider]?.[gpuClass]?.conf || "—"}` : `${provider} ${gpuClass}`}
+              confidence={"instOD" in ov ? null : RATES[provider]?.[gpuClass]?.conf || "—"}
+              verified={"instOD" in ov ? null : fmtVerifiedDate(CLOUD_RATES_VERIFIED_AT)}
+            />
+            <AuditSourceRow
+              label="On-prem system cost" value={fmt(rc.perSysCost)}
+              source={"perSysCost" in ov ? "User/client override" : "NVIDIA DGX TCO reference pricing"}
+              basis={"perSysCost" in ov ? `Default reference: ${fmt(defaults.perSysCost)}, verified ${fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)}` : ownSys}
+              verified={"perSysCost" in ov ? null : fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)}
+            />
+            <AuditSourceRow label="Generational capability factor" value={`${r.genPF.toFixed(2)}×`} source="MLPerf-derived benchmark ratio" confidence="Directional -- workload-dependent" />
+            {r.cap.fits && <AuditSourceRow label="Serving capacity estimate" value={`~${r.cap.users.toLocaleString()} users`} source="Rule-of-thumb sizing, not a benchmark" est />}
+            <div style={{ fontSize: 10.5, color: C.sub, marginTop: 12, lineHeight: 1.5 }}>
+              All figures on this page are directional planning estimates derived from the inputs and rate card shown above, using the same calculation the main report already ran. They are intended to support scenario planning and internal decision-making, not to serve as a final quote or binding proposal. Confirm current pricing, technical specifications, and implementation timelines with your CDW account team before finalizing any purchase or budget decision.
+            </div>
+
+            <div style={{ borderTop: `2px solid ${C.ink}`, marginTop: 16, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
+              <div>
+                <div style={{ ...disp, fontWeight: 700, fontSize: 13 }}>Jay B. Carlile</div>
+                <div style={{ fontSize: 11, color: C.sub }}>AI Solutions Executive · CDW AI Factory</div>
+              </div>
+              <div style={{ fontSize: 11, color: C.sub, textAlign: "right" }}>Questions about this derivation?<br/>Bring your cloud invoice for a validated pass</div>
+            </div>
+          </div>
+        )}
 
         {view === "calc" && (<div>
         {arrivedFromGpuSizing && gpuSizingSystems && (
