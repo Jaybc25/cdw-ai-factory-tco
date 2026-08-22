@@ -3,6 +3,7 @@ import { ChevronDown, X, ArrowRight } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
+import { loadSessionState, saveSessionState } from "./sessionState.js";
 import {
   getCatalog, CATALOG_META, buildRecommendations, explainCard, explainVerificationCandidate, explainOtherEligible,
   METRIC_LABELS,
@@ -300,8 +301,6 @@ function ModelAdvisorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const catalog = useMemo(() => getCatalog(), []);
 
-  const [checkedWorkloads, setCheckedWorkloads] = useState(getInitialCheckedWorkloads);
-  const [primaryWorkload, setPrimaryWorkload] = useState(() => getInitialPrimaryWorkload(getInitialCheckedWorkloads()));
   const [sourceUseCase] = useState(getInitialSourceUseCase);
 
   // Consume the handoff -- see TcoCalculator.jsx's identical fix for the
@@ -311,19 +310,46 @@ function ModelAdvisorInner() {
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only, after initial param capture
-  const [qualityPriority, setQualityPriority] = useState("strong");
-  const [contextWindow, setContextWindow] = useState("none");
-  const [multimodal, setMultimodal] = useState("none");
-  const [reasoningIntensity, setReasoningIntensity] = useState("normal");
-  const [fineTuning, setFineTuning] = useState("none");
-  const [license, setLicense] = useState("need-to-check");
-  const [governance, setGovernance] = useState("none");
-  const [dataSensitivity, setDataSensitivity] = useState("general");
-  const [optimizationPriority, setOptimizationPriority] = useState("balanced");
+
+  // Saved session state always loads, regardless of an incoming handoff.
+  // Field-level precedence, not all-or-nothing: only checkedWorkloads/
+  // primaryWorkload (the fields a sourceUseCase handoff can actually carry)
+  // get overridden by it. Everything else -- quality priority, license,
+  // governance, etc. -- is never part of any handoff, so it should keep
+  // restoring from the last saved session even when a new use case arrives.
+  const saved = loadSessionState("model-advisor");
+
+  const [checkedWorkloads, setCheckedWorkloads] = useState(() => (
+    sourceUseCase ? getInitialCheckedWorkloads() : saved?.checkedWorkloads ?? getInitialCheckedWorkloads()
+  ));
+  const [primaryWorkload, setPrimaryWorkload] = useState(() => (
+    sourceUseCase ? getInitialPrimaryWorkload(getInitialCheckedWorkloads()) : saved?.primaryWorkload ?? getInitialPrimaryWorkload(getInitialCheckedWorkloads())
+  ));
+  const [qualityPriority, setQualityPriority] = useState(saved?.qualityPriority ?? "strong");
+  const [contextWindow, setContextWindow] = useState(saved?.contextWindow ?? "none");
+  const [multimodal, setMultimodal] = useState(saved?.multimodal ?? "none");
+  const [reasoningIntensity, setReasoningIntensity] = useState(saved?.reasoningIntensity ?? "normal");
+  const [fineTuning, setFineTuning] = useState(saved?.fineTuning ?? "none");
+  const [license, setLicense] = useState(saved?.license ?? "need-to-check");
+  const [governance, setGovernance] = useState(saved?.governance ?? "none");
+  const [dataSensitivity, setDataSensitivity] = useState(saved?.dataSensitivity ?? "general");
+  const [optimizationPriority, setOptimizationPriority] = useState(saved?.optimizationPriority ?? "balanced");
 
   const [view, setView] = useState("calc"); // calc | report | audit
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
+
+  // Persist every tweakable input (not view/lead/leadStatus -- transient UI
+  // flow and lead-capture PII don't belong in session-restored state) so
+  // leaving for another tool and coming back restores exactly where this
+  // tab left off, instead of resetting to defaults on every full page load.
+  useEffect(() => {
+    saveSessionState("model-advisor", {
+      checkedWorkloads, primaryWorkload, qualityPriority, contextWindow, multimodal,
+      reasoningIntensity, fineTuning, license, governance, dataSensitivity, optimizationPriority,
+    });
+  }, [checkedWorkloads, primaryWorkload, qualityPriority, contextWindow, multimodal,
+      reasoningIntensity, fineTuning, license, governance, dataSensitivity, optimizationPriority]);
 
   function toggleWorkload(w) {
     setCheckedWorkloads((prev) => {
