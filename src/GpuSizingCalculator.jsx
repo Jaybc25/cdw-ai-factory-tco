@@ -765,6 +765,75 @@ function getInitialInfModel() {
   return match ? { model: match, matched: true } : { model: MODELS[1], matched: false };
 }
 
+// Precise currency for the audit trail's reconciliation checks -- fmtUsd's
+// $X.XXM abbreviation is right for headline cards but would round away the
+// exact-dollar differences a reconciliation check needs to be meaningful.
+function fmtUsdPrecise(n) {
+  if (n == null) return "—";
+  return `$${Math.round(n).toLocaleString("en-US")}`;
+}
+
+function AuditFormula({ label, formula, substituted, result }) {
+  return (
+    <div className="mb-3">
+      <div className="text-xs font-semibold mb-0.5" style={{ color: CHARCOAL }}>{label}</div>
+      <div className="text-xs text-gray-500">{formula}</div>
+      <div className="text-xs text-gray-500">{substituted}</div>
+      <div className="text-sm font-bold mt-0.5" style={{ color: CHARCOAL }}>= {result}</div>
+    </div>
+  );
+}
+
+// Genuine reconciliation: "calculated" redoes the arithmetic in the audit's
+// own rendering code, starting only from already-engine-provided
+// intermediate values, and compares the result to the engine's own field
+// for that same formula -- two independent evaluations, not one property
+// read twice. format is explicit ("currency" | "count"), never inferred
+// from magnitude -- a magnitude-based guess already proved unsafe in an
+// earlier tool's audit trail (a large count could be mistaken for a dollar
+// figure or vice versa).
+function ReconCheck({ label, parts, calculated, engineValue, format }) {
+  if (engineValue == null || calculated == null) {
+    return (
+      <div className="rounded-lg border p-3 mb-2.5 bg-gray-50" style={{ borderColor: "#D1D5DB" }}>
+        <div className="text-xs font-bold mb-1" style={{ color: CHARCOAL }}>{label}</div>
+        <div className="text-xs text-gray-500">Not applicable in this scenario.</div>
+      </div>
+    );
+  }
+  const fmt = format === "count" ? (v) => Math.round(v).toLocaleString("en-US") : fmtUsdPrecise;
+  const diff = Math.abs(calculated - engineValue);
+  const pass = diff < (format === "count" ? 1 : 1);
+  return (
+    <div className="rounded-lg border p-3 mb-2.5" style={{ borderColor: pass ? "#1E7A3D" : RED, background: pass ? "#EAF6EE" : "#FEF2F2" }}>
+      <div className="text-xs font-bold mb-1.5" style={{ color: CHARCOAL }}>{label}</div>
+      {parts.map((p, i) => (
+        <div key={i} className="flex justify-between text-xs text-gray-500 mb-0.5">
+          <span>{p.label}</span><span>{p.value}</span>
+        </div>
+      ))}
+      <div className="flex justify-between text-xs font-semibold mt-1 pt-1 border-t" style={{ color: CHARCOAL, borderColor: "#D1D5DB" }}>
+        <span>Reconstructed from parts above</span><span>{fmt(calculated)}</span>
+      </div>
+      <div className="flex justify-between text-xs text-gray-500">
+        <span>Engine's own value (separate code path)</span><span>{fmt(engineValue)}</span>
+      </div>
+      <div className="flex justify-between text-xs font-bold mt-1" style={{ color: pass ? "#1E7A3D" : RED }}>
+        <span>Difference: {fmt(diff)}</span><span>{pass ? "RECONCILED" : "MISMATCH — FLAG THIS"}</span>
+      </div>
+    </div>
+  );
+}
+
+function AuditRow({ label, value, sub }) {
+  return (
+    <div className="grid grid-cols-2 py-1 text-xs">
+      <div className="text-gray-500">{label}{sub && <div className="text-[10px] text-gray-400">{sub}</div>}</div>
+      <div className="text-right font-semibold" style={{ color: CHARCOAL }}>{value}</div>
+    </div>
+  );
+}
+
 function GPUSizingCalculatorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
 
@@ -812,7 +881,7 @@ function GPUSizingCalculatorInner() {
   const [mfu, setMfu] = useState(saved?.mfu ?? 0.4);
   const [trainGpuOverride, setTrainGpuOverride] = useState(saved?.trainGpuOverride ?? "Auto-recommend");
 
-  const [view, setView] = useState("calc");
+  const [view, setView] = useState("calc"); // calc | report | audit
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
 
@@ -994,6 +1063,13 @@ function GPUSizingCalculatorInner() {
               Print / Save as PDF
             </button>
             <button
+              onClick={() => setView("audit")}
+              className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300"
+              style={{ color: CHARCOAL }}
+            >
+              Calculation Methodology &amp; Audit Trail
+            </button>
+            <button
               onClick={() => setView("calc")}
               className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600"
             >
@@ -1092,6 +1168,227 @@ function GPUSizingCalculatorInner() {
               <div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div>
             </div>
             <div className="text-xs text-gray-500 text-right">Next step: bring your actual<br />workload data for a validated sizing</div>
+          </div>
+        </div>
+      )}
+
+      {view === "audit" && result && (
+        <div className="max-w-3xl mx-auto px-6 py-10">
+          <div className="no-print flex gap-2 mb-6">
+            <button
+              onClick={() => window.print()}
+              className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white"
+              style={{ background: CHARCOAL }}
+            >
+              Print / Save as PDF
+            </button>
+            <button
+              onClick={() => setView("report")}
+              className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600"
+            >
+              Back to report
+            </button>
+          </div>
+
+          <div className="flex items-center gap-3 mb-2">
+            <img src={cdwLogo} alt="CDW" className="h-8 w-auto" />
+            <div className="text-xs font-bold tracking-widest text-gray-500 uppercase">AI Factory &middot; Calculation Methodology &amp; Audit Trail</div>
+          </div>
+          <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>
+            Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}
+          </div>
+          <div className="text-xs text-gray-500 mb-1">{new Date().toLocaleDateString()} &middot; Reproducible derivation of the material calculations supporting the {mode} sizing result shown in the main report</div>
+          <div className="text-xs text-gray-500 mb-6 italic">
+            This document formats and explains the same calculation the main report already ran -- it does not run a separate or independent calculation. Every figure below traces to the same engine output shown on screen.
+          </div>
+
+          {/* SECTION 1: SCENARIO OVERVIEW */}
+          <div className="text-xs uppercase tracking-wide mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>1. Scenario Overview</div>
+          <AuditRow label="Model" value={modelLabel} />
+          <AuditRow label="Mode" value={mode} />
+          {mode === "Inference" ? (
+            <>
+              <AuditRow label="Quantization" value={quant} />
+              <AuditRow label="Peak concurrent users" value={concurrentUsers.toLocaleString()} />
+              <AuditRow label="Target tokens/sec per user" value={targetTokPerUser} />
+              <AuditRow label="Environment" value={environment} />
+              <AuditRow label="Avg input / output tokens" value={`${avgInputTokens.toLocaleString()} / ${avgOutputTokens.toLocaleString()}`} />
+              <AuditRow label="KV cache precision" value={`${kvBytesPerElement} bytes/element`} />
+              <AuditRow label="Runtime/activation overhead" value={`${Math.round(overheadPct * 100)}%`} />
+              <AuditRow label="GPU class" value={infGpuOverride} />
+            </>
+          ) : (
+            <>
+              <AuditRow label="Task type" value={taskType} />
+              <AuditRow label="Precision" value={precision} />
+              <AuditRow label="Dataset size" value={`${datasetTokensB}B tokens`} />
+              <AuditRow label="Target time to train" value={`${targetDays} days`} />
+              <AuditRow label="MFU" value={`${Math.round(mfu * 100)}%`} />
+              <AuditRow label="GPU class" value={trainGpuOverride} />
+            </>
+          )}
+          <div className="text-xs mt-3 mb-4 rounded-lg p-3 bg-gray-50" style={{ color: CHARCOAL }}>
+            <b>Key assumptions worth stress-testing:</b> {mode === "Inference" ? "peak concurrent users, target tokens/sec per user, and average token lengths, since all three directly drive the memory and throughput requirement below" : "dataset size, target time to train, and MFU, since a small MFU change moves the achievable FLOPs/sec directly"}.
+          </div>
+
+          {/* SECTION 2: TECHNICAL REQUIREMENT */}
+          {mode === "Inference" ? (() => {
+            const selected = result.candidates.find((c) => c.id === result.selectedClass);
+            const boundBy = selected.gpusMem >= selected.gpusPerf ? "memory" : "throughput";
+            return (
+              <>
+                <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>2. How the Technical Requirement Was Calculated</div>
+                <AuditFormula
+                  label="Model weight memory"
+                  formula="weightMemoryGB = totalParamsB × bytesPerParam(quant)"
+                  substituted={`= model params × ${quant} quantization`}
+                  result={`${result.totalMemoryGB > 0 ? "included below" : "—"}`}
+                />
+                <AuditFormula
+                  label="Total memory required (weights + KV cache + overhead)"
+                  formula="totalMemoryGB = weightMemoryGB + kvCacheTotalGB + (weightMemoryGB + kvCacheTotalGB) × overhead%"
+                  substituted={`KV cache scales with concurrent users (${concurrentUsers.toLocaleString()}) and avg tokens/session (${(avgInputTokens + avgOutputTokens).toLocaleString()})`}
+                  result={`${result.totalMemoryGB.toFixed(1)} GB`}
+                />
+                <AuditFormula
+                  label="Total throughput required"
+                  formula="totalThroughputNeeded = concurrentUsers × targetTokPerUser"
+                  substituted={`= ${concurrentUsers.toLocaleString()} × ${targetTokPerUser}`}
+                  result={`${result.totalThroughputNeeded.toLocaleString()} tok/s`}
+                />
+                <AuditFormula
+                  label={`GPUs needed, memory-bound (${result.selectedClass})`}
+                  formula="gpusMem = CEILING(totalMemoryGB ÷ vramPerGPU)"
+                  substituted={`= CEILING(${result.totalMemoryGB.toFixed(1)} ÷ vram)`}
+                  result={`${selected.gpusMem} GPUs`}
+                />
+                <AuditFormula
+                  label={`GPUs needed, performance-bound (${result.selectedClass})`}
+                  formula="gpusPerf = CEILING(totalThroughputNeeded ÷ anchorTokPerSec)"
+                  substituted={`= CEILING(${result.totalThroughputNeeded.toLocaleString()} ÷ anchor)`}
+                  result={`${selected.gpusPerf} GPUs`}
+                />
+                <div className="text-xs text-gray-500 mb-4">
+                  Minimum technical requirement = MAX(memory-bound, performance-bound) = <b style={{ color: CHARCOAL }}>{result.minTechnical} GPUs</b>, {boundBy === "memory" ? "bound by memory" : "bound by throughput"} at this scale.
+                </div>
+              </>
+            );
+          })() : (() => {
+            const selected = result.candidates.find((c) => c.id === result.selectedClass);
+            const boundBy = selected.gpusFit >= selected.gpusTime ? "fitting the model in memory" : "hitting the time target";
+            return (
+              <>
+                <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>2. How the Technical Requirement Was Calculated</div>
+                <AuditFormula
+                  label="Training memory required"
+                  formula="trainingMemoryGB = totalParamsB × bytesPerParam(precision) × multiplier"
+                  substituted={`multiplier is task-type-dependent (${taskType})`}
+                  result={`${result.trainingMemoryGB.toFixed(1)} GB`}
+                />
+                <AuditFormula
+                  label="Total training compute required"
+                  formula="flopsRequired = 6 × totalParamsB × datasetTokensB × 1e18"
+                  substituted={`standard 6ND FLOPs-per-token approximation, dataset = ${datasetTokensB}B tokens`}
+                  result={`${result.flopsRequired.toExponential(2)} FLOPs`}
+                />
+                <AuditFormula
+                  label={`GPUs needed to fit the model (${result.selectedClass})`}
+                  formula="gpusFit = CEILING(trainingMemoryGB ÷ vramPerGPU)"
+                  substituted={`= CEILING(${result.trainingMemoryGB.toFixed(1)} ÷ vram)`}
+                  result={`${selected.gpusFit} GPUs`}
+                />
+                <AuditFormula
+                  label={`GPUs needed to hit the time target (${result.selectedClass})`}
+                  formula="gpusTime = CEILING(flopsRequired ÷ (peakTFLOPS × 1e12 × MFU × targetSeconds))"
+                  substituted={`target = ${targetDays} days at ${Math.round(mfu * 100)}% MFU`}
+                  result={`${selected.gpusTime} GPUs`}
+                />
+                <div className="text-xs text-gray-500 mb-4">
+                  Minimum technical requirement = MAX(fit, time) = <b style={{ color: CHARCOAL }}>{result.minTechnical} GPUs</b>, bound by {boundBy} at this scale.
+                </div>
+              </>
+            );
+          })()}
+
+          {/* SECTION 3: NODE ROUNDING, BUDGET & ALTERNATIVES */}
+          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. Node Rounding, Budget &amp; Alternatives</div>
+          <AuditFormula
+            label="Recommended (node-rounded) configuration"
+            formula="recommended = CEILING(minTechnical ÷ nodeSize) × nodeSize"
+            substituted={`= CEILING(${result.minTechnical} ÷ ${result.selectedNodeSize}) × ${result.selectedNodeSize}`}
+            result={`${result.recommended} × ${result.selectedClass}`}
+          />
+          <AuditFormula
+            label="Estimated budget"
+            formula="budget = recommended × loadedCostPerGPU"
+            substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`}
+            result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : "—"}
+          />
+          <div className="text-xs text-gray-500 mb-2 mt-2">
+            <b>Lower-cost alternative:</b> {result.lowerCost.class ? `${result.lowerCost.class}, the cheapest other class in the catalog that is genuinely cheaper as a deployed (node-rounded) solution than the recommendation -- not simply the class with the lowest per-GPU price.` : "none -- the recommendation is already the cheapest deployed option in the current catalog."}
+          </div>
+          <div className="text-xs text-gray-500 mb-4">
+            <b>Higher-growth alternative:</b> {result.higherGrowth.class ? `${result.higherGrowth.class}, the other class with genuinely more real capability (${mode === "Inference" ? "throughput anchor" : "training FLOPS at your selected precision"}) than the recommendation.` : "none -- the recommendation is already the most capable class in the current catalog for this metric."}
+          </div>
+
+          {/* SECTION 4: RECONCILIATION */}
+          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>4. Reconciliation</div>
+          <div className="text-xs text-gray-500 mb-3">Each check below redoes the arithmetic from already-shown intermediate values and compares the result to the engine's own field for that formula -- not the same number read twice.</div>
+          {(() => {
+            const selected = result.candidates.find((c) => c.id === result.selectedClass);
+            const minTechCalc = mode === "Inference" ? Math.max(selected.gpusMem, selected.gpusPerf) : Math.max(selected.gpusFit, selected.gpusTime);
+            const recommendedCalc = Math.ceil(result.minTechnical / result.selectedNodeSize) * result.selectedNodeSize;
+            const unitPrice = GPU_PRICE_USD[result.selectedClass]?.amount ?? null;
+            const budgetCalc = unitPrice != null ? result.recommended * unitPrice : null;
+            return (
+              <>
+                <ReconCheck
+                  label="Minimum technical requirement"
+                  parts={mode === "Inference" ? [
+                    { label: "Memory-bound GPUs", value: selected.gpusMem.toLocaleString() },
+                    { label: "Performance-bound GPUs", value: selected.gpusPerf.toLocaleString() },
+                  ] : [
+                    { label: "GPUs to fit the model", value: selected.gpusFit.toLocaleString() },
+                    { label: "GPUs to hit the time target", value: selected.gpusTime.toLocaleString() },
+                  ]}
+                  calculated={minTechCalc}
+                  engineValue={result.minTechnical}
+                  format="count"
+                />
+                <ReconCheck
+                  label="Recommended (node-rounded) count"
+                  parts={[
+                    { label: "Minimum technical requirement", value: result.minTechnical.toLocaleString() },
+                    { label: `Node size (${result.selectedClass})`, value: result.selectedNodeSize.toLocaleString() },
+                  ]}
+                  calculated={recommendedCalc}
+                  engineValue={result.recommended}
+                  format="count"
+                />
+                <ReconCheck
+                  label="Estimated budget"
+                  parts={[
+                    { label: "Recommended GPU count", value: result.recommended.toLocaleString() },
+                    { label: `Catalog price per GPU (${result.selectedClass})`, value: unitPrice != null ? fmtUsdPrecise(unitPrice) : "—" },
+                  ]}
+                  calculated={budgetCalc}
+                  engineValue={result.budget.recommended ? result.budget.recommended.amount : null}
+                  format="currency"
+                />
+              </>
+            );
+          })()}
+
+          <div className="text-[11px] text-gray-500 mt-4 leading-relaxed">
+            All figures on this page are directional planning estimates derived from the inputs shown above, using the same calculation the main report already ran. This is a directional sizing estimate, not a final bill of materials -- confirm with a CDW AI Factory specialist before purchasing.
+          </div>
+
+          <div className="border-t-2 pt-4 mt-4 flex justify-between" style={{ borderColor: CHARCOAL }}>
+            <div>
+              <div className="text-sm font-bold" style={{ color: CHARCOAL }}>Jay B. Carlile</div>
+              <div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div>
+            </div>
+            <div className="text-xs text-gray-500 text-right">Questions about this derivation?<br />Bring your actual workload data for a validated pass</div>
           </div>
         </div>
       )}
