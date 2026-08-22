@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, Fragment } from "react";
 import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
@@ -1351,11 +1351,11 @@ function AppInner() {
               <div style={{ fontWeight: 700, color: C.sub }}>Cumulative cloud</div>
               <div style={{ fontWeight: 700, color: C.sub }}>Cumulative on-prem</div>
               {r.cumulativeByYear.slice(0, Math.max(horizon, 1)).map((p) => (
-                <React.Fragment key={p.year}>
+                <Fragment key={p.year}>
                   <div>Year {p.year}</div>
                   <div style={mono}>{fmt(p.cloud)}</div>
                   <div style={mono}>{fmt(p.onPrem)}</div>
-                </React.Fragment>
+                </Fragment>
               ))}
             </div>
             <div style={{ fontSize: 11, color: C.sub, marginBottom: 14 }}>
