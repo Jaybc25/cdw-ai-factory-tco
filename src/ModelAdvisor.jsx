@@ -730,7 +730,7 @@ function ModelAdvisorInner() {
                       <b style={{ color: CHARCOAL }}>Best Overall Fit:</b> your optimization priority ({labelFor(OPTIMIZATION_OPTIONS, optimizationPriority)}) maps this slot to the same decision as {basis}
                       {!card.badges.includes(basis) && basis === "Balanced (within half the quality margin)" && (() => {
                         const pool = [...result.ranking.balancedQualified].sort((a, b) => a.param_count_billion - b.param_count_billion);
-                        return pool.length ? <> -- {card.model.param_count_billion}B params, smallest among {pool.length} model{pool.length === 1 ? "" : "s"} within half the quality margin.</> : ".";
+                        return pool.length ? <> -- {card.model.param_count_billion}B params, smallest among {pool.length} model{pool.length === 1 ? "" : "s"} within half the quality margin</> : "";
                       })()}.
                     </div>
                   );
