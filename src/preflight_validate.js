@@ -107,7 +107,7 @@ if (tools.readiness && tools.readiness.included) {
 // ---------- the "field doesn't match its label" bug class from
 // AiFactoryClientSummaryInstructions.md's Data Integrity Notes ----------
 // Heuristic only -- flags for human review, never auto-corrects.
-// Mirrors generate_client_summary_full_v2.js's FIELD_FORMAT map -- a field
+// Mirrors generate_client_summary_full.js's FIELD_FORMAT map -- a field
 // listed here is safely curated and exempt from the percent-magnitude
 // warning below, since fmtValue's curated branch handles it correctly
 // regardless of magnitude. Keep this in sync if FIELD_FORMAT changes.

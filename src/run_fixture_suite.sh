@@ -8,7 +8,7 @@
 # patterns ([object Object], undefined, NaN, a stray literal "null"). Exits
 # non-zero if any fixture fails to generate or any content issue is found.
 #
-# Re-run this after any change to generate_client_summary_full_v2.js to
+# Re-run this after any change to generate_client_summary_full.js to
 # catch a regression before it reaches a real client deck.
 
 set -e
@@ -32,7 +32,7 @@ echo "=== Generation ==="
 for f in fixture-*.json client-data-*.json; do
   [ -f "$f" ] || continue
   out="$OUT_DIR/${f%.json}.pptx"
-  if ! node generate_client_summary_full_v2.js "$f" "$out" > "$OUT_DIR/${f%.json}.gen.log" 2>&1; then
+  if ! node generate_client_summary_full.js "$f" "$out" > "$OUT_DIR/${f%.json}.gen.log" 2>&1; then
     echo "GENERATION FAILED: $f (see $OUT_DIR/${f%.json}.gen.log)"
     FAIL=1
   fi
