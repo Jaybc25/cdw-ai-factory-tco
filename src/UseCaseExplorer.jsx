@@ -4,6 +4,7 @@ import blueprintData from "./blueprints.json";
 import crosswalkData from "./ModelAdvisorCrosswalk.json";
 import { AuthProvider } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
+import { loadSessionState, saveSessionState } from "./sessionState.js";
 
 // ─── cross-tool handoff: build param-carrying URLs from the crosswalk ────────
 // Maps a crosswalk umbrella label to the exact `value` string Model Advisor's
@@ -684,13 +685,59 @@ function DetailModal({ bp, contextLabel, contextDisplayName, contextFit, trigger
 // ─── main component ────────────────────────────────────────────────────────────
 
 function UseCaseExplorerInner() {
-  const [view, setView] = useState("home");
-  const [selectedIndustry, setSelectedIndustry] = useState(null);
-  const [selectedFunction, setSelectedFunction] = useState(null);
-  const [activeCategory, setActiveCategory] = useState("All");
+  const saved = loadSessionState("use-case-explorer");
+
+  // Re-look-up by id rather than storing the whole object, so a renamed or
+  // removed industry/function in a future catalog update degrades safely
+  // (lookup just returns undefined) instead of restoring a stale, mismatched
+  // object.
+  const savedIndustry = saved?.selectedIndustryId ? INDUSTRIES.find((i) => i.id === saved.selectedIndustryId) : null;
+  const savedFunction = saved?.selectedFunctionId ? BUSINESS_FUNCTIONS.find((f) => f.id === saved.selectedFunctionId) : null;
+
+  // A *-results view only gets restored if its paired selection actually
+  // resolved. A stale id degrades to that track's picker screen (still
+  // meaningful -- they were looking at industries, not functions) rather
+  // than a results view with nothing selected, or losing the context
+  // entirely by dumping back to home.
+  function resolveInitialView() {
+    if (saved?.view === "industry-results" && savedIndustry) return "industry-results";
+    if (saved?.view === "industry-results") return "industry-pick";
+    if (saved?.view === "function-results" && savedFunction) return "function-results";
+    if (saved?.view === "function-results") return "function-pick";
+    if (saved?.view === "industry-pick" || saved?.view === "function-pick") return saved.view;
+    return "home";
+  }
+
+  const [view, setView] = useState(resolveInitialView);
+  const [selectedIndustry, setSelectedIndustry] = useState(view === "industry-results" ? savedIndustry : null);
+  const [selectedFunction, setSelectedFunction] = useState(view === "function-results" ? savedFunction : null);
+
+  // Same catalog-drift philosophy as the industry/function id restoration
+  // above: a saved category is only honored if it's still actually present
+  // among the blueprints the restored track resolves to. Otherwise a
+  // renamed/removed category, or the restored industry simply no longer
+  // having any blueprints in that category, would silently produce a
+  // results screen with zero matches instead of falling back to "All".
+  const restorationBlueprints = view === "industry-results" ? getBlueprintsForIndustry(savedIndustry?.id)
+    : view === "function-results" ? getBlueprintsForFunction(savedFunction?.id)
+    : [];
+  const savedCategoryStillValid = !saved?.activeCategory || saved.activeCategory === "All"
+    || restorationBlueprints.some((bp) => bp.use_case_category === saved.activeCategory);
+  const [activeCategory, setActiveCategory] = useState(savedCategoryStillValid ? saved?.activeCategory ?? "All" : "All");
   const [modalBp, setModalBp] = useState(null);
   const [modalTrigger, setModalTrigger] = useState(null);
   const [sectionsOpen, setSectionsOpen] = useState({});
+
+  // Persist only genuinely user-authored working state -- which track and
+  // selection they're on, and the category filter. Deliberately excluded:
+  // modalBp/modalTrigger (transient UI -- a modal shouldn't auto-reopen on
+  // return, and a DOM ref isn't serializable anyway) and sectionsOpen
+  // (expansion UI that doesn't carry meaning worth restoring).
+  useEffect(() => {
+    saveSessionState("use-case-explorer", {
+      view, selectedIndustryId: selectedIndustry?.id ?? null, selectedFunctionId: selectedFunction?.id ?? null, activeCategory,
+    });
+  }, [view, selectedIndustry, selectedFunction, activeCategory]);
 
   const industryBlueprints = selectedIndustry ? getBlueprintsForIndustry(selectedIndustry.id) : [];
   const functionBlueprints = selectedFunction ? getBlueprintsForFunction(selectedFunction.id) : [];
