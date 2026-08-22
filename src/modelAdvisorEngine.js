@@ -184,8 +184,13 @@ export function rankModels(eligible, metric, qualityPriority) {
   const tier1 = tieBreakSort(eligible.filter((m) => m[metric] != null)).sort((a, b) => (b[metric] ?? 0) - (a[metric] ?? 0));
   const tier2 = eligible.filter((m) => m[metric] == null);
 
-  const bestPerformance = tier1[0] || (tieBreakSort(tier2).sort((a, b) => (b.intelligence_index ?? 0) - (a.intelligence_index ?? 0))[0] || null);
+  // Kept as its own named list (not just the [0] winner) so the fallback
+  // path can show a real runner-up and the real score that actually won
+  // the slot -- both were previously undiscoverable once only [0] survived.
+  const tier2ByIntelligence = tieBreakSort(tier2).sort((a, b) => (b.intelligence_index ?? 0) - (a.intelligence_index ?? 0));
+  const bestPerformance = tier1[0] || tier2ByIntelligence[0] || null;
   const bestPerformanceIsFallback = tier1.length === 0 && !!bestPerformance;
+  const bestPerformanceFallbackPool = bestPerformanceIsFallback ? tier2ByIntelligence : [];
 
   const margins = MARGINS[metric];
   const fullMargin = margins[qualityPriority];
@@ -254,7 +259,7 @@ export function rankModels(eligible, metric, qualityPriority) {
   }
 
   return {
-    tier1, tier2, bestPerformance, bestPerformanceIsFallback,
+    tier1, tier2, bestPerformance, bestPerformanceIsFallback, bestPerformanceFallbackPool,
     efficiency, balanced, metric, fullMargin, halfMargin, restarted,
     sizeSlotMetric, sizeSlotFullMargin, sizeSlotHalfMargin, sizeSlotTopScore,
     efficiencyQualified, balancedQualified,
@@ -267,6 +272,7 @@ export function rankModels(eligible, metric, qualityPriority) {
 // ---------------------------------------------------------------------------
 export function explainCard(card, ranking, inputs) {
   const metricLabel = METRIC_LABELS[ranking.metric];
+  const sizeSlotMetricLabel = METRIC_LABELS[ranking.sizeSlotMetric]; // efficiency/balanced use this -- may differ from metricLabel when the zero-Tier-1 restart fired
   const model = card.model;
   const isFallback = ranking.bestPerformanceIsFallback && card.badges.includes("Best Performance");
   const lines = [];
@@ -279,10 +285,10 @@ export function explainCard(card, ranking, inputs) {
     }
   }
   if (card.badges.includes("Most Efficient Qualifying Model")) {
-    lines.push(`Smallest model (${model.param_count_billion}B parameters) maintaining ${metricLabel} within your ${inputs.qualityPriority} tolerance of the top eligible model.`);
+    lines.push(`Smallest model (${model.param_count_billion}B parameters) maintaining ${sizeSlotMetricLabel} within your ${inputs.qualityPriority} tolerance of the top eligible model.`);
   }
   if (card.badges.includes("Best Overall Fit") && !card.badges.includes("Best Performance") && !card.badges.includes("Most Efficient Qualifying Model")) {
-    lines.push(`Smallest model within half your ${inputs.qualityPriority} tolerance of the top ${metricLabel} score -- a balanced pick between capability and size.`);
+    lines.push(`Smallest model within half your ${inputs.qualityPriority} tolerance of the top ${sizeSlotMetricLabel} score -- a balanced pick between capability and size.`);
   }
   return lines.join(" ");
 }
@@ -314,6 +320,17 @@ export function buildRecommendations(catalog, inputs) {
   const filtered = applyHardFilters(catalog, inputs);
   const eligible = filtered.filter((m) => m.filterState === "PASS");
   const verificationPool = filtered.filter((m) => m.filterState === "REQUIRES_VERIFICATION");
+  const excludedModels = filtered.filter((m) => m.filterState === "FAIL");
+
+  // A model can fail more than one check at once, so these counts are
+  // independent tallies per dimension, not a partition of excludedModels.
+  const exclusionCounts = { license: 0, governance: 0, context: 0, modality: 0 };
+  excludedModels.forEach((m) => {
+    if (m.filterDetails.licenseState === "FAIL") exclusionCounts.license++;
+    if (m.filterDetails.govState === "FAIL") exclusionCounts.governance++;
+    if (m.filterDetails.contextState === "FAIL") exclusionCounts.context++;
+    if (m.filterDetails.modalityState === "FAIL") exclusionCounts.modality++;
+  });
 
   const metric = selectMetric(inputs.primaryWorkload);
   const ranking = rankModels(eligible, metric, inputs.qualityPriority);
@@ -370,5 +387,6 @@ export function buildRecommendations(catalog, inputs) {
     cards, otherEligible, verificationCandidates, metric, ranking,
     eligibleCount: eligible.length, totalCount: catalog.length,
     verificationCount: verificationPool.length,
+    eligibilityTrace: { allModels: filtered, excludedModels, exclusionCounts },
   };
 }

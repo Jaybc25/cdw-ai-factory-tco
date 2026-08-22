@@ -5,7 +5,7 @@ import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import {
   getCatalog, CATALOG_META, buildRecommendations, explainCard, explainVerificationCandidate, explainOtherEligible,
-  applyHardFilters, METRIC_LABELS,
+  METRIC_LABELS,
 } from "./modelAdvisorEngine.js";
 
 const RED = "#CC0000";
@@ -597,25 +597,15 @@ function ModelAdvisorInner() {
           <DecisionRow label="Multimodal need" value={labelFor(MULTIMODAL_OPTIONS, multimodal)} />
           <DecisionRow label="License requirement" value={labelFor(LICENSE_OPTIONS, license)} />
           <DecisionRow label="Governance / origin" value={labelFor(GOVERNANCE_OPTIONS, governance)} />
-          <DecisionRow label="Data sensitivity" value={labelFor(SENSITIVITY_OPTIONS, dataSensitivity)} />
+          <DecisionRow label="Data sensitivity" value={labelFor(SENSITIVITY_OPTIONS, dataSensitivity)} sub="Informational only -- does not affect ranking or eligibility; only used to prompt a governance nudge in the UI" />
 
           {/* SECTION 2: ELIGIBILITY GATE */}
           {(() => {
-            // Re-calls the real, already-exported applyHardFilters with the
-            // same catalog and inputs already used for the recommendation --
-            // not a re-derivation, the literal same deterministic function,
-            // just called once more to see the full FAIL-inclusive list it
-            // already computes and (in the main flow) discards after PASS
-            // filtering.
-            const fullList = applyHardFilters(catalog, inputs);
-            const failedModels = fullList.filter((m) => m.filterState === "FAIL");
-            const tally = { license: 0, governance: 0, context: 0, modality: 0 };
-            failedModels.forEach((m) => {
-              if (m.filterDetails.licenseState === "FAIL") tally.license++;
-              if (m.filterDetails.govState === "FAIL") tally.governance++;
-              if (m.filterDetails.contextState === "FAIL") tally.context++;
-              if (m.filterDetails.modalityState === "FAIL") tally.modality++;
-            });
+            // Reads eligibilityTrace, computed once inside buildRecommendations --
+            // no second execution of the filter logic.
+            const fullList = result.eligibilityTrace.allModels;
+            const failedModels = result.eligibilityTrace.excludedModels;
+            const tally = result.eligibilityTrace.exclusionCounts;
             const topModel = result.cards[0]?.model;
             const topDetails = topModel ? fullList.find((m) => m.canonical_model_id === topModel.canonical_model_id)?.filterDetails : null;
             return (
@@ -706,6 +696,15 @@ function ModelAdvisorInner() {
               <div className="text-sm font-bold mb-1" style={{ color: CHARCOAL }}>{card.model.canonical_model_id}</div>
               {card.badges.map((badge) => {
                 if (badge === "Best Performance") {
+                  if (result.ranking.bestPerformanceIsFallback) {
+                    const runnerUp = result.ranking.bestPerformanceFallbackPool[1];
+                    return (
+                      <div key={badge} className="text-xs text-gray-500 mb-2">
+                        <b style={{ color: CHARCOAL }}>Best Performance (fallback):</b> no eligible model had a {METRIC_LABELS[result.metric]} score, so this slot was decided by overall capability instead. {card.model.intelligence_index} {METRIC_LABELS.intelligence_index}
+                        {runnerUp ? <>, ahead of the next-highest eligible model ({runnerUp.canonical_model_id}, {runnerUp.intelligence_index}) by {(card.model.intelligence_index - runnerUp.intelligence_index).toFixed(1)} points.</> : ", the only eligible model with any capability score."}
+                      </div>
+                    );
+                  }
                   const runnerUp = result.ranking.tier1[1];
                   return (
                     <div key={badge} className="text-xs text-gray-500 mb-2">
@@ -745,15 +744,31 @@ function ModelAdvisorInner() {
           {result.otherEligible.length > 0 && (
             <>
               <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>5. Why Not the Alternatives</div>
+              {result.ranking.restarted && (
+                <div className="text-[11px] text-gray-500 mb-2 italic">Size-based eligibility below uses {METRIC_LABELS[result.ranking.sizeSlotMetric]} (the restarted decision metric), not {METRIC_LABELS[result.metric]}.</div>
+              )}
               {result.otherEligible.map((m) => {
-                const score = m[result.metric];
+                const decisionMetric = result.ranking.sizeSlotMetric;
+                const score = m[decisionMetric];
                 const inEfficiencyPool = result.ranking.efficiencyQualified.some((e) => e.canonical_model_id === m.canonical_model_id);
                 const threshold = result.ranking.sizeSlotTopScore != null ? result.ranking.sizeSlotTopScore - result.ranking.sizeSlotFullMargin : null;
                 let reason;
                 if (score == null) {
-                  reason = `No ${METRIC_LABELS[result.metric]} score on record -- not in Tier 1, so not eligible for any size-based slot regardless of size.`;
+                  reason = `No ${METRIC_LABELS[decisionMetric]} score on record -- not eligible for any size-based slot regardless of size.`;
                 } else if (inEfficiencyPool) {
                   reason = `Scored ${score} (within the quality margin, threshold ${threshold?.toFixed(1)}), but ${m.param_count_billion}B is not the smallest qualifying model, so it lost the Efficiency slot on size.`;
+                } else if (m.param_count_billion == null) {
+                  // Unknown parameter count excludes a model from the size pools
+                  // regardless of its score -- must not be reported as a score
+                  // shortfall when the score actually clears the threshold.
+                  const clearsThreshold = threshold != null && score >= threshold;
+                  if (clearsThreshold) {
+                    reason = `Scored ${score}, which clears the ${threshold.toFixed(1)} capability threshold, but parameter count is unverified. Size-based slots require a known parameter count, so this model could not compete for the Efficiency selection.`;
+                  } else if (threshold != null) {
+                    reason = `Scored ${score}, below the ${threshold.toFixed(1)} qualifying threshold (${(threshold - score).toFixed(1)} points short), and parameter count is also unverified -- either reason alone would exclude it from a size-based slot.`;
+                  } else {
+                    reason = `Parameter count is unverified, so this model could not compete for a size-based slot.`;
+                  }
                 } else if (threshold != null) {
                   reason = `Scored ${score}, below the ${threshold.toFixed(1)} qualifying threshold for a size-based slot -- ${(threshold - score).toFixed(1)} points short.`;
                 } else {
