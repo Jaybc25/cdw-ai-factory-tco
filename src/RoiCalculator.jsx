@@ -377,16 +377,32 @@ function getIncomingParams() {
   return new URLSearchParams(window.location.search);
 }
 
+// Fix (Bug 2): a handoff param can be missing, garbage ("abc"), or an empty
+// string (?recurringCost= with nothing after the =). Empty string is a real
+// JS trap here: +"" === 0 and Number.isNaN(0) is false, so a naive
+// "!Number.isNaN(+raw)" check -- which existed independently in three
+// places below -- silently treated "the field was present but blank" as "a
+// real $0 value was handed off." That fake value then made arrivedFromTco
+// true and displayed a confident "prefilled from TCO" banner for a handoff
+// that never actually supplied anything valid. One shared helper, used
+// everywhere a handoff numeric param is read, so this can't drift out of
+// sync between call sites again.
+function parseHandoffNumber(raw) {
+  if (raw == null || raw === "") return null;
+  const n = +raw;
+  return Number.isFinite(n) ? n : null;
+}
+
 function getInitialInputs(savedInputs) {
   const params = getIncomingParams();
-  const initialCost = params?.get("initialCost");
-  const recurringCost = params?.get("recurringCost");
+  const initialCost = parseHandoffNumber(params?.get("initialCost"));
+  const recurringCost = parseHandoffNumber(params?.get("recurringCost"));
   const base = savedInputs ?? DEFAULT_INPUTS;
   if (initialCost == null && recurringCost == null) return base;
   return {
     ...base,
-    ...(initialCost != null && !Number.isNaN(+initialCost) ? { initialCost: +initialCost } : {}),
-    ...(recurringCost != null && !Number.isNaN(+recurringCost) ? { recurringCost: +recurringCost } : {}),
+    ...(initialCost != null ? { initialCost } : {}),
+    ...(recurringCost != null ? { recurringCost } : {}),
   };
 }
 
@@ -485,9 +501,18 @@ function RoiCalculatorInner() {
   // which made tcoProvenanceFor() below report "entered directly" for a
   // cost that was actually an untouched TCO handoff -- the Cost Source
   // mislabel. Falling back to saved state fixes both from the same change.
+  // Fix (Bug 2, continued): arrivedFromTco previously checked raw string
+  // truthiness (params?.get("initialCost") || ...), so a garbage value like
+  // initialCost=abc alone was enough to flip this true and show the
+  // provenance banner, even though "abc" never produces a usable number.
+  // Now it only goes true when at least one param actually parses to a
+  // real, finite number via parseHandoffNumber.
   const [arrivedFromTco] = useState(() => {
     const params = getIncomingParams();
-    return !!(params?.get("initialCost") || params?.get("recurringCost")) || !!saved?.arrivedFromTco;
+    const hasValidHandoff =
+      parseHandoffNumber(params?.get("initialCost")) != null ||
+      parseHandoffNumber(params?.get("recurringCost")) != null;
+    return hasValidHandoff || !!saved?.arrivedFromTco;
   });
   // The original values as handed off, captured once and never updated --
   // needed to tell "still exactly what TCO sent" apart from "arrived from
@@ -496,11 +521,9 @@ function RoiCalculatorInner() {
   // of later edits.
   const [tcoOriginalValues] = useState(() => {
     const params = getIncomingParams();
-    const ic = params?.get("initialCost");
-    const rc = params?.get("recurringCost");
     const fresh = {
-      initialCost: ic != null && !Number.isNaN(+ic) ? +ic : null,
-      recurringCost: rc != null && !Number.isNaN(+rc) ? +rc : null,
+      initialCost: parseHandoffNumber(params?.get("initialCost")),
+      recurringCost: parseHandoffNumber(params?.get("recurringCost")),
     };
     if (fresh.initialCost != null || fresh.recurringCost != null) return fresh;
     return saved?.tcoOriginalValues ?? fresh;
