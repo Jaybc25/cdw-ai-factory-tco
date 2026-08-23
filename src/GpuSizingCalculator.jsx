@@ -472,7 +472,6 @@ function SampleOutputPreview({ tokPerSec }) {
     return () => clearTimeout(id);
   }, [count, rate, words.length]);
 
-  const visibleText = words.slice(0, count).join(" ");
   const atEnd = count >= words.length;
 
   return (
@@ -484,14 +483,23 @@ function SampleOutputPreview({ tokPerSec }) {
           {rate > 0 ? `at ${rate} tok/s` : "set a rate above"}
         </span>
       </div>
-      <div className="text-sm leading-relaxed min-h-[4.5rem]" style={{ color: CHARCOAL }}>
-        {visibleText}
-        {rate > 0 && !atEnd && (
-          <span
-            className="inline-block w-[3px] h-4 ml-0.5 align-middle"
-            style={{ background: RED, animation: "sopBlink 1s step-start infinite" }}
-          />
-        )}
+      {/* Fix (Bug 9, validated): the full sample text is always rendered so the
+          box occupies its final wrapped height from the first frame -- words
+          are revealed via visibility rather than appended to the DOM, so
+          nothing below this component shifts as it "types". */}
+      <div className="text-sm leading-relaxed" style={{ color: CHARCOAL }}>
+        {words.map((w, i) => (
+          <React.Fragment key={i}>
+            <span style={{ visibility: i < count ? "visible" : "hidden" }}>{w}</span>
+            {i === count - 1 && rate > 0 && !atEnd && (
+              <span
+                className="inline-block w-[3px] h-4 ml-0.5 align-middle"
+                style={{ background: RED, animation: "sopBlink 1s step-start infinite" }}
+              />
+            )}
+            {i < words.length - 1 ? " " : null}
+          </React.Fragment>
+        ))}
       </div>
     </div>
   );
