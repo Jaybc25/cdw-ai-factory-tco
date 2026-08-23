@@ -847,7 +847,16 @@ function AuditRow({ label, value, sub }) {
 function GPUSizingCalculatorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
 
-  const [sourceUseCase] = useState(getInitialSourceUseCase);
+  // Loaded early so sourceUseCase (below) can fall back to it -- see the
+  // Fix comment on that line.
+  const saved = loadSessionState("gpu-sizing");
+
+  // Fix (Bug Group 1b): sourceUseCase previously read ONLY from the URL, so
+  // the "Arrived from Use Case Explorer" provenance banner vanished after
+  // Back/Forward or a hard refresh even though nothing it displays affects
+  // any calculation. Falling back to saved state keeps the banner alive for
+  // the rest of the session, matching how every other field here behaves.
+  const [sourceUseCase] = useState(() => getInitialSourceUseCase() ?? saved?.sourceUseCase ?? null);
   const [incomingWorkloadType] = useState(getInitialWorkloadType);
   const [incomingModelId] = useState(() => getIncomingParams()?.get("model") || null);
 
@@ -860,14 +869,12 @@ function GPUSizingCalculatorInner() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only, after initial param capture
 
-  // Saved session state always loads, regardless of an incoming handoff.
   // Field-level precedence, not all-or-nothing: only the specific fields a
-  // handoff actually carries (mode, infModel below) get overridden by it.
-  // Everything else -- concurrency, duty cycle, quant, custom model fields,
-  // training settings -- is never part of any handoff, so it should keep
-  // restoring from the last saved session even when a new model/workload
-  // arrives for the fields that ARE part of that handoff.
-  const saved = loadSessionState("gpu-sizing");
+  // handoff actually carries (mode, infModel, sourceUseCase above) get
+  // overridden by it. Everything else -- concurrency, duty cycle, quant,
+  // custom model fields, training settings -- is never part of any handoff,
+  // so it should keep restoring from the last saved session even when a new
+  // model/workload arrives for the fields that ARE part of that handoff.
 
   const [mode, setMode] = useState(() => ((sourceUseCase || incomingWorkloadType) ? getInitialMode() : saved?.mode ?? getInitialMode()));
   const [pathLevel, setPathLevel] = useState(saved?.pathLevel ?? "simple");
@@ -915,11 +922,14 @@ function GPUSizingCalculatorInner() {
       avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,
       customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
       trainModelId: trainModel.id, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,
+      // Fix (Bug Group 1b): persist the provenance banner's source too.
+      sourceUseCase,
     });
   }, [mode, pathLevel, infModel, quant, concurrentUsers, targetTokPerUser, environment,
       avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,
       customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
-      trainModel, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride]);
+      trainModel, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,
+      sourceUseCase]);
 
   const infInputs = {
     model: infModel,

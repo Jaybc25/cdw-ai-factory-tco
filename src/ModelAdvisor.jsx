@@ -301,7 +301,16 @@ function ModelAdvisorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const catalog = useMemo(() => getCatalog(), []);
 
-  const [sourceUseCase] = useState(getInitialSourceUseCase);
+  // Loaded early so sourceUseCase (below) can fall back to it -- see the
+  // Fix comment on that line.
+  const saved = loadSessionState("model-advisor");
+
+  // Fix (Bug Group 1b): sourceUseCase previously read ONLY from the URL, so
+  // the "Workloads pre-filled based on your Use Case Explorer selection"
+  // banner vanished after Back/Forward or a hard refresh even though
+  // nothing it displays affects any calculation. Falling back to saved
+  // state keeps the banner alive for the rest of the session.
+  const [sourceUseCase] = useState(() => getInitialSourceUseCase() ?? saved?.sourceUseCase ?? null);
 
   // Consume the handoff -- see TcoCalculator.jsx's identical fix for the
   // full rationale.
@@ -311,13 +320,12 @@ function ModelAdvisorInner() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only, after initial param capture
 
-  // Saved session state always loads, regardless of an incoming handoff.
   // Field-level precedence, not all-or-nothing: only checkedWorkloads/
-  // primaryWorkload (the fields a sourceUseCase handoff can actually carry)
-  // get overridden by it. Everything else -- quality priority, license,
-  // governance, etc. -- is never part of any handoff, so it should keep
-  // restoring from the last saved session even when a new use case arrives.
-  const saved = loadSessionState("model-advisor");
+  // primaryWorkload/sourceUseCase (the fields a sourceUseCase handoff can
+  // actually carry) get overridden by it. Everything else -- quality
+  // priority, license, governance, etc. -- is never part of any handoff, so
+  // it should keep restoring from the last saved session even when a new
+  // use case arrives.
 
   const [checkedWorkloads, setCheckedWorkloads] = useState(() => (
     sourceUseCase ? getInitialCheckedWorkloads() : saved?.checkedWorkloads ?? getInitialCheckedWorkloads()
@@ -347,9 +355,12 @@ function ModelAdvisorInner() {
     saveSessionState("model-advisor", {
       checkedWorkloads, primaryWorkload, qualityPriority, contextWindow, multimodal,
       reasoningIntensity, fineTuning, license, governance, dataSensitivity, optimizationPriority,
+      // Fix (Bug Group 1b): persist the provenance banner's source too.
+      sourceUseCase,
     });
   }, [checkedWorkloads, primaryWorkload, qualityPriority, contextWindow, multimodal,
-      reasoningIntensity, fineTuning, license, governance, dataSensitivity, optimizationPriority]);
+      reasoningIntensity, fineTuning, license, governance, dataSensitivity, optimizationPriority,
+      sourceUseCase]);
 
   function toggleWorkload(w) {
     setCheckedWorkloads((prev) => {

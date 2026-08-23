@@ -468,9 +468,26 @@ function tcoProvenanceFor(currentValue, originalValue) {
 function RoiCalculatorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
 
+  // Loaded early so the three handoff-provenance fields below can fall back
+  // to it. Field-level precedence, not all-or-nothing: getInitialInputs
+  // only overrides initialCost/recurringCost when a real TCO handoff
+  // carries them, merged onto this saved base -- every other input
+  // (workforce assumptions, ramp, horizon, etc.) was never part of any
+  // handoff, so it keeps restoring from the last saved session either way.
+  const saved = loadSessionState("roi");
+
+  // Fix (Bug Group 1b/1d): these three previously read ONLY from the URL,
+  // with no saved-state fallback. That caused two distinct symptoms after
+  // Back/Forward or a hard refresh: (1b) the "prefilled from TCO" banner
+  // disappeared even though inputs.initialCost/recurringCost themselves
+  // were still correct (they persist separately, inside `inputs`); (1d)
+  // tcoOriginalValues reset to {initialCost: null, recurringCost: null},
+  // which made tcoProvenanceFor() below report "entered directly" for a
+  // cost that was actually an untouched TCO handoff -- the Cost Source
+  // mislabel. Falling back to saved state fixes both from the same change.
   const [arrivedFromTco] = useState(() => {
     const params = getIncomingParams();
-    return !!(params?.get("initialCost") || params?.get("recurringCost"));
+    return !!(params?.get("initialCost") || params?.get("recurringCost")) || !!saved?.arrivedFromTco;
   });
   // The original values as handed off, captured once and never updated --
   // needed to tell "still exactly what TCO sent" apart from "arrived from
@@ -481,12 +498,14 @@ function RoiCalculatorInner() {
     const params = getIncomingParams();
     const ic = params?.get("initialCost");
     const rc = params?.get("recurringCost");
-    return {
+    const fresh = {
       initialCost: ic != null && !Number.isNaN(+ic) ? +ic : null,
       recurringCost: rc != null && !Number.isNaN(+rc) ? +rc : null,
     };
+    if (fresh.initialCost != null || fresh.recurringCost != null) return fresh;
+    return saved?.tcoOriginalValues ?? fresh;
   });
-  const [tcoPlanningBasis] = useState(getInitialPlanningBasis);
+  const [tcoPlanningBasis] = useState(() => getInitialPlanningBasis() ?? saved?.tcoPlanningBasis ?? null);
 
   // Consume the handoff -- see TcoCalculator.jsx's identical fix for the
   // full rationale. Runs once, after every lazy initializer above has
@@ -503,14 +522,6 @@ function RoiCalculatorInner() {
   // costSource, so none of the three can silently drift from the others.
   // Field-level, not one collapsed flag: only one of the two costs may have
   // been touched, and callers that need that distinction can see it.
-
-  // Saved session state always loads, regardless of an incoming handoff.
-  // Field-level precedence, not all-or-nothing: getInitialInputs only
-  // overrides initialCost/recurringCost when a real TCO handoff carries
-  // them, merged onto this saved base -- every other input (workforce
-  // assumptions, ramp, horizon, etc.) was never part of any handoff, so it
-  // keeps restoring from the last saved session either way.
-  const saved = loadSessionState("roi");
 
   const [inputs, setInputs] = useState(() => getInitialInputs(saved?.inputs));
   const [openTipId, setOpenTipId] = useState(null);
@@ -530,8 +541,14 @@ function RoiCalculatorInner() {
   // page load (every cross-tool link is a plain <a href>, not client-side
   // routing, so the whole page reloads and every component remounts fresh).
   useEffect(() => {
-    saveSessionState("roi", { inputs, showFte, showUpside });
-  }, [inputs, showFte, showUpside]);
+    saveSessionState("roi", {
+      inputs, showFte, showUpside,
+      // Fix (Bug Group 1b/1d): persist handoff provenance, not just the
+      // cost values themselves -- see the Fix comment above these three
+      // useState calls for the full explanation.
+      arrivedFromTco, tcoOriginalValues, tcoPlanningBasis,
+    });
+  }, [inputs, showFte, showUpside, arrivedFromTco, tcoOriginalValues, tcoPlanningBasis]);
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;

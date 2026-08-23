@@ -812,9 +812,27 @@ function AuditSourceRow({ label, value, source, basis, confidence, verified, est
 function AppInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const [arrivedFromGpuSizing] = useState(() => !!getIncomingParams()?.get("ownSys"));
-  const [gpuSizingCount] = useState(getInitialGpuCount);
-  const [sourceClass] = useState(getInitialSourceClass);
-  const [workingDayHours] = useState(getInitialWorkingDayHours);
+
+  // Loaded early (moved up from its original spot below arrivedFromGpuSizing)
+  // so the three handoff-derived fields right below can fall back to it.
+  // Field-level precedence, same pattern as ownSys/mode further down:
+  // an incoming URL value wins on a fresh handoff; otherwise restore
+  // whatever this tab last had, so the workload anchor survives
+  // Back/Forward, hard refresh, AND a bare-URL return trip (e.g. ROI's
+  // "<- Adjust TCO assumptions" link, which carries no params at all).
+  const saved = loadSessionState("tco");
+
+  // Fix (Bug Group 1a): previously these three read ONLY from the URL, with
+  // no saved-state fallback -- so once the handoff params were consumed
+  // (history.replaceState below, or simply never present on a bare-URL
+  // visit), gpuSizingCount fell back to null. That silently broke
+  // isWorkloadMode downstream (`mode === "workload" && !!gpuSizingCount`)
+  // even though `mode` itself was still correctly persisted as "workload",
+  // which is why the toggle/headline appeared to revert to spend mode
+  // while `mode` looked fine in isolation.
+  const [gpuSizingCount] = useState(() => getInitialGpuCount() ?? saved?.gpuSizingCount ?? null);
+  const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);
+  const [workingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);
 
   // Consume the handoff: by the time this effect runs, every lazy useState
   // initializer above has already read whatever it needed from the URL, so
@@ -829,14 +847,13 @@ function AppInner() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only, after initial param capture
 
-  // Saved session state always loads, regardless of an incoming handoff.
   // Field-level precedence, not all-or-nothing: only ownSys and mode below
-  // (the two fields a GPU Sizing handoff can actually specify) get
-  // overridden by it. Every other field -- bill, provider, storage,
+  // (plus gpuSizingCount/sourceClass/workingDayHours above) get overridden
+  // by an incoming handoff. Every other field -- bill, provider, storage,
   // performance factors, transition costs, etc. -- was never part of any
   // handoff, so it should always prefer saved state over resetting to
   // hardcoded defaults just because an unrelated handoff arrived.
-  const saved = loadSessionState("tco");
+  // (`saved` itself is loaded earlier now, above gpuSizingCount.)
 
   const [ownSys, setOwnSys] = useState(() => (arrivedFromGpuSizing ? getInitialOwnSys() : saved?.ownSys ?? getInitialOwnSys()));
   const [ov, setOv] = useState(saved?.ov ?? {});
@@ -881,11 +898,16 @@ function AppInner() {
       fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
       residPct, modelSize, quant,
+      // Fix (Bug Group 1a): these three previously weren't persisted at all,
+      // which is the actual root cause of the workload-anchor loss -- see
+      // the comment above their useState calls near the top of this
+      // component for the full explanation.
+      gpuSizingCount, sourceClass, workingDayHours,
     });
   }, [ov, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
       fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
-      residPct, modelSize, quant]);
+      residPct, modelSize, quant, gpuSizingCount, sourceClass, workingDayHours]);
 
   async function submitLead() {
     if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
