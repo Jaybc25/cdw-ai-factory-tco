@@ -799,7 +799,6 @@ function UseCaseExplorerInner() {
           <span style={{ fontSize: 10, fontWeight: 700, color: CDW_RED, letterSpacing: "0.12em", textTransform: "uppercase" }}>AI Factory Tools</span>
           <span style={{ fontSize: 17, fontWeight: 700, color: CDW_DARK, lineHeight: 1.2 }}>AI Use Case Explorer</span>
         </div>
-        <span style={{ marginLeft: "auto", fontSize: 10, color: "#999", fontWeight: 500, border: "1px solid #e0e0e0", borderRadius: 4, padding: "2px 8px" }}>v2.2</span>
       </div>
 
       <div style={{ background: "#fff", borderBottom: `1px solid ${CDW_BORDER}`, padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
