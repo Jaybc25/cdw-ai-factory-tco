@@ -1080,9 +1080,6 @@ function AppInner() {
               );
             })}
             {leadStatus && <div style={{ fontSize: 12, color: C.amber, marginBottom: 6 }}>{leadStatus}</div>}
-            <div style={{ fontSize: 10, color: C.sub, marginBottom: 10 }}>
-              Prototype note: in this demo, what you enter is saved only in your own browser — it is not sent to CDW and no one can retrieve it. Use demo data. The production site will submit securely to the CDW team.
-            </div>
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={submitLead} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 14, padding: "12px", borderRadius: 8, border: "none", cursor: "pointer", background: C.green, color: "#fff" }}>View my report</button>
               <button onClick={() => setView("calc")} style={{ ...disp, fontSize: 14, padding: "12px 14px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: C.panel, color: C.sub }}>Back</button>
