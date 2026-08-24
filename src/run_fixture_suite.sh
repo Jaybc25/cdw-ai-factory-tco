@@ -18,6 +18,33 @@ mkdir -p "$OUT_DIR"
 
 FAIL=0
 
+# Fix (Bug 3): without this, an empty fixture set produced a confusing wall
+# of output -- the preflight and generation loops below silently iterate
+# over nothing (their glob patterns never match, so "$f" would literally be
+# the unexpanded pattern string, and [ -f "$f" ] correctly skips it, but
+# neither loop says so), and the content-scan step happily reports "Clean --
+# no bad patterns found" over zero decks. The ONLY thing that eventually
+# caught "there's nothing here" was the fixture-specific assertions section
+# printing five separate "no deck found" lines -- true, but buried near the
+# bottom, and it stops being true protection at all the moment anyone edits
+# that hard-coded CHECKS list. Failing loudly and immediately, before any
+# other section runs, makes the actual problem the first and only thing
+# printed. nullglob (scoped locally, restored right after) is needed here
+# because without it, an array built from a non-matching glob contains the
+# literal unexpanded pattern string as a single element, not zero elements.
+shopt -s nullglob
+fixtures=(fixture-*.json client-data-*.json)
+shopt -u nullglob
+if [ "${#fixtures[@]}" -eq 0 ]; then
+  echo "ERROR: no fixture-*.json or client-data-*.json files found in $(pwd)."
+  echo "This suite has nothing to validate against and cannot meaningfully pass"
+  echo "or fail. Commit fixture files before running it, or run it from a"
+  echo "directory (or after a step) that actually supplies them."
+  exit 1
+fi
+echo "Found ${#fixtures[@]} fixture file(s)."
+echo ""
+
 echo "=== Preflight validation ==="
 for f in fixture-*.json client-data-*.json; do
   [ -f "$f" ] || continue
@@ -47,7 +74,22 @@ from pptx import Presentation
 out_dir = sys.argv[1]
 BAD_PATTERNS = ["[object Object]", "undefined", "NaN", "null", "N/A%"]
 issues = 0
-for path in sorted(glob.glob(os.path.join(out_dir, "*.pptx"))):
+decks = sorted(glob.glob(os.path.join(out_dir, "*.pptx")))
+# Fix (Bug 3, content-scan step specifically): this loop naturally does
+# nothing over an empty list, which is exactly how the earlier version fell
+# through to the "Clean" message below without ever having scanned a single
+# deck. That's the "half-passes its content scan on zero decks" case from
+# the bug report -- distinct from (and a backstop for) the top-level
+# fixture-count check above in the bash script, since this also covers the
+# narrower case where fixture files DID exist but every single one failed
+# to generate a .pptx (a real, different failure the generation loop above
+# already reports on its own -- this just stops the content-scan step from
+# separately claiming "Clean" over the same empty result).
+if not decks:
+    print(f"ERROR: no .pptx files found in {out_dir} to scan.")
+    print("Nothing was generated, so there is nothing here to call clean.")
+    sys.exit(1)
+for path in decks:
     try:
         prs = Presentation(path)
     except Exception as e:
@@ -67,7 +109,7 @@ if issues:
     print(f"\n{issues} content issue(s) found.")
     sys.exit(1)
 else:
-    print("Clean -- no bad patterns found in any generated deck.")
+    print(f"Clean -- no bad patterns found in {len(decks)} generated deck(s).")
 PYEOF
 then
   :
