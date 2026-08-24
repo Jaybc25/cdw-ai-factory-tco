@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, Fragment } from "react";
+import { useState, useMemo, useEffect, useId, Fragment } from "react";
 import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
@@ -428,17 +428,25 @@ const disp = { fontFamily: "'Inter', system-ui, sans-serif" };
 
 function Section({ title, children, defaultOpen = true, badge, badgeColor }) {
   const [open, setOpen] = useState(defaultOpen);
+  // Fix (Bug 6): the disclosure-button pattern (aria-expanded on the
+  // trigger, aria-controls pointing at the panel it reveals) already
+  // exists elsewhere in this codebase, notably Explorer's own collapsible
+  // sections -- this component was the one place that pattern didn't get
+  // applied, on all 8 of its instances. useId() gives each Section its own
+  // stable, unique panel id regardless of how many are rendered or whether
+  // any two happen to share the same title text.
+  const panelId = useId();
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, marginBottom: 12 }}>
-      <button onClick={() => setOpen(!open)}
+      <button onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={panelId}
         style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
           padding: "12px 14px", background: "none", border: "none", cursor: "pointer" }}>
         <span style={{ ...disp, fontWeight: 600, fontSize: 14, color: C.ink, letterSpacing: 0.2, textAlign: "left" }}>
           {title}{badge && <span style={{ ...mono, fontSize: 10, color: badgeColor || C.sub, marginLeft: 8, border: `1px solid ${badgeColor || C.line}`, borderRadius: 4, padding: "1px 5px" }}>{badge}</span>}
         </span>
-        <span style={{ color: C.sub, fontSize: 12 }}>{open ? "−" : "+"}</span>
+        <span style={{ color: C.sub, fontSize: 12 }} aria-hidden="true">{open ? "−" : "+"}</span>
       </button>
-      {open && <div style={{ padding: "2px 14px 14px" }}>{children}</div>}
+      {open && <div id={panelId} style={{ padding: "2px 14px 14px" }}>{children}</div>}
     </div>
   );
 }
@@ -993,7 +1001,17 @@ function AppInner() {
     onPremCost: t.onAdj,
     recommendedFleet: `${r.sysAdj} x ${ownSys}`,
     gpuSizingFleet: gpuSizingSystems ? `${gpuSizingSystems} x ${ownSys}` : null,
-    planningBasis: mode === "workload" ? "Workload Requirement" : "Existing Cloud Spend",
+    // Fix (Bug Group 1c): previously re-derived "is this workload mode"
+    // independently from raw `mode`, instead of reading r.isWorkloadMode --
+    // the same properly-gated flag every other row in this component reads
+    // (see line ~1096 for the pattern). Bug Group 1a's persistence fix
+    // already resolves the originally-reported repro (gpuSizingCount now
+    // restores correctly, so mode and r.isWorkloadMode agree again in that
+    // case), but this line was still a second, independent source of truth
+    // for the same fact -- if they ever disagreed for any other reason,
+    // the snapshot would silently mislabel itself regardless of the
+    // persistence fix. Reading r.isWorkloadMode directly closes that for good.
+    planningBasis: r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend",
     facility,
     capexPlusOneTime: r.adj.capex + r.oneTime,
     monthlyOpex: r.adj.opex,
@@ -1048,13 +1066,20 @@ function AppInner() {
             <div style={{ fontSize: 12, color: C.sub, marginBottom: 10 }}>
               The report includes the fleet build, full assumption ledger with sources, and the floor-case analysis. On the production site this will also be emailed to you as a PDF.
             </div>
-            {["name", "company", "email"].map((f) => (
-              <input key={f} placeholder={f === "name" ? "Full name" : f === "company" ? "Company" : "Work email"}
-                value={lead[f]} type={f === "email" ? "email" : "text"}
-                onChange={(e) => setLead({ ...lead, [f]: e.target.value })}
-                style={{ width: "100%", boxSizing: "border-box", fontSize: 14, padding: "11px 12px", marginBottom: 8,
-                  borderRadius: 8, border: "1px solid #D1D5DB", background: "#FFFFFF", color: C.ink }} />
-            ))}
+            {/* Fix (Bug 6, bonus, same as ROI's identical lead-gate pattern):
+                placeholder-only inputs aren't announced by screen readers as
+                labels. aria-label mirrors the existing placeholder text with
+                zero visual change. */}
+            {["name", "company", "email"].map((f) => {
+              const placeholderText = f === "name" ? "Full name" : f === "company" ? "Company" : "Work email";
+              return (
+                <input key={f} placeholder={placeholderText} aria-label={placeholderText}
+                  value={lead[f]} type={f === "email" ? "email" : "text"}
+                  onChange={(e) => setLead({ ...lead, [f]: e.target.value })}
+                  style={{ width: "100%", boxSizing: "border-box", fontSize: 14, padding: "11px 12px", marginBottom: 8,
+                    borderRadius: 8, border: "1px solid #D1D5DB", background: "#FFFFFF", color: C.ink }} />
+              );
+            })}
             {leadStatus && <div style={{ fontSize: 12, color: C.amber, marginBottom: 6 }}>{leadStatus}</div>}
             <div style={{ fontSize: 10, color: C.sub, marginBottom: 10 }}>
               Prototype note: in this demo, what you enter is saved only in your own browser — it is not sent to CDW and no one can retrieve it. Use demo data. The production site will submit securely to the CDW team.

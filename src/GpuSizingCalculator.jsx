@@ -405,13 +405,23 @@ const RED = "#CC0000";
 const CHARCOAL = "#2D2D2D";
 
 function Field({ label, hint, tipKey, children }) {
+  // Fix (Bug 6): this already rendered a real <label> element (unlike
+  // ROI's original <span>), but {children} was a SIBLING of the label, not
+  // nested inside it -- so there was still no programmatic association
+  // between the label text and its input. Visually indistinguishable from
+  // correct (the label sits right above the field either way), which is
+  // exactly why a screen reader announcing nothing but the bare value was
+  // easy to miss. Wrapping the control inside the <label> is implicit
+  // association and needs no id/htmlFor pairing or changes to NumberInput/
+  // Select/any of this Field's 22 call sites -- every one passes exactly
+  // one control as children, so a label wrapping one control is unambiguous.
   return (
     <div className="mb-4">
       <label className="block text-sm font-semibold mb-1" style={{ color: CHARCOAL }}>
         {label}
         {tipKey && <TipDot tipKey={tipKey} />}
+        <div className="mt-1 font-normal">{children}</div>
       </label>
-      {children}
       {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
     </div>
   );

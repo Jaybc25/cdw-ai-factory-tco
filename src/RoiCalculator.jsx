@@ -337,23 +337,37 @@ function Field({
     const num = Number(raw);
     onChange(isPercent ? num / 100 : num);
   };
+  // Fix (Bug 6): every call site already passes a unique `id` (previously
+  // used only to wire up the tooltip), so this was a one-line-per-input fix
+  // away the whole time -- associate a real <label htmlFor> with the input
+  // instead of a purely visual <span>. Without this, a screen reader
+  // announced nothing but "edit text, <value>" for every one of these 14
+  // fields; the label text was visible on screen but never programmatically
+  // connected to the control it describes. errorId + aria-describedby
+  // additionally exposes the validation message the same way, since that
+  // was floating unlabeled below the input too.
+  const inputId = id ? `roi-field-${id}` : undefined;
+  const errorId = error && inputId ? `${inputId}-error` : undefined;
   return (
     <div style={styles.field}>
       <div style={styles.fieldLabelRow}>
-        <span style={styles.fieldLabel}>{label}</span>
+        <label style={styles.fieldLabel} htmlFor={inputId}>{label}</label>
         {tip && <TipDot id={id} text={tip} openTipId={openTipId} setOpenTipId={setOpenTipId} />}
       </div>
       <div style={styles.inputRow}>
         <input
+          id={inputId}
           type="number"
           step={step}
           style={{ ...styles.input, ...(error ? styles.inputError : {}) }}
           value={displayValue}
           onChange={handleChange}
+          aria-describedby={errorId}
+          aria-invalid={error ? true : undefined}
         />
-        <span style={styles.unit}>{unit}</span>
+        <span style={styles.unit} aria-hidden="true">{unit}</span>
       </div>
-      {error && <div style={styles.errorText}>{error}</div>}
+      {error && <div id={errorId} style={styles.errorText}>{error}</div>}
     </div>
   );
 }
@@ -679,16 +693,26 @@ function RoiCalculatorInner() {
               The report includes the full scenario economics -- capacity created, its economic value, and the
               investment result -- as an executive-summary-ready artifact.
             </div>
-            {["name", "company", "email"].map((f) => (
-              <input
-                key={f}
-                placeholder={f === "name" ? "Full name" : f === "company" ? "Company" : "Work email"}
-                value={lead[f]}
-                type={f === "email" ? "email" : "text"}
-                onChange={(e) => setLead({ ...lead, [f]: e.target.value })}
-                style={{ width: "100%", boxSizing: "border-box", fontSize: 14, padding: "11px 12px", marginBottom: 8, borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, color: CHARCOAL }}
-              />
-            ))}
+            {/* Fix (Bug 6, bonus -- not part of the measured 14 numeric
+                inputs, but the same underlying gap): these three relied on
+                placeholder text alone, which a screen reader does not treat
+                as a label and which disappears the moment the user starts
+                typing anyway. aria-label mirrors the existing placeholder
+                text with zero visual change. */}
+            {["name", "company", "email"].map((f) => {
+              const placeholderText = f === "name" ? "Full name" : f === "company" ? "Company" : "Work email";
+              return (
+                <input
+                  key={f}
+                  placeholder={placeholderText}
+                  aria-label={placeholderText}
+                  value={lead[f]}
+                  type={f === "email" ? "email" : "text"}
+                  onChange={(e) => setLead({ ...lead, [f]: e.target.value })}
+                  style={{ width: "100%", boxSizing: "border-box", fontSize: 14, padding: "11px 12px", marginBottom: 8, borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, color: CHARCOAL }}
+                />
+              );
+            })}
             {leadStatus && <div style={{ fontSize: 12, color: RED, marginBottom: 8 }}>{leadStatus}</div>}
             <div style={{ display: "flex", gap: 8 }}>
               <button onClick={submitLead} style={{ flex: 1, fontWeight: 700, fontSize: 14, padding: 12, borderRadius: 8, border: "none", cursor: "pointer", background: RED, color: "#fff" }}>

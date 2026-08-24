@@ -89,14 +89,40 @@ function TipDot({ tipKey }) {
   );
 }
 
-function Field({ label, hint, tipKey, children }) {
+function Field({ label, hint, tipKey, children, group = false }) {
+  // Fix (Bug 6): same underlying gap as GpuSizingCalculator.jsx's identical
+  // Field component -- a real <label> element already existed, but it was
+  // never actually associated with the control(s) it describes. This file
+  // has one extra wrinkle GPU Sizing didn't: the "Workloads you care about"
+  // call site wraps a GROUP of already-individually-labeled checkboxes, not
+  // a single control. A <label> is only valid for one control; wrapping an
+  // entire checkbox group inside one would be invalid/confusing semantics.
+  // `group` switches to the correct <fieldset>/<legend> pattern for that
+  // one case. Every other call site here wraps exactly one Select, same as
+  // GpuSizingCalculator.jsx, so those get the same implicit label-wrap fix.
+  const labelContent = (
+    <>
+      {label}
+      {tipKey && <TipDot tipKey={tipKey} />}
+    </>
+  );
+  if (group) {
+    return (
+      <fieldset className="mb-4 border-0 p-0 m-0">
+        <legend className="block text-sm font-semibold mb-1 p-0" style={{ color: CHARCOAL }}>
+          {labelContent}
+        </legend>
+        <div className="mt-1 font-normal">{children}</div>
+        {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+      </fieldset>
+    );
+  }
   return (
     <div className="mb-4">
       <label className="block text-sm font-semibold mb-1" style={{ color: CHARCOAL }}>
-        {label}
-        {tipKey && <TipDot tipKey={tipKey} />}
+        {labelContent}
+        <div className="mt-1 font-normal">{children}</div>
       </label>
-      {children}
       {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
     </div>
   );
@@ -868,7 +894,7 @@ function ModelAdvisorInner() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Inputs */}
           <div>
-            <Field label="Workloads you care about" tipKey="workload">
+            <Field label="Workloads you care about" tipKey="workload" group>
               <div className="grid grid-cols-2 gap-2">
                 {WORKLOAD_OPTIONS.map((w) => (
                   <label key={w.value} className="flex items-center gap-2 text-sm">
