@@ -103,16 +103,39 @@ function labelize(key) {
 }
 
 function CombinedSummaryInner() {
-  const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
+  const { isLoggedIn, needsSetup, account, logDownloadEvent, loading: authLoading } = useAuth();
   const [snapshots, setSnapshots] = useState(null);
   const [loadingSnapshots, setLoadingSnapshots] = useState(true);
   const hasLogged = useRef(false);
 
   useEffect(() => {
+    // Fix (Bug 5, part 1): AuthContext's own session check (authLoading) is
+    // a separate loading phase from this component's snapshot fetch, and
+    // isLoggedIn is reliably false during that window regardless of
+    // whether the user actually has a session. Treating that transient
+    // false as a real "signed out" state below was the trigger for the
+    // whole bug -- it fired the early-return branch and set
+    // loadingSnapshots(false) before there was ever a real fetch to wait
+    // on. Don't decide anything here until auth itself has resolved.
+    if (authLoading) return;
+
     if (!isLoggedIn || !account?.id) {
       setLoadingSnapshots(false);
       return;
     }
+
+    // Fix (Bug 5, part 2 -- the actual reported symptom): explicitly reset
+    // to true right before starting a real fetch. loadingSnapshots's
+    // initial value (useState(true) above) only covers the very first
+    // render. By the time account?.id actually becomes available, this
+    // effect has typically already run once or twice via the early-return
+    // branch above (while auth was still resolving), which already set
+    // loadingSnapshots to false -- and nothing set it back to true before
+    // the real fetch below began. That gap is what let "Nothing to
+    // summarize yet" render during an actual in-flight fetch on a slow
+    // connection: ordered.length was 0 (snapshots still null) AND
+    // loadingSnapshots was already (wrongly) false at the same time.
+    setLoadingSnapshots(true);
     supabase
       .from("tool_snapshots")
       .select("*")
@@ -126,7 +149,7 @@ function CombinedSummaryInner() {
         }
         setLoadingSnapshots(false);
       });
-  }, [isLoggedIn, account?.id]);
+  }, [authLoading, isLoggedIn, account?.id]);
 
   // Fire the combined-summary notification once, the first time a real
   // summary (>=1 snapshot) is actually shown -- not on every render, and
@@ -163,7 +186,16 @@ function CombinedSummaryInner() {
       </div>
 
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "32px 24px 64px" }}>
-        {!isLoggedIn && (
+        {/* Fix (Bug 5, part 1, render side): a matching guard for the effect's
+            new authLoading check above -- without this, the exact same
+            transient "auth hasn't resolved yet" window that used to corrupt
+            loadingSnapshots would instead render "Sign in above..." for a
+            fraction of a second, even for an already-signed-in user. */}
+        {authLoading && (
+          <div style={{ textAlign: "center", padding: "48px 0", color: GRAY_TEXT, fontSize: 14 }}>Loading...</div>
+        )}
+
+        {!authLoading && !isLoggedIn && (
           <div style={{ textAlign: "center", padding: "48px 0", color: GRAY_TEXT }}>
             <p style={{ fontSize: 15, marginBottom: 4 }}>Sign in above to view your combined summary.</p>
             <p style={{ fontSize: 13 }}>This pulls together everything you've worked on across the AI Factory tools, no need to remember which ones you already downloaded a report from.</p>
