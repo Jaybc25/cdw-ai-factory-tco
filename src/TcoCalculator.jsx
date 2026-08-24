@@ -1036,7 +1036,20 @@ function AppInner() {
     <div className="tco-root" style={{ background: C.bg, minHeight: "100vh", color: C.ink, fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`        .tco-root, .tco-root *{box-sizing:border-box} input[type=range]{height:22px} button:focus-visible{outline:2px solid ${C.green};outline-offset:2px;box-shadow:0 0 0 5px rgba(255,255,255,.85)}
         input[type=number]::-webkit-inner-spin-button{opacity:1}
-        @media print { .no-print{display:none!important} body{background:#fff} }`}</style>
+        @media print { .no-print{display:none!important} body{background:#fff} }
+        /* Fix (report-header button row, mobile): three buttons in one flex
+           row, only the "Print / Save as PDF" button set to flex:1, the
+           other two auto-width to their own (long) text. On narrow phones
+           the two auto-width buttons wrap their text over two lines and
+           still claim most of the row, leaving almost nothing for the
+           flex:1 button, which then gets squeezed into a vertical
+           word-stack. Stacking the row vertically below 480px, each button
+           full-width, removes the competition for horizontal space
+           entirely; desktop/tablet layout is untouched. */
+        @media (max-width: 480px) {
+          .pdf-btn-row { flex-direction: column; }
+          .pdf-btn-row > button { width: 100%; flex: none; }
+        }`}</style>
       <div style={{ maxWidth: 560, margin: "0 auto", padding: "18px 14px 60px" }}>
 
         <div style={{ borderBottom: `1px solid ${C.line}`, paddingBottom: 14, marginBottom: 16 }}>
@@ -1089,7 +1102,7 @@ function AppInner() {
 
         {view === "report" && (
           <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
-            <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <div className="no-print pdf-btn-row" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <button onClick={() => window.print()} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 13, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: C.ink, color: "#fff" }}>Print / Save as PDF</button>
               <button onClick={() => setView("audit")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.ink }}>Calculation Methodology &amp; Audit Trail</button>
               <button onClick={() => setView("calc")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.sub }}>Back to calculator</button>
@@ -1221,7 +1234,7 @@ function AppInner() {
 
         {view === "audit" && (
           <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
-            <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <div className="no-print pdf-btn-row" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <button onClick={() => window.print()} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 13, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: C.ink, color: "#fff" }}>Print / Save as PDF</button>
               <button onClick={() => setView("report")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.sub }}>Back to report</button>
             </div>

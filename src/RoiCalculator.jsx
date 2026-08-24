@@ -722,14 +722,14 @@ function RoiCalculatorInner() {
 
       {view === "report" && engine && (
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "12px 0" }}>
-          <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-            <button onClick={() => window.print()} style={{ flex: 1, fontWeight: 700, fontSize: 13, padding: 10, borderRadius: 8, border: "none", cursor: "pointer", background: CHARCOAL, color: "#fff" }}>
+          <div className="no-print" style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 8, marginBottom: 20 }}>
+            <button onClick={() => window.print()} style={{ flex: isMobile ? "none" : 1, width: isMobile ? "100%" : "auto", fontWeight: 700, fontSize: 13, padding: 10, borderRadius: 8, border: "none", cursor: "pointer", background: CHARCOAL, color: "#fff" }}>
               Print / Save as PDF
             </button>
-            <button onClick={() => setView("audit")} style={{ fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, cursor: "pointer", background: "#fff", color: CHARCOAL }}>
+            <button onClick={() => setView("audit")} style={{ width: isMobile ? "100%" : "auto", fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, cursor: "pointer", background: "#fff", color: CHARCOAL }}>
               Calculation Methodology &amp; Audit Trail
             </button>
-            <button onClick={() => setView("calc")} style={{ fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, cursor: "pointer", background: "#fff", color: GRAY_TEXT }}>
+            <button onClick={() => setView("calc")} style={{ width: isMobile ? "100%" : "auto", fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, cursor: "pointer", background: "#fff", color: GRAY_TEXT }}>
               Back to calculator
             </button>
           </div>
@@ -809,11 +809,11 @@ function RoiCalculatorInner() {
 
       {view === "audit" && engine && (
         <div style={{ maxWidth: 720, margin: "0 auto", padding: "12px 0" }}>
-          <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-            <button onClick={() => window.print()} style={{ flex: 1, fontWeight: 700, fontSize: 13, padding: 10, borderRadius: 8, border: "none", cursor: "pointer", background: CHARCOAL, color: "#fff" }}>
+          <div className="no-print" style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 8, marginBottom: 20 }}>
+            <button onClick={() => window.print()} style={{ flex: isMobile ? "none" : 1, width: isMobile ? "100%" : "auto", fontWeight: 700, fontSize: 13, padding: 10, borderRadius: 8, border: "none", cursor: "pointer", background: CHARCOAL, color: "#fff" }}>
               Print / Save as PDF
             </button>
-            <button onClick={() => setView("report")} style={{ fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, cursor: "pointer", background: "#fff", color: GRAY_TEXT }}>
+            <button onClick={() => setView("report")} style={{ width: isMobile ? "100%" : "auto", fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${GRAY_BORDER}`, cursor: "pointer", background: "#fff", color: GRAY_TEXT }}>
               Back to report
             </button>
           </div>

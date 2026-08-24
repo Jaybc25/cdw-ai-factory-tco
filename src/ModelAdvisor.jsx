@@ -503,14 +503,14 @@ function ModelAdvisorInner() {
 
       {view === "report" && (
         <div className="max-w-3xl mx-auto px-6 py-10">
-          <div className="no-print flex gap-2 mb-6">
-            <button onClick={() => window.print()} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>
+          <div className="no-print flex flex-col sm:flex-row gap-2 mb-6">
+            <button onClick={() => window.print()} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>
               Print / Save as PDF
             </button>
-            <button onClick={() => setView("audit")} className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300" style={{ color: CHARCOAL }}>
+            <button onClick={() => setView("audit")} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300" style={{ color: CHARCOAL }}>
               Recommendation Methodology &amp; Decision Trace
             </button>
-            <button onClick={() => setView("calc")} className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">
+            <button onClick={() => setView("calc")} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">
               Back to advisor
             </button>
           </div>
@@ -635,11 +635,11 @@ function ModelAdvisorInner() {
 
       {view === "audit" && (
         <div className="max-w-3xl mx-auto px-6 py-10">
-          <div className="no-print flex gap-2 mb-6">
-            <button onClick={() => window.print()} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>
+          <div className="no-print flex flex-col sm:flex-row gap-2 mb-6">
+            <button onClick={() => window.print()} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>
               Print / Save as PDF
             </button>
-            <button onClick={() => setView("report")} className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">
+            <button onClick={() => setView("report")} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">
               Back to report
             </button>
           </div>
