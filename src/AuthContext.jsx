@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
 
 // ---------------------------------------------------------------------------
@@ -161,17 +161,63 @@ export function useAuth() {
 //   useAutosaveSnapshot("tco", inputs, summaryObject);
 // Debounced -- waits for a pause in changes before saving, so it doesn't
 // fire on every keystroke. Does nothing while signed out.
+//
+// Fix (Bug 4, autosave debounce lost update): every cross-tool link in this
+// app is a plain <a href> full page load, not client-side routing (see
+// sessionState.js) -- so an edit made less than `delayMs` before the user
+// navigates away schedules this setTimeout, then the browsing context that
+// owns it is torn down mid-wait as the page unloads. It's not that React
+// cleans the timer up and cancels it on purpose; the timer simply never
+// gets the chance to fire at all, so that last edit never reaches the
+// account snapshot even though the tool's own sessionStorage state (a
+// separate, always-synchronous persistence layer -- see sessionState.js)
+// is already correct. The exposure: a user who edits, then immediately
+// jumps tools or straight to My Summary/a PPTX export without ever
+// revisiting this tool gets a report reflecting the state minus that edit.
+//
+// Fix: also flush the pending save the moment the page is actually being
+// left, via `pagehide` (the modern, bfcache-safe event for this -- not
+// `beforeunload`, which several browsers now discourage/penalize) and a
+// `visibilitychange`-to-hidden fallback for mobile Safari and backgrounded
+// tabs, where `pagehide` doesn't always fire before the page is suspended.
+// A ref holds the latest values so the flush handler never closes over a
+// stale tool/inputs/summary from an earlier render.
 export function useAutosaveSnapshot(tool, inputs, summary, delayMs = 1500) {
   const { saveSnapshot, isLoggedIn } = useAuth();
   const inputsKey = JSON.stringify(inputs);
   const summaryKey = JSON.stringify(summary);
 
+  const latestRef = useRef({ tool, inputs, summary });
+  latestRef.current = { tool, inputs, summary };
+
   useEffect(() => {
     if (!isLoggedIn) return;
+
+    let fired = false;
     const id = setTimeout(() => {
+      fired = true;
       saveSnapshot(tool, inputs, summary);
     }, delayMs);
-    return () => clearTimeout(id);
+
+    function flushIfPending() {
+      if (fired) return;
+      fired = true;
+      clearTimeout(id);
+      const { tool: t, inputs: i, summary: s } = latestRef.current;
+      saveSnapshot(t, i, s);
+    }
+    function handleVisibilityChange() {
+      if (document.visibilityState === "hidden") flushIfPending();
+    }
+
+    window.addEventListener("pagehide", flushIfPending);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("pagehide", flushIfPending);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      if (!fired) clearTimeout(id);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tool, inputsKey, summaryKey, isLoggedIn, delayMs]);
 }
