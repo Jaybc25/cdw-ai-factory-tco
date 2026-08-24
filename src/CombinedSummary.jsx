@@ -119,22 +119,40 @@ function CombinedSummaryInner() {
     // on. Don't decide anything here until auth itself has resolved.
     if (authLoading) return;
 
-    if (!isLoggedIn || !account?.id) {
+    // Fix (Bug 5, part 3 -- caught in post-remediation regression testing):
+    // this used to be one combined `!isLoggedIn || !account?.id` branch,
+    // which collapsed two genuinely different states into the same
+    // outcome. "Not logged in" is a real terminal state -- there is
+    // nothing to load, loadingSnapshots(false) is correct. But "logged in,
+    // account row not yet loaded" is a THIRD loading phase (auth resolved
+    // -> account fetch in flight -> snapshot fetch not yet started), and
+    // treating it identically to "not logged in" set loadingSnapshots
+    // false during that window too -- with needsSetup also false while
+    // account is null, that combination lands squarely on the empty-state
+    // render for exactly as long as the account fetch takes. Confirmed
+    // live on a throttled connection: a real, perceptible "Nothing to
+    // summarize yet" flash before "Loading your summary..." even
+    // reappeared. Splitting the two states so only a genuine "not logged
+    // in" sets loadingSnapshots false; "account not loaded yet" is treated
+    // as its own explicit loading state instead.
+    if (!isLoggedIn) {
       setLoadingSnapshots(false);
       return;
     }
+    if (!account?.id) {
+      setLoadingSnapshots(true);
+      return;
+    }
 
-    // Fix (Bug 5, part 2 -- the actual reported symptom): explicitly reset
-    // to true right before starting a real fetch. loadingSnapshots's
+    // Fix (Bug 5, part 2 -- the original reported symptom): explicitly
+    // reset to true right before starting a real fetch. loadingSnapshots's
     // initial value (useState(true) above) only covers the very first
     // render. By the time account?.id actually becomes available, this
-    // effect has typically already run once or twice via the early-return
-    // branch above (while auth was still resolving), which already set
-    // loadingSnapshots to false -- and nothing set it back to true before
-    // the real fetch below began. That gap is what let "Nothing to
-    // summarize yet" render during an actual in-flight fetch on a slow
-    // connection: ordered.length was 0 (snapshots still null) AND
-    // loadingSnapshots was already (wrongly) false at the same time.
+    // effect has typically already run once or twice via the earlier
+    // branches (while auth/account were still resolving), which already
+    // set loadingSnapshots to false or true along the way -- explicitly
+    // setting it true here regardless of that prior state guarantees the
+    // fetch window itself is always covered.
     setLoadingSnapshots(true);
     supabase
       .from("tool_snapshots")
