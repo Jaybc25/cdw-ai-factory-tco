@@ -464,7 +464,6 @@ function ModelAdvisorInner() {
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
           <div className="text-lg font-bold" style={{ color: CHARCOAL }}>Open-Weight Model Advisor</div>
         </div>
-        <span className="ml-auto text-xs font-bold px-2 py-1 rounded" style={{ background: RED, color: "white" }}>PROTOTYPE v1.2</span>
       </div>
 
       <div className="no-print border-b border-gray-100 px-6 py-2 flex items-center justify-end">

@@ -670,12 +670,6 @@ function RoiCalculatorInner() {
           <div style={styles.eyebrow}>AI Factory Tools</div>
           <h1 style={styles.title}>AI Use Case ROI Calculator</h1>
         </div>
-        <span style={{
-          ...styles.versionPill,
-          marginLeft: isMobile ? 0 : "auto",
-          flexBasis: isMobile ? "100%" : "auto",
-          width: isMobile ? "fit-content" : "auto",
-        }}>PROTOTYPE v1.0</span>
       </div>
 
       <div className="no-print" style={{ padding: "0 0 12px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, borderBottom: `1px solid ${GRAY_BORDER}`, marginBottom: 16 }}>

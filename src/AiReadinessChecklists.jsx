@@ -278,7 +278,6 @@ function AiReadinessChecklistsInner() {
               <span style={S.toolName}>AI Readiness Checklists</span>
             </span>
           </a>
-          <span style={S.protoBadge}>PROTOTYPE v1.0</span>
         </header>
 
         <div className="no-print" style={{ display: "flex", justifyContent: "flex-end", padding: "8px 0", borderBottom: "1px solid #eee", marginBottom: 12 }}>

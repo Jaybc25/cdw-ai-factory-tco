@@ -1048,7 +1048,6 @@ function AppInner() {
               <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: C.green, textTransform: "uppercase" }}>AI Factory Tools</div>
               <h1 style={{ ...disp, fontSize: 20, fontWeight: 700, margin: 0, color: C.ink }}>Cloud vs On-Prem TCO Calculator</h1>
             </div>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "4px 8px", borderRadius: 6, background: C.green, color: "#fff", whiteSpace: "nowrap" }}>PROTOTYPE v2.8</span>
           </div>
           <div style={{ fontSize: 13, color: C.sub, marginTop: 8 }}>What your current AIaaS spend buys you if you owned it instead.</div>
           <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
