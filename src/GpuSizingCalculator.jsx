@@ -886,7 +886,23 @@ function GPUSizingCalculatorInner() {
   // so it should keep restoring from the last saved session even when a new
   // model/workload arrives for the fields that ARE part of that handoff.
 
-  const [mode, setMode] = useState(() => ((sourceUseCase || incomingWorkloadType) ? getInitialMode() : saved?.mode ?? getInitialMode()));
+  // Fix (regression caught in post-remediation testing, sibling of the same
+  // fix in ModelAdvisor.jsx): mode's initializer used to branch on
+  // `sourceUseCase || incomingWorkloadType` to decide whether a real
+  // handoff had just arrived -- but Fix 1b (above) deliberately made
+  // sourceUseCase persist across refresh so the "Arrived from Use Case
+  // Explorer" banner survives. That persistence meant the branch was ALSO
+  // true on a bare refresh with no real handoff, forcing mode to re-read
+  // getInitialMode() against an empty URL and reset to the hardcoded
+  // Inference default -- reverting Training back to Inference on refresh
+  // while the banner (still driven by the persisted sourceUseCase) kept
+  // claiming a prefill that had just been discarded. incomingWorkloadType
+  // is already correctly URL-only with no saved fallback, so it's fine as
+  // one half of the check; hasFreshSourceUseCase (captured URL-only,
+  // separate from the persisted sourceUseCase used for the banner) is its
+  // safe replacement for the other half.
+  const [hasFreshSourceUseCase] = useState(() => !!getInitialSourceUseCase());
+  const [mode, setMode] = useState(() => ((hasFreshSourceUseCase || incomingWorkloadType) ? getInitialMode() : saved?.mode ?? getInitialMode()));
   const [pathLevel, setPathLevel] = useState(saved?.pathLevel ?? "simple");
 
   const [modelHandoff] = useState(getInitialInfModel); // { model, matched: true | false | null }

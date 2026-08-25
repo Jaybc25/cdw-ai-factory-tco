@@ -353,11 +353,28 @@ function ModelAdvisorInner() {
   // it should keep restoring from the last saved session even when a new
   // use case arrives.
 
+  // Fix (regression caught in post-remediation testing): checkedWorkloads
+  // and primaryWorkload used to branch directly on `sourceUseCase` to
+  // decide "did a real handoff just arrive, or should I fall back to saved
+  // state" -- but Fix 1b (above) deliberately made sourceUseCase persist
+  // across refresh so the provenance banner survives. That same
+  // persistence meant this branch condition was ALSO true on a bare
+  // refresh with no real handoff, forcing these two fields to re-read an
+  // empty URL via getInitialCheckedWorkloads()/getInitialPrimaryWorkload()
+  // and silently reset to the hardcoded default -- while the banner, still
+  // driven by the now-persisted sourceUseCase, kept claiming a prefill
+  // that had just been discarded. hasFreshSourceUseCase is captured
+  // URL-only, exactly once, entirely separate from the persisted
+  // sourceUseCase value used for the banner, so this branch only fires on
+  // a genuine new handoff -- the same pattern TcoCalculator.jsx's
+  // arrivedFromGpuSizing already uses correctly.
+  const [hasFreshSourceUseCase] = useState(() => !!getInitialSourceUseCase());
+
   const [checkedWorkloads, setCheckedWorkloads] = useState(() => (
-    sourceUseCase ? getInitialCheckedWorkloads() : saved?.checkedWorkloads ?? getInitialCheckedWorkloads()
+    hasFreshSourceUseCase ? getInitialCheckedWorkloads() : saved?.checkedWorkloads ?? getInitialCheckedWorkloads()
   ));
   const [primaryWorkload, setPrimaryWorkload] = useState(() => (
-    sourceUseCase ? getInitialPrimaryWorkload(getInitialCheckedWorkloads()) : saved?.primaryWorkload ?? getInitialPrimaryWorkload(getInitialCheckedWorkloads())
+    hasFreshSourceUseCase ? getInitialPrimaryWorkload(getInitialCheckedWorkloads()) : saved?.primaryWorkload ?? getInitialPrimaryWorkload(getInitialCheckedWorkloads())
   ));
   const [qualityPriority, setQualityPriority] = useState(saved?.qualityPriority ?? "strong");
   const [contextWindow, setContextWindow] = useState(saved?.contextWindow ?? "none");

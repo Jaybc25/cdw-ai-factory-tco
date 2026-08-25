@@ -1063,7 +1063,13 @@ function AppInner() {
             </div>
           </div>
           <div style={{ fontSize: 13, color: C.sub, marginTop: 8 }}>What your current AIaaS spend buys you if you owned it instead.</div>
-          <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          {/* Fix (cosmetic, caught in post-remediation PDF testing): the
+              other three tools' equivalent AuthWidget row already carries
+              no-print (see GpuSizingCalculator.jsx for the pattern); this
+              one didn't, so the signed-in account row ("Name · My Summary
+              · Sign out") printed at the top of TCO's report and audit
+              PDFs -- not ideal in a client leave-behind. */}
+          <div className="no-print" style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
             {arrivedFromGpuSizing ? (
               <a href="/gpu-sizing" style={{ fontSize: 12, fontWeight: 600, color: C.green, textDecoration: "none" }}>&larr; Adjust GPU sizing</a>
             ) : <span />}
