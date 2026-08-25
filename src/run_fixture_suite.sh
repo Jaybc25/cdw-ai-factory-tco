@@ -8,7 +8,7 @@
 # patterns ([object Object], undefined, NaN, a stray literal "null"). Exits
 # non-zero if any fixture fails to generate or any content issue is found.
 #
-# Re-run this after any change to generate_client_summary_full.js to
+# Re-run this after any change to generate_client_summary_full.cjs to
 # catch a regression before it reaches a real client deck.
 
 set -e
@@ -48,7 +48,18 @@ echo ""
 echo "=== Preflight validation ==="
 for f in fixture-*.json client-data-*.json; do
   [ -f "$f" ] || continue
-  if ! node preflight_validate.js "$f" > "$OUT_DIR/${f%.json}.preflight.log" 2>&1; then
+  # Fix (Cowork's diagnosis, confirmed by patch-and-rerun): the app repo's
+  # package.json declares "type": "module" (it's a Vite ESM project), so
+  # Node treats every .js file anywhere under it as an ES module --
+  # including these two scripts, which are written in CommonJS (they use
+  # `require`). That's an environment-independent failure, not something
+  # that depended on where or how this suite was previously run; wherever
+  # it reportedly passed before, these two files must have been sitting
+  # outside this repo's package.json scope. .cjs is Node's explicit
+  # opt-out of the ambient module-type setting, so renaming both scripts
+  # to .cjs (and updating these two references to match) lets them run as
+  # CommonJS regardless of the surrounding project's "type": "module".
+  if ! node preflight_validate.cjs "$f" > "$OUT_DIR/${f%.json}.preflight.log" 2>&1; then
     echo "PREFLIGHT ERROR: $f (see $OUT_DIR/${f%.json}.preflight.log)"
     FAIL=1
   fi
@@ -59,7 +70,7 @@ echo "=== Generation ==="
 for f in fixture-*.json client-data-*.json; do
   [ -f "$f" ] || continue
   out="$OUT_DIR/${f%.json}.pptx"
-  if ! node generate_client_summary_full.js "$f" "$out" > "$OUT_DIR/${f%.json}.gen.log" 2>&1; then
+  if ! node generate_client_summary_full.cjs "$f" "$out" > "$OUT_DIR/${f%.json}.gen.log" 2>&1; then
     echo "GENERATION FAILED: $f (see $OUT_DIR/${f%.json}.gen.log)"
     FAIL=1
   fi
