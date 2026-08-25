@@ -788,8 +788,14 @@ function UseCaseExplorerInner() {
   const pickerTile = { background: "#fff", border: `1px solid ${CDW_BORDER}`, borderRadius: 10, padding: "14px 16px", cursor: "pointer", textAlign: "left", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 14, fontWeight: 600, color: CDW_DARK, transition: "border-color 0.15s, background 0.15s" };
 
   return (
-    <div style={{ fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh", background: "#f9f9f9" }}>
+    <main style={{ fontFamily: "'Inter', system-ui, sans-serif", minHeight: "100vh", background: "#f9f9f9" }}>
 
+      {/* Fix (accessibility, axe-core finding): no <main> landmark existed
+          and content lived outside any landmark region -- same fix as
+          TCO/ROI/GPU Sizing/Model Advisor, converting the outermost
+          content wrapper to a real <main> element with zero visual
+          change. (This page's h1, "Explore AI Use Cases", already exists
+          further down, so no heading fix was needed here.) */}
       {/* header */}
       <div style={{ background: "#fff", borderBottom: "3px solid #e8e8e8", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 }}>
         <a href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }} aria-label="AI Factory Tools home">
@@ -968,7 +974,7 @@ function UseCaseExplorerInner() {
           onClose={() => { setModalBp(null); setModalTrigger(null); }}
         />
       )}
-    </div>
+    </main>
   );
 }
 

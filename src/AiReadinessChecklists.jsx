@@ -280,6 +280,15 @@ function AiReadinessChecklistsInner() {
           </a>
         </header>
 
+        {/* Fix (accessibility, axe-core finding): no <main> landmark existed
+            and content lived outside any landmark region. This file
+            already has a real <header> and <footer>, so rather than reuse
+            the simpler "rename the outer wrapper" fix used on the other
+            four tools (which would nest header inside main), the content
+            between them gets its own proper <main> wrapper -- cleaner
+            landmark structure, zero visual change. */}
+        <main>
+
         <div className="no-print" style={{ display: "flex", justifyContent: "flex-end", padding: "8px 0", borderBottom: "1px solid #eee", marginBottom: 12 }}>
           <AuthWidget />
         </div>
@@ -489,6 +498,8 @@ function AiReadinessChecklistsInner() {
             onReroute={() => setView({ screen: "picker", doorId: door.id })}
           />
         )}
+
+        </main>
 
         <footer style={S.footer}>
           <p style={{ margin: "0 0 4px" }}>

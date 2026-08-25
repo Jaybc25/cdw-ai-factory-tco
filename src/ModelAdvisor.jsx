@@ -471,7 +471,12 @@ function ModelAdvisorInner() {
   }
 
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <main className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      {/* Fix (accessibility, axe-core findings): no <main> landmark existed
+          (same fix as TCO/ROI/GPU Sizing), and this page also had no
+          level-one heading -- the title below was a <div>, not a heading.
+          Converting to <h1> with a margin reset keeps the exact same
+          visual appearance while giving the page real document structure. */}
       <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>
       <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
         <a href="/" className="flex-shrink-0" aria-label="AI Factory Tools home">
@@ -479,7 +484,7 @@ function ModelAdvisorInner() {
         </a>
         <div>
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
-          <div className="text-lg font-bold" style={{ color: CHARCOAL }}>Open-Weight Model Advisor</div>
+          <h1 className="text-lg font-bold" style={{ color: CHARCOAL, margin: 0 }}>Open-Weight Model Advisor</h1>
         </div>
       </div>
 
@@ -1024,7 +1029,7 @@ function ModelAdvisorInner() {
         </div>
       </div>
       )}
-    </div>
+    </main>
   );
 }
 

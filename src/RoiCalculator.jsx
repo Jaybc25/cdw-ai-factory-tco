@@ -655,7 +655,11 @@ function RoiCalculatorInner() {
   }
 
   return (
-    <div style={{ ...styles.page, padding: isMobile ? "0 12px 32px" : styles.page.padding }}>
+    <main style={{ ...styles.page, padding: isMobile ? "0 12px 32px" : styles.page.padding }}>
+      {/* Fix (accessibility, axe-core finding): no <main> landmark existed
+          and content lived outside any landmark region -- same gap as
+          TCO, same fix, converting the outermost content wrapper to a
+          real <main> element with zero visual/styling change. */}
       <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>
       <div style={{
         ...styles.header,
@@ -1218,7 +1222,7 @@ function RoiCalculatorInner() {
       </div>
       </div>
       )}
-    </div>
+    </main>
   );
 }
 

@@ -663,6 +663,7 @@ function UtilizationPanel({ result, workingDayHours, onWorkingDayHoursChange }) 
             step={1}
             onChange={(e) => onWorkingDayHoursChange(parseFloat(e.target.value) || 0)}
             className="w-14 border border-gray-300 rounded px-1.5 py-1 text-xs text-right"
+            aria-label="Length of working day, hours per day"
           />
           <span className="text-xs text-gray-500">hrs/day</span>
           <TipDot tipKey="workingDayHours" />
@@ -1048,7 +1049,11 @@ function GPUSizingCalculatorInner() {
   }
 
   return (
-    <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <main className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+      {/* Fix (accessibility, axe-core finding): no <main> landmark existed
+          and content lived outside any landmark region -- same fix as
+          TCO/ROI, converting the outermost content wrapper to a real
+          <main> element with zero visual/styling change. */}
       <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>
       {/* Header */}
       <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
@@ -1057,7 +1062,13 @@ function GPUSizingCalculatorInner() {
         </a>
         <div>
           <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
-          <div className="text-lg font-bold" style={{ color: CHARCOAL }}>GPU Sizing Tool</div>
+          {/* Fix (accessibility, axe-core finding): this was a <div>, not a
+              heading at all -- the page had no level-one heading anywhere.
+              Converting to <h1> with an inline style reset (margin/font
+              inherited from the page, not browser <h1> defaults) keeps the
+              exact same visual appearance while giving the page real
+              document structure. */}
+          <h1 className="text-lg font-bold" style={{ color: CHARCOAL, margin: 0 }}>GPU Sizing Tool</h1>
         </div>
       </div>
 
@@ -1843,7 +1854,7 @@ function GPUSizingCalculatorInner() {
         </div>
       </div>
       )}
-    </div>
+    </main>
   );
 }
 
