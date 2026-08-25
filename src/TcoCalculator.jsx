@@ -1050,7 +1050,13 @@ function AppInner() {
           .pdf-btn-row { flex-direction: column; }
           .pdf-btn-row > button { width: 100%; flex: none; }
         }`}</style>
-      <div style={{ maxWidth: 560, margin: "0 auto", padding: "18px 14px 60px" }}>
+      {/* Fix (accessibility, axe-core finding): the page had no <main>
+          landmark and effectively all content lived outside any landmark
+          region. This div already wraps virtually everything on the page
+          (header included), so converting it to a real <main> element --
+          same styling, same box, zero visual change -- satisfies both
+          findings at once without restructuring anything. */}
+      <main style={{ maxWidth: 560, margin: "0 auto", padding: "18px 14px 60px" }}>
 
         <div style={{ borderBottom: `1px solid ${C.line}`, paddingBottom: 14, marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -1512,7 +1518,22 @@ function AppInner() {
         )}
 
         {view === "calc" && (<div>
-        {arrivedFromGpuSizing && gpuSizingSystems && (
+        {/* Fix (Planning Basis toggle, product decision confirmed): this used
+            to also require arrivedFromGpuSizing, a URL-only flag that's
+            false on any refresh, Back/Forward, or bare-link visit -- so the
+            whole panel (toggle AND the explanatory text) vanished the
+            moment a fresh handoff wasn't literally the page's most recent
+            navigation, even though gpuSizingCount/sourceClass/
+            workingDayHours (and therefore gpuSizingSystems and the mode
+            computation itself) were already fully session-persisted by then
+            via Fix 1a. Gating on gpuSizingSystems alone -- the actual
+            question "is there workload data to compare against" -- keeps
+            the panel correctly hidden on a genuine cold direct visit to
+            /tco (gpuSizingCount is null, so gpuSizingSystems is null) while
+            keeping it available for the rest of the session once a real
+            handoff has occurred, matching how every other TCO field
+            already behaves after a refresh. */}
+        {gpuSizingSystems && (
           <div style={{ background: "#F5F5F5", border: "1px solid #ddd", borderRadius: 10, padding: "12px 16px", marginBottom: 14, fontSize: 13, color: "#444" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
               <span style={{ ...mono, fontSize: 10, letterSpacing: 1, color: "#888" }}>PLANNING BASIS</span>
@@ -1889,7 +1910,7 @@ function AppInner() {
           Get the full report (PDF)
         </button>
         </div>)}
-      </div>
+      </main>
     </div>
   );
 }
