@@ -1,0 +1,156 @@
+{
+  "clientName": "Example Manufacturing Co.",
+  "clientLogoPath": null,
+  "date": "August 2026",
+  "accountExec": "Jay B. Carlile",
+  "tools": {
+    "tco": {
+      "included": false,
+      "headlineStat": "36%",
+      "headlineLabel": "3-Yr Adjusted Savings",
+      "label": "Cloud vs. On-Prem TCO",
+      "bullets": [
+        "Recommended build: 2x DGX B200 systems",
+        "Payback period: 27 months",
+        "Confidence: High"
+      ],
+      "detail": {
+        "planningBasis": "Workload Requirement",
+        "recommendedFleet": "2 x DGX B200",
+        "gpuSizingFleet": "2 x DGX B200",
+        "savings": 1468892,
+        "floorCaseSavings": -1301412,
+        "cloudCost": 4368483,
+        "onPremCost": 2899591,
+        "capexPlusOneTime": 2496885,
+        "monthlyOpex": 16173,
+        "residualCredit": 203113,
+        "paybackMonths": 27,
+        "horizonYears": 3,
+        "facility": "Self-hosted (AI-ready)",
+        "provider": "AWS",
+        "gpuClass": "H100",
+        "monthlyBill": 105000,
+        "confidence": "DIRECTIONAL",
+        "cloudYear1": 1456161,
+        "onPremYear1Capital": 2496885,
+        "onPremYear1Operating": 194076,
+        "cumulativeByYear": [
+          {
+            "year": 1,
+            "cloud": 1456161,
+            "onPrem": 2690961
+          },
+          {
+            "year": 2,
+            "cloud": 3037215,
+            "onPrem": 2884908
+          },
+          {
+            "year": 3,
+            "cloud": 4753207,
+            "onPrem": 3079008
+          }
+        ]
+      }
+    },
+    "roi": {
+      "included": false,
+      "headlineStat": "273.7%",
+      "headlineLabel": "3-Yr ROI",
+      "label": "AI Use Case ROI",
+      "bullets": [
+        "Year 1 net benefit: $1.28M",
+        "Payback: 4.4 months",
+        "Capacity created: 44,160 redeployable hrs/yr"
+      ],
+      "detail": {
+        "costSource": "TCO Calculator (Workload Requirement)",
+        "grossCapacity": 73600,
+        "redeployableCapacity": 44160,
+        "fteEquivalent": 24.0,
+        "steadyStateValue": 2428800,
+        "year1Value": 2428800,
+        "year1Net": 1278800,
+        "horizonNet": 5336400,
+        "horizonROI": 2.737,
+        "payback": 4.4,
+        "horizonYears": 3
+      }
+    },
+    "gpuSizing": {
+      "included": false,
+      "headlineStat": "8 GPUs",
+      "headlineLabel": "Recommended Configuration",
+      "label": "GPU Sizing",
+      "bullets": [
+        "Recommended class: B200",
+        "Lower-cost alternative: H200, 12 GPUs",
+        "Higher-growth alternative: B300, 6 GPUs"
+      ],
+      "detail": {
+        "model": "Meta Muse Glimmer 30B",
+        "mode": "Inference",
+        "gpuClass": "B200",
+        "minTechnical": 6,
+        "recommended": 8,
+        "lowerCostClass": "H200",
+        "lowerCostCount": 12,
+        "higherGrowthClass": "B300",
+        "higherGrowthCount": 6,
+        "utilizationPct": 0.72,
+        "budget": 744792,
+        "confidence": "HIGH"
+      }
+    },
+    "modelAdvisor": {
+      "included": false,
+      "headlineStat": "Muse Glimmer 30B",
+      "headlineLabel": "Recommended Model",
+      "label": "Open-Weight Model Advisor",
+      "bullets": [
+        "License: Open, commercial use permitted",
+        "Confidence: High",
+        "Other eligible models: 3"
+      ],
+      "detail": {
+        "topModel": "muse-glimmer-30b",
+        "topModelLicense": "Apache 2.0, commercial use permitted",
+        "topModelParams": 29.6,
+        "topModelConfidence": "HIGH",
+        "primaryWorkload": "Coding",
+        "qualityPriority": "Strong",
+        "optimizationPriority": "Best capability",
+        "eligibleCount": 9,
+        "otherEligibleCount": 3,
+        "verificationCandidateCount": 2,
+        "totalCount": 11
+      }
+    },
+    "readiness": {
+      "included": true,
+      "statuses": [
+        {
+          "category": "Data",
+          "status": "Ready"
+        },
+        {
+          "category": "Security & Governance",
+          "status": "Ready"
+        },
+        {
+          "category": "Infrastructure",
+          "status": "Mostly ready"
+        },
+        {
+          "category": "People & Operations",
+          "status": "Gaps to investigate"
+        },
+        {
+          "category": "Business & Use Case",
+          "status": "Gaps to investigate"
+        }
+      ]
+    }
+  }
+}
