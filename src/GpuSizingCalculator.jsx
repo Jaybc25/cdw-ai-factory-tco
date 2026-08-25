@@ -445,7 +445,7 @@ function Select({ value, onChange, options }) {
   );
 }
 
-function NumberInput({ value, onChange, min = 0, step = 1 }) {
+function NumberInput({ value, onChange, min = 0, step = 1, ariaLabel }) {
   return (
     <input
       type="number"
@@ -455,6 +455,7 @@ function NumberInput({ value, onChange, min = 0, step = 1 }) {
       onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
       className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2"
       style={{ "--tw-ring-color": RED }}
+      aria-label={ariaLabel}
     />
   );
 }
@@ -585,7 +586,12 @@ function BudgetPanel({ budget }) {
         Excludes cluster management nodes, racks, power/cooling, and ongoing operations -- not a quote. See the
         TCO Calculator for full lifecycle cost, or confirm with a CDW AI Factory specialist.
       </p>
-      <p className="text-xs" style={{ color: onpremBudgetStaleness.level === "stale" ? "#B91C1C" : onpremBudgetStaleness.level === "review" ? "#B45309" : "#9CA3AF", marginTop: 4 }}>
+      {/* Fix (accessibility, axe-core color-contrast finding): the default
+          #9CA3AF (Tailwind gray-400) on this panel's #f9fafb background
+          measured 2.43:1, below the 4.5:1 WCAG AA requirement. gray-500
+          #6B7280 measures 4.63:1. The other two states (stale/review) were
+          already passing, so only the default branch changes. */}
+      <p className="text-xs" style={{ color: onpremBudgetStaleness.level === "stale" ? "#B91C1C" : onpremBudgetStaleness.level === "review" ? "#B45309" : "#6B7280", marginTop: 4 }}>
         Pricing basis last verified {fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)} ({onpremBudgetStaleness.days} days ago){onpremBudgetStaleness.level === "stale" ? " -- refresh before client use" : onpremBudgetStaleness.level === "review" ? " -- review due soon" : "."}
       </p>
     </div>
@@ -595,7 +601,13 @@ function BudgetPanel({ budget }) {
 function UtilizationBar({ label, gpuClass, pct }) {
   if (gpuClass == null || pct == null) return null;
   const pctDisplay = Math.round(pct * 100);
-  const color = pct > 0.85 ? "#B00000" : pct > 0.5 ? RED : "#999";
+  // Fix (accessibility, axe-core color-contrast finding): #999 on white
+  // measured 2.85:1 for the low-utilization case, below the 4.5:1 WCAG AA
+  // requirement -- the bold weight doesn't exempt it, since this text is
+  // only 12px (the large-text 3:1 allowance needs 14px bold or 18px
+  // regular). #707070 measures 4.95:1. This one function drives all three
+  // utilization spans the audit flagged, so the fix applies to all of them.
+  const color = pct > 0.85 ? "#B00000" : pct > 0.5 ? RED : "#707070";
   return (
     <div className="mb-2">
       <div className="flex justify-between text-xs mb-1">
@@ -687,7 +699,12 @@ function PodSizingHandoff() {
         <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Next: Pod Sizing</div>
         <div className="text-xs text-gray-500">Full deployment build-out -- networking, storage, power. Coming soon.</div>
       </div>
-      <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-200 text-gray-500 flex-shrink-0">Coming soon</span>
+      {/* Fix (accessibility, axe-core color-contrast finding): text-gray-500
+          (#6B7280) on this badge's bg-gray-200 (#E5E7EB) measured 3.90:1,
+          the closest miss of the set but still below the 4.5:1 WCAG AA
+          requirement. text-gray-600 (#4B5563) measures 6.10:1 and keeps
+          the same muted, deliberately-deemphasized look. */}
+      <span className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-gray-200 text-gray-600 flex-shrink-0">Coming soon</span>
     </div>
   );
 }
@@ -1686,7 +1703,10 @@ function GPUSizingCalculatorInner() {
                   style={
                     pathLevel === p
                       ? { color: RED, borderBottom: `2px solid ${RED}` }
-                      : { color: "#999" }
+                      // Fix (accessibility, axe-core color-contrast finding):
+                      // #999 on white measured 2.85:1, below the 4.5:1 WCAG
+                      // AA requirement. #707070 measures 4.95:1.
+                      : { color: "#707070" }
                   }
                 >
                   {p} path
@@ -1715,10 +1735,21 @@ function GPUSizingCalculatorInner() {
                 )}
 
                 <Field label="Quantization" tipKey="quant"><Select value={quant} onChange={setQuant} options={["FP16", "FP8", "FP4"]} /></Field>
+                {/* Fix (accessibility, new finding from a stricter DOM check
+                    than axe runs -- Field's TipDot button is the first
+                    labelable descendant inside the <label> it wraps, per
+                    HTML's implicit-label-association rule, so the label
+                    silently associates with the "?" button instead of the
+                    actual input. These two are the specific instances
+                    confirmed affected; ariaLabel gives each input its
+                    correct accessible name directly, independent of the
+                    label-association ambiguity, without needing to
+                    restructure Field itself (which 22 other call sites
+                    also use and weren't individually re-verified here). */}
                 <Field label="Peak concurrent users" tipKey="concurrentUsers" hint="Concurrent generating sessions, not total licensed users">
-                  <NumberInput value={concurrentUsers} onChange={setConcurrentUsers} />
+                  <NumberInput value={concurrentUsers} onChange={setConcurrentUsers} ariaLabel="Peak concurrent users" />
                 </Field>
-                <Field label="Target tokens/sec per user" tipKey="targetTokPerUser"><NumberInput value={targetTokPerUser} onChange={setTargetTokPerUser} /></Field>
+                <Field label="Target tokens/sec per user" tipKey="targetTokPerUser"><NumberInput value={targetTokPerUser} onChange={setTargetTokPerUser} ariaLabel="Target tokens/sec per user" /></Field>
                 <SampleOutputPreview tokPerSec={targetTokPerUser} />
                 <Field label="Environment" tipKey="environment"><Select value={environment} onChange={setEnvironment} options={["Production", "Dev/Test/POC"]} /></Field>
                 <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>

@@ -545,7 +545,12 @@ function YearOneBreakdown({ cloudYear1, capital, operating }) {
         <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#CC0000", borderRadius: 2, marginRight: 4 }} />Upfront capital + transition</span>
         <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#5A87A8", borderRadius: 2, marginRight: 4 }} />Year 1 operating</span>
       </div>
-      <div style={{ fontSize: 10, color: "#8A8A8A", marginTop: 6, fontStyle: "italic" }}>
+      {/* Fix (accessibility, axe-core color-contrast finding): #8A8A8A on
+          this panel's #151515-adjacent dark background measured 3.99:1 at
+          10px, below the 4.5:1 WCAG AA requirement. #9E9E9E measures
+          5.14:1. (The report-view counterpart of this caption below uses
+          C.sub, a separate light-theme token, and is unaffected.) */}
+      <div style={{ fontSize: 10, color: "#9E9E9E", marginTop: 6, fontStyle: "italic" }}>
         Upfront costs occur primarily at deployment; operating costs recur every year. Year 1 cash outlay only -- later years reflect growth assumptions, not this run rate.
       </div>
     </div>

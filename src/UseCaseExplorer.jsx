@@ -859,7 +859,10 @@ function UseCaseExplorerInner() {
                 </button>
               ))}
             </div>
-            <p style={{ textAlign: "center", fontSize: 12, color: "#aaa", margin: 0 }}>
+            <p style={{ textAlign: "center", fontSize: 12, color: "#707070", margin: 0 }}>
+              {/* Fix (accessibility, axe-core color-contrast finding): #aaa on
+                  this page's #f9f9f9 background measured 2.21:1, well below
+                  the 4.5:1 WCAG AA requirement. #707070 measures 4.70:1. */}
               {ALL_BLUEPRINTS.length} NVIDIA AI Blueprints · CDW AI Factory · Last verified {blueprintData.meta.last_verified}
             </p>
           </div>

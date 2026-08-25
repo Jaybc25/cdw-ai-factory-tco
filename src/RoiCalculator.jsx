@@ -246,7 +246,15 @@ const styles = {
     fontSize: 12,
     fontStyle: "italic",
     fontWeight: 600,
-    color: RED,
+    // Fix (accessibility, axe-core color-contrast finding): RED (#CC0000)
+    // on the dark results panel's #3A3A3A background measured 1.93:1 --
+    // the worst offender axe found anywhere in the app, far below the
+    // 4.5:1 WCAG AA requirement. #F5A3A3 is already this file's own
+    // established color for text on this same dark background (used for
+    // the expand toggle) and measures 5.77:1 here. Keeping the red
+    // BORDER (still `RED` above) preserves the alarm signal visually;
+    // only the text color changes.
+    color: "#F5A3A3",
     lineHeight: 1.5,
   },
   expandToggle: {
