@@ -1,0 +1,113 @@
+name: AI Factory quality gate
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/extract_tco_workbook_snapshot.py"
+      - "docs/reverse-tco-model-v1.xlsx"
+      - "package.json"
+      - "package-lock.json"
+      - "playwright.config.js"
+      - ".github/workflows/quality-gate.yml"
+  pull_request:
+    paths:
+      - "src/**"
+      - "tests/**"
+      - "scripts/extract_tco_workbook_snapshot.py"
+      - "docs/reverse-tco-model-v1.xlsx"
+      - "package.json"
+      - "package-lock.json"
+      - "playwright.config.js"
+      - ".github/workflows/quality-gate.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  source-and-workbook:
+    name: Build + inspect TCO reference workbook
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Production build
+        run: npm run build
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Extract checked-in TCO workbook snapshot
+        run: python3 scripts/extract_tco_workbook_snapshot.py
+
+      - name: Verify required workbook structure
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          p = Path("tests/tco-parity/workbook_snapshot.json")
+          data = json.loads(p.read_text())
+          names = [s["name"] for s in data["sheets"]]
+          minimum = {"Inputs", "Engine", "Results", "Validation"}
+          missing = sorted(minimum - set(names))
+          if missing:
+              raise SystemExit(f"TCO workbook missing required sheets: {missing}. Present: {names}")
+          print("Workbook sheets:", ", ".join(names))
+          print("EngineRegression present:", "EngineRegression" in names)
+          print("Crossover present:", "Crossover" in names)
+          PY
+
+      - name: Upload workbook snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: tco-workbook-snapshot
+          path: tests/tco-parity/workbook_snapshot.json
+          if-no-files-found: error
+          retention-days: 14
+
+  live-smoke:
+    name: Live Vercel browser regression
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install Playwright test runner
+        run: npm install --no-save --no-package-lock @playwright/test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run live smoke regressions
+        env:
+          BASE_URL: https://cdw-ai-factory-tco.vercel.app
+        run: npx playwright test tests/e2e/live-smoke.spec.js
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          if-no-files-found: ignore
+          retention-days: 14
