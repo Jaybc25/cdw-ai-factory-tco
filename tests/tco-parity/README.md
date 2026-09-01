@@ -18,3 +18,7 @@ A parity failure should be investigated before changing either implementation. C
 - JavaScript engine defect.
 
 Do not change production math merely to make a test green without identifying which category applies.
+
+## Release baseline rule
+
+A formal known-good suite release should not be tagged from a TCO-affecting source baseline unless the GitHub quality gate passes the production build, final workbook-structure check, all 20 canonical Excel-to-JavaScript parity comparisons, and the current live Vercel Playwright regression suite. Credentialed auth/email/Slack/report-PDF checks remain a separate release-specific layer when those paths are changed.
