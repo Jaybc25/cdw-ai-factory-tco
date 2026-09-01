@@ -1,0 +1,19 @@
+name: Audit Azure prices once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/audit-azure-prices-once.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query Azure Retail Prices API
+        run: python3 scripts/audit_azure_prices_once.py
