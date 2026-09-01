@@ -6,25 +6,24 @@
 // pricing registry, centralizing just the provenance dates, not the full
 // rate tables -- see the Aug 2026 pricing-architecture discussion for the
 // fuller version (a real /data/pricing/ layer with per-record provenance,
-// automated cloud-rate checks) if that's ever worth building. Verified
-// against live market data at the time this was added: TCO's on-demand AWS
-// H100 ($6.88) and B200 ($14.24) rates both matched current published
-// on-demand pricing exactly -- the risk this module addresses is these
-// numbers going stale over time, not that they're wrong today.
+// automated cloud-rate checks) if that's ever worth building.
+//
+// Cloud Pricing Refresh #1 completed 2026-09-01. AWS and Azure were checked
+// against their machine-readable public price catalogs; GCP, OCI, and
+// CoreWeave were checked against current provider pricing pages/price lists.
+// Rows without dependable public On-Demand pricing remain explicitly marked
+// as proxy/QUOTE in TcoCalculator.jsx rather than being presented as current
+// list prices.
 
 // ISO dates -- update whenever the underlying rate card is actually
 // re-verified against current sources, not just whenever this file is
 // touched for an unrelated change.
 //
-// Both dates below are sourced, not guessed: both the cloud RATES table and
-// the on-prem SYSTEMS registry trace to the same Aug 6, 2026 rate-expansion
-// spec (NVIDIA TCO tool screenshots Jay captured, cross-referenced against
-// live market trackers), wired into the live engine Aug 7. The file's own
-// comments confirm this ("Midpoints per rate-expansion spec Aug 2026" on
-// RATES; "NVIDIA TCO tool loaded costs (Aug 2026 capture)" on SYSTEMS). An
-// earlier version of this file guessed "Jul 1" for on-prem without checking
-// project history first -- that was wrong, not just imprecise; correcting
-// it here rather than leaving a plausible-looking but unverified date.
+// The on-prem date remains sourced to the Aug 2026 NVIDIA TCO tool capture.
+// Update it only after the NVIDIA loaded system economics have actually been
+// re-reviewed. The cloud date can advance after a complete provider-by-
+// provider review even when some rows remain QUOTE, provided those rows'
+// unavailable/quote status was itself re-verified and is disclosed.
 export const CLOUD_RATES_VERIFIED_AT = "2026-09-01"; // Full provider-by-provider review of TCO RATES table; public list/proxy/QUOTE status re-verified
 export const ONPREM_PRICING_VERIFIED_AT = "2026-08-07"; // TCO's SYSTEMS table + GPU Sizing's GPU_PRICE_USD (NVIDIA DGX TCO tool capture)
 
