@@ -27,14 +27,47 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 - Cloud GPU rates and NVIDIA loaded system prices remain code-maintained rather than centrally automated.
 - Pricing provenance is tracked in `src/pricingProvenance.js`, with review due after 45 days and stale after 90 days.
 
+### Current assurance state
+
+- Permanent GitHub Actions quality gate now runs a production build, validates the checked-in final TCO audit workbook structure, executes the canonical Excel-to-JavaScript parity gate, and runs the live Playwright regression suite against Vercel.
+- TCO canonical `EngineRegression` parity passes 20/20 checks using the workbook's `MAX($1, 0.01%)` tolerance for continuous values, exact fleet counts, and exact text/crossover outputs.
+- Live Vercel regression passes 13/13 automated tests covering all application routes, landing-page tool links, the prior TCO workload-state defect, ROI provenance/malformed handoff behavior, and the canonical TCO fixture through a real TCO-to-ROI click-through.
+- The parity gate found and drove correction of a real AWS B200 reserved-rate rounding defect. The web had rounded the exact $68.36 per 8-GPU reserved snapshot too early at the per-GPU level, which could incorrectly cross a fleet-size boundary. Current source preserves the exact 8.545 per-GPU equivalent for that snapshot.
+
 ### Still open
 
-- Automated TCO Excel-to-JavaScript parity suite.
-- Fresh full live regression of the current deployed application.
+- Credentialed live checks that require a real magic-link session or external side effects: auth/email delivery, database download-event verification, Slack notification verification, and final visual inspection of report/PDF output.
 - Shared pricing registry for TCO and GPU Sizing.
 - Production-backed NVIDIA NIM compatibility sync.
-- Live verification of the latest report/audit-trail changes where not already proven.
+- Live/manual verification of report/audit-trail presentation where not covered by automated tests.
+- Dependency-security review for the six npm audit findings surfaced by the new CI environment (3 moderate, 3 high); do not apply force upgrades without reviewing advisories and breaking-change risk.
 - External publication/branding approval items tracked in `AiFactoryProjectBrief.md`.
+
+## 2026-09-01 - Automated assurance baseline
+
+### Added
+
+- Permanent TCO workbook extractor: `scripts/extract_tco_workbook_snapshot.py`.
+- Permanent TCO Excel-to-JavaScript parity runner: `scripts/run_tco_parity.mjs`.
+- Playwright configuration and live regression coverage under `tests/e2e/`.
+- GitHub Actions quality gate at `.github/workflows/quality-gate.yml`, using Node 22 for the application/test environment.
+
+### Validation
+
+- Confirmed the legacy-named repo workbook `docs/reverse-tco-model-v1.xlsx` is the final audit workbook and contains `EngineRegression` and `Crossover` along with the validated model sheets.
+- Canonical TCO Excel-to-JavaScript parity: 20/20 PASS.
+- Live Vercel browser regression: 13/13 PASS.
+- Canonical live TCO fixture renders one DGX B200 system and Month 24 crossover, confirms the corrected reserved-rate snapshot is deployed, and successfully hands the resulting costs/provenance to ROI through the real production link.
+
+### Corrected
+
+- AWS B200 reserved-rate precision now preserves the validated NVIDIA TCO snapshot of $68.36 per 8-GPU instance rather than prematurely rounding the per-GPU equivalent to two decimals.
+- This correction prevents a four-cent instance-rate difference from incorrectly pushing exact-boundary workloads from one DGX B200 system to two.
+
+### Release discipline
+
+- This assurance baseline is the candidate for the first formal known-good suite release, `v2026.09` / `AI Factory Suite 2026.09`, after the cleaned repository passes the final quality gate.
+- External CDW publication approval remains separate from source/live technical verification.
 
 ## 2026-09-01 - Current source baseline after project-memory consolidation
 

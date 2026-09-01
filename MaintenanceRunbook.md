@@ -359,14 +359,22 @@ For a meaningful release:
 8. Update `ServiceInventory.md` if a service, tier, credential location, dependency, or failure mode changed.
 9. Once the release qualifies as a known-good baseline, create a Git tag/release identifying the exact commit.
 
-## 11. Current high-priority assurance backlog
+## 11. Current assurance baseline and remaining backlog
 
-As of September 1, 2026, the key remaining assurance/maintenance improvements are:
+As of September 1, 2026:
 
-1. Build the automated TCO Excel-to-JavaScript parity suite.
-2. Run a fresh full live regression against the current Vercel deployment.
-3. Centralize TCO and GPU Sizing pricing into a shared pricing registry.
-4. Establish production-backed NIM compatibility sync only after NVIDIA endpoint validation.
-5. Continue explicit live verification of report/audit-trail changes as they evolve.
+### Completed and now permanent
+
+1. The automated TCO Excel-to-JavaScript parity suite is built into GitHub Actions and the canonical `EngineRegression` fixture passes 20/20 checks.
+2. The automated live Vercel regression suite is built into GitHub Actions and passes 13/13 tests across all routes plus the highest-risk handoff/provenance paths and the canonical TCO live fixture.
+3. The quality gate runs on relevant source, test, workbook, package, and workflow changes, so these checks are reusable rather than one-time audit work.
+
+### Remaining
+
+1. Perform credentialed live checks when needed for a release that changes auth/report infrastructure: magic-link delivery, database download events, Slack notifications, and final report/PDF visual inspection.
+2. Centralize TCO and GPU Sizing pricing into a shared pricing registry.
+3. Establish production-backed NIM compatibility sync only after NVIDIA endpoint validation.
+4. Continue explicit live/manual verification of report/audit-trail presentation as those surfaces evolve.
+5. Review the npm audit findings surfaced by CI before deciding whether dependency upgrades are warranted; do not use force upgrades without advisory and regression review.
 
 These priorities are technical assurance priorities, not a substitute for business or CDW publication priorities.

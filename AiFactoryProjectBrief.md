@@ -177,7 +177,7 @@ Current verification dates in source are August 7, 2026 for both cloud and on-pr
 
 ## 16. Consolidated Open Items / Corrected Status
 
-### Resolved in current source
+### Resolved in current source and/or permanent assurance automation
 
 1. TCO workload handoff state/provenance persistence.
 2. GPU token-speed preview layout shift.
@@ -187,18 +187,20 @@ Current verification dates in source are August 7, 2026 for both cloud and on-pr
 6. My Summary loading-versus-empty flash.
 7. Core accessibility remediation for identified labels/collapsibles.
 8. Client-summary fixture absence/zero-fixture false-pass issue; current repo contains 14 fixtures.
+9. **TCO Excel-to-JS automated parity suite.** Built September 1, 2026 as a permanent GitHub Actions quality gate. The checked-in final audit workbook is extracted directly in CI and the canonical `EngineRegression` fixture passes 20/20 comparisons against the current production JavaScript engine.
+10. **Automated live Vercel regression.** Built September 1, 2026 with Playwright. The current public-production suite passes 13/13 tests covering all routes, landing links, key handoff/state/provenance defects, and a canonical TCO fixture through the real TCO-to-ROI link.
 
 ### Still open or not independently proven live
 
-9. **TCO Excel-to-JS automated parity suite.** Current registry reconciliation workflow does not satisfy this requirement.
-10. **Fresh full live regression of the current Vercel deployment,** including Explorer -> Advisor -> GPU -> TCO -> ROI -> Summary, deep links, Back/Forward, hard refresh, audit docs, reports, and print/PDF.
-11. **Shared pricing data module/registry.** Current provenance dates are shared; price values remain duplicated.
-12. **Production NVIDIA NIM sync endpoint.** Manual workflow remains intentionally unscheduled.
-13. **Deployment verification for latest ROI/report and Readiness verbose-report changes.** Source may be correct without the latest deployed PDF path having been independently re-proven.
-14. **Supabase Database Webhooks platform/support resolution.** Direct Edge Function invocation remains the current workaround.
-15. **@cdw.com Resend deliverability.** External/CDW IT issue, not established as an app-code defect.
-16. **Domain/publication gating.** cdwaifactory.com is parked pending external approval; connecting it also requires Supabase Auth redirect changes.
-17. **Future product work:** Pod Sizing, journey-level lead signal, Vision/CV catalog/route, financing/lease support, and other roadmap additions as business priority dictates.
+11. **Credentialed/external-side-effect live checks.** Magic-link email delivery, authenticated report/download event verification, Slack notification verification, and final report/PDF visual inspection remain a separate live-manual layer when those paths change.
+12. **Shared pricing data module/registry.** Current provenance dates are shared; price values remain duplicated.
+13. **Production NVIDIA NIM sync endpoint.** Manual workflow remains intentionally unscheduled.
+14. **Deployment verification for latest ROI/report and Readiness verbose-report changes.** Source may be correct without the latest deployed PDF path having been independently re-proven.
+15. **Supabase Database Webhooks platform/support resolution.** Direct Edge Function invocation remains the current workaround.
+16. **@cdw.com Resend deliverability.** External/CDW IT issue, not established as an app-code defect.
+17. **Domain/publication gating.** cdwaifactory.com is parked pending external approval; connecting it also requires Supabase Auth redirect changes.
+18. **Future product work:** Pod Sizing, journey-level lead signal, Vision/CV catalog/route, financing/lease support, and other roadmap additions as business priority dictates.
+19. **Dependency-security review.** The September 1 quality-gate environment reports six npm audit findings (3 moderate, 3 high). These require advisory-level review before deciding on upgrades; a force upgrade is not assumed safe.
 
 ## 17. Former Gaps, Now Resolved or Classified
 
@@ -209,7 +211,7 @@ Current verification dates in source are August 7, 2026 for both cloud and on-pr
 5. **ChatGPT project knowledge:** consolidated in Section 18 below.
 6. **CDW sign-off:** still external/unresolved. Repo visibility, deployment, logo presence, or draft approval does not establish website-publication approval.
 7. **Formspree:** no current repo implementation or dependency found. Current implementation uses Supabase/Resend/Slack. Treat Formspree as superseded/dead scope unless deliberately revived.
-8. **Roadmap priority:** current technical assurance priorities are clearer, but Jay's next business priority is not inferred from repo state. Recommended assurance order is TCO parity suite, fresh live regression, then shared pricing registry, with business-facing future features ordered separately.
+8. **Roadmap priority:** the TCO parity suite and automated public-production regression were completed September 1, 2026. The next major technical-maintenance priority is the shared pricing registry, while credentialed auth/report/notification checks remain release-specific and business-facing future features are ordered separately.
 
 ## 18. ChatGPT Independent Validation / Audit Memory
 
@@ -266,7 +268,7 @@ Key defect groups and current-source disposition:
 7. **GPU token preview layout shift:** validated patch now reserves final wrapped height and reveals text without DOM growth.
 8. **Cosmetic/deprecation backlog:** extreme large-number formatting and router future/deprecation warnings are lower priority than correctness defects.
 
-Current source contains fixes for the serious pre-deployment defects, but that is not the same as a fresh current live GO. A new deployed end-to-end regression should precede a new live-release GO claim.
+Current source contains fixes for the serious pre-deployment defects. On September 1, 2026, a new permanent quality gate also established 20/20 canonical TCO Excel-to-JavaScript parity and 13/13 automated live Vercel browser tests across all routes plus the highest-risk handoff/provenance paths. That supports source and automated public-production verification for the tested scope. Credentialed magic-link, database-event, Slack-notification, and report/PDF visual checks remain a separate live-manual layer, and none of these technical results imply external CDW publication approval.
 
 ### 18.5 Durable cross-tool design findings
 
@@ -325,7 +327,7 @@ Current live-source modules under `src/` at the snapshot include:
 - sessionState.js
 - supabaseClient.js
 
-Relevant automation currently includes monthly Hugging Face model-spec sync, weekly Artificial Analysis capability sync, daily/data-change registry reconciliation, and manual-only NIM compatibility research/sync.
+Relevant automation currently includes monthly Hugging Face model-spec sync, weekly Artificial Analysis capability sync, daily/data-change registry reconciliation, manual-only NIM compatibility research/sync, and the AI Factory quality gate for production build, TCO workbook parity, and live Vercel Playwright regression.
 
 ### Fetch-first rule for all future work
 
