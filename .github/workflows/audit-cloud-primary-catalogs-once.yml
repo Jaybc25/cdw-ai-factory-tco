@@ -1,0 +1,19 @@
+name: Audit cloud primary pricing catalogs once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/audit-cloud-primary-catalogs-once.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Query AWS and Azure primary price catalogs
+        run: python3 scripts/audit_cloud_primary_catalogs_once.py
