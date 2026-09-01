@@ -251,9 +251,14 @@ for (const [label, key, expectedCell] of checks) {
   let pass;
   let detail = "";
   if (typeof expected === "number") {
-    const result = numericPass(Number(got), expected);
-    pass = Number.isFinite(Number(got)) && result.pass;
-    detail = `tol=${result.tolerance}`;
+    if (key === "systemsAdjusted" || key === "systemsFloor") {
+      pass = Number(got) === expected;
+      detail = "exact integer match";
+    } else {
+      const result = numericPass(Number(got), expected);
+      pass = Number.isFinite(Number(got)) && result.pass;
+      detail = `tol=${result.tolerance}`;
+    }
   } else {
     pass = got === expected;
   }

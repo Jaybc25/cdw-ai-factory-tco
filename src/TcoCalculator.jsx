@@ -12,7 +12,7 @@ import { CLOUD_RATES_VERIFIED_AT, ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVe
    ($113.93 -> $68.36/instance in the NVIDIA TCO tool). */
 const RATES = {
   /* conf tiers: LISTED > NODE-NORM > EST > QUOTE (QUOTE = verify with provider). Midpoints per rate-expansion spec Aug 2026. */
-  AWS:       { A100:{od:4.10,conf:"LISTED"}, H100:{od:6.88,conf:"LISTED"}, H200:{od:10.00,conf:"LISTED"}, "B200-class":{od:14.24,conf:"LISTED"}, B300:{od:17.80,conf:"NODE-NORM"}, GB200:{od:27.50,conf:"QUOTE"}, GB300:{od:30.00,conf:"QUOTE"} },
+  AWS:       { A100:{od:4.10,conf:"LISTED"}, H100:{od:6.88,conf:"LISTED"}, H200:{od:10.00,conf:"LISTED"}, "B200-class":{od:14.24,res:8.545,conf:"LISTED",note:"reserved snapshot $68.36/8 GPUs"}, B300:{od:17.80,conf:"NODE-NORM"}, GB200:{od:27.50,conf:"QUOTE"}, GB300:{od:30.00,conf:"QUOTE"} },
   Azure:     { A100:{od:3.40,conf:"EST"}, H100:{od:12.29,conf:"LISTED"}, H200:{od:10.60,conf:"LISTED"}, "B200-class":{od:27.04,conf:"LISTED",note:"4-GPU config list"}, B300:{od:15.00,conf:"QUOTE"}, GB200:{od:27.00,conf:"LISTED"}, GB300:{od:40.00,conf:"QUOTE"} },
   GCP:       { A100:{od:3.28,conf:"LISTED"}, H100:{od:11.06,conf:"LISTED"}, H200:{od:10.60,conf:"EST"}, "B200-class":{od:18.53,conf:"LISTED"}, B300:{od:15.00,conf:"QUOTE"}, GB200:{od:27.50,conf:"QUOTE"}, GB300:{od:30.00,conf:"QUOTE"} },
   OCI:       { A100:{od:3.05,conf:"EST"}, H100:{od:10.00,conf:"LISTED"}, H200:{od:10.30,conf:"LISTED"}, "B200-class":{od:15.00,conf:"EST"}, B300:{od:5.00,conf:"EST"}, GB200:{od:16.00,conf:"LISTED"}, GB300:{od:30.00,conf:"QUOTE"} },
@@ -69,7 +69,7 @@ const BASE_RC = {
 function defaultsFor(provider, gpuClass, ownSys) {
   const r = RATES[provider][gpuClass];
   const S = SYSTEMS[ownSys];
-  return { ...BASE_RC, instOD: +r.od.toFixed(2), instRes: +(r.od * RES_MULT).toFixed(2),
+  return { ...BASE_RC, instOD: +r.od.toFixed(2), instRes: r.res ?? +(r.od * RES_MULT).toFixed(2),
     perSysCost: S.perSys, sysKw: S.kW };
 }
 const PROVIDERS = Object.keys(RATES);
@@ -1285,7 +1285,7 @@ function AppInner() {
 
             <div style={{ fontSize: 11, fontWeight: 700, color: C.sub, marginTop: 12, marginBottom: 2 }}>Model-supplied assumptions (editable rate card, not your inputs)</div>
             <Row label="On-demand rate" value={`$${rc.instOD.toFixed(2)}/GPU-hr`} sub={`${provider} ${gpuClass}`} />
-            <Row label="Reserved rate" value={`$${rc.instRes.toFixed(2)}/GPU-hr`} sub="60% of on-demand, standard 1-yr reserved discount" />
+            <Row label="Reserved rate" value={`$${rc.instRes.toFixed(2)}/GPU-hr`} sub={RATES[provider][gpuClass].res != null ? "NVIDIA TCO snapshot ($68.36 per 8-GPU B200 instance)" : "60% of on-demand, estimated 1-yr reserved discount"} />
             <Row label="NVAIE software rate (on-demand / reserved)" value={`$${rc.nvaieOD.toFixed(2)} / $${rc.nvaieRes.toFixed(2)} per GPU-hr`} />
             <Row label="PaaS uplift" value={`${(rc.paasUplift * 100).toFixed(0)}%`} />
             {(() => {
@@ -1687,7 +1687,7 @@ function AppInner() {
           <Seg options={PROVIDERS} value={provider} onChange={setProvider} />
           <div style={{ fontSize: 11, color: C.green, background: C.greenSoft, borderRadius: 6, padding: "6px 9px" }}>
             {provider} {gpuClass}: ${rateInfo.od.toFixed(2)}/GPU-hr on-demand · confidence: {rateInfo.conf}
-            {rateInfo.conf === "QUOTE" ? " (estimate — verify with provider)" : ""}{rateInfo.note ? ` (${rateInfo.note})` : ""} · reserved = 40% off list (est.) · rates as of {RATES_ASOF}. Override any rate below.
+            {rateInfo.conf === "QUOTE" ? " (estimate — verify with provider)" : ""}{rateInfo.note ? ` (${rateInfo.note})` : ""} · {rateInfo.res != null ? "reserved = NVIDIA TCO snapshot" : "reserved = 40% off list (est.)"} · rates as of {RATES_ASOF}. Override any rate below.
           </div>
           {cloudRatesStaleness.level !== "current" && (
             <div style={{ fontSize: 11, color: cloudRatesStaleness.level === "stale" ? "#B91C1C" : "#B45309", background: cloudRatesStaleness.level === "stale" ? "#FEF2F2" : "#FFFBEB", border: `1px solid ${cloudRatesStaleness.level === "stale" ? "#FECACA" : "#FDE68A"}`, borderRadius: 6, padding: "6px 9px", marginTop: 6 }}>
@@ -1844,7 +1844,7 @@ function AppInner() {
             </button>
           )}
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "8px 0 2px", color: C.sub }}>CLOUD — {provider} {gpuClass} ($/GPU-hr) · {rateInfo.conf} · as of {RATES_ASOF}</div>
-          <RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.001} fmt={(v)=>`$${v}`} />
           <RateField k="instOD" label="Cloud $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="nvaieRes" label="NVAIE support $/GPU-hr, reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="nvaieOD" label="NVAIE support $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
