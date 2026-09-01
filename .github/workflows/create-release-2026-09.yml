@@ -1,0 +1,70 @@
+name: Create AI Factory Suite 2026.09 release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/create-release-2026-09.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_SHA: 31fdb2ff2a321f6101bfa72d3c45b4c31aa3a0eb
+      RELEASE_TAG: v2026.09
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify release candidate commit exists
+        run: git cat-file -e "$RELEASE_SHA^{commit}"
+
+      - name: Verify tag does not already exist
+        run: |
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists"
+            exit 1
+          fi
+
+      - name: Create annotated tag
+        run: |
+          git config user.name "ai-factory-quality-bot"
+          git config user.email "actions@github.com"
+          git tag -a "$RELEASE_TAG" "$RELEASE_SHA" -m "AI Factory Suite 2026.09"
+          git push origin "$RELEASE_TAG"
+
+      - name: Write release notes
+        run: |
+          cat > /tmp/release-notes.md <<'EOF'
+          First formal known-good baseline for the CDW AI Factory tool suite.
+
+          Validation baseline:
+          - Release commit: `31fdb2ff2a321f6101bfa72d3c45b4c31aa3a0eb`
+          - Production Vite build: PASS
+          - Final checked-in TCO audit workbook structure: PASS
+          - Canonical TCO Excel-to-JavaScript parity: 20/20 PASS
+          - Live Vercel Playwright regression: 13/13 PASS
+          - Canonical live TCO fixture: 1 DGX B200 system, Month 24 crossover, and real TCO-to-ROI handoff verified
+
+          This assurance work also found and corrected a real AWS B200 reserved-rate precision defect. The web implementation had rounded the validated $68.36 per 8-GPU reserved snapshot too early at the per-GPU level, which could incorrectly move an exact-boundary workload from one system to two. The current source preserves the exact 8.545 per-GPU equivalent for that validated snapshot.
+
+          Permanent assurance machinery added:
+          - GitHub Actions quality gate
+          - TCO workbook snapshot extractor
+          - TCO Excel-to-JavaScript parity runner
+          - Playwright live regression suite
+
+          Scope note:
+          Credentialed magic-link delivery, authenticated database download-event verification, Slack notification verification, and final report/PDF visual inspection remain release-specific live checks when those paths change. External CDW publication/branding approval is a separate status and is not implied by this technical release.
+
+          Open maintenance items include the shared TCO/GPU Sizing pricing registry, production-backed NVIDIA NIM sync, and advisory-level review of current npm audit findings.
+          EOF
+
+      - name: Create GitHub release
+        run: gh release create "$RELEASE_TAG" --repo "${{ github.repository }}" --target "$RELEASE_SHA" --title "AI Factory Suite 2026.09" --notes-file /tmp/release-notes.md
