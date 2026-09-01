@@ -1,40 +1,138 @@
-# CDW AI Factory — Cloud → On-Prem AI TCO Calculator (v2.7)
+# CDW AI Factory Tool Suite
 
-Reverse TCO tool: starts from a customer's current cloud AIaaS spend and outputs
-the on-prem NVIDIA fleet required to absorb it, with cost of ownership vs. staying
-in cloud over 1/3/5 years. Companion artifacts in /docs: design spec and the
-validated Excel model (reproduces NVIDIA DGX TCO tool Test 1 exactly).
+Private source repository for the CDW AI Factory tool suite, a Vite + React single-page application focused on AI use-case discovery, open-weight model selection, GPU sizing, cloud vs on-prem TCO, ROI, readiness, and consolidated client summaries.
+
+Live application: https://cdw-ai-factory-tco.vercel.app
+
+For architecture, history, validation findings, conventions, and durable project context, read `AiFactoryProjectBrief.md` at the repo root.
+
+For a human-readable history of meaningful milestones and current open items, read `CHANGELOG.md`.
+
+## Current tool suite
+
+Routes in the current application:
+
+- `/use-cases` - AI Use Case Explorer
+- `/model-advisor` - Open-Weight Model Advisor
+- `/gpu-sizing` - GPU Sizing Tool
+- `/tco` - Cloud vs On-Prem TCO Calculator
+- `/roi` - AI Use Case ROI Calculator
+- `/readiness` - AI Readiness Checklists
+- `/summary` - Combined Summary for signed-in users
+
+The tools are designed as one connected journey, with state and provenance handoffs where appropriate.
+
+## Current platform architecture
+
+- Front end: React 18 + Vite
+- Routing: React Router
+- Backend services: Supabase Postgres, Auth, and Edge Functions
+- Authentication: Supabase magic-link login
+- Email delivery: Resend SMTP through Supabase Auth
+- Hosting and deployment: Vercel
+- Notifications: Slack webhook invoked through a Supabase Edge Function
+- Model metadata source: Hugging Face Hub API
+- Model capability source: Artificial Analysis free API
+- Domain/DNS: Cloudflare for `cdwaifactory.com`
+
+The GitHub repository is the source of truth for code and tracked data. Before reviewing or editing a module, fetch its current file from `main` rather than relying on memory, prior chat context, or old exported files.
+
+## Data maintenance and automation
+
+### Automated today
+
+- Hugging Face model-spec sync: monthly on the 1st at 06:00 UTC, plus manual dispatch
+- Artificial Analysis capability sync: weekly on Monday at 06:00 UTC, plus manual dispatch
+- Canonical model-registry reconciliation: daily at 07:00 UTC and on changes under `data/**`
+
+Relevant workflows live under `.github/workflows/`.
+
+### Manual or partially manual today
+
+- NVIDIA DGX loaded system pricing used by TCO and GPU Sizing
+- Cloud GPU list-rate verification for AWS, Azure, GCP, OCI, and CoreWeave
+- MLPerf/performance-factor refreshes when new evidence materially changes the sizing model
+- Review of newly discovered models before adding them to the canonical registry
+- NVIDIA NIM compatibility sync, which intentionally remains manual-only until a documented and live-tested catalog-wide endpoint is confirmed
+- Full live regression testing after material releases
+
+`src/pricingProvenance.js` is the current source of truth for pricing verification dates and staleness thresholds. It does not yet centralize the actual pricing tables.
+
+## Validation and status language
+
+Use three separate status levels and never infer one from another:
+
+1. `source-verified` - current repo code/data has been inspected and supports the claim
+2. `live-verified` - the deployed application has been exercised and the behavior was confirmed
+3. `externally approved` - CDW or another required external authority has approved the relevant branding, publication, policy, or business decision
+
+A source-level fix is not automatically a live-verified production fix. A deployed site is not automatically externally approved for publication.
 
 ## Run locally
-    npm install
-    npm run dev          # http://localhost:5173
+
+```bash
+npm install
+npm run dev
+```
+
+Vite runs locally at the URL printed in the terminal, normally `http://localhost:5173`.
 
 ## Production build
-    npm run build        # outputs to /dist
-    npm run preview      # serve the build locally
 
-## Deploy (when approved — see status below)
-Any static host works: Vercel, Netlify, Cloudflare Pages, GitHub Pages.
-Point the cdwaifactory.com DNS at the host from your registrar afterward (Cloudflare Pages is a natural fit given the domain lives at Cloudflare). index.html carries
-noindex until launch is approved.
+```bash
+npm run build
+npm run preview
+```
 
-## IMPORTANT — approval status (Aug 2026)
-- CDW logo: TEMPORARY approval for this draft product artifact only.
-- Website publication: NOT approved yet. Do not deploy publicly before
-  CDW marketing/legal sign-off (branding + domain).
-- Before public launch: gate or strip the editable Rate card section
-  (contains partner-derived pricing), and replace demo lead storage.
+`npm run build` outputs the production bundle to `dist/`.
 
-## Deploy-phase work (not in this package)
-- Lead handling: real form endpoint or CRM webhook (demo uses localStorage /
-  artifact storage via the adapter in src/App.jsx).
-- Emailed PDF: server-side render + email API (e.g., Resend or SendGrid).
-- Automated rate feeds: provider pricing APIs (AWS Price List, Azure Retail
-  Prices, GCP Billing Catalog), EIA power rates, MLPerf refresh. See spec §5.
+## Important environment and secret names
 
-## Data provenance
-- On-prem defaults: NVIDIA DGX TCO tool (Jul 2026 extract).
-- Cloud rates: provider list pricing via public trackers, Jul–Aug 2026,
-  estimated cells flagged in-app.
-- Performance factors: MLPerf-derived (conservative defaults; NVIDIA claims
-  as range upper bounds).
+Do not commit secret values to this repository.
+
+Runtime and CI depend on configuration including:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+- `HF_TOKEN`
+- `AA_API_KEY`
+- `SLACK_WEBHOOK_URL`
+
+The Hugging Face token may be read-only, but its issuing account must have accepted the licenses for gated tracked models such as Llama and Gemma.
+
+## Current data-source notes
+
+Cloud GPU rates and NVIDIA loaded system prices are still maintained in code rather than one shared pricing registry. TCO and GPU Sizing therefore require coordinated pricing updates when those values change.
+
+The current pricing provenance dates are maintained in `src/pricingProvenance.js`. At the time this README was refreshed, the code defines:
+
+- review due after 45 days
+- stale after 90 days
+
+The longer-term architecture already contemplated by the project is a shared `/data/pricing/` layer with per-record source, confidence, and verification metadata.
+
+## Known assurance and maintenance priorities
+
+The main remaining technical assurance items are:
+
+1. Build the automated TCO Excel-to-JavaScript parity suite.
+2. Run a fresh end-to-end regression against the current Vercel deployment, including cross-tool handoffs, refresh, Back/Forward behavior, auth, reports, audit trails, print/PDF, and Combined Summary.
+3. Centralize cloud and on-prem pricing into one shared data source so TCO and GPU Sizing cannot drift.
+4. Keep NIM compatibility manual until the NVIDIA endpoint is production-validated.
+
+See `AiFactoryProjectBrief.md` for the detailed defect history, current source-level remediation status, and prior validation record.
+
+## Publication and branding status
+
+The project brief remains the authoritative record for CDW approval status. Do not infer publication approval from the existence of a live Vercel deployment, a private GitHub repository, or CDW branding in the source.
+
+The `cdwaifactory.com` domain has been acquired and is managed through Cloudflare, but deployment/domain changes should remain consistent with the external approval state recorded in `AiFactoryProjectBrief.md`.
+
+## Working conventions
+
+- No em dashes in project writing.
+- Use actual current repo files for review and edits.
+- Preserve exact existing filenames when updating deliverables.
+- Treat `main` as the current code/data source of truth.
+- Update `AiFactoryProjectBrief.md` after durable architecture, validation, data-source, or roadmap changes.
+- Update `CHANGELOG.md` for meaningful release-level changes, not every small commit.
