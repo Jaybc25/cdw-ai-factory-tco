@@ -149,6 +149,20 @@ Procedure:
 
 Providers currently represented in TCO include AWS, Azure, GCP, OCI, and CoreWeave.
 
+#### Canonical provider pricing basis
+
+Use the following basis consistently so monthly refreshes do not mix incomparable purchasing models:
+
+| Provider | Canonical `od` basis | Primary source | Special handling |
+| --- | --- | --- | --- |
+| AWS | Linux EC2 standard On-Demand in `us-east-1`, normalized by physical GPU count | AWS public EC2 price catalog | Capacity Blocks are a cross-check, not a substitute for standard On-Demand. If no standard On-Demand catalog row exists, retain `QUOTE` or an explicitly documented proxy. |
+| Azure | Linux Pay-As-You-Go retail price for a canonical GPU VM SKU in a documented US region, normalized by GPU count | Azure Retail Prices API | Region availability differs. Use the documented canonical region for each SKU and do not substitute Windows pricing. |
+| GCP | Explicitly labeled accelerator-optimized On-Demand in Iowa `us-central1`, normalized by GPU count | Google Cloud accelerator-optimized pricing | If On-Demand is `N/A`, use only an explicitly named public proxy such as DWS Calendar Mode and label it accordingly, or use `QUOTE`. Never silently substitute Spot or CUD pricing. |
+| OCI | Pay As You Go GPU-per-hour rate | Oracle Cloud PaaS and IaaS Global Price List | Oracle already publishes normalized GPU-per-hour rates, so no node normalization is needed. |
+| CoreWeave | North America On-Demand node price divided by GPU count | CoreWeave public pricing page | If On-Demand says `Contact sales`, keep the row `QUOTE`; do not substitute Spot pricing. |
+
+Cloud Pricing Refresh #1 was completed on September 1, 2026 using this policy. Confidence labels remain part of the data model: `LISTED` for directly supported public prices, `NODE-NORM` for a transparent public node/proxy normalization, `EST` for a defensible estimate, and `QUOTE` when a dependable public rate is unavailable. A `QUOTE` row may retain a numeric planning placeholder so the calculator can run, but the placeholder must not be represented as a current provider list price.
+
 Procedure:
 
 1. Check current provider pricing using primary provider pricing pages or APIs where practical.

@@ -25,7 +25,7 @@
 // earlier version of this file guessed "Jul 1" for on-prem without checking
 // project history first -- that was wrong, not just imprecise; correcting
 // it here rather than leaving a plausible-looking but unverified date.
-export const CLOUD_RATES_VERIFIED_AT = "2026-08-07"; // TCO's RATES table ($/GPU-hr, AWS/Azure/GCP/OCI/CoreWeave)
+export const CLOUD_RATES_VERIFIED_AT = "2026-09-01"; // Full provider-by-provider review of TCO RATES table; public list/proxy/QUOTE status re-verified
 export const ONPREM_PRICING_VERIFIED_AT = "2026-08-07"; // TCO's SYSTEMS table + GPU Sizing's GPU_PRICE_USD (NVIDIA DGX TCO tool capture)
 
 // current: no warning needed, just show the date. review: gently note it's

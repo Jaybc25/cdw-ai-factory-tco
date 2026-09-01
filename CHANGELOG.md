@@ -22,6 +22,16 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 - Updated `README.md`, `MaintenanceRunbook.md`, and `AiFactoryProjectBrief.md` so Git tags/GitHub Releases are the authoritative internal release identity and individual tool versions are not independently authoritative.
 - Recorded that legacy `package.json` version `2.8.0` will remain untouched for the already validated `v2026.09` baseline and will transition to calendar-aligned SemVer metadata beginning with the next stable release.
 
+### Cloud Pricing Refresh #1 - 2026-09-01
+
+- Completed the first formal provider-by-provider cloud GPU pricing refresh using a canonical purchasing basis for AWS, Azure, GCP, OCI, and CoreWeave.
+- AWS public EC2 catalog directly confirmed A100 80GB (`p4de`), H100 (`p5`), H200 (`p5en`), B200 (`p6-b200`), and B300 (`p6-b300`) On-Demand rates in `us-east-1`; GB200/GB300 remain `QUOTE` where a canonical standard On-Demand catalog row was not verified.
+- Azure Retail Prices API directly confirmed Linux A100, H100, H200, and GB200 rates; B200, B300, and GB300 remain `QUOTE` where no canonical retail SKU was verified.
+- GCP H100 and H200 On-Demand rates were reconfirmed. A100 was normalized to the A100 80GB A2 Ultra class. B200 standard On-Demand is currently `N/A`, so the tool now uses the explicitly disclosed DWS Calendar Mode public proxy rather than presenting the prior value as `LISTED` On-Demand.
+- OCI was reconciled to Oracle's current GPU-per-hour Global Price List, correcting A100, H200, B200, B300, and GB300 values while retaining matching H100 and GB200 values.
+- CoreWeave H200 was updated to the current North America On-Demand node-normalized rate, while B300 and GB300 were reclassified to `QUOTE` because public On-Demand pricing is currently `Contact sales`.
+- Updated `CLOUD_RATES_VERIFIED_AT` to `2026-09-01` after the complete table review. Quote/proxy rows remain explicitly disclosed rather than being treated as verified list prices.
+
 ### Current maintenance state
 
 - Hugging Face model specifications sync monthly on the 1st through GitHub Actions.
