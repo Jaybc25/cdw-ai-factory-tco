@@ -6,9 +6,9 @@
 
 ## 1. Suite Overview
 
-Six tools live on one site, built as a single Vite + React SPA in the public GitHub repo `Jaybc25/cdw-ai-factory-tco`, default branch `main`, auto-deploying via Vercel (Pro plan).
+Six tools live on one site, built as a single Vite + React SPA in the private GitHub repo `Jaybc25/cdw-ai-factory-tco`, default branch `main`, auto-deploying via Vercel (Pro plan).
 
-- **Repository:** https://github.com/Jaybc25/cdw-ai-factory-tco (PUBLIC as verified August 31, 2026; this corrects the earlier memory entry that called it private).
+- **Repository:** https://github.com/Jaybc25/cdw-ai-factory-tco. It was PUBLIC when this brief was originally consolidated on August 31, 2026, then changed to PRIVATE on September 1, 2026. Authenticated GitHub connector access was re-verified after the privacy change, so repo-backed maintenance remains available without public exposure.
 - **Repo snapshot used for this export:** `main` at `4106962aa657075ef313f34160e7c3b130a0b5af` immediately before this brief was committed. That HEAD was an automated model-capability sync commit.
 - **Live URL:** https://cdw-ai-factory-tco.vercel.app
 - **Domain:** cdwaifactory.com purchased via Cloudflare Registrar (Aug 2026), verified in Resend, but still PARKED and not connected to Vercel, pending CDW publication sign-off. When connected, Supabase Auth's Site URL and Redirect URLs must be updated from the vercel.app URL or magic-link logins will break.
@@ -90,244 +90,247 @@ Built and committed on all four calculating tools, reached via a button next to 
 
 **Key fixes shipped:** sync pipeline text_config fallback (multimodal configs nest max_position_embeddings, so context_length was silently null for exactly the 4 multimodal models, causing the "context window excludes everyone" pattern); Gemma 3 27B needs a manual override (its config states context length nowhere, class default 131,072); sweep-winner fix so eligible non-featured models still display; decision-trace intermediates exposed from the engine for the audit doc; session persistence added (was missing entirely).
 
-**Crosswalk:** ModelAdvisorCrosswalk.json maps all 52 Explorer blueprints to routingClass (23 general-model-selection, 9 infrastructure-first, 11 specialized-stack, 9 platform-architecture). Only 2 of Explorer's 7 categories map cleanly to Advisor workloads; the CV/non-LLM gap is confirmed and routed around (2 pure-vision blueprints reclassified to specialized-stack rather than expanding the catalog). Full CV/vision-language expansion is deferred as its own future project.
+**Crosswalk:** ModelAdvisorCrosswalk.json maps all 52 Explorer blueprints to routingClass (23 general-model-selection, 9 infrastructure-first, 11 specialized-stack, 9 platform-architecture). Only general-model-selection passes directly to the Model Advisor; infrastructure-first routes to GPU Sizing; specialized-stack gets a specific route note; platform-architecture stays in Explorer. This fixes the original funnel assumption that every use case should go through a general model picker.
 
-## 8. Model Data Sync and Governance Pipeline (shared by GPU Sizing and Model Advisor)
+## 8. Tool 4: AI Use Case Explorer (/use-cases)
 
-This section corrects the largest factual gap in the original memory export.
+**What it is:** browse/discover tool built from 52 AI solution blueprints, grouped into categories and searchable/filterable. It intentionally does not generate a report or snapshot because the interaction is exploratory rather than a completed calculation.
 
-- **Hugging Face architecture/spec registry:** `sync_model_specs.py` uses the Hugging Face Hub API and each tracked model's `config.json` as the primary source for license, architecture/context, modality, and model identity. **Authentication is required for the production sync.** Several tracked Llama and Gemma repositories are gated, so the GitHub Action supplies a read-only `HF_TOKEN` secret. The Hugging Face account that issued that token must first accept the relevant model license terms. Anonymous access can return 401. This replaces the earlier incorrect statement that "no auth [is] needed."
-- **Hugging Face cadence:** `.github/workflows/sync-model-specs.yml` runs monthly at 06:00 UTC on the first day of the month and can be triggered manually. It commits `data/model_specs.json` back to `main` as `model-advisor-bot`.
-- **Discovery vs truth:** `dell.huggingface.co` remains only a discovery layer for deciding which models are worth tracking. It is not the data source of record and there is no Dell-branded customer feature in the app.
-- **Explicit canonical registry:** `data/canonical_models.json` uses explicit aliases across Hugging Face, Artificial Analysis, and future NVIDIA NIM identifiers. There is no fuzzy auto-matching. New models are deliberately admitted to the canonical registry rather than automatically becoming customer-facing because an external catalog discovered them.
-- **Current tracked architecture set:** 11 canonical models spanning Llama 3.1/3.3, Mixtral, Llama 4 Scout/Maverick, DeepSeek V3/R1, Gemma 3 27B, and Muse Glimmer 30B. `KNOWN_PARAM_COUNTS_BILLION`, `KNOWN_CONTEXT_LENGTH`, and the `text_config` fallback cover source gaps that the raw config cannot safely resolve on its own.
-- **Artificial Analysis capability registry:** `sync_capability_scores.py` uses Artificial Analysis's **free** Data API tier with an `AA_API_KEY`. HF stays primary for license/modality/parameter fields; Artificial Analysis supplies the capability/ranking side: intelligence, coding, agentic scores, speed, and pricing. This runs weekly on Monday at 06:00 UTC through `.github/workflows/sync-capability-scores.yml`.
-- **Discovery quarantine:** Artificial Analysis models that are not in `canonical_models.json` are written to `data/aa_discovery_candidates.json` and excluded from the production capability snapshot. The latest repo HEAD before this brief was an automated August 31 capability-sync commit, confirming this workflow is active.
-- **Registry reconciliation:** `.github/workflows/reconcile.yml` runs daily, manually, and after changes under `data/**` to catch cross-registry drift.
-- **NVIDIA NIM:** `sync-nim-compatibility-MANUAL-ONLY.yml` is intentionally manual-only and explicitly not production-backed. Its catalog-wide endpoint remains unconfirmed; do not treat NIM compatibility as an automated source of truth until that endpoint is validated live.
-- These networked sync scripts are intended to run locally or in CI, not inside Claude or ChatGPT sandboxes that cannot reach the required external APIs.
+**Routing design:** Explorer does not pretend every AI use case is solved by picking an LLM. `ModelAdvisorCrosswalk.json` classifies all 52 blueprints into general model selection, infrastructure-first, specialized-stack, or platform-architecture routes. The UI uses those classes to decide whether a Model Advisor or GPU Sizing next-step pill should be shown, hidden, or amber-noted.
 
-## 9. Tool 4: AI Use Case Explorer (/use-cases)
+**Validation history:** function-track coverage was tested across all 26 Explorer function/category combinations in browser validation and passed. Earlier audits focused heavily on eliminating unsourced promises and making the route language match what downstream tools actually support.
 
-**What it is:** browse/discovery tool (no math, no report): pick an industry (13 tiles) or business function (13, dual entry added v2.0) and see NVIDIA Blueprints grouped by 7 use case categories, with an in-tool detail modal (what it does / what it looks like in this industry / infrastructure needs / handoff pills) and a small "View on NVIDIA" escape-hatch link. Keeps visitors on the hub by design.
+## 9. Tool 5: AI Use Case ROI Calculator (/roi)
 
-**Data:** blueprints.json at v2.1, 52 entries (after a churn of verification rounds: some blueprint names confirmed real that were earlier suspected hallucinated and vice versa; 2 deprecated blueprints kept with LEGACY badges). Each entry: identity, industry_fit and department_fit scored objects (primary/adjacent), use_case_categories, capability_tags, industry_pitch (one per blueprint), detail_what_it_does, detail_in_practice (default + per-industry overrides, 78 of them), detail_infrastructure, status, last_verified. Per-industry framing sentences carry the on-prem angle. NO per-blueprint CDW confidence tiers or reference accounts (deliberate). NO lead-time flags (kills conversations; lead times tracked separately, see Section 13).
+**What it is:** converts labor/capacity efficiency into business value without using layoffs/headcount reduction as the value thesis. The economic frame is capacity creation and redeployment.
 
-**Catalog maintenance note:** build.nvidia.com/blueprints loads client-side and returns only ~24 of the full list per fetch; cross-reference github.com/orgs/NVIDIA-AI-Blueprints/repositories (page 2 is robots-blocked).
+**Model:** Gross Capacity Created -> Realized Economic Value using one realization factor. Hours are primary; FTE-equivalent is secondary context. Outputs include ROI, payback, 3-year net benefit, and supporting capacity/value metrics.
 
-**ChatGPT verdict:** GO for internal seller-assisted prototype use. SLED adjacent mappings pruned 47 to 39; compliance-adjacent language softened per redlines.
+**Validation:** the frozen v1.3 workbook was independently checked across 45 validation scenarios and the React calculation path uses the shared `engine.js` logic. Historical default scenario: 44,160 redeployable hours/year, about $2.43M realized annual value, 273.7% 3-year ROI, about 4.4-month payback.
 
-## 10. Tool 5: AI Use Case ROI Calculator (/roi)
+**Current source fixes:** malformed/empty TCO handoff values no longer coerce to `$0`; provenance no longer falsely claims TCO origin; TCO original values and planning basis persist through navigation; the UI distinguishes direct entry, unchanged TCO prefill, and TCO-prefilled-then-adjusted states. Programmatic input labels and invalid/described-by accessibility handling are also present in current source.
 
-**What it is:** ROI for AI use case implementation. HARD FRAMING CONSTRAINT (Jay's): never a headcount-reduction lens. Capacity redeployment is structural in the model itself: Gross Capacity Created (headline) then Realized Economic Value after a realization %, hours-first with FTE-equivalent secondary, redeployment value-uplift optional and walled off as illustrative upside, no fields named headcount reduction or similar.
+## 10. Tool 6: AI Readiness Checklists (/readiness)
 
-**Current state:** SHIPPED, GO disposition. Frozen v1.3 workbook (45 validation checks) + React port with a shared engine.js (single source of truth, imported by both the component and a Node cross-check script). Two-stage model, Year 1 ramp %, "Estimated Payback Period" naming with rollout-shape disclosure, Excel-parity rounding helper (excelRound with magnitude-scaled epsilon), input bounds mirrored client-side. Default scenario: 44,160 redeployable hrs/yr, $2.43M/yr realized value, 273.7% 3-yr ROI, 4.4-month payback.
+**What it is:** readiness/governance/security/infrastructure checklist experience intended to identify applicable work and blockers without pretending to issue compliance verdicts.
 
-**Fixed post-ship:** tooltip props never threaded into the 14 Field calls (verified with jsdom click simulation); report headline was always Year 1 net regardless of horizon (now dynamic "{N}-Yr Net Benefit" pulling horizonNet). The headline fix was delivered but NOT yet confirmed live.
+**Content principles:** primary authorities for citations, applicability-not-verdict phrasing, no arbitrary numerical prescriptions, blockers must test the actual gating condition, shared item IDs imply shared semantics. Readiness retains its own versioned localStorage behavior rather than the cross-tool session-state mechanism.
 
-## 11. Tool 6: AI Readiness Checklists (/readiness)
+**Reporting:** Readiness has a report and participates in My Summary. The latest verbose-report changes should be treated as source-verified until a fresh deployed PDF/live pass confirms them.
 
-**What it is:** not a calculator; a tree of interactive checklists behind five doors, each with a "where are you today?" state picker routing to a branch (or a curated full list for "Not sure yet"). Items are In Place / Needs Attention / Don't Know with why-it-matters and typical-owners expansions and impact tags (blocking / important / informational). Qualitative per-door summaries only (never a score, never "you cannot deploy"), deterministic status logic living in the data (readiness_rule_order), branch-end handoffs into the other tools. 6th bubble, end of the journey, deliberately NOT the front door.
+## 11. Model Data / Registry Architecture
 
-**Current state:** SHIPPED. Spec FROZEN after 3+ ChatGPT rounds (ReadinessChecklistsSpec.md); content authored door by door with one external calibration checkpoint (Door 5) then a passed five-dimension final audit; checklists.json at content_version 1.2: 97 items across 5 doors (Data 20, Security & Governance 19, Infrastructure 20, People & Operations 21, Business & Use Case 17), 6 blocking / 87 important / 4 informational (6.2% blocking), 22 sourced items, 11-authority source registry (FBI CJIS, HHS HIPAA, NARA CUI, NIST series, Dept of Ed FERPA, GovRAMP, Section 508, NIST AI RMF), 8-tag applicability vocabulary including federal-contracting. All 5 blockers are identify-your-responsibility questions, never have-you-implemented. React build (AiReadinessChecklists.jsx) passed implementation-parity review with zero changes: presentation-only component, data-driven engines, versioned localStorage.
+### Canonical identity layer
 
-**Fixed post-ship:** standalone report expanded from a 5-line status summary to full door-by-door Q&A with flagged-item detail and the Jay B. Carlile signature footer (My Summary stays short). Delivered, NOT yet confirmed live.
+`data/canonical_models.json` is manually maintained and is the authority for which open-weight models are in production scope. External sources are resolved to canonical model IDs through explicit aliases. New outside models are discovery candidates, never automatically admitted into the customer-facing registry.
 
-## 12. Client Summary Brief (separate deliverable generator, own Claude Project)
+### Hugging Face registry
 
-ClientAiFactorySummary_[insertclientname].pptx: a 2-page CDW-branded portrait PPTX reformatting My Summary snapshot data for clients, including only the tools that client actually used. Built as generate_client_summary.js (pptxgenjs) with client-data-example.json. An expanded multi-page version exists (generate_client_summary_full.js), trialed against real 5-PDF client data through several review rounds. A real fixture/preflight regression suite protects it (preflight_validate.js + run_fixture_suite.sh, 14+ fixtures, verified by deliberately reverting a fix and watching the suite fail correctly). Rename gotcha on record: after renaming the _v2 file, the runner still referenced the old name and silently tested a stale file. Workstream considered CLOSED.
+Primary source for model license, context length, architecture, modality, and parameter-count support fields. `sync_model_specs.py` reads the Hugging Face Hub API/configs. The tracked list currently includes 11 models across Llama, Mixtral, DeepSeek, Gemma, and Muse Glimmer.
 
-## 13. Sales Context Around the Suite
+Authentication is required because several tracked Llama/Gemma models are gated: GitHub Actions uses the `HF_TOKEN` secret. Read-only token scope is sufficient, but the issuing account must first accept each gated model's terms. `dell.huggingface.co` is discovery only, never source of truth.
 
-- Jay is an AI Solutions Executive in CDW's AI Factory practice (founding member, joined July 2025 as founding BDM, ASE since Jan 2026). Focus: enterprise and SLED AI infrastructure, NVIDIA DGX, on-prem, NVIDIA AI Blueprints.
-- The suite exists as a prospecting/enablement asset. Related assets: "Prospecting for AI with AI" methodology (v3, weighted rubric), Microsoft Copilot agents (Blueprint Ideation, Salesforce case intake), Blueprint Ideation runs across accounts (Louisville Metro, GATX, Hutto ISD, Sabre Systems, Conagra, City of Seattle), RFP responses (SC ITPS Lot 8, Tennessee DGS, Utah DAS GenAI, Cleveland Metroparks #7045), LCRA AI 101 exec training, NVIDIA AI Factory panel participation.
-- NVIDIA lead-time table (as of 2026-07-31) is tracked separately from the tools by design; DGX GB300/GB200/B300/B200 at 36wk, details in memory.
-- Suite-level explainer doc exists: AiFactoryToolsExecutiveSummary.docx (Jay's voice, all tools, the validation story, three-kinds-of-accuracy framework).
+The workflow `.github/workflows/sync-model-specs.yml` runs at 06:00 UTC on the first of each month and can also be manually dispatched. It commits `data/model_specs.json` when changed.
 
-## 14. Rate Expansion Reference (B300 / GB200 / GB300)
+### Artificial Analysis capability registry
 
-A normalized rate spec (saved Aug 6, 2026) drives the TCO tool's expanded rate card. Highlights: confidence tiers LISTED > NODE-NORM > EST > QUOTE; engine consumes range midpoints; cloud on-demand anchors (B300: AWS $17.80 NODE-NORM, OCI $5.00 EST, CoreWeave $8.00 EST; GB200: CoreWeave $10.50 LISTED, Azure $27.00 LISTED, OCI $16.00 LISTED; GB300: mostly QUOTE); on-prem NVIDIA-sourced loaded per-system captures for H200/B300/GB200/GB300 complete. Known discrepancy documented: a team member's GB200/GB300 anchors divided per-rack price by 144 GPUs instead of 72, roughly 2x too low; NVIDIA-sourced $2.43/$2.91 bare per-GPU-hr used instead. GB200 market rates rose ~42% Aug 2025 to Aug 2026, so refresh these more often. Final two-picker design recorded here (rent: A100/H100/H200/B200; own: H200/B200/B300/GB200/GB300). Full numbers live in the memory file and in the deployed rate card.
+Artificial Analysis supplies intelligence, coding, and agentic indices, median output speed, and input/output token pricing. The current sync uses the **FREE API tier**; Pro is not required for the fields the app consumes. The free-tier design deliberately keeps hard-filter license/modality/parameter facts anchored to Hugging Face rather than making a paid service a single point of failure.
 
-## 15. Maintenance
+`.github/workflows/sync-capability-scores.yml` runs every Monday at 06:00 UTC with `AA_API_KEY`. Unresolved external AA slugs are written to `data/aa_discovery_candidates.json` and excluded from production.
 
-AiFactoryMaintenanceChecklist.md exists covering: cloud rates, NVIDIA DGX pricing, model catalog, blueprints, TCO perf factors, GPU Sizing benchmark anchors, readiness regulatory citations, CDW's sellable line, with cadence, ownership, and safety protocol per item. It has NOT yet been verified against the actual current repo files; Jay is holding that until the build thread settles, then will supply real uploads or repo access so it can be corrected against ground truth.
+### Registry reconciliation
 
-## 16. Consolidated Open Items and Known Bugs
+`.github/workflows/reconcile.yml` runs daily at 07:00 UTC, manually, and on changes under `data/**`. It reconciles model registries. It is **not** the TCO Excel-to-JS parity suite.
 
-The original version of this section mixed historical findings with still-open work. Repo inspection on August 31, 2026 shows that most of the high-priority pre-deployment defect ledger has since been remediated in source.
+### NVIDIA NIM compatibility
 
-**Resolved in current repo source (code verified in this export; live deployment was not independently rerun):**
+`.github/workflows/sync-nim-compatibility-MANUAL-ONLY.yml` is intentionally manual-only. No documented catalog-wide production endpoint was confirmed. The existing script/workflow should be considered a placeholder/research path and should not be scheduled until a real endpoint is confirmed and live-tested.
 
-1. **TCO workload-mode handoff persistence:** fixed. `gpuSizingCount`, `sourceClass`, `workingDayHours`, mode, and related state restore from `sessionStorage`; query params are consumed after capture.
-2. **GPU Sizing token preview layout shift:** fixed with fixed final text footprint plus visibility-based reveal.
-3. **GPU Sizing to TCO fleet reconciliation:** built. TCO workload mode uses the actual technical GPU quantity and class from GPU Sizing rather than re-deriving fleet size from spend.
-4. **ROI malformed handoff parameters and provenance:** fixed. Blank/garbage numeric params no longer coerce to a truthful `$0` handoff; original TCO values and planning-basis provenance persist.
-5. **Autosave debounce lost-update race:** fixed in `useAutosaveSnapshot` with page-exit/background flushing.
-6. **Combined Summary premature empty-state flash:** fixed by explicitly separating auth loading, account loading, and snapshot loading.
-7. **Accessibility remediation:** current source contains real input labels/ARIA wiring, TCO disclosure `aria-expanded`/`aria-controls`, page landmarks/headings, and multiple color-contrast remediations identified in the final validation round.
-8. **Client-summary fixture gap:** the current `src/` tree contains 14 fixture JSON files plus `preflight_validate.cjs` and `run_fixture_suite.sh`; the prior "zero fixtures can falsely pass" state is no longer the current repo state.
+## 12. Client Summary Generator
 
-**Still open or not proven closed by this export:**
+Outside the live SPA, the project includes a Node/PptxGenJS client-summary pipeline that turns My Summary content into a 2-page CDW-branded PPTX. The full generator is `src/generate_client_summary_full.cjs` with `preflight_validate.cjs`, `run_fixture_suite.sh`, and 14 committed fixture scenarios.
 
-9. **TCO Excel-to-JS automated parity suite:** still the principal unbuilt model-assurance item. The repo's registry reconciliation workflow is a different system and does not satisfy this requirement.
-10. **Full current live regression:** the source contains the remediations above, but this export did not repeat the complete browser journey and rendered/PDF checks against the currently deployed Vercel build. Re-run Explorer -> Model Advisor -> GPU Sizing -> TCO -> ROI -> My Summary, including deep links, refresh, Back/Forward, audit documents, and print/PDF output before calling the current release fully revalidated.
-11. **Shared pricing data module:** still not built. GPU Sizing and TCO share verification dates through `pricingProvenance.js`, but their actual pricing tables remain separate copies.
-12. **NIM production sync:** intentionally blocked until a real supported catalog endpoint is confirmed.
-13. **ROI horizon-aware report headline and Readiness verbose standalone report:** source/delivery history records these fixes, but this export did not independently prove the currently deployed Vercel render.
-14. **Supabase Database Webhooks platform bug:** direct Edge Function invocation remains the temporary architecture; support case status is not proven changed here.
-15. **CDW email deliverability to @cdw.com:** still an external IT/domain reputation issue unless separately resolved.
-16. **Domain/publication gating:** `cdwaifactory.com` connection, CDW publication approval, Supabase Auth URL changes, and removal of public-launch gates remain external to the source inspection.
-17. **Future scope:** Pod Sizing, journey-level lead signal, vision/CV catalog expansion, and optional financing/lease treatment remain idea-list items unless separately reprioritized.
----
+Historical fixes include the zero-tools divide-by-zero path, Recommended Next Steps flagging, `[object Object]` fallback rendering, and runner/extension hygiene. This workstream is treated as closed unless new summary/report structures require fixture updates.
 
-## 17. Resolved Gaps and Remaining Unknowns
+## 13. Sales / Customer Context and Positioning
 
-Claude's original gap list is retained here as a resolved-status ledger so future sessions do not reopen questions that the repo already answers.
+The suite is a customer-facing enablement layer for AI Factory conversations: discover a use case, determine the appropriate model or specialized route, size technical infrastructure, compare cloud vs on-prem economics, frame business value, then assess organizational readiness.
 
-1. **Hugging Face connection - RESOLVED.** The actual production setup is an authenticated Hugging Face Hub sync using a read-only `HF_TOKEN` stored as a GitHub Actions secret. The associated HF account must have accepted licenses for gated models such as Llama and Gemma. The monthly Action commits `data/model_specs.json`. Claude's earlier statement that the public API needed no authentication was wrong. Dell's Hugging Face Enterprise Hub is only a discovery surface, not the source of truth, deployment surface, or customer-facing integration.
-2. **GitHub repo details - RESOLVED.** Exact repo: `https://github.com/Jaybc25/cdw-ai-factory-tco`. It is **public**, not private. Default branch is `main`. The connected GitHub account has push/admin permission. No separate branch convention was evidenced in the repo metadata or project brief, so do not invent one. The full current `src/` file list is captured in Section 19.
-3. **Current deployed versions - PARTIALLY UNRESOLVED.** `package.json` reports suite/package version `2.8.0`, while current TCO source explicitly contains v2.9 workload-mode logic and several tools contain post-version-label remediation comments. Therefore package version cannot be used as each tool's live semantic version. This export verifies current `main` source, not the exact Vercel deployment artifact/version for every tool. Treat "current deployed version" as unknown until the live build or deployment SHA is checked.
-4. **Corrections that did not stick - RESOLVED WHERE EVIDENCE EXISTS.** Material corrections now captured here include: repo is public; HF production sync requires `HF_TOKEN`; A100/H100 are removed from GPU Sizing's on-prem purchase candidates; current B200 inference anchor is 12,357 tok/s/GPU rather than the stale 11,264 figure; the GPU preview layout bug is fixed; GPU Sizing to TCO technical fleet reconciliation is built; TCO workload-mode persistence is fixed; ROI malformed-param/provenance handling is fixed; autosave and Summary loading defects are fixed; the 14 client-summary fixtures are committed.
-5. **ChatGPT project knowledge - RESOLVED.** The independent validation history and defect/remediation record that Claude's summary did not fully preserve is exported in Section 18.
-6. **CDW sign-off status - STILL EXTERNAL/UNRESOLVED HERE.** The latest source brief says the CDW logo approval was temporary for the draft artifact and website publication was not approved, with `cdwaifactory.com` still parked. Repo inspection does not prove any newer corporate approval, stakeholder decision, or publication authorization. Do not infer approval from the public GitHub visibility or the existence of the CDW logo in source.
-7. **Formspree - RESOLVED AS SUPERSEDED IN CURRENT IMPLEMENTATION.** The current package and repo contain no Formspree dependency or active Formspree implementation. Supabase Auth/accounts/download events/tool snapshots plus Resend/Slack now form the live lead/report plumbing. Treat Formspree as dead scope unless Jay explicitly revives it later.
-8. **Roadmap priority - UPDATED BY CURRENT STATE, USER PRIORITY NOT RECONFIRMED.** The two items that previously looked highest priority, TCO workload-mode persistence and GPU-to-TCO fleet reconciliation, are already fixed/built in current source. On technical assurance alone, the remaining logical order is: (a) automated TCO Excel-to-JS parity, (b) a fresh full live cross-tool and PDF regression on the current deployment, (c) eliminate duplicated pricing data with a shared registry, then (d) external launch blockers and future features as business priority dictates. This ordering is repo-informed, not a new instruction from Jay.
+The TCO thesis is not "cloud is bad." The relevant message is avoiding premature commitment before value is proven and comparing workload economics honestly. Likewise the ROI tool is deliberately not a layoff calculator: value is capacity created and economically redeployed.
 
----
+## 14. Current Pricing / Data Maintenance State
 
-## 18. ChatGPT Independent Validation Export
+Cloud list rates and NVIDIA/DGX loaded system pricing are currently code-maintained. TCO owns the primary rate/system tables and GPU Sizing maintains a derived duplicate per-GPU price table. `src/pricingProvenance.js` centralizes last-verified dates and staleness display but **not** the values themselves.
 
-This section preserves the work ChatGPT performed as an independent reviewer, adversarial checker, and second-opinion validator so that future Claude/Cowork/ChatGPT sessions understand not just the present code, but why the present safeguards exist.
+Current verification dates in source are August 7, 2026 for both cloud and on-prem pricing. The code classifies pricing as "review" after 45 days and "stale" after 90 days. The fuller future architecture contemplated in source is a shared `/data/pricing/` registry with per-record provenance and automated cloud-rate checks.
 
-### 18.1 Validation role and philosophy
+## 15. Maintenance / Operational Habits
 
-- ChatGPT was intentionally used as an external reviewer rather than the primary builder. Claude/Claude Cowork often implemented or ran browser work; ChatGPT challenged assumptions, reviewed actual source/workbooks, issued PASS/CONCERN/FAIL or GO/NO-GO findings, and pushed for reproducible proof.
-- The durable rule was always **repo/file evidence over memory**. This became especially important after pasted-code reconstruction produced plausible but incorrect files. Later reviews used actual uploads, fresh repo clones, workbook parity, browser automation, or executable harnesses.
-- Findings were not to be implemented blindly. Each audit finding had to be evaluated against the model's intended semantics and source evidence.
+- Hugging Face model specs: automated monthly, plus on-demand when new models are deliberately added.
+- Artificial Analysis capability data: automated weekly.
+- Registry reconciliation: automated daily and data-change-triggered.
+- NVIDIA NIM: manual only until a production endpoint exists.
+- Cloud GPU pricing: manual review until a reliable shared/automated pricing layer is built.
+- DGX/on-prem pricing: manually compare against the current NVIDIA/CDW-supported source and update both TCO and GPU Sizing when needed.
+- Model catalog: discovery is automated, production admission is manual and deliberate.
+- Major code/data changes: source review first, then live end-to-end regression before claiming live verification.
+
+## 16. Consolidated Open Items / Corrected Status
+
+### Resolved in current source
+
+1. TCO workload handoff state/provenance persistence.
+2. GPU token-speed preview layout shift.
+3. GPU Sizing to TCO technical fleet reconciliation.
+4. ROI malformed handoff values and false provenance.
+5. Autosave lost-update race before navigation.
+6. My Summary loading-versus-empty flash.
+7. Core accessibility remediation for identified labels/collapsibles.
+8. Client-summary fixture absence/zero-fixture false-pass issue; current repo contains 14 fixtures.
+
+### Still open or not independently proven live
+
+9. **TCO Excel-to-JS automated parity suite.** Current registry reconciliation workflow does not satisfy this requirement.
+10. **Fresh full live regression of the current Vercel deployment,** including Explorer -> Advisor -> GPU -> TCO -> ROI -> Summary, deep links, Back/Forward, hard refresh, audit docs, reports, and print/PDF.
+11. **Shared pricing data module/registry.** Current provenance dates are shared; price values remain duplicated.
+12. **Production NVIDIA NIM sync endpoint.** Manual workflow remains intentionally unscheduled.
+13. **Deployment verification for latest ROI/report and Readiness verbose-report changes.** Source may be correct without the latest deployed PDF path having been independently re-proven.
+14. **Supabase Database Webhooks platform/support resolution.** Direct Edge Function invocation remains the current workaround.
+15. **@cdw.com Resend deliverability.** External/CDW IT issue, not established as an app-code defect.
+16. **Domain/publication gating.** cdwaifactory.com is parked pending external approval; connecting it also requires Supabase Auth redirect changes.
+17. **Future product work:** Pod Sizing, journey-level lead signal, Vision/CV catalog/route, financing/lease support, and other roadmap additions as business priority dictates.
+
+## 17. Former Gaps, Now Resolved or Classified
+
+1. **HF connection correction:** resolved. Public API/config is the source, but authenticated read-only access is required for gated models; terms must be accepted first.
+2. **GitHub exact repo/visibility/src:** resolved from live repo inspection. Repo is `Jaybc25/cdw-ai-factory-tco`, default `main`. It was public at the August 31 export snapshot and changed to private on September 1, 2026; authenticated connector access was verified after the privacy change. Current `src/` contains the six tools, shared auth/state infrastructure, summary generator/runtime, fixture suite, and supporting JSON/data files described in this brief.
+3. **Deployed versions:** partially unresolved. `package.json` says 2.8.0 but current source includes later per-tool work such as TCO v2.9 behavior. Do not invent per-tool deployed version labels. Verify the live build/deployment SHA when needed.
+4. **Corrections that did not stick in older memory:** resolved where repository evidence exists, especially H200+ GPU purchase candidates, workload TCO persistence, fleet reconciliation, ROI parsing/provenance, autosave, Summary loading, accessibility, and token-preview reflow.
+5. **ChatGPT project knowledge:** consolidated in Section 18 below.
+6. **CDW sign-off:** still external/unresolved. Repo visibility, deployment, logo presence, or draft approval does not establish website-publication approval.
+7. **Formspree:** no current repo implementation or dependency found. Current implementation uses Supabase/Resend/Slack. Treat Formspree as superseded/dead scope unless deliberately revived.
+8. **Roadmap priority:** current technical assurance priorities are clearer, but Jay's next business priority is not inferred from repo state. Recommended assurance order is TCO parity suite, fresh live regression, then shared pricing registry, with business-facing future features ordered separately.
+
+## 18. ChatGPT Independent Validation / Audit Memory
+
+### 18.1 Role and review philosophy
+
+ChatGPT has been used as an independent reviewer, validator, and adversarial second opinion rather than as an unquestioned implementation authority. Claude/Cowork handled much of the build/browser execution while ChatGPT reviewed actual source/data artifacts, tested claims against reference models, and used PASS / CONCERN / FAIL or GO / NO-GO language where appropriate.
+
+The durable lesson is to prefer repo/file evidence over remembered conclusions, distinguish root causes from symptoms, and avoid blindly implementing audit suggestions without evaluating whether the underlying model/design is actually wrong.
 
 ### 18.2 Formal review history
 
-- **TCO financial model:** 9 adversarial audit rounds. The workbook moved from an initial "cannot validate" state to roughly 9.7/10 arithmetic confidence, with the reference workbook treated as the auditable implementation.
-- **Site integration:** 3 structured review rounds before the later full browser-validation campaign.
-- **ROI:** workbook/reference-model review plus React parity work; the frozen v1.3 workbook carried 45 validation checks and the React implementation imports the same `engine.js` used by the Node cross-check.
-- **Readiness:** multiple specification/content review rounds plus a final multi-dimension audit focused on blocker semantics, source quality, compliance phrasing, applicability, and duplicate/shared-item consistency.
-- **Use Case Explorer:** independent catalog/mapping reviews, including SLED pruning and compliance-language softening, produced a GO for internal seller-assisted prototype use.
-- **Audit trail feature:** TCO, ROI, GPU Sizing, and Model Advisor each received separate decision-trace/calculation-trace review rather than assuming a pretty methodology document was correct.
+The project has gone through many iterative review cycles. Durable formal counts include:
 
-### 18.3 Six-round pre-deployment browser validation
+- TCO: 9 model/audit rounds.
+- Site integration: 3 review rounds.
+- ROI: spreadsheet and React parity/validation rounds, including a 45-check reference-model validation set.
+- Readiness: multiple content/source review rounds.
+- Explorer: mapping, routing, and copy review rounds.
+- Calculation methodology / audit trail: separate review work across the four calculating/recommending tools.
 
-A separate pre-deployment program ran against a fresh clone at commit `55c077d` using local Vite plus Playwright with real Chromium. Supabase was mocked so signed-in autosave/My Summary behavior could be tested deterministically. Tailwind was served locally from Round 4 onward. Across the six rounds plus one user-reported UI issue, approximately **130 checks** were verified.
+Across AI collaborators, the project involved hundreds of prompts/revise-review events. Exact casual-prompt counts are not a quality metric; formal validated artifacts and regression results are the durable record.
 
-The tested journey covered:
+### 18.3 Six-round pre-deployment browser-validation program
 
-- Use Case Explorer -> Model Advisor -> GPU Sizing -> TCO -> ROI -> My Summary.
-- Back/Forward navigation, hard refresh, deep-link isolation, and stale-param replay.
-- TCO ordinary spend mode plus workload mode, multiple GPU classes, and five-year variants.
-- GPU Sizing inference, training, custom model, zero-input validation, alternatives, and extreme stress.
-- ROI ordinary, deep-linked, and negative cases.
-- My Summary loading, snapshots, and print behavior.
-- Audit-trail arithmetic/decision-trace scenarios.
-- Double-click and repeated provider-toggle resilience.
-- Accessibility structure and color contrast.
-- Runtime/console and report/print smoke checks.
+A canonical pre-fix validation program used a fresh clone at commit `55c077d`, local Vite, Playwright with real Chromium, mocked Supabase for signed-in autosave/My Summary, and locally served Tailwind from Round 4 onward. Roughly 130 checks were verified across six rounds plus a user-reported UI bug.
 
-One deliberately extreme sizing case reached **209,752 B300 GPUs** and correctly remained a low-confidence result rather than crashing or pretending the scenario was normal. The problem found there was presentation formatting at extreme magnitude, not the guardrail or engine behavior.
+Coverage included:
 
-### 18.4 Historical defect ledger and current resolution mapping
+- Explorer -> Model Advisor -> GPU Sizing -> TCO -> ROI -> My Summary journey.
+- Back/Forward navigation, hard refresh, deep-link isolation, and stale-replay behavior.
+- TCO spend mode and workload mode across supported system classes and 5-year scenarios.
+- GPU Sizing inference, training, custom models, zero-input validation, alternatives, and extreme stress cases.
+- ROI normal, TCO-deep-linked, adjusted, and negative scenarios.
+- My Summary loading, snapshots, print/PDF behavior.
+- Audit-trail rendering and reconciliation logic.
+- Double-click handoffs and repeated provider toggles.
+- Accessibility checks.
+- Runtime/console/report/print smoke testing.
 
-The final pre-fix ledger separated material correctness/state defects from UX/accessibility findings:
+An extreme GPU Sizing stress scenario (100T parameters, 1000 layers, 10,000 users) produced 209,752 B300 GPUs with LOW CONFIDENCE without crashing the engine. A cosmetic very-large-number formatting issue remained as backlog.
 
-1. **Handoff-state persistence root cause:** TCO workload mode/technical anchor could disappear after Back/refresh; provenance banners and My Summary planning-basis labels could drift; TCO -> ROI provenance could be lost. **Current repo status: source contains remediation.**
-2. **ROI malformed handoff params:** blank/garbage values could be interpreted as valid `$0` and falsely labeled as TCO-provided. **Current repo status: source contains `parseHandoffNumber` remediation.**
-3. **Autosave debounce race:** a last edit made shortly before full-page navigation could die with the browsing context before the 1.5s timer fired. **Current repo status: source flushes pending save on page exit/background.**
-4. **Client-summary fixture hygiene:** the regression runner could pass a zero-fixture state when fixture files were absent from the fresh clone. **Current repo status: 14 fixtures plus preflight/runner are present in `src/`.**
-5. **Combined Summary loading ordering:** signed-in users could briefly see the empty state before account/snapshot retrieval settled. **Current repo status: source separates all three loading phases.**
-6. **Accessibility:** missing programmatic labels, TCO disclosure ARIA, missing landmarks/headings, and several contrast misses. **Current repo status: remediation is visible across current TCO/ROI/GPU source.**
-7. **GPU sample-output preview layout shift:** animated text changed component height and pushed the form. **Current repo status: fixed with reserved final footprint.**
-8. **Cosmetic backlog:** very large-number formatting and React Router future/deprecation warnings were not treated as model-correctness failures.
+### 18.4 Defect ledger and current source mapping
 
-The prior validation disposition was effectively **NO-GO until the state-consistency and newly discovered defects were remediated**. That disposition is historical. Because current `main` visibly contains the relevant fixes, it should not be quoted as the current release verdict. Equally, do not convert it to a new GO without rerunning the full current live regression.
+The pre-deployment validation initially reached a NO-GO disposition because several state/persistence defects were real despite ordinary handoffs appearing to work. The important lesson was that URL-derived handoff context and provenance needed to persist independently of the URL after parameters were consumed.
 
-### 18.5 Cross-tool design findings that should remain durable
+Key defect groups and current-source disposition:
 
-- The Explorer -> Model Advisor mismatch was diagnosed as a **scope/routing problem**, not a bug to paper over. `ModelAdvisorCrosswalk.json` maps all 52 blueprints into 23 general-model-selection, 9 infrastructure-first, 11 specialized-stack, and 9 platform-architecture routes. Vision/CV expansion was deliberately deferred rather than stuffing non-LLM use cases into an LLM advisor.
-- Model Advisor -> GPU Sizing needs explicit ID normalization because the canonical registry and GPU tool use different slug conventions. Current source includes an explicit mapping table and warns instead of silently substituting when a handoff cannot be matched.
-- GPU Sizing -> TCO semantics must keep **technical requirement**, **workload duty cycle**, and **owned utilization** separate. Current TCO workload mode reflects that distinction.
-- TCO -> ROI must keep **cost values** and **cost provenance** separate. A user can accept a TCO-prefilled value or modify it; the audit trail should say which actually happened.
-- My Summary is an account snapshot of the latest state, not a replacement arithmetic engine. The audit-trail pages likewise explain/reconcile the same calculation output rather than secretly running a second model.
+1. **Handoff-state persistence root cause:** caused workload-anchor loss and provenance inconsistencies across TCO/ROI and summary behavior. Current source contains session-state remediation.
+2. **ROI malformed handoff params:** empty strings could coerce to zero and create false TCO provenance. Current source uses `parseHandoffNumber` and preserves original values/provenance.
+3. **Autosave debounce lost-update race:** navigation could destroy a pending timer. Current source flushes on `pagehide` and hidden `visibilitychange`.
+4. **Regression fixture hygiene:** fresh-clone fixture absence could make a zero-fixture scan falsely pass. Current repo contains 14 fixtures plus preflight/runner files.
+5. **Summary loading versus empty:** current source separates auth/account/snapshot loading phases.
+6. **Accessibility gaps:** identified missing programmatic labels and TCO collapsible state. Current TCO/ROI/GPU source contains remediation for the identified core issues.
+7. **GPU token preview layout shift:** validated patch now reserves final wrapped height and reveals text without DOM growth.
+8. **Cosmetic/deprecation backlog:** extreme large-number formatting and router future/deprecation warnings are lower priority than correctness defects.
 
----
+Current source contains fixes for the serious pre-deployment defects, but that is not the same as a fresh current live GO. A new deployed end-to-end regression should precede a new live-release GO claim.
 
-## 19. Repo-Verified Source of Truth Snapshot
+### 18.5 Durable cross-tool design findings
 
-**Repository:** `Jaybc25/cdw-ai-factory-tco`  
-**Visibility:** public  
-**Default branch:** `main`  
-**Pre-brief HEAD verified:** `4106962aa657075ef313f34160e7c3b130a0b5af`  
-**Package name/version at that snapshot:** `cdw-ai-factory-tools` / `2.8.0`  
-**Important:** `package.json` also contains `"private": true`; that is the npm publish flag and does **not** mean the GitHub repository is private.
+- Explorer -> Advisor mismatches were often routing/scope issues rather than calculation defects. Not every use case belongs in a general LLM selector.
+- The 52-blueprint crosswalk currently classifies 23 as general-model-selection, 9 infrastructure-first, 11 specialized-stack, and 9 platform-architecture.
+- Advisor -> GPU Sizing requires explicit model-identity normalization because external/internal slug conventions differ. Silent fuzzy matching is inappropriate for a technical sizing handoff.
+- GPU -> TCO must keep technical GPU requirement, workload duty cycle, and owned utilization as distinct concepts.
+- TCO -> ROI must keep numeric cost values and provenance/planning-basis metadata separate.
+- My Summary is a latest-state snapshot/aggregation surface, not another calculation engine.
+- Calculation Methodology / Audit Trail surfaces should explain the same existing engine output rather than independently recalculating it.
 
-### 19.1 Current `src/` file list
+## 19. Repo Source-of-Truth Snapshot and Future Fetch Rule
 
-- `AiReadinessChecklists.jsx`
-- `App.jsx`
-- `AuthContext.jsx`
-- `AuthWidget.jsx`
-- `CombinedSummary.jsx`
-- `GpuSizingCalculator.jsx`
-- `LandingPage.jsx`
-- `ModelAdvisor.jsx`
-- `ModelAdvisorCrosswalk.json`
-- `RoiCalculator.jsx`
-- `TcoCalculator.jsx`
-- `UseCaseExplorer.jsx`
-- `blueprints.json`
-- `cdw-logo.png`
-- `checklists.json`
-- `engine.js`
-- `fixture-01-three-tools.json`
-- `fixture-02-four-tools.json`
-- `fixture-03-long-strings.json`
-- `fixture-04-negative-roi.json`
-- `fixture-05-zero-roi.json`
-- `fixture-06-huge-roi.json`
-- `fixture-07-horizon-1yr.json`
-- `fixture-08-horizon-5yr.json`
-- `fixture-09-readiness-all-statuses.json`
-- `fixture-10-explicit-nulls.json`
-- `fixture-11-unexpected-array-field.json`
-- `fixture-12-unexpected-scalar-field.json`
-- `fixture-13-tco-spend-basis.json`
-- `fixture-14-inconsistent-field.json`
-- `generate_client_summary_full.cjs`
-- `main.jsx`
-- `modelAdvisorEngine.js`
-- `preflight_validate.cjs`
-- `pricingProvenance.js`
-- `run_fixture_suite.sh`
-- `sessionState.js`
-- `supabaseClient.js`
+At the time of the August 31 consolidated export, the repo was public; it was changed to private on September 1, 2026 and authenticated connector access was subsequently re-verified. The default branch remains `main`.
 
-### 19.2 Repo automation relevant to future sessions
+The pre-brief source snapshot was `4106962aa657075ef313f34160e7c3b130a0b5af`; the consolidated brief itself was later committed as a documentation change. `package.json` identifies the package as `cdw-ai-factory-tools`, version 2.8.0, private npm package flag, using React/Vite/Supabase/PptxGenJS.
 
-- `.github/workflows/sync-model-specs.yml`: monthly Hugging Face spec sync, using `HF_TOKEN`.
-- `.github/workflows/sync-capability-scores.yml`: weekly Artificial Analysis capability sync, using `AA_API_KEY`.
-- `.github/workflows/reconcile.yml`: daily/manual/data-change registry reconciliation.
-- `.github/workflows/sync-nim-compatibility-MANUAL-ONLY.yml`: manual only; endpoint not yet production-validated.
+Current live-source modules under `src/` at the snapshot include:
 
-Only secret **names** belong in documentation. Never put token/key values in this brief.
+- AiReadinessChecklists.jsx
+- App.jsx
+- AuthContext.jsx
+- AuthWidget.jsx
+- CombinedSummary.jsx
+- GpuSizingCalculator.jsx
+- LandingPage.jsx
+- ModelAdvisor.jsx
+- ModelAdvisorCrosswalk.json
+- RoiCalculator.jsx
+- TcoCalculator.jsx
+- UseCaseExplorer.jsx
+- blueprints.json
+- cdw-logo.png
+- checklists.json
+- engine.js
+- fixture-01-three-tools.json
+- fixture-02-four-tools.json
+- fixture-03-long-strings.json
+- fixture-04-negative-roi.json
+- fixture-05-zero-roi.json
+- fixture-06-huge-roi.json
+- fixture-07-horizon-1yr.json
+- fixture-08-horizon-5yr.json
+- fixture-09-readiness-all-statuses.json
+- fixture-10-explicit-nulls.json
+- fixture-11-unexpected-array-field.json
+- fixture-12-unexpected-scalar-field.json
+- fixture-13-tco-spend-basis.json
+- fixture-14-inconsistent-field.json
+- generate_client_summary_full.cjs
+- main.jsx
+- modelAdvisorEngine.js
+- preflight_validate.cjs
+- pricingProvenance.js
+- run_fixture_suite.sh
+- sessionState.js
+- supabaseClient.js
 
-### 19.3 Fetch-first rule for future AI work
+Relevant automation currently includes monthly Hugging Face model-spec sync, weekly Artificial Analysis capability sync, daily/data-change registry reconciliation, and manual-only NIM compatibility research/sync.
 
-Before reconstructing, editing, or declaring a bug fixed:
+### Fetch-first rule for all future work
 
-1. Fetch the current repo file from `main` or use an actual current upload.
-2. Treat this brief as architectural/history context, not a substitute for the source.
-3. Distinguish three kinds of status:
-   - **Source-verified:** present in current repo code.
-   - **Live-verified:** reproduced in the deployed Vercel app/browser.
-   - **Externally approved:** CDW/legal/IT/publication decision outside the repo.
-4. Never infer one from another. Public GitHub does not equal CDW publication approval; source-present does not equal deployed; package version does not equal each tool's semantic version.
-5. After material changes, update this brief if a durable design decision, data source, validation result, or roadmap status changed.
-
-**Sign-off:** this corrected and augmented file is intended to live at repo root as `AiFactoryProjectBrief.md` and to be referenced by the Claude Project instructions with the fetch-first rule above.
+1. Fetch the current repo `main` or use the actual current uploaded file before reviewing/editing code or data.
+2. Treat this brief as history, architecture, and decision context, not as a substitute for current source.
+3. Use status labels accurately: **source-verified**, **live-verified**, **externally approved**.
+4. Never infer one status from another.
+5. Update this brief after durable architecture, data-source, validation, or roadmap changes so future sessions can recover project context quickly.
