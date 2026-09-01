@@ -1,0 +1,83 @@
+name: Update assurance status docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/update-assurance-docs.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update durable assurance records
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one match, found {count}: {old[:100]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          # CHANGELOG
+          replace_once(
+              "CHANGELOG.md",
+              """### Still open\n\n- Automated TCO Excel-to-JavaScript parity suite.\n- Fresh full live regression of the current deployed application.\n- Shared pricing registry for TCO and GPU Sizing.\n- Production-backed NVIDIA NIM compatibility sync.\n- Live verification of the latest report/audit-trail changes where not already proven.\n- External publication/branding approval items tracked in `AiFactoryProjectBrief.md`.\n\n## 2026-09-01 - Current source baseline after project-memory consolidation\n""",
+              """### Current assurance state\n\n- Permanent GitHub Actions quality gate now runs a production build, validates the checked-in final TCO audit workbook structure, executes the canonical Excel-to-JavaScript parity gate, and runs the live Playwright regression suite against Vercel.\n- TCO canonical `EngineRegression` parity passes 20/20 checks using the workbook's `MAX($1, 0.01%)` tolerance for continuous values, exact fleet counts, and exact text/crossover outputs.\n- Live Vercel regression passes 13/13 automated tests covering all application routes, landing-page tool links, the prior TCO workload-state defect, ROI provenance/malformed handoff behavior, and the canonical TCO fixture through a real TCO-to-ROI click-through.\n- The parity gate found and drove correction of a real AWS B200 reserved-rate rounding defect. The web had rounded the exact $68.36 per 8-GPU reserved snapshot too early at the per-GPU level, which could incorrectly cross a fleet-size boundary. Current source preserves the exact 8.545 per-GPU equivalent for that snapshot.\n\n### Still open\n\n- Credentialed live checks that require a real magic-link session or external side effects: auth/email delivery, database download-event verification, Slack notification verification, and final visual inspection of report/PDF output.\n- Shared pricing registry for TCO and GPU Sizing.\n- Production-backed NVIDIA NIM compatibility sync.\n- Live/manual verification of report/audit-trail presentation where not covered by automated tests.\n- Dependency-security review for the six npm audit findings surfaced by the new CI environment (3 moderate, 3 high); do not apply force upgrades without reviewing advisories and breaking-change risk.\n- External publication/branding approval items tracked in `AiFactoryProjectBrief.md`.\n\n## 2026-09-01 - Automated assurance baseline\n\n### Added\n\n- Permanent TCO workbook extractor: `scripts/extract_tco_workbook_snapshot.py`.\n- Permanent TCO Excel-to-JavaScript parity runner: `scripts/run_tco_parity.mjs`.\n- Playwright configuration and live regression coverage under `tests/e2e/`.\n- GitHub Actions quality gate at `.github/workflows/quality-gate.yml`, using Node 22 for the application/test environment.\n\n### Validation\n\n- Confirmed the legacy-named repo workbook `docs/reverse-tco-model-v1.xlsx` is the final audit workbook and contains `EngineRegression` and `Crossover` along with the validated model sheets.\n- Canonical TCO Excel-to-JavaScript parity: 20/20 PASS.\n- Live Vercel browser regression: 13/13 PASS.\n- Canonical live TCO fixture renders one DGX B200 system and Month 24 crossover, confirms the corrected reserved-rate snapshot is deployed, and successfully hands the resulting costs/provenance to ROI through the real production link.\n\n### Corrected\n\n- AWS B200 reserved-rate precision now preserves the validated NVIDIA TCO snapshot of $68.36 per 8-GPU instance rather than prematurely rounding the per-GPU equivalent to two decimals.\n- This correction prevents a four-cent instance-rate difference from incorrectly pushing exact-boundary workloads from one DGX B200 system to two.\n\n### Release discipline\n\n- This assurance baseline is the candidate for the first formal known-good suite release, `v2026.09` / `AI Factory Suite 2026.09`, after the cleaned repository passes the final quality gate.\n- External CDW publication approval remains separate from source/live technical verification.\n\n## 2026-09-01 - Current source baseline after project-memory consolidation\n""",
+          )
+
+          # MAINTENANCE RUNBOOK
+          replace_once(
+              "MaintenanceRunbook.md",
+              """## 11. Current high-priority assurance backlog\n\nAs of September 1, 2026, the key remaining assurance/maintenance improvements are:\n\n1. Build the automated TCO Excel-to-JavaScript parity suite.\n2. Run a fresh full live regression against the current Vercel deployment.\n3. Centralize TCO and GPU Sizing pricing into a shared pricing registry.\n4. Establish production-backed NIM compatibility sync only after NVIDIA endpoint validation.\n5. Continue explicit live verification of report/audit-trail changes as they evolve.\n\nThese priorities are technical assurance priorities, not a substitute for business or CDW publication priorities.\n""",
+              """## 11. Current assurance baseline and remaining backlog\n\nAs of September 1, 2026:\n\n### Completed and now permanent\n\n1. The automated TCO Excel-to-JavaScript parity suite is built into GitHub Actions and the canonical `EngineRegression` fixture passes 20/20 checks.\n2. The automated live Vercel regression suite is built into GitHub Actions and passes 13/13 tests across all routes plus the highest-risk handoff/provenance paths and the canonical TCO live fixture.\n3. The quality gate runs on relevant source, test, workbook, package, and workflow changes, so these checks are reusable rather than one-time audit work.\n\n### Remaining\n\n1. Perform credentialed live checks when needed for a release that changes auth/report infrastructure: magic-link delivery, database download events, Slack notifications, and final report/PDF visual inspection.\n2. Centralize TCO and GPU Sizing pricing into a shared pricing registry.\n3. Establish production-backed NIM compatibility sync only after NVIDIA endpoint validation.\n4. Continue explicit live/manual verification of report/audit-trail presentation as those surfaces evolve.\n5. Review the npm audit findings surfaced by CI before deciding whether dependency upgrades are warranted; do not use force upgrades without advisory and regression review.\n\nThese priorities are technical assurance priorities, not a substitute for business or CDW publication priorities.\n""",
+          )
+
+          # PROJECT BRIEF: open-items block
+          replace_once(
+              "AiFactoryProjectBrief.md",
+              """8. Client-summary fixture absence/zero-fixture false-pass issue; current repo contains 14 fixtures.\n\n### Still open or not independently proven live\n\n9. **TCO Excel-to-JS automated parity suite.** Current registry reconciliation workflow does not satisfy this requirement.\n10. **Fresh full live regression of the current Vercel deployment,** including Explorer -> Advisor -> GPU -> TCO -> ROI -> Summary, deep links, Back/Forward, hard refresh, audit docs, reports, and print/PDF.\n11. **Shared pricing data module/registry.** Current provenance dates are shared; price values remain duplicated.\n""",
+              """8. Client-summary fixture absence/zero-fixture false-pass issue; current repo contains 14 fixtures.\n9. **TCO Excel-to-JS automated parity suite.** Built September 1, 2026 as a permanent GitHub Actions quality gate. The checked-in final audit workbook is extracted directly in CI and the canonical `EngineRegression` fixture passes 20/20 comparisons against the current production JavaScript engine.\n10. **Automated live Vercel regression.** Built September 1, 2026 with Playwright. The current public-production suite passes 13/13 tests covering all routes, landing links, key handoff/state/provenance defects, and a canonical TCO fixture through the real TCO-to-ROI link.\n\n### Still open or not independently proven live\n\n11. **Credentialed/external-side-effect live checks.** Magic-link email delivery, authenticated report/download event verification, Slack notification verification, and final report/PDF visual inspection remain a separate live-manual layer when those paths change.\n12. **Shared pricing data module/registry.** Current provenance dates are shared; price values remain duplicated.\n""",
+          )
+          replace_once(
+              "AiFactoryProjectBrief.md",
+              """12. **Production NVIDIA NIM sync endpoint.** Manual workflow remains intentionally unscheduled.\n13. **Deployment verification for latest ROI/report and Readiness verbose-report changes.** Source may be correct without the latest deployed PDF path having been independently re-proven.\n14. **Supabase Database Webhooks platform/support resolution.** Direct Edge Function invocation remains the current workaround.\n15. **@cdw.com Resend deliverability.** External/CDW IT issue, not established as an app-code defect.\n16. **Domain/publication gating.** cdwaifactory.com is parked pending external approval; connecting it also requires Supabase Auth redirect changes.\n17. **Future product work:** Pod Sizing, journey-level lead signal, Vision/CV catalog/route, financing/lease support, and other roadmap additions as business priority dictates.\n""",
+              """13. **Production NVIDIA NIM sync endpoint.** Manual workflow remains intentionally unscheduled.\n14. **Deployment verification for latest ROI/report and Readiness verbose-report changes.** Source may be correct without the latest deployed PDF path having been independently re-proven.\n15. **Supabase Database Webhooks platform/support resolution.** Direct Edge Function invocation remains the current workaround.\n16. **@cdw.com Resend deliverability.** External/CDW IT issue, not established as an app-code defect.\n17. **Domain/publication gating.** cdwaifactory.com is parked pending external approval; connecting it also requires Supabase Auth redirect changes.\n18. **Future product work:** Pod Sizing, journey-level lead signal, Vision/CV catalog/route, financing/lease support, and other roadmap additions as business priority dictates.\n19. **Dependency-security review.** The September 1 quality-gate environment reports six npm audit findings (3 moderate, 3 high). These require advisory-level review before deciding on upgrades; a force upgrade is not assumed safe.\n""",
+          )
+          replace_once(
+              "AiFactoryProjectBrief.md",
+              """8. **Roadmap priority:** current technical assurance priorities are clearer, but Jay's next business priority is not inferred from repo state. Recommended assurance order is TCO parity suite, fresh live regression, then shared pricing registry, with business-facing future features ordered separately.\n""",
+              """8. **Roadmap priority:** the TCO parity suite and automated public-production regression were completed September 1, 2026. The next major technical-maintenance priority is the shared pricing registry, while credentialed auth/report/notification checks remain release-specific and business-facing future features are ordered separately.\n""",
+          )
+          replace_once(
+              "AiFactoryProjectBrief.md",
+              """Current source contains fixes for the serious pre-deployment defects, but that is not the same as a fresh current live GO. A new deployed end-to-end regression should precede a new live-release GO claim.\n""",
+              """Current source contains fixes for the serious pre-deployment defects. On September 1, 2026, a new permanent quality gate also established 20/20 canonical TCO Excel-to-JavaScript parity and 13/13 automated live Vercel browser tests across all routes plus the highest-risk handoff/provenance paths. That supports source and automated public-production verification for the tested scope. Credentialed magic-link, database-event, Slack-notification, and report/PDF visual checks remain a separate live-manual layer, and none of these technical results imply external CDW publication approval.\n""",
+          )
+          replace_once(
+              "AiFactoryProjectBrief.md",
+              """Relevant automation currently includes monthly Hugging Face model-spec sync, weekly Artificial Analysis capability sync, daily/data-change registry reconciliation, and manual-only NIM compatibility research/sync.\n""",
+              """Relevant automation currently includes monthly Hugging Face model-spec sync, weekly Artificial Analysis capability sync, daily/data-change registry reconciliation, manual-only NIM compatibility research/sync, and the AI Factory quality gate for production build, TCO workbook parity, and live Vercel Playwright regression.\n""",
+          )
+          PY
+
+      - name: Verify documentation diff
+        run: git diff --check && git diff -- CHANGELOG.md MaintenanceRunbook.md AiFactoryProjectBrief.md
+
+      - name: Commit durable status update
+        run: |
+          git config user.name "ai-factory-quality-bot"
+          git config user.email "actions@github.com"
+          git add CHANGELOG.md MaintenanceRunbook.md AiFactoryProjectBrief.md
+          git commit -m "docs: record automated assurance baseline"
+          git push
