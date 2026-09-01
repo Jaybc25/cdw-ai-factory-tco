@@ -1,0 +1,76 @@
+name: Apply narrow TCO B200 parity correction
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/apply-tco-parity-fix.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply exact-match parity correction
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          tco_path = Path("src/TcoCalculator.jsx")
+          tco = tco_path.read_text()
+
+          replacements = [
+            (
+              'AWS:       { A100:{od:4.10,conf:"LISTED"}, H100:{od:6.88,conf:"LISTED"}, H200:{od:10.00,conf:"LISTED"}, "B200-class":{od:14.24,conf:"LISTED"}, B300:{od:17.80,conf:"NODE-NORM"}, GB200:{od:27.50,conf:"QUOTE"}, GB300:{od:30.00,conf:"QUOTE"} },',
+              'AWS:       { A100:{od:4.10,conf:"LISTED"}, H100:{od:6.88,conf:"LISTED"}, H200:{od:10.00,conf:"LISTED"}, "B200-class":{od:14.24,res:8.545,conf:"LISTED",note:"reserved snapshot $68.36/8 GPUs"}, B300:{od:17.80,conf:"NODE-NORM"}, GB200:{od:27.50,conf:"QUOTE"}, GB300:{od:30.00,conf:"QUOTE"} },'
+            ),
+            (
+              'return { ...BASE_RC, instOD: +r.od.toFixed(2), instRes: +(r.od * RES_MULT).toFixed(2),\n    perSysCost: S.perSys, sysKw: S.kW };',
+              'return { ...BASE_RC, instOD: +r.od.toFixed(2), instRes: r.res ?? +(r.od * RES_MULT).toFixed(2),\n    perSysCost: S.perSys, sysKw: S.kW };'
+            ),
+            (
+              '{rateInfo.conf === "QUOTE" ? " (estimate — verify with provider)" : ""}{rateInfo.note ? ` (${rateInfo.note})` : ""} · reserved = 40% off list (est.) · rates as of {RATES_ASOF}. Override any rate below.',
+              '{rateInfo.conf === "QUOTE" ? " (estimate — verify with provider)" : ""}{rateInfo.note ? ` (${rateInfo.note})` : ""} · {rateInfo.res != null ? "reserved = NVIDIA TCO snapshot" : "reserved = 40% off list (est.)"} · rates as of {RATES_ASOF}. Override any rate below.'
+            ),
+            (
+              'sub="60% of on-demand, standard 1-yr reserved discount"',
+              'sub={RATES[provider][gpuClass].res != null ? "NVIDIA TCO snapshot ($68.36 per 8-GPU B200 instance)" : "60% of on-demand, estimated 1-yr reserved discount"}'
+            ),
+            (
+              '<RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />',
+              '<RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.001} fmt={(v)=>`$${v}`} />'
+            ),
+          ]
+
+          for old, new in replacements:
+            count = tco.count(old)
+            if count != 1:
+              raise SystemExit(f"Expected exactly one TCO match, found {count}: {old[:90]}")
+            tco = tco.replace(old, new, 1)
+          tco_path.write_text(tco)
+
+          parity_path = Path("scripts/run_tco_parity.mjs")
+          parity = parity_path.read_text()
+          old = '''  if (typeof expected === "number") {\n    const result = numericPass(Number(got), expected);\n    pass = Number.isFinite(Number(got)) && result.pass;\n    detail = `tol=${result.tolerance}`;\n  } else {'''
+          new = '''  if (typeof expected === "number") {\n    if (key === "systemsAdjusted" || key === "systemsFloor") {\n      pass = Number(got) === expected;\n      detail = "exact integer match";\n    } else {\n      const result = numericPass(Number(got), expected);\n      pass = Number.isFinite(Number(got)) && result.pass;\n      detail = `tol=${result.tolerance}`;\n    }\n  } else {'''
+          count = parity.count(old)
+          if count != 1:
+            raise SystemExit(f"Expected exactly one parity-runner match, found {count}")
+          parity_path.write_text(parity.replace(old, new, 1))
+          PY
+
+      - name: Verify patch diff is limited
+        run: git diff --check && git diff -- src/TcoCalculator.jsx scripts/run_tco_parity.mjs
+
+      - name: Commit correction
+        run: |
+          git config user.name "ai-factory-quality-bot"
+          git config user.email "actions@github.com"
+          git add src/TcoCalculator.jsx scripts/run_tco_parity.mjs
+          git commit -m "fix: preserve exact AWS B200 reserved rate for TCO parity"
+          git push
