@@ -8,6 +8,7 @@ on:
       - "src/**"
       - "tests/**"
       - "scripts/extract_tco_workbook_snapshot.py"
+      - "scripts/run_tco_parity.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -18,6 +19,7 @@ on:
       - "src/**"
       - "tests/**"
       - "scripts/extract_tco_workbook_snapshot.py"
+      - "scripts/run_tco_parity.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -29,14 +31,14 @@ permissions:
 
 jobs:
   source-and-workbook:
-    name: Build + inspect TCO reference workbook
+    name: Build + TCO Excel parity
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - name: Install application dependencies
@@ -52,7 +54,7 @@ jobs:
       - name: Extract checked-in TCO workbook snapshot
         run: python3 scripts/extract_tco_workbook_snapshot.py
 
-      - name: Verify required workbook structure
+      - name: Verify final audit workbook structure
         run: |
           python3 - <<'PY'
           import json
@@ -61,16 +63,18 @@ jobs:
           p = Path("tests/tco-parity/workbook_snapshot.json")
           data = json.loads(p.read_text())
           names = [s["name"] for s in data["sheets"]]
-          minimum = {"Inputs", "Engine", "Results", "Validation"}
-          missing = sorted(minimum - set(names))
+          required = {"Inputs", "Engine", "Results", "Validation", "EngineRegression", "Crossover"}
+          missing = sorted(required - set(names))
           if missing:
-              raise SystemExit(f"TCO workbook missing required sheets: {missing}. Present: {names}")
+              raise SystemExit(f"TCO workbook missing required audit sheets: {missing}. Present: {names}")
           print("Workbook sheets:", ", ".join(names))
-          print("EngineRegression present:", "EngineRegression" in names)
-          print("Crossover present:", "Crossover" in names)
           PY
 
+      - name: Run Excel-to-JS parity gate
+        run: node scripts/run_tco_parity.mjs
+
       - name: Upload workbook snapshot
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: tco-workbook-snapshot
@@ -86,7 +90,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - name: Install application dependencies
