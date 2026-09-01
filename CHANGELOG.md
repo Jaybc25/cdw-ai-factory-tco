@@ -66,7 +66,7 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ### Release discipline
 
-- This assurance baseline is the candidate for the first formal known-good suite release, `v2026.09` / `AI Factory Suite 2026.09`, after the cleaned repository passes the final quality gate.
+- Released as `v2026.09` / `AI Factory Suite 2026.09` from validated commit `31fdb2ff2a321f6101bfa72d3c45b4c31aa3a0eb` after the cleaned repository passed the production build, 20/20 TCO Excel-to-JavaScript parity gate, and 13/13 live Vercel regression suite.
 - External CDW publication approval remains separate from source/live technical verification.
 
 ## 2026-09-01 - Current source baseline after project-memory consolidation
