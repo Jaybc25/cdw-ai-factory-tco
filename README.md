@@ -8,6 +8,23 @@ For architecture, history, validation findings, conventions, and durable project
 
 For a human-readable history of meaningful milestones and current open items, read `CHANGELOG.md`.
 
+## Internal release and version record
+
+Versioning is an internal engineering, audit, maintenance, and recovery mechanism. It is not intended to be displayed prominently in the customer-facing application unless a business reason is established later.
+
+**Current validated baseline:** AI Factory Suite 2026.09 (`v2026.09`), validated commit `31fdb2ff2a321f6101bfa72d3c45b4c31aa3a0eb`, released September 1, 2026.
+
+The suite uses calendar versioning for validated releases:
+
+- First validated release in a month: `AI Factory Suite YYYY.MM`, Git tag `vYYYY.MM`.
+- Additional validated release in the same month: append `.1`, `.2`, and so on.
+- Changes between validated releases stay under `Unreleased` in `CHANGELOG.md` and do not receive a release identifier merely because code was committed.
+- Git tags and GitHub Releases are the authoritative release identity. Existing release tags are immutable and must never be moved or reused.
+- Individual tools do not maintain authoritative independent release versions. Their changes are documented inside the suite release record.
+- `package.json` still carries the legacy `2.8.0` value. Do not rewrite the already validated `v2026.09` baseline. Starting with the next stable release, mirror the suite release in SemVer-safe package metadata, for example human release `2026.10` maps to package version `2026.10.0`.
+
+Use `ReleaseRecordTemplate.md` when preparing each future validated release. The release record captures code changes, rationale, data/pricing state, validation evidence, service/dependency changes, known limitations, and external approval status.
+
 ## Current tool suite
 
 Routes in the current application:
@@ -113,14 +130,14 @@ The longer-term architecture already contemplated by the project is a shared `/d
 
 ## Known assurance and maintenance priorities
 
-The main remaining technical assurance items are:
+The permanent GitHub quality gate, TCO Excel-to-JavaScript parity suite, live Vercel regression suite, and first formal known-good release are now in place. The main remaining technical maintenance priorities are:
 
-1. Build the automated TCO Excel-to-JavaScript parity suite.
-2. Run a fresh end-to-end regression against the current Vercel deployment, including cross-tool handoffs, refresh, Back/Forward behavior, auth, reports, audit trails, print/PDF, and Combined Summary.
-3. Centralize cloud and on-prem pricing into one shared data source so TCO and GPU Sizing cannot drift.
-4. Keep NIM compatibility manual until the NVIDIA endpoint is production-validated.
+1. Run credentialed/manual live checks when a release changes auth, report, download-event, Slack notification, or PDF behavior.
+2. Centralize cloud and on-prem pricing into one shared data source so TCO and GPU Sizing cannot drift.
+3. Keep NIM compatibility manual until the NVIDIA endpoint is production-validated.
+4. Review dependency-security findings at the advisory level before deciding on upgrades; do not use force upgrades without regression review.
 
-See `AiFactoryProjectBrief.md` for the detailed defect history, current source-level remediation status, and prior validation record.
+See `AiFactoryProjectBrief.md` for the detailed defect history, current source-level remediation status, prior validation record, and current validated baseline.
 
 ## Publication and branding status
 

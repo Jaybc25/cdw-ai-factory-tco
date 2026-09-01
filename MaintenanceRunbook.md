@@ -345,19 +345,79 @@ Perform an out-of-cycle review when any of the following occurs:
 - Supabase, Vercel, Resend, or React platform changes affect the implementation.
 - A user reports a calculation, persistence, auth, PDF, or handoff defect.
 
-## 10. Release closeout procedure
+## 10. Internal versioning and release closeout
 
-For a meaningful release:
+Versioning exists for internal engineering history, auditability, maintenance, and recovery. Do not add suite version labels prominently to the customer-facing site unless a business reason is established later.
 
-1. Confirm all intended source changes are committed to `main`.
-2. Run the relevant source-level tests.
-3. Verify the deployed application.
-4. Classify status accurately as source-verified, live-verified, and externally approved where applicable.
-5. Update `CHANGELOG.md` with the release-level changes.
-6. Update `AiFactoryProjectBrief.md` only for durable architecture, validation, rationale, or roadmap changes.
-7. Update this runbook if maintenance responsibilities changed.
-8. Update `ServiceInventory.md` if a service, tier, credential location, dependency, or failure mode changed.
-9. Once the release qualifies as a known-good baseline, create a Git tag/release identifying the exact commit.
+### 10.1 Release naming policy
+
+Use calendar versioning for validated suite releases:
+
+- First validated release in a month: `AI Factory Suite YYYY.MM` with Git tag `vYYYY.MM`.
+- Additional validated releases in the same month: append `.1`, `.2`, and so on.
+- Example: the first October 2026 release is `AI Factory Suite 2026.10` / `v2026.10`; a second validated October release is `AI Factory Suite 2026.10.1` / `v2026.10.1`.
+- Git tags and GitHub Releases are authoritative and immutable. Never move, overwrite, or reuse an existing release tag.
+- Individual tools do not maintain authoritative independent versions. Tool-specific changes are recorded within the suite release record.
+
+The first formal known-good baseline is `AI Factory Suite 2026.09` / `v2026.09`, validated commit `31fdb2ff2a321f6101bfa72d3c45b4c31aa3a0eb`.
+
+### 10.2 Between releases
+
+Do not create a new release identifier for every commit.
+
+- Normal development continues on `main`.
+- Meaningful unreleased work is recorded under `Unreleased` in `CHANGELOG.md`.
+- At any point, compare the latest stable tag to current `main` to determine exactly what has changed since the validated baseline.
+- A future session should be able to answer "what changed since `vYYYY.MM`?" from Git history rather than from AI memory.
+
+### 10.3 Package metadata transition
+
+`package.json` currently contains the legacy version `2.8.0`. Because `v2026.09` is already an immutable validated baseline, do not rewrite that tagged commit merely to align metadata.
+
+Starting with the next stable release:
+
+- Mirror the internal suite release in `package.json` using SemVer-safe numeric formatting.
+- Human release `2026.10` maps to package version `2026.10.0`.
+- Human release `2026.10.1` maps to package version `2026.10.1`.
+- The Git tag/GitHub Release remains authoritative if package metadata ever disagrees.
+- The package is private and is not being versioned for npm publication; the field is an additional internal consistency marker only.
+
+### 10.4 Required release record
+
+Use `ReleaseRecordTemplate.md` as the checklist and drafting structure for every validated release. The release record should capture:
+
+- release name, tag, exact commit, date, previous release, and comparison range;
+- meaningful changes by tool and shared platform area;
+- why material changes were made;
+- data state at release time, including NVIDIA/on-prem pricing verification, cloud pricing verification, Hugging Face snapshot, Artificial Analysis snapshot, and other material reference data;
+- validation performed and exact pass/fail evidence;
+- defects found and corrected during the release cycle;
+- services, dependencies, secrets/configuration names, or infrastructure that changed;
+- known limitations and open items carried forward;
+- source-verified, live-verified, and externally approved status kept separate;
+- rollback/recovery target and immutable tag identity.
+
+The detailed release record belongs primarily in GitHub Release notes plus the corresponding `CHANGELOG.md` entry. `AiFactoryProjectBrief.md` should be updated only when the release creates durable architecture, methodology, validation-history, data-source, or roadmap knowledge.
+
+### 10.5 Release closeout procedure
+
+For a meaningful stable release:
+
+1. Identify the intended release scope and keep all incomplete work under `Unreleased`.
+2. Confirm all intended source changes are committed to `main`.
+3. Review the comparison from the previous stable tag to current `main`.
+4. Prepare the release record using `ReleaseRecordTemplate.md`.
+5. Record the data/pricing state that the release relies on.
+6. Update `CHANGELOG.md` with the release-level changes and move the appropriate items out of `Unreleased`.
+7. Update package metadata beginning with the next release after `v2026.09`.
+8. Run the permanent quality gate and all relevant source-level tests.
+9. Verify the deployed application for the release scope.
+10. Run credentialed/manual checks when the release affects auth, reports, database events, Slack notifications, or PDF presentation.
+11. Classify status accurately as source-verified, live-verified, and externally approved where applicable.
+12. Update `AiFactoryProjectBrief.md` only for durable architecture, validation, rationale, data-source, or roadmap changes.
+13. Update this runbook or `ServiceInventory.md` if maintenance responsibilities, services, tiers, credential locations, dependencies, or failure modes changed.
+14. Only after the required validation passes, create the immutable Git tag and GitHub Release for the exact validated commit.
+15. Confirm the release record names the exact tag and commit and that `main` may subsequently move ahead without changing the frozen release.
 
 ## 11. Current assurance baseline and remaining backlog
 

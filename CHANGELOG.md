@@ -17,6 +17,10 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 - `CHANGELOG.md` as the durable human-readable milestone history for the suite.
 - Refreshed root `README.md` to describe the current six-tool suite, current platform services, automated data maintenance, manual refresh responsibilities, status language, and remaining assurance priorities.
+- Formalized internal suite calendar versioning: `AI Factory Suite YYYY.MM` / `vYYYY.MM`, with `.1`, `.2`, and so on for additional validated releases in the same month.
+- Added `ReleaseRecordTemplate.md` as the standard release-history checklist covering code, rationale, data state, validation, dependencies, open items, approval status, and recovery identity.
+- Updated `README.md`, `MaintenanceRunbook.md`, and `AiFactoryProjectBrief.md` so Git tags/GitHub Releases are the authoritative internal release identity and individual tool versions are not independently authoritative.
+- Recorded that legacy `package.json` version `2.8.0` will remain untouched for the already validated `v2026.09` baseline and will transition to calendar-aligned SemVer metadata beginning with the next stable release.
 
 ### Current maintenance state
 
