@@ -9,6 +9,7 @@ on:
       - "tests/**"
       - "scripts/extract_tco_workbook_snapshot.py"
       - "scripts/run_tco_parity.mjs"
+      - "scripts/validate_pricing_registry.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -20,6 +21,7 @@ on:
       - "tests/**"
       - "scripts/extract_tco_workbook_snapshot.py"
       - "scripts/run_tco_parity.mjs"
+      - "scripts/validate_pricing_registry.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -46,6 +48,9 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Validate shared pricing registry
+        run: node scripts/validate_pricing_registry.mjs
 
       - uses: actions/setup-python@v5
         with:
