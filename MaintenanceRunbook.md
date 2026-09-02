@@ -170,15 +170,24 @@ Procedure:
 3. Verify each GPU class represented in the current `RATES` table.
 4. Preserve and reconsider per-record confidence labels such as `LISTED`, `NODE-NORM`, `EST`, and `QUOTE` rather than silently turning estimates into facts.
 5. Re-check the reserved-pricing assumption when provider economics change. Do not assume the current discount relationship will remain valid indefinitely.
-6. Update `RATES` in `src/TcoCalculator.jsx` only after source review.
+6. Update `CLOUD_GPU_RATES` in `src/pricingRegistry.js` only after source review. Do not add provider price tables back into `TcoCalculator.jsx`.
 7. Update `CLOUD_RATES_VERIFIED_AT` in `src/pricingProvenance.js` only after the underlying rate card has actually been re-verified.
 8. Run representative spend-basis and workload-basis TCO scenarios across multiple providers and GPU classes.
 9. Verify the deployed site after deployment.
 10. Record material changes in `CHANGELOG.md`.
 
-### 4.3 Pricing architecture improvement
+### 4.3 Shared pricing registry architecture
 
-The long-term preferred design is a shared pricing registry under a dedicated data layer so TCO and GPU Sizing do not maintain duplicate pricing tables. Until that exists, every on-prem pricing refresh must explicitly reconcile both tools.
+`src/pricingRegistry.js` is now the canonical value layer for cloud GPU rates and NVIDIA/DGX loaded on-prem system economics. TCO imports those registries directly. GPU Sizing derives its loaded per-GPU planning prices from the shared on-prem system records, so a system-cost refresh no longer requires a second hand-maintained GPU price table.
+
+Rules:
+
+1. Update a pricing value in the shared registry only after reviewing the appropriate source and confidence classification.
+2. Update `src/pricingProvenance.js` only when the corresponding underlying rate card has actually been re-verified.
+3. Do not introduce local `RATES`, `SYSTEMS`, or `GPU_PRICE_USD` pricing tables inside the calculating tools.
+4. Run `node scripts/validate_pricing_registry.mjs` after pricing-architecture or value changes. The permanent quality gate runs this automatically for relevant changes.
+5. Run the TCO Excel-to-JavaScript parity gate after any TCO-relevant pricing change.
+6. Verify the deployed site after a material pricing refresh before calling the new data live-verified.
 
 ## 5. Model-catalog refresh procedure
 
@@ -456,7 +465,7 @@ As of September 1, 2026:
 ### Remaining
 
 1. Perform credentialed live checks when needed for a release that changes auth/report infrastructure: magic-link delivery, database download events, Slack notifications, and final report/PDF visual inspection.
-2. Centralize TCO and GPU Sizing pricing into a shared pricing registry.
+2. Maintain the shared TCO/GPU Sizing pricing registry and continue disciplined source/provenance refreshes; consider further automation only where provider APIs are dependable.
 3. Establish production-backed NIM compatibility sync only after NVIDIA endpoint validation.
 4. Continue explicit live/manual verification of report/audit-trail presentation as those surfaces evolve.
 5. Execute the planned controlled Vite/esbuild and React Router upgrades when scheduled, with full regression validation; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo input mitigation.

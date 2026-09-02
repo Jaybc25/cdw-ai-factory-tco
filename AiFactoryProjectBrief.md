@@ -66,7 +66,7 @@ Built and committed on all four calculating tools, reached via a button next to 
 - No-crossover state shows "NO COST CROSSOVER AT THIS SPEND LEVEL" plus computed minimum viable spend. Report appendix carries every input, applied rates snapshot, and engine version stamp.
 
 **Open items and corrected status:**
-- The Excel-to-JS automated parity suite remains the last unbuilt assurance item from the 9-round TCO model audit. The intended pattern is fixture scenarios, both engines, tolerance of `MAX($1, 0.01%)`, then CI.
+- **RESOLVED IN CURRENT SOURCE:** the permanent TCO Excel-to-JavaScript parity suite is built into GitHub Actions. The canonical `EngineRegression` fixture passes 20/20 checks and now consumes the shared production pricing registry while extracting production calculation functions from TCO.
 - **RESOLVED IN CURRENT SOURCE:** the GPU Sizing workload anchor now persists across Back/Forward, refresh, and bare-URL return. `gpuSizingCount`, `sourceClass`, `workingDayHours`, and mode are saved in TCO session state after handoff capture.
 - **RESOLVED IN CURRENT SOURCE:** GPU Sizing to TCO fleet reconciliation is built. Workload mode directly uses the node-rounded technical GPU requirement, with a defensive cross-class capability conversion for legacy/future mismatches and separate workload duty-cycle vs owned-utilization treatment.
 - Equinix storage-rack colo modeling stays a disclosed assumption; MLPerf provenance per performance factor remains deploy-phase.
@@ -80,7 +80,7 @@ Built and committed on all four calculating tools, reached via a button next to 
 **Current feature set:** budget panel with TCO-aligned loaded per-GPU point estimates (H200 $68,721, B200 $93,099, B300 $105,861, GB200 NVL72 $108,909), per-candidate utilization bars, working-day-hours input and 24-hour capacity visualization, Dev/Test/POC-only RTX PRO 6000 Blackwell alternative, and a static "Pod Sizing coming soon" handoff card. Each purchase class carries its own node size (72 for GB200 NVL72, 8 otherwise).
 
 **Open items and corrected status:**
-- Pricing values are still duplicated between GPU Sizing's `GPU_PRICE_USD` and TCO's `SYSTEMS` data rather than imported from one shared data module. `pricingProvenance.js` centralizes verification dates/staleness, not the actual price registry.
+- **RESOLVED IN CURRENT SOURCE:** TCO and GPU Sizing consume one shared pricing value layer in `src/pricingRegistry.js`. GPU Sizing derives its loaded per-GPU point estimates from the same on-prem system records TCO uses, and the permanent registry validator fails if duplicate local pricing tables are reintroduced.
 - **RESOLVED IN CURRENT SOURCE:** the TCO handoff now sends the recommended node-rounded quantity and class, and TCO workload mode consumes that technical requirement directly.
 - **RESOLVED IN CURRENT SOURCE:** the sample token-speed preview layout shift is fixed. The component reserves its final wrapped height and reveals words with CSS visibility rather than growing the DOM as it types.
 - Future: separate Pod Sizing tool (full deployment build-out: networking, storage, power) that this tool hands off into.
@@ -163,9 +163,9 @@ The TCO thesis is not "cloud is bad." The relevant message is avoiding premature
 
 ## 14. Current Pricing / Data Maintenance State
 
-Cloud list rates and NVIDIA/DGX loaded system pricing are currently code-maintained. TCO owns the primary rate/system tables and GPU Sizing maintains a derived duplicate per-GPU price table. `src/pricingProvenance.js` centralizes last-verified dates and staleness display but **not** the values themselves.
+Cloud list rates and NVIDIA/DGX loaded system pricing remain code-maintained, but the values are now centralized in `src/pricingRegistry.js`. TCO imports the cloud-rate and on-prem-system registries directly. GPU Sizing derives its loaded per-GPU planning prices from those same system records rather than maintaining a duplicate hard-coded table. `src/pricingProvenance.js` remains the separate source of truth for verification dates and staleness display.
 
-Current verification dates in source are August 7, 2026 for both cloud and on-prem pricing. The code classifies pricing as "review" after 45 days and "stale" after 90 days. The fuller future architecture contemplated in source is a shared `/data/pricing/` registry with per-record provenance and automated cloud-rate checks.
+Current verification dates in source are September 1, 2026 for cloud pricing and August 7, 2026 for on-prem pricing. The code classifies pricing as "review" after 45 days and "stale" after 90 days. `scripts/validate_pricing_registry.mjs` permanently guards the shared architecture and reconciliation in CI. Cloud and on-prem source verification is still a deliberate maintenance activity; centralization eliminates cross-tool value drift but does not make external prices self-updating.
 
 ## 15. Maintenance / Operational Habits
 
@@ -173,8 +173,8 @@ Current verification dates in source are August 7, 2026 for both cloud and on-pr
 - Artificial Analysis capability data: automated weekly.
 - Registry reconciliation: automated daily and data-change-triggered.
 - NVIDIA NIM: manual only until a production endpoint exists.
-- Cloud GPU pricing: manual review until a reliable shared/automated pricing layer is built.
-- DGX/on-prem pricing: manually compare against the current NVIDIA/CDW-supported source and update both TCO and GPU Sizing when needed.
+- Cloud GPU pricing: manually verify provider sources, then update the shared pricing registry and cloud verification date.
+- DGX/on-prem pricing: manually compare against the current NVIDIA/CDW-supported source, update the shared system record once, and let GPU Sizing derive its per-GPU planning price from that record.
 - Model catalog: discovery is automated, production admission is manual and deliberate.
 - Major code/data changes: source review first, then live end-to-end regression before claiming live verification.
 

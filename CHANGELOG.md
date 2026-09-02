@@ -40,13 +40,21 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 - PptxGenJS inherits high-severity denial-of-service advisories from `image-size`. The known client-controlled image path is the offline Client Summary `clientLogoPath`, so the generator now allows only PNG/JPG/JPEG files, enforces a 10 MiB ceiling, and verifies the actual PNG/JPEG file signature before PptxGenJS sees the image.
 - Added permanent Client Summary regression assertions proving a valid PNG is accepted while a non-JPEG payload renamed `.jpg` is rejected by both preflight and generation.
 
+### Shared Pricing Registry - 2026-09-02
+
+- Centralized TCO cloud GPU rates and NVIDIA/DGX loaded system pricing in `src/pricingRegistry.js` without changing the current rate values.
+- TCO now imports cloud rates and on-prem system economics from the shared registry instead of owning local `RATES` and `SYSTEMS` tables.
+- GPU Sizing no longer owns a duplicate `GPU_PRICE_USD` table; its H200, B200, GB200 NVL72, and B300 planning prices are derived from the same shared system records used by TCO.
+- Updated the TCO Excel-to-JavaScript parity harness to inject the shared production pricing registry while continuing to extract the production calculation functions from TCO. Canonical parity remains 20/20 PASS.
+- Added `scripts/validate_pricing_registry.mjs` and made it part of the permanent quality gate. The guard fails if local duplicate pricing tables are reintroduced and preserves the exact validated AWS B200 reserved-rate value of `8.545` per GPU-hour.
+
 ### Current maintenance state
 
 - Hugging Face model specifications sync monthly on the 1st through GitHub Actions.
 - Artificial Analysis capability data sync weekly on Monday through GitHub Actions.
 - Registry reconciliation runs daily and on changes under `data/**`.
 - NVIDIA NIM compatibility remains manual-only until a production-backed catalog-wide endpoint is confirmed.
-- Cloud GPU rates and NVIDIA loaded system prices remain code-maintained rather than centrally automated.
+- Cloud GPU rates and NVIDIA loaded system prices are code-maintained in the shared `src/pricingRegistry.js`; source verification remains manual even though both calculating tools now consume one registry.
 - Pricing provenance is tracked in `src/pricingProvenance.js`, with review due after 45 days and stale after 90 days.
 
 ### Current assurance state
@@ -59,7 +67,6 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 ### Still open
 
 - Credentialed live checks that require a real magic-link session or external side effects: auth/email delivery, database download-event verification, Slack notification verification, and final visual inspection of report/PDF output.
-- Shared pricing registry for TCO and GPU Sizing.
 - Production-backed NVIDIA NIM compatibility sync.
 - Live/manual verification of report/audit-trail presentation where not covered by automated tests.
 - Controlled Vite/esbuild and React Router dependency upgrades remain planned; treat them as regression-tested migrations rather than `npm audit fix --force` changes.

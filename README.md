@@ -73,7 +73,7 @@ Relevant workflows live under `.github/workflows/`.
 - NVIDIA NIM compatibility sync, which intentionally remains manual-only until a documented and live-tested catalog-wide endpoint is confirmed
 - Full live regression testing after material releases
 
-`src/pricingProvenance.js` is the current source of truth for pricing verification dates and staleness thresholds. It does not yet centralize the actual pricing tables.
+`src/pricingRegistry.js` is the shared source of truth for cloud GPU rates and NVIDIA/DGX loaded system pricing used by TCO and GPU Sizing. `src/pricingProvenance.js` separately owns pricing verification dates and staleness thresholds. GPU Sizing derives its loaded per-GPU planning prices directly from the shared on-prem system records rather than maintaining a second hard-coded price table.
 
 ## Validation and status language
 
@@ -119,23 +119,23 @@ The Hugging Face token may be read-only, but its issuing account must have accep
 
 ## Current data-source notes
 
-Cloud GPU rates and NVIDIA loaded system prices are still maintained in code rather than one shared pricing registry. TCO and GPU Sizing therefore require coordinated pricing updates when those values change.
+Cloud GPU rates and NVIDIA loaded system prices are centralized in `src/pricingRegistry.js`. TCO imports the cloud-rate and on-prem-system registries directly. GPU Sizing derives its per-GPU planning prices from those same on-prem system records, eliminating the prior duplicate price table.
 
-The current pricing provenance dates are maintained in `src/pricingProvenance.js`. At the time this README was refreshed, the code defines:
+The current pricing provenance dates remain in `src/pricingProvenance.js`. The code defines:
 
 - review due after 45 days
 - stale after 90 days
 
-The longer-term architecture already contemplated by the project is a shared `/data/pricing/` layer with per-record source, confidence, and verification metadata.
+`scripts/validate_pricing_registry.mjs` is enforced by the permanent quality gate. It validates required provider/system data, preserves the exact AWS B200 reserved-rate anchor, confirms GPU Sizing's derived prices reconcile to the shared system costs, and fails if the calculating tools reintroduce local duplicate pricing tables.
 
 ## Known assurance and maintenance priorities
 
 The permanent GitHub quality gate, TCO Excel-to-JavaScript parity suite, live Vercel regression suite, and first formal known-good release are now in place. The main remaining technical maintenance priorities are:
 
 1. Run credentialed/manual live checks when a release changes auth, report, download-event, Slack notification, or PDF behavior.
-2. Centralize cloud and on-prem pricing into one shared data source so TCO and GPU Sizing cannot drift.
+2. Maintain the shared pricing registry and continue provider-by-provider refreshes with explicit `LISTED`, `NODE-NORM`, `EST`, and `QUOTE` confidence.
 3. Keep NIM compatibility manual until the NVIDIA endpoint is production-validated.
-4. Review dependency-security findings at the advisory level before deciding on upgrades; do not use force upgrades without regression review.
+4. Execute controlled Vite/esbuild and React Router upgrades with regression testing; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo mitigation.
 
 See `AiFactoryProjectBrief.md` for the detailed defect history, current source-level remediation status, prior validation record, and current validated baseline.
 
