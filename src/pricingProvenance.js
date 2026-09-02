@@ -1,21 +1,19 @@
-// Single source of truth for "when was this pricing data last verified,"
-// shared by TCO and GPU Sizing since both price against the same underlying
-// research (TCO's RATES/SYSTEMS tables; GPU Sizing's GPU_PRICE_USD is
-// explicitly derived from TCO's SYSTEMS registry, per its own source
-// comments). This is deliberately the SMALL first step toward a shared
-// pricing registry, centralizing just the provenance dates, not the full
-// rate tables -- see the Aug 2026 pricing-architecture discussion for the
-// fuller version (a real /data/pricing/ layer with per-record provenance,
-// automated cloud-rate checks) if that's ever worth building.
+// Single source of truth for "when was this pricing data last verified."
+// The actual cloud GPU rates and NVIDIA/DGX loaded system economics live in
+// pricingRegistry.js and are shared by TCO and GPU Sizing. GPU Sizing derives
+// its loaded per-GPU planning prices from those same on-prem system records.
+// Keep value changes in pricingRegistry.js and verification-date changes here
+// so "what is the price?" and "when was it verified?" remain explicit and
+// independently auditable.
 //
 // Cloud Pricing Refresh #1 completed 2026-09-01. AWS and Azure were checked
 // against their machine-readable public price catalogs; GCP, OCI, and
 // CoreWeave were checked against current provider pricing pages/price lists.
 // Rows without dependable public On-Demand pricing remain explicitly marked
-// as proxy/QUOTE in TcoCalculator.jsx rather than being presented as current
+// as proxy/QUOTE in pricingRegistry.js rather than being presented as current
 // list prices.
 
-// ISO dates -- update whenever the underlying rate card is actually
+// ISO dates - update whenever the underlying rate card is actually
 // re-verified against current sources, not just whenever this file is
 // touched for an unrelated change.
 //
@@ -24,13 +22,13 @@
 // re-reviewed. The cloud date can advance after a complete provider-by-
 // provider review even when some rows remain QUOTE, provided those rows'
 // unavailable/quote status was itself re-verified and is disclosed.
-export const CLOUD_RATES_VERIFIED_AT = "2026-09-01"; // Full provider-by-provider review of TCO RATES table; public list/proxy/QUOTE status re-verified
-export const ONPREM_PRICING_VERIFIED_AT = "2026-08-07"; // TCO's SYSTEMS table + GPU Sizing's GPU_PRICE_USD (NVIDIA DGX TCO tool capture)
+export const CLOUD_RATES_VERIFIED_AT = "2026-09-01"; // Full provider-by-provider review of shared cloud pricing registry; public list/proxy/QUOTE status re-verified
+export const ONPREM_PRICING_VERIFIED_AT = "2026-08-07"; // Shared NVIDIA/DGX on-prem system registry used by TCO and GPU Sizing
 
 // current: no warning needed, just show the date. review: gently note it's
 // aging. stale: a visible warning that this should be refreshed before
 // being used in front of a client. Thresholds are a judgment call, not a
-// hard SLA -- tune them if actual usage suggests otherwise.
+// hard SLA - tune them if actual usage suggests otherwise.
 const REVIEW_DUE_DAYS = 45;
 const STALE_DAYS = 90;
 
