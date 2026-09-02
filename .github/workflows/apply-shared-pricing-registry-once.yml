@@ -22,6 +22,8 @@ jobs:
         run: npm ci
       - name: Apply shared pricing imports
         run: python3 scripts/switch_to_shared_pricing_once.py
+      - name: Update TCO parity harness for shared registry
+        run: python3 scripts/update_tco_parity_for_registry_once.py
       - name: Validate shared pricing registry
         run: node scripts/validate_pricing_registry.mjs
       - name: Production build
@@ -37,7 +39,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/TcoCalculator.jsx src/GpuSizingCalculator.jsx
+          git add src/TcoCalculator.jsx src/GpuSizingCalculator.jsx scripts/run_tco_parity.mjs
           git diff --cached --check
           git diff --cached --quiet && exit 0
           git commit -m "refactor: centralize TCO and GPU pricing"
