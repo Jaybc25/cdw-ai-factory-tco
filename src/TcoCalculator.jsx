@@ -4,80 +4,8 @@ import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { CLOUD_RATES_VERIFIED_AT, ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
+import { CLOUD_GPU_RATES as RATES, ONPREM_SYSTEMS as SYSTEMS } from "./pricingRegistry.js";
 
-/* ============ CLOUD RATES: per-GPU-hour LIST prices, by provider x GPU class ============
-   Sources: provider pricing pages via trackers (gpucloudcost.com, Silicon Analysts,
-   Thunder Compute, Spheron, Jarvislabs), Jul-Aug 2026. est = estimated/interpolated.
-   Reserved (1-yr) = 40% off list unless noted — matches AWS B200 exactly
-   ($113.93 -> $68.36/instance in the NVIDIA TCO tool). */
-const RATES = {
-  /*
-   * Cloud Pricing Refresh #1, verified 2026-09-01.
-   * Canonical basis by provider:
-   * - AWS: Linux EC2 On-Demand, us-east-1, normalized by physical GPU count.
-   * - Azure: Linux Pay-As-You-Go Retail Prices API, canonical US SKU/region, normalized by GPU count.
-   * - GCP: Iowa/us-central1 accelerator-optimized On-Demand. When On-Demand is unavailable, an explicitly named public proxy is used.
-   * - OCI: Oracle Pay As You Go GPU-per-hour Global Price List.
-   * - CoreWeave: North America On-Demand node price normalized by GPU count.
-   * Confidence tiers: LISTED > NODE-NORM > EST > QUOTE. QUOTE rows retain a numeric planning placeholder but must be verified commercially before customer-specific contracting decisions.
-   */
-  AWS: {
-    A100:       { od:3.43, conf:"LISTED", note:"A100 80GB: p4de.24xlarge $27.44705/8, AWS EC2 public price catalog, us-east-1" },
-    H100:       { od:6.88, conf:"LISTED", note:"p5.48xlarge $55.04/8, AWS EC2 public price catalog, us-east-1" },
-    H200:       { od:7.91, conf:"LISTED", note:"p5en.48xlarge $63.296/8, AWS EC2 public price catalog, us-east-1; p5e had no standard On-Demand catalog row" },
-    "B200-class":{ od:14.24, res:8.545, conf:"LISTED", note:"p6-b200.48xlarge $113.9328/8 On-Demand; reserved snapshot $68.36/8 GPUs" },
-    B300:       { od:17.80, conf:"LISTED", note:"p6-b300.48xlarge $142.416/8, AWS EC2 public price catalog, us-east-1" },
-    GB200:      { od:27.50, conf:"QUOTE", note:"No standard p6e-gb200 On-Demand catalog row found in 2026-09-01 AWS audit; retain planning placeholder pending quote" },
-    GB300:      { od:30.00, conf:"QUOTE", note:"No canonical standard On-Demand GB300 catalog row verified 2026-09-01; retain planning placeholder pending quote" },
-  },
-  Azure: {
-    A100:       { od:4.10, conf:"LISTED", note:"Standard_ND96amsr_A100_v4 Linux $32.77/8, Azure Retail Prices API, East US" },
-    H100:       { od:12.29, conf:"LISTED", note:"Standard_ND96isr_H100_v5 Linux $98.32/8, Azure Retail Prices API, East US" },
-    H200:       { od:10.60, conf:"LISTED", note:"Standard_ND96isr_H200_v5 Linux $84.80/8, Azure Retail Prices API, West US 3" },
-    "B200-class":{ od:27.04, conf:"QUOTE", note:"No direct canonical Azure B200 retail SKU verified 2026-09-01; numeric placeholder retained, verify quote" },
-    B300:       { od:15.00, conf:"QUOTE", note:"No canonical Azure B300 Pay-As-You-Go retail SKU verified 2026-09-01; retain planning placeholder pending quote" },
-    GB200:      { od:27.04, conf:"LISTED", note:"Standard_ND128isr_NDR_GB200_v6 Linux $108.16/4, Azure Retail Prices API, East US/West US 3" },
-    GB300:      { od:40.00, conf:"QUOTE", note:"No canonical Azure GB300 Pay-As-You-Go retail SKU verified 2026-09-01; retain planning placeholder pending quote" },
-  },
-  GCP: {
-    A100:       { od:5.07, conf:"LISTED", note:"A100 80GB: a2-ultragpu-1g On-Demand $5.06879789, Iowa/us-central1" },
-    H100:       { od:11.06, conf:"LISTED", note:"a3-highgpu-8g On-Demand $88.490000119/8, Iowa/us-central1" },
-    H200:       { od:10.60, conf:"LISTED", note:"a3-ultragpu-8g On-Demand $84.806908493/8, Iowa/us-central1" },
-    "B200-class":{ od:11.28, conf:"NODE-NORM", note:"Standard On-Demand is N/A; DWS Calendar Mode public proxy $90.22/8, Iowa/us-central1" },
-    B300:       { od:15.00, conf:"QUOTE", note:"No canonical public GCP B300 On-Demand SKU verified 2026-09-01; retain planning placeholder pending quote" },
-    GB200:      { od:27.50, conf:"QUOTE", note:"No canonical public GCP GB200 On-Demand SKU verified 2026-09-01; retain planning placeholder pending quote" },
-    GB300:      { od:30.00, conf:"QUOTE", note:"No canonical public GCP GB300 On-Demand SKU verified 2026-09-01; retain planning placeholder pending quote" },
-  },
-  OCI: {
-    A100:       { od:4.00, conf:"LISTED", note:"A100-v2 80GB Pay As You Go, Oracle Global Price List, GPU per hour" },
-    H100:       { od:10.00, conf:"LISTED", note:"Oracle Global Price List, GPU per hour" },
-    H200:       { od:10.00, conf:"LISTED", note:"Oracle Global Price List, GPU per hour" },
-    "B200-class":{ od:14.00, conf:"LISTED", note:"Oracle Global Price List, GPU per hour" },
-    B300:       { od:15.00, conf:"LISTED", note:"Oracle Global Price List, GPU per hour" },
-    GB200:      { od:16.00, conf:"LISTED", note:"Oracle Global Price List, GPU per hour" },
-    GB300:      { od:18.00, conf:"LISTED", note:"Oracle Global Price List, GPU per hour" },
-  },
-  CoreWeave: {
-    A100:       { od:2.70, conf:"LISTED", note:"North America On-Demand $21.60/8" },
-    H100:       { od:6.16, conf:"LISTED", note:"North America On-Demand $49.24/8 = $6.155" },
-    H200:       { od:6.31, conf:"LISTED", note:"North America On-Demand $50.44/8 = $6.305" },
-    "B200-class":{ od:8.60, conf:"LISTED", note:"North America On-Demand $68.80/8" },
-    B300:       { od:8.00, conf:"QUOTE", note:"CoreWeave public On-Demand price is Contact sales; retain prior planning placeholder, verify quote" },
-    GB200:      { od:10.50, conf:"LISTED", note:"North America On-Demand $42.00/4" },
-    GB300:      { od:12.00, conf:"QUOTE", note:"CoreWeave public On-Demand price is Contact sales; retain prior planning placeholder, verify quote" },
-  },
-};
-
-/* Own-side registry — NVIDIA TCO tool loaded costs (Aug 2026 capture). perSys EXCLUDES the $600K
-   per-CLUSTER mgmt nodes and rack cost: cluster-level costs are fixed overhead that amortizes
-   across fleet size; racks are added per ceiling(n / perRack). */
-const SYSTEMS = {
-  "DGX H200":         { gpus: 8,  perSys: 549764,  kW: 10.2, perRack: 2, rackCost: 15000, vram: 141, prof: 25000, sw: 99000 },
-  "DGX B200":         { gpus: 8,  perSys: 744793,  kW: 14.4, perRack: 2, rackCost: 15000, vram: 192, prof: 25000, sw: 142800 },
-  "DGX B300":         { gpus: 8,  perSys: 846885,  kW: 14.4, perRack: 2, rackCost: 15000, vram: 288, prof: 25000, sw: 142800 },
-  "DGX GB200 NVL-72": { gpus: 72, perSys: 7841432, kW: 120,  perRack: 1, rackCost: 0, vram: 186, prof: 55558, sw: 1468800 },
-  "DGX GB300 NVL-72": { gpus: 72, perSys: 8741432, kW: 120,  perRack: 1, rackCost: 0, vram: 288, prof: 55558, sw: 1468800 },
-};
 const OWN_TARGETS = Object.keys(SYSTEMS);
 /* Per-GPU capability indices (B200 = 1.0). Established classes derived from MLPerf pairs;
    Blackwell-Ultra/NVL entries are provisional (EST) pending NVIDIA-sourced factors. */

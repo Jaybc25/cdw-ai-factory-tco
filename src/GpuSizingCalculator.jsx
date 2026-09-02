@@ -5,6 +5,7 @@ import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
+import { GPU_SIZING_PRICE_USD as GPU_PRICE_USD } from "./pricingRegistry.js";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -122,13 +123,6 @@ const GPU_SPECS = [
   { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified", nodeSize: 72 },
   { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%", nodeSize: 8 },
 ];
-
-const GPU_PRICE_USD = {
-  H200: { amount: 68721, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX H200 $549,764 / 8 GPUs (NVIDIA DGX TCO tool capture)" },
-  B200: { amount: 93099, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX B200 $744,793 / 8 GPUs (NVIDIA DGX TCO tool capture)" },
-  "GB200 NVL72": { amount: 108909, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX GB200 NVL-72 $7,841,432 / 72 GPUs (NVIDIA DGX TCO tool capture)" },
-  B300: { amount: 105861, confidence: "LISTED", source: "TCO Calculator SYSTEMS registry: DGX B300 $846,885 / 8 GPUs (NVIDIA DGX TCO tool capture)" },
-};
 
 const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
 
