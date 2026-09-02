@@ -198,6 +198,43 @@ else
 fi
 
 echo ""
+echo "=== Client-logo security assertions ==="
+SEC_DIR="$OUT_DIR/client-logo-security"
+mkdir -p "$SEC_DIR"
+if ! node - <<'NODEEOF'
+const { validateSafeImagePath } = require("./SafeImageInput.cjs");
+validateSafeImagePath("cdw-logo.png", { label: "known-good CDW logo" });
+console.log("Known-good PNG signature accepted.");
+NODEEOF
+then
+  echo "SECURITY ASSERTION FAILED: known-good PNG was rejected"
+  FAIL=1
+fi
+
+python3 - "$SEC_DIR" <<'PYEOF'
+import json, pathlib, sys
+sec = pathlib.Path(sys.argv[1])
+bad = sec / "renamed-unsafe.jpg"
+bad.write_bytes(b"\x00\x00\x00\x18ftypheic" + b"X" * 32)
+base = json.loads(pathlib.Path("fixture-01-three-tools.json").read_text())
+base["clientLogoPath"] = str(bad)
+(sec / "unsafe-logo-fixture.json").write_text(json.dumps(base))
+PYEOF
+
+if node preflight_validate.cjs "$SEC_DIR/unsafe-logo-fixture.json" > "$SEC_DIR/preflight.log" 2>&1; then
+  echo "SECURITY ASSERTION FAILED: preflight accepted a renamed non-JPEG payload"
+  FAIL=1
+else
+  echo "Preflight correctly rejected renamed non-JPEG payload."
+fi
+if node generate_client_summary_full.cjs "$SEC_DIR/unsafe-logo-fixture.json" "$SEC_DIR/unsafe-output.pptx" > "$SEC_DIR/generator.log" 2>&1; then
+  echo "SECURITY ASSERTION FAILED: generator accepted a renamed non-JPEG payload"
+  FAIL=1
+else
+  echo "Generator correctly rejected renamed non-JPEG payload before PptxGenJS image parsing."
+fi
+
+echo ""
 if [ "$FAIL" -ne 0 ]; then
   echo "SUITE FAILED -- see logs in $OUT_DIR"
   exit 1

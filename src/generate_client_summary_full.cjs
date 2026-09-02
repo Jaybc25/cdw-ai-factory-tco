@@ -27,6 +27,7 @@
 
 const pptxgen = require("pptxgenjs");
 const fs = require("fs");
+const { validateSafeImagePath } = require("./SafeImageInput.cjs");
 
 const RED = "CC0000";
 const BODY = "1A1A1A";
@@ -44,6 +45,7 @@ if (!dataPath || !outPath) {
   process.exit(1);
 }
 const data = JSON.parse(fs.readFileSync(dataPath, "utf8"));
+const safeClientLogoPath = validateSafeImagePath(data.clientLogoPath, { label: "clientLogoPath" });
 
 const pres = new pptxgen();
 pres.defineLayout({ name: "PORTRAIT_LETTER", width: 8.5, height: 11 });
@@ -537,8 +539,8 @@ cover.background = { color: WHITE };
 pageCursor = 1;
 
 logoBox(cover, MX, 0.6, 2.0, 0.55, "CDW LOGO");
-if (data.clientLogoPath) {
-  cover.addImage({ path: data.clientLogoPath, x: PAGE_W - MX - 2.0, y: 0.6, w: 2.0, h: 0.55, sizing: { type: "contain", w: 2.0, h: 0.55 } });
+if (safeClientLogoPath) {
+  cover.addImage({ path: safeClientLogoPath, x: PAGE_W - MX - 2.0, y: 0.6, w: 2.0, h: 0.55, sizing: { type: "contain", w: 2.0, h: 0.55 } });
 } else {
   logoBox(cover, PAGE_W - MX - 2.0, 0.6, 2.0, 0.55, "CLIENT LOGO");
 }

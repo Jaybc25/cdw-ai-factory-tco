@@ -16,6 +16,7 @@
 // generator itself: flag it, don't guess a replacement.
 
 const fs = require("fs");
+const { validateSafeImagePath } = require("./SafeImageInput.cjs");
 
 const dataPath = process.argv[2];
 if (!dataPath) {
@@ -42,6 +43,12 @@ if (!data.clientName || typeof data.clientName !== "string") err("clientName mis
 if (!data.date || typeof data.date !== "string") err("date missing or not a string");
 if (data.clientLogoPath !== null && data.clientLogoPath !== undefined && typeof data.clientLogoPath !== "string") {
   err("clientLogoPath must be null or a string path");
+} else if (typeof data.clientLogoPath === "string" && data.clientLogoPath) {
+  try {
+    validateSafeImagePath(data.clientLogoPath, { label: "clientLogoPath" });
+  } catch (error) {
+    err(error.message);
+  }
 }
 
 const KNOWN_TOOLS = ["tco", "roi", "gpuSizing", "modelAdvisor", "readiness"];

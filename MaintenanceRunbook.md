@@ -344,6 +344,16 @@ Review `ServiceInventory.md` and confirm:
 
 Use `npm outdated` or equivalent dependency review tooling when appropriate, but do not upgrade production dependencies solely because a newer version exists. Review release notes and regression-test meaningful upgrades.
 
+### Dependency-security disposition baseline
+
+The first advisory-level review was completed September 2, 2026. The current `npm audit` result is 6 package-level findings: 3 moderate, 3 high, and 0 critical. Do not summarize this merely as an unresolved count; preserve the disposition:
+
+- **Vite / esbuild:** current findings concern development-server behavior. The deployed Vercel application is a compiled build, so these are not treated as evidence of an active production exploit path. Upgrade Vite deliberately on an isolated change and run the permanent quality gate rather than using a force upgrade.
+- **React Router:** the SSR constructor-injection advisory is not applicable to the current declarative `BrowserRouter`/`Routes` architecture. The open-redirect advisory remains relevant to affected versions, but current source uses fixed internal routing destinations. Plan a controlled upgrade and regression pass.
+- **PptxGenJS / image-size:** current high-severity advisories concern malformed ICNS/JXL/HEIF image parsing and denial of service. The offline Client Summary path now validates `clientLogoPath` before PptxGenJS sees it: only PNG/JPG/JPEG are accepted, files are capped at 10 MiB, and PNG/JPEG magic bytes must match the extension. Keep this mitigation covered by `src/run_fixture_suite.sh` while monitoring upstream dependency resolution.
+
+Re-run `npm audit --json` during dependency reviews and update this section only when the advisory set or disposition materially changes.
+
 ## 9. Event-driven maintenance triggers
 
 Perform an out-of-cycle review when any of the following occurs:
@@ -449,6 +459,6 @@ As of September 1, 2026:
 2. Centralize TCO and GPU Sizing pricing into a shared pricing registry.
 3. Establish production-backed NIM compatibility sync only after NVIDIA endpoint validation.
 4. Continue explicit live/manual verification of report/audit-trail presentation as those surfaces evolve.
-5. Review the npm audit findings surfaced by CI before deciding whether dependency upgrades are warranted; do not use force upgrades without advisory and regression review.
+5. Execute the planned controlled Vite/esbuild and React Router upgrades when scheduled, with full regression validation; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo input mitigation.
 
 These priorities are technical assurance priorities, not a substitute for business or CDW publication priorities.

@@ -32,6 +32,14 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 - CoreWeave H200 was updated to the current North America On-Demand node-normalized rate, while B300 and GB300 were reclassified to `QUOTE` because public On-Demand pricing is currently `Contact sales`.
 - Updated `CLOUD_RATES_VERIFIED_AT` to `2026-09-01` after the complete table review. Quote/proxy rows remain explicitly disclosed rather than being treated as verified list prices.
 
+### Dependency Security Review #1 - 2026-09-02
+
+- Reviewed the six current `npm audit` package-level findings individually: 3 moderate, 3 high, 0 critical. No dependency was force-upgraded.
+- Vite/esbuild findings are development-server exposures rather than evidence of an exploitable defect in the compiled Vercel production application. A controlled Vite major-version upgrade remains planned and must pass the permanent quality gate.
+- React Router's SSR constructor-injection advisory does not apply to the current declarative `BrowserRouter`/`Routes` architecture. The separate open-redirect advisory has low current exposure because application routing uses fixed internal destinations; a controlled React Router upgrade remains planned.
+- PptxGenJS inherits high-severity denial-of-service advisories from `image-size`. The known client-controlled image path is the offline Client Summary `clientLogoPath`, so the generator now allows only PNG/JPG/JPEG files, enforces a 10 MiB ceiling, and verifies the actual PNG/JPEG file signature before PptxGenJS sees the image.
+- Added permanent Client Summary regression assertions proving a valid PNG is accepted while a non-JPEG payload renamed `.jpg` is rejected by both preflight and generation.
+
 ### Current maintenance state
 
 - Hugging Face model specifications sync monthly on the 1st through GitHub Actions.
@@ -54,7 +62,8 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 - Shared pricing registry for TCO and GPU Sizing.
 - Production-backed NVIDIA NIM compatibility sync.
 - Live/manual verification of report/audit-trail presentation where not covered by automated tests.
-- Dependency-security review for the six npm audit findings surfaced by the new CI environment (3 moderate, 3 high); do not apply force upgrades without reviewing advisories and breaking-change risk.
+- Controlled Vite/esbuild and React Router dependency upgrades remain planned; treat them as regression-tested migrations rather than `npm audit fix --force` changes.
+- PptxGenJS/image-size remains an upstream dependency concern; the current Client Summary client-logo input path is hardened while a clean upstream dependency resolution is monitored.
 - External publication/branding approval items tracked in `AiFactoryProjectBrief.md`.
 
 ## 2026-09-01 - Automated assurance baseline
