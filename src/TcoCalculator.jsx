@@ -1028,8 +1028,11 @@ function AppInner() {
           .tco-print-report{border:none!important;border-radius:0!important;padding:0!important;margin:0!important}
           .report-methodology-full{display:none!important}
           .report-methodology-print{display:block!important}
-          .report-appendix{break-before:page;page-break-before:always}
-          .report-appendix-row{display:grid!important;grid-template-columns:minmax(0,42%) minmax(0,58%)!important;gap:12px!important;align-items:start!important}
+          .report-cumulative{break-before:page;page-break-before:always;break-inside:avoid;page-break-inside:avoid}
+          .report-cumulative svg{max-height:165px}
+          .report-appendix{break-before:auto;page-break-before:auto;margin-top:8px!important}
+          .report-appendix-grid{font-size:10px!important;gap:1px 14px!important}
+          .report-appendix-row{display:grid!important;grid-template-columns:minmax(0,42%) minmax(0,58%)!important;gap:10px!important;align-items:start!important;line-height:1.2}
           .report-appendix-row>span:last-child{text-align:right;overflow-wrap:anywhere}
           @page{size:Letter;margin:.35in}
         }
@@ -1177,13 +1180,13 @@ function AppInner() {
               <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 6 }}>WHERE THE MONEY GOES IN YEAR 1</div>
               <YearOneBreakdownReport cloudYear1={r.cloudYear1} capital={r.adj.capex + r.oneTime} operating={r.adj.opex * 12} />
             </div>
-            <div style={{ marginTop: 16 }}>
+            <div className="report-cumulative" style={{ marginTop: 16 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 6 }}>CUMULATIVE SPEND, {Math.max(2, horizon)}-YEAR VIEW{horizon < 2 ? " (min. 2yr shown for a readable trend)" : ""}</div>
               <CrossoverChartReport points={r.cumulativeByYear} horizon={horizon} crossoverMo={r.crossoverMo} />
             </div>
             <div className="report-appendix" style={{ marginTop: 14 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX - FULL INPUTS & OUTPUTS (for independent reproduction)</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 14px", fontSize: 11 }}>
+              <div className="report-appendix-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 14px", fontSize: 11 }}>
                 {[
                   ["Planning basis", r.isWorkloadMode ? "Workload Requirement (v2.9)" : "Existing Cloud Spend"],
                   [r.isWorkloadMode ? "Reported monthly cloud spend (context only)" : "Monthly cloud AI spend", `${fmt(bill)}/mo`],
@@ -1228,7 +1231,7 @@ function AppInner() {
                   ["Cluster fixed / Equinix bundle", `${fmt(rc.cluster)} / ${fmt(rc.equinixMo)}/sys/mo`],
                   ["On-prem storage fast / bulk $/PB", `${fmt(rc.fastPB)} / ${fmt(rc.bulkPB)}`],
                   ["Admin ratio / FTE / ops growth", `${rc.adminRatio}/FTE · ${fmt(rc.opFTE)} · ${Math.round(rc.opsGrowth * 100)}%/yr`],
-                  ["Suite baseline", "AI Factory Suite 2026.09; current source may include unreleased maintenance changes. Core TCO formulas remain checked against the audited reference workbook in the permanent quality gate."],
+                  ["Suite baseline", "AI Factory Suite 2026.09 baseline; current source may include Unreleased maintenance. TCO parity remains enforced against the audited reference workbook in CI."],
                 ].map(([k, v]) => (
                   <div className="report-appendix-row" key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>
                     <span style={{ color: C.sub }}>{k}</span><span style={{ ...mono }}>{v}</span>
