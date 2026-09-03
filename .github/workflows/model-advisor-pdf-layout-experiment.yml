@@ -1,0 +1,64 @@
+name: Model Advisor PDF layout experiment
+
+on:
+  push:
+    branches:
+      - experiment/model-advisor-pdf-layout
+    paths:
+      - '.github/workflows/model-advisor-pdf-layout-experiment.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-render:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: experiment-only-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: experiment/model-advisor-pdf-layout
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply branch-only Model Advisor PDF layout changes
+        run: python3 scripts/apply_model_advisor_pdf_layout_experiment.py
+      - name: Production build
+        run: npm run build
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock @playwright/test
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start local preview
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/model-advisor-preview.log 2>&1 &
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:4173/model-advisor >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/model-advisor-preview.log
+          exit 1
+      - name: Render default-scenario Model Advisor experiment PDF
+        run: node scripts/render_model_advisor_report_experiment.mjs artifacts/model-advisor-report-experiment.pdf
+      - name: Upload comparison artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-advisor-report-layout-experiment
+          path: artifacts/model-advisor-report-experiment.pdf
+          if-no-files-found: error
+          retention-days: 14
+      - name: Commit branch-only layout changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/ModelAdvisor.jsx
+          git diff --cached --check
+          git diff --cached --quiet && exit 0
+          git commit -m "experiment: improve Model Advisor PDF layout"
+          git push origin HEAD:experiment/model-advisor-pdf-layout
