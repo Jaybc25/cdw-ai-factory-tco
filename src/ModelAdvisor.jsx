@@ -477,8 +477,25 @@ function ModelAdvisorInner() {
           level-one heading -- the title below was a <div>, not a heading.
           Converting to <h1> with a margin reset keeps the exact same
           visual appearance while giving the page real document structure. */}
-      <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>
-      <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: #fff; }
+          .model-advisor-app-header { display: none !important; }
+          .model-advisor-print-report {
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .model-advisor-page2 {
+            break-before: page;
+            page-break-before: always;
+          }
+          .model-advisor-page2 .mb-6 { margin-bottom: 1rem !important; }
+          @page { size: Letter; margin: .35in; }
+        }
+      `}</style>
+      <div className="model-advisor-app-header border-b border-gray-200 px-6 py-4 flex items-center gap-3">
         <a href="/" className="flex-shrink-0" aria-label="AI Factory Tools home">
           <img src={cdwLogo} alt="CDW" className="h-9 w-auto" />
         </a>
@@ -524,7 +541,7 @@ function ModelAdvisorInner() {
       )}
 
       {view === "report" && (
-        <div className="max-w-3xl mx-auto px-6 py-10">
+        <div className="model-advisor-print-report max-w-3xl mx-auto px-6 py-10">
           <div className="no-print flex flex-col sm:flex-row gap-2 mb-6">
             <button onClick={() => window.print()} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>
               Print / Save as PDF
@@ -590,6 +607,7 @@ function ModelAdvisorInner() {
             </div>
           )}
 
+          <div className="model-advisor-page2">
           {result.otherEligible.length > 0 && (
             <>
               <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Other models meeting requirements</div>
@@ -651,6 +669,7 @@ function ModelAdvisorInner() {
               <div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div>
             </div>
             <div className="text-xs text-gray-500 text-right">Next step: bring your actual<br />deployment constraints for a validated shortlist</div>
+          </div>
           </div>
         </div>
       )}
