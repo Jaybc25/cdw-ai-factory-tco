@@ -1018,7 +1018,21 @@ function AppInner() {
     <div className="tco-root" style={{ background: C.bg, minHeight: "100vh", color: C.ink, fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`        .tco-root, .tco-root *{box-sizing:border-box} input[type=range]{height:22px} button:focus-visible{outline:2px solid ${C.green};outline-offset:2px;box-shadow:0 0 0 5px rgba(255,255,255,.85)}
         input[type=number]::-webkit-inner-spin-button{opacity:1}
-        @media print { .no-print{display:none!important} body{background:#fff} }
+        .report-methodology-print{display:none}
+        @media print {
+          .no-print{display:none!important}
+          body{background:#fff}
+          .tco-app-header{display:none!important}
+          .tco-root{background:#fff!important}
+          .tco-root main{max-width:none!important;margin:0!important;padding:0!important}
+          .tco-print-report{border:none!important;border-radius:0!important;padding:0!important;margin:0!important}
+          .report-methodology-full{display:none!important}
+          .report-methodology-print{display:block!important}
+          .report-appendix{break-before:page;page-break-before:always}
+          .report-appendix-row{display:grid!important;grid-template-columns:minmax(0,42%) minmax(0,58%)!important;gap:12px!important;align-items:start!important}
+          .report-appendix-row>span:last-child{text-align:right;overflow-wrap:anywhere}
+          @page{size:Letter;margin:.35in}
+        }
         /* Fix (report-header button row, mobile): three buttons in one flex
            row, only the "Print / Save as PDF" button set to flex:1, the
            other two auto-width to their own (long) text. On narrow phones
@@ -1040,7 +1054,7 @@ function AppInner() {
           findings at once without restructuring anything. */}
       <main style={{ maxWidth: 560, margin: "0 auto", padding: "18px 14px 60px" }}>
 
-        <div style={{ borderBottom: `1px solid ${C.line}`, paddingBottom: 14, marginBottom: 16 }}>
+        <div className="tco-app-header" style={{ borderBottom: `1px solid ${C.line}`, paddingBottom: 14, marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <a href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }} aria-label="AI Factory Tools home">
               <img src={cdwLogo} alt="CDW" style={{ height: 36, width: "auto" }} />
@@ -1095,7 +1109,7 @@ function AppInner() {
         )}
 
         {view === "report" && (
-          <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
+          <div className="tco-print-report" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
             <div className="no-print pdf-btn-row" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
               <button onClick={() => window.print()} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 13, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: C.ink, color: "#fff" }}>Print / Save as PDF</button>
               <button onClick={() => setView("audit")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.ink }}>Calculation Methodology &amp; Audit Trail</button>
@@ -1141,7 +1155,7 @@ function AppInner() {
                 )}
               </>
             )}
-            <div style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
+            <div className="report-methodology-full" style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
               {r.isWorkloadMode ? (
                 <>
                   Methodology (Workload Requirement mode, v2.9): cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). The on-prem fleet is sized directly to the GPU Sizing technical requirement ({gpuSizingCount} GPUs{r.sourceConversion ? ` at ${sourceClass}, normalized to ${ownSys} using a ${r.sourceConversion.toFixed(2)}x generational capability ratio since the recommended class isn't sold new as that system` : ` at ${ownSys}`}), not derived from spend, and grows year over year on the same growth rate applied to that requirement; fleet size is independent of duty cycle, since owned hardware must be present whether or not it's continuously in use. The cloud-side estimate instead uses {workingDayHours ? `a ${workingDayHours}-hour/day duty cycle from GPU Sizing's own workload timing` : `the on-prem target utilization (${Math.round(util * 100)}%) as a fallback, since no duty-cycle data came through with this handoff -- likely an overstatement for a business-hours workload`}, converted into rented {gpuClass} hours using ONLY the hardware generational capability factor ({r.genPF.toFixed(2)}x, benchmark-derived from MLPerf-class throughput ratios for {ownSys} vs {gpuClass} -- directional and workload-normalized, not a universal physical conversion constant). Network, scheduling, and inference-stack efficiency factors (fNet/fSw/fNvaie) are deliberately excluded from this conversion, since those are advantages of owning infrastructure, not something a cloud renter gets; applying them to price a rental would be circular. The floor case instead assumes zero generational credit (1.00x), the conservative case if that capability ratio is overstated. Storage is a direct input (no bill to auto-scale it from). On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}); residual value applies to hardware only. This is a directional analysis for a workload that may not yet exist at this scale in your current cloud environment.
@@ -1152,6 +1166,13 @@ function AppInner() {
                 </>
               )}
             </div>
+            <div className="report-methodology-print" style={{ fontSize: 10.5, color: C.sub, marginTop: 10, lineHeight: 1.45 }}>
+              <b>Methodology summary:</b>{" "}
+              {r.isWorkloadMode
+                ? `On-prem capacity is sized from the GPU Sizing technical requirement; the cloud alternative prices that same workload using its duty cycle and the benchmark-derived generational capability factor.`
+                : `Reported cloud spend is normalized to GPU-hours at current reference rates; the comparable on-prem fleet is sized at ${Math.round(util * 100)}% target utilization and evaluated with an adjusted case plus a zero-performance-credit floor case.`}
+              {" "}Cash-flow TCO is shown in nominal dollars. Detailed assumptions, pricing provenance, caveats, and the reproducibility ledger appear in the appendix.
+            </div>
             <div style={{ marginTop: 16 }}>
               <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 6 }}>WHERE THE MONEY GOES IN YEAR 1</div>
               <YearOneBreakdownReport cloudYear1={r.cloudYear1} capital={r.adj.capex + r.oneTime} operating={r.adj.opex * 12} />
@@ -1160,8 +1181,8 @@ function AppInner() {
               <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 6 }}>CUMULATIVE SPEND, {Math.max(2, horizon)}-YEAR VIEW{horizon < 2 ? " (min. 2yr shown for a readable trend)" : ""}</div>
               <CrossoverChartReport points={r.cumulativeByYear} horizon={horizon} crossoverMo={r.crossoverMo} />
             </div>
-            <div style={{ marginTop: 14 }}>
-              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX — FULL INPUTS & OUTPUTS (for independent reproduction)</div>
+            <div className="report-appendix" style={{ marginTop: 14 }}>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX - FULL INPUTS & OUTPUTS (for independent reproduction)</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 14px", fontSize: 11 }}>
                 {[
                   ["Planning basis", r.isWorkloadMode ? "Workload Requirement (v2.9)" : "Existing Cloud Spend"],
@@ -1207,9 +1228,9 @@ function AppInner() {
                   ["Cluster fixed / Equinix bundle", `${fmt(rc.cluster)} / ${fmt(rc.equinixMo)}/sys/mo`],
                   ["On-prem storage fast / bulk $/PB", `${fmt(rc.fastPB)} / ${fmt(rc.bulkPB)}`],
                   ["Admin ratio / FTE / ops growth", `${rc.adminRatio}/FTE · ${fmt(rc.opFTE)} · ${Math.round(rc.opsGrowth * 100)}%/yr`],
-                  ["Engine version", "v2.8 (UI restyle only — engine unchanged from v2.3; reference workbook audit-complete after 9 external rounds — see docs/ for the audited xlsx and spec)"],
+                  ["Suite baseline", "AI Factory Suite 2026.09; current source may include unreleased maintenance changes. Core TCO formulas remain checked against the audited reference workbook in the permanent quality gate."],
                 ].map(([k, v]) => (
-                  <div key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>
+                  <div className="report-appendix-row" key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>
                     <span style={{ color: C.sub }}>{k}</span><span style={{ ...mono }}>{v}</span>
                   </div>
                 ))}
