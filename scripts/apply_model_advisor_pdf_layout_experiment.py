@@ -30,8 +30,8 @@ replace_once(
 )
 
 replace_once(
-    '''          {result.otherEligible.length > 0 && (\n            <>\n''',
-    '''          <div className="model-advisor-page2">\n          {result.otherEligible.length > 0 && (\n            <>\n''',
+    '''            <div className="flex flex-col gap-4 mb-6">\n              {result.cards.map((c) => (\n                <RecommendationCard key={c.model.canonical_model_id} card={c} ranking={result.ranking} inputs={inputs} />\n              ))}\n            </div>\n          )}\n\n          {result.otherEligible.length > 0 && (\n''',
+    '''            <div className="flex flex-col gap-4 mb-6">\n              {result.cards.map((c) => (\n                <RecommendationCard key={c.model.canonical_model_id} card={c} ranking={result.ranking} inputs={inputs} />\n              ))}\n            </div>\n          )}\n\n          <div className="model-advisor-page2">\n          {result.otherEligible.length > 0 && (\n''',
     "page 2 start",
 )
 
