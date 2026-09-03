@@ -25,8 +25,8 @@ replace_once(
 )
 
 replace_once(
-    '          <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>\n            <div className="no-print pdf-btn-row" style={{ display: "flex", gap: 8, marginBottom: 12 }}>\n',
-    '          <div className="tco-print-report" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>\n            <div className="no-print pdf-btn-row" style={{ display: "flex", gap: 8, marginBottom: 12 }}>\n',
+    '''        {view === "report" && (\n          <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>\n            <div className="no-print pdf-btn-row" style={{ display: "flex", gap: 8, marginBottom: 12 }}>\n''',
+    '''        {view === "report" && (\n          <div className="tco-print-report" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>\n            <div className="no-print pdf-btn-row" style={{ display: "flex", gap: 8, marginBottom: 12 }}>\n''',
     "report wrapper class",
 )
 
@@ -44,8 +44,6 @@ appendix_old = '''            <div style={{ marginTop: 14 }}>\n              <di
 appendix_new = '''            <div className="report-appendix" style={{ marginTop: 14 }}>\n              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX - FULL INPUTS & OUTPUTS (for independent reproduction)</div>\n'''
 replace_once(appendix_old, appendix_new, "appendix class")
 
-# The report has two compact key/value maps inside the appendix. Class both
-# of them so long values wrap cleanly instead of colliding with their labels.
 row_old = '<div key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>'
 row_count = text.count(row_old)
 if row_count < 2:
@@ -57,12 +55,6 @@ replace_once(
     '["Suite baseline", "AI Factory Suite 2026.09; current source may include unreleased maintenance changes. Core TCO formulas remain checked against the audited reference workbook in the permanent quality gate."],',
     "suite baseline label",
 )
-
-if "—" in text or "–" in text:
-    # Existing source contains legacy dash characters in many untouched strings.
-    # This experiment must not introduce any new ones in the changed phrases,
-    # but we cannot reject the file globally for pre-existing content.
-    pass
 
 PATH.write_text(text, encoding="utf-8")
 print("Applied branch-only TCO PDF layout experiment.")
