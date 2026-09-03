@@ -477,8 +477,18 @@ function ModelAdvisorInner() {
           level-one heading -- the title below was a <div>, not a heading.
           Converting to <h1> with a margin reset keeps the exact same
           visual appearance while giving the page real document structure. */}
-      <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>
-      <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: #fff; }
+          .model-advisor-app-header { display: none !important; }
+          .model-advisor-print-report { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+          .model-advisor-print-report .mb-6 { margin-bottom: .75rem !important; }
+          .model-advisor-print-report .gap-4 { gap: .65rem !important; }
+          @page { size: Letter; margin: .3in; }
+        }
+      `}</style>
+      <div className="model-advisor-app-header border-b border-gray-200 px-6 py-4 flex items-center gap-3">
         <a href="/" className="flex-shrink-0" aria-label="AI Factory Tools home">
           <img src={cdwLogo} alt="CDW" className="h-9 w-auto" />
         </a>
@@ -524,7 +534,7 @@ function ModelAdvisorInner() {
       )}
 
       {view === "report" && (
-        <div className="max-w-3xl mx-auto px-6 py-10">
+        <div className="model-advisor-print-report max-w-3xl mx-auto px-6 py-10">
           <div className="no-print flex flex-col sm:flex-row gap-2 mb-6">
             <button onClick={() => window.print()} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>
               Print / Save as PDF
