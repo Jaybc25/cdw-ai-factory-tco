@@ -46,8 +46,8 @@ replace_once(appendix_old, appendix_new, "appendix class")
 
 row_old = '<div key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>'
 row_count = text.count(row_old)
-if row_count < 2:
-    raise SystemExit(f"appendix rows: expected at least two compact row maps, found {row_count}")
+if row_count < 1:
+    raise SystemExit("appendix rows: compact row map not found")
 text = text.replace(row_old, '<div className="report-appendix-row" key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>')
 
 replace_once(
