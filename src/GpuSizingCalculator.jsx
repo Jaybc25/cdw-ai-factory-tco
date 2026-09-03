@@ -1065,9 +1065,30 @@ function GPUSizingCalculatorInner() {
           and content lived outside any landmark region -- same fix as
           TCO/ROI, converting the outermost content wrapper to a real
           <main> element with zero visual/styling change. */}
-      <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: #fff; }
+          .gpu-app-header { display: none !important; }
+          .gpu-print-report {
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .gpu-report-utilization {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .gpu-report-page2 {
+            break-before: page;
+            page-break-before: always;
+          }
+          .gpu-report-page2 .mb-6 { margin-bottom: 1rem !important; }
+          @page { size: Letter; margin: .35in; }
+        }
+      `}</style>
       {/* Header */}
-      <div className="border-b border-gray-200 px-6 py-4 flex items-center gap-3">
+      <div className="gpu-app-header border-b border-gray-200 px-6 py-4 flex items-center gap-3">
         <a href="/" className="flex-shrink-0" aria-label="AI Factory Tools home">
           <img src={cdwLogo} alt="CDW" className="h-9 w-auto" />
         </a>
@@ -1129,7 +1150,7 @@ function GPUSizingCalculatorInner() {
       )}
 
       {view === "report" && result && (
-        <div className="max-w-3xl mx-auto px-6 py-10">
+        <div className="gpu-print-report max-w-3xl mx-auto px-6 py-10">
           <div className="no-print flex flex-col sm:flex-row gap-2 mb-6">
             <button
               onClick={() => window.print()}
@@ -1178,9 +1199,12 @@ function GPUSizingCalculatorInner() {
           <BudgetPanel budget={result.budget} />
 
           {mode === "Inference" && (
-            <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />
+            <div className="gpu-report-utilization">
+              <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />
+            </div>
           )}
 
+          <div className="gpu-report-page2">
           <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2 mt-6">Assumptions used</div>
           <div className="rounded-xl border border-gray-200 p-4 mb-6 text-sm" style={{ color: CHARCOAL }}>
             <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
@@ -1244,6 +1268,7 @@ function GPUSizingCalculatorInner() {
               <div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div>
             </div>
             <div className="text-xs text-gray-500 text-right">Next step: bring your actual<br />workload data for a validated sizing</div>
+          </div>
           </div>
         </div>
       )}
