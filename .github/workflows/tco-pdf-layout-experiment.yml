@@ -14,6 +14,9 @@ permissions:
 jobs:
   build-render:
     runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: experiment-only-placeholder
     steps:
       - uses: actions/checkout@v4
         with:
