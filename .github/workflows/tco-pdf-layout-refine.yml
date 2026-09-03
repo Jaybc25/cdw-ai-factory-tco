@@ -1,0 +1,73 @@
+name: TCO PDF layout refine
+
+on:
+  push:
+    branches:
+      - experiment/tco-pdf-layout
+    paths:
+      - '.github/workflows/tco-pdf-layout-refine.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-render:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: experiment-only-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: experiment/tco-pdf-layout
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Apply two-page PDF refinement
+        run: python3 scripts/refine_tco_pdf_layout_experiment.py
+      - name: Validate shared pricing registry
+        run: node scripts/validate_pricing_registry.mjs
+      - name: Production build
+        run: npm run build
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Extract TCO workbook snapshot
+        run: python3 scripts/extract_tco_workbook_snapshot.py
+      - name: Run TCO Excel-to-JavaScript parity
+        run: node scripts/run_tco_parity.mjs
+      - name: Install Playwright
+        run: npm install --no-save --no-package-lock @playwright/test
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Start local preview
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/tco-preview.log 2>&1 &
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:4173/tco >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/tco-preview.log
+          exit 1
+      - name: Render refined experiment PDF
+        run: node scripts/render_tco_report_experiment.mjs artifacts/tco-report-experiment-v2.pdf
+      - name: Upload comparison artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tco-report-layout-experiment-v2
+          path: artifacts/tco-report-experiment-v2.pdf
+          if-no-files-found: error
+          retention-days: 14
+      - name: Commit branch-only refinement
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/TcoCalculator.jsx
+          git diff --cached --check
+          git diff --cached --quiet && exit 0
+          git commit -m "experiment: refine TCO PDF pagination"
+          git push origin HEAD:experiment/tco-pdf-layout
