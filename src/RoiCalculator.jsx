@@ -668,8 +668,20 @@ function RoiCalculatorInner() {
           and content lived outside any landmark region -- same gap as
           TCO, same fix, converting the outermost content wrapper to a
           real <main> element with zero visual/styling change. */}
-      <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>
-      <div style={{
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: #fff; }
+          .roi-app-header { display: none !important; }
+          .roi-print-report {
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          @page { size: Letter; margin: .35in; }
+        }
+      `}</style>
+      <div className="roi-app-header" style={{
         ...styles.header,
         padding: isMobile ? "14px 0" : styles.header.padding,
         marginBottom: isMobile ? 16 : styles.header.marginBottom,
@@ -733,7 +745,7 @@ function RoiCalculatorInner() {
       )}
 
       {view === "report" && engine && (
-        <div style={{ maxWidth: 720, margin: "0 auto", padding: "12px 0" }}>
+        <div className="roi-print-report" style={{ maxWidth: 720, margin: "0 auto", padding: "12px 0" }}>
           <div className="no-print" style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 8, marginBottom: 20 }}>
             <button onClick={() => window.print()} style={{ flex: isMobile ? "none" : 1, width: isMobile ? "100%" : "auto", fontWeight: 700, fontSize: 13, padding: 10, borderRadius: 8, border: "none", cursor: "pointer", background: CHARCOAL, color: "#fff" }}>
               Print / Save as PDF
