@@ -62,3 +62,5 @@ jobs:
           git diff --cached --quiet && exit 0
           git commit -m "experiment: improve Model Advisor PDF layout"
           git push origin HEAD:experiment/model-advisor-pdf-layout
+
+# Rerun after report-only page split targeting.
