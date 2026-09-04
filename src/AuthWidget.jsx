@@ -5,12 +5,11 @@ const RED = "#CC0000";
 const CHARCOAL = "#2D2D2D";
 const BORDER = "#D1D5DB";
 
-// Drop <AuthWidget /> into any tool's header (inside an <AuthProvider>).
-// Handles all four states on its own: signed out, magic-link-sent,
-// needs-first-time-setup, and signed in.
 export default function AuthWidget() {
-  const { isLoggedIn, needsSetup, account, signInWithEmail, signOut, completeSetup, loading } = useAuth();
+  const { isLoggedIn, needsSetup, account, signInWithEmail, signInWithPassword, signOut, completeSetup, loading } = useAuth();
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mode, setMode] = useState("magic");
   const [linkSent, setLinkSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [name, setName] = useState("");
@@ -37,29 +36,26 @@ export default function AuthWidget() {
     fontWeight: 600,
     cursor: "pointer",
   };
+  const linkButtonStyle = {
+    background: "none",
+    border: "none",
+    color: RED,
+    fontSize: 12,
+    cursor: "pointer",
+    padding: 0,
+    textDecoration: "underline",
+  };
 
-  // --- Signed in and fully set up: just show who's logged in ---
   if (isLoggedIn && !needsSetup) {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: CHARCOAL }}>
         <span>{account?.name || account?.email}</span>
-        <a
-          href="/summary"
-          style={{ color: RED, fontSize: 12, fontWeight: 600, textDecoration: "none" }}
-        >
-          My Summary
-        </a>
-        <button
-          onClick={signOut}
-          style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 12, textDecoration: "underline", padding: 0 }}
-        >
-          Sign out
-        </button>
+        <a href="/summary" style={{ color: RED, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>My Summary</a>
+        <button onClick={signOut} style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 12, textDecoration: "underline", padding: 0 }}>Sign out</button>
       </div>
     );
   }
 
-  // --- Signed in, first login: capture name + company once ---
   if (isLoggedIn && needsSetup) {
     return (
       <form
@@ -73,61 +69,56 @@ export default function AuthWidget() {
         }}
         style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}
       >
-        <input
-          placeholder="Your name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          style={{ ...inputStyle, width: 120 }}
-        />
-        <input
-          placeholder="Company"
-          value={company}
-          onChange={(e) => setCompany(e.target.value)}
-          required
-          style={{ ...inputStyle, width: 140 }}
-        />
-        <button type="submit" disabled={savingSetup} style={buttonStyle}>
-          {savingSetup ? "Saving..." : "Continue"}
-        </button>
+        <input placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} required style={{ ...inputStyle, width: 120 }} />
+        <input placeholder="Company" value={company} onChange={(e) => setCompany(e.target.value)} required style={{ ...inputStyle, width: 140 }} />
+        <button type="submit" disabled={savingSetup} style={buttonStyle}>{savingSetup ? "Saving..." : "Continue"}</button>
         {error && <span style={{ color: RED, fontSize: 12 }}>{error}</span>}
       </form>
     );
   }
 
-  // --- Signed out, link already sent: waiting for click-through ---
-  if (linkSent) {
+  if (mode === "magic" && linkSent) {
     return (
-      <div style={{ fontSize: 13, color: CHARCOAL }}>
-        Check <strong>{email}</strong> for a sign-in link.
+      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: CHARCOAL, flexWrap: "wrap" }}>
+        <span>Check <strong>{email}</strong> for a sign-in link.</span>
+        <button type="button" style={linkButtonStyle} onClick={() => { setMode("password"); setLinkSent(false); setError(null); }}>Use password instead</button>
       </div>
     );
   }
 
-  // --- Signed out: email input + send magic link ---
   return (
     <form
       onSubmit={async (e) => {
         e.preventDefault();
         setSending(true);
         setError(null);
-        const { error } = await signInWithEmail(email);
+        const result = mode === "password"
+          ? await signInWithPassword(email, password)
+          : await signInWithEmail(email);
         setSending(false);
-        if (error) setError(error.message);
-        else setLinkSent(true);
+        if (result.error) setError(result.error.message);
+        else if (mode === "magic") setLinkSent(true);
       }}
-      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}
+      style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, flexWrap: "wrap" }}
     >
-      <input
-        type="email"
-        placeholder="you@company.com"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-        style={{ ...inputStyle, width: 180 }}
-      />
+      <input type="email" placeholder="you@company.com" value={email} onChange={(e) => setEmail(e.target.value)} required style={{ ...inputStyle, width: 180 }} />
+      {mode === "password" && (
+        <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required style={{ ...inputStyle, width: 150 }} />
+      )}
       <button type="submit" disabled={sending} style={buttonStyle}>
-        {sending ? "Sending..." : "Sign in"}
+        {sending ? "Signing in..." : mode === "password" ? "Sign in" : "Send magic link"}
+      </button>
+      <button
+        type="button"
+        style={linkButtonStyle}
+        onClick={() => {
+          setMode(mode === "password" ? "magic" : "password");
+          setLinkSent(false);
+          setPassword("");
+          setError(null);
+        }}
+      >
+        {mode === "password" ? "Use magic link" : "Use password"}
       </button>
       {error && <span style={{ color: RED, fontSize: 12 }}>{error}</span>}
     </form>

@@ -14,6 +14,7 @@ on:
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
+      - "scripts/validate_global_reset.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -30,6 +31,7 @@ on:
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
+      - "scripts/validate_global_reset.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -71,6 +73,9 @@ jobs:
 
       - name: Validate Best-Value GPUaaS UI contract
         run: node scripts/validate_best_value_gpuaas_ui.mjs
+
+      - name: Validate Global Reset contract
+        run: node scripts/validate_global_reset.mjs
 
       - name: Validate SafeImageInput resource bounds
         run: node tests/safe-image-input.cjs

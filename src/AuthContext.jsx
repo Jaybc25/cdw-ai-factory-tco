@@ -1,15 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabaseClient";
-
-// ---------------------------------------------------------------------------
-// Shared session + account state for every AI Factory tool.
-// Wrap each tool's top-level component (or a shared App shell, if one gets
-// built later) in <AuthProvider> once, then call useAuth() anywhere below it.
-//
-// Sign-in method: magic link (passwordless email OTP), not password-based.
-// No password to set, reset, or leak, and it matches the low-friction bar
-// this feature was scoped for -- log in once, not fight a password screen.
-// ---------------------------------------------------------------------------
+import { clearLocalWorkspaceState, getWorkspaceResetBarrier, subscribeToWorkspaceReset } from "./workspaceReset.js";
 
 const AuthContext = createContext(null);
 
@@ -17,6 +8,7 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [account, setAccount] = useState(null);
   const [loading, setLoading] = useState(true);
+  const snapshotWritesBlockedRef = useRef(getWorkspaceResetBarrier()?.status === "pending");
 
   async function loadAccount(userId) {
     const { data, error } = await supabase
@@ -48,17 +40,41 @@ export function AuthProvider({ children }) {
       }
     });
 
-    return () => listener.subscription.unsubscribe();
+    const unsubscribeReset = subscribeToWorkspaceReset((event) => {
+      if (event.kind === "barrier") {
+        if (event.status === "pending") snapshotWritesBlockedRef.current = true;
+        if (event.status === "cancelled") snapshotWritesBlockedRef.current = false;
+        if (event.status === "committed") snapshotWritesBlockedRef.current = true;
+        return;
+      }
+      if (event.kind === "committed") {
+        // A reset completed in another tab. Keep this mounted tool from
+        // recreating its deleted snapshot and clear this tab's scenario state.
+        snapshotWritesBlockedRef.current = true;
+        clearLocalWorkspaceState();
+      }
+    });
+
+    return () => {
+      listener.subscription.unsubscribe();
+      unsubscribeReset();
+    };
   }, []);
 
   async function signInWithEmail(email) {
-    // redirectTo brings the user back to whichever tool they started the
-    // login from, not always the homepage -- window.location.href captures
-    // that at click time.
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: window.location.href },
     });
+    return { error };
+  }
+
+  // Temporary compatibility path for explicitly provisioned users while
+  // corporate mail filtering prevents magic-link delivery / preview redirects.
+  // This still performs real Supabase authentication against the existing user
+  // account and UID; it is not an email-only bypass and can be removed later.
+  async function signInWithPassword(email, password) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   }
 
@@ -78,9 +94,6 @@ export function AuthProvider({ children }) {
     return { error };
   }
 
-  // Called from each tool's download button. Fire-and-forget by design --
-  // a logging failure should never block the actual PDF download the user
-  // asked for.
   async function logDownloadEvent(tool, keyInputs) {
     if (!session?.user?.id) return;
     try {
@@ -95,13 +108,6 @@ export function AuthProvider({ children }) {
         .single();
       if (error) throw error;
 
-      // Fire the Slack notification directly from the client, rather than
-      // relying on a Supabase Database Webhook -- this project is hitting a
-      // known Supabase platform bug ("schema supabase_functions does not
-      // exist") that blocks database-triggered webhooks entirely. Calling
-      // the same Edge Function directly sidesteps it. Best-effort: a failed
-      // notification should never block the download the user actually asked
-      // for, so this failure is only logged, never surfaced to the user.
       supabase.functions
         .invoke("bright-endpoint", { body: { record: insertedRow } })
         .catch((err) => console.error("Failed to send download notification:", err));
@@ -110,14 +116,11 @@ export function AuthProvider({ children }) {
     }
   }
 
-  // Saves this tool's CURRENT state to the account -- overwritten each call,
-  // not appended (see tool_snapshots' unique(account_id, tool) constraint).
-  // This is what powers the Combined Summary: it captures where someone
-  // stands even if they never clicked "get report" on this specific tool.
-  // Fire-and-forget, same reasoning as logDownloadEvent -- a save failure
-  // should never interrupt someone using the tool.
+  // Saves this tool's CURRENT state to the account. Global Reset sets a
+  // cross-tab write barrier before deleting tool_snapshots; while that barrier
+  // is active, stale tabs are forbidden from recreating the scenario.
   async function saveSnapshot(tool, inputs, summary) {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || snapshotWritesBlockedRef.current) return;
     try {
       const { error } = await supabase.from("tool_snapshots").upsert(
         {
@@ -142,6 +145,7 @@ export function AuthProvider({ children }) {
     isLoggedIn: !!session,
     needsSetup: !!session && account && !account.setup_completed,
     signInWithEmail,
+    signInWithPassword,
     signOut,
     completeSetup,
     logDownloadEvent,
@@ -157,31 +161,10 @@ export function useAuth() {
   return ctx;
 }
 
-// Drop this one line into any tool to get autosave for free:
-//   useAutosaveSnapshot("tco", inputs, summaryObject);
-// Debounced -- waits for a pause in changes before saving, so it doesn't
-// fire on every keystroke. Does nothing while signed out.
-//
-// Fix (Bug 4, autosave debounce lost update): every cross-tool link in this
-// app is a plain <a href> full page load, not client-side routing (see
-// sessionState.js) -- so an edit made less than `delayMs` before the user
-// navigates away schedules this setTimeout, then the browsing context that
-// owns it is torn down mid-wait as the page unloads. It's not that React
-// cleans the timer up and cancels it on purpose; the timer simply never
-// gets the chance to fire at all, so that last edit never reaches the
-// account snapshot even though the tool's own sessionStorage state (a
-// separate, always-synchronous persistence layer -- see sessionState.js)
-// is already correct. The exposure: a user who edits, then immediately
-// jumps tools or straight to My Summary/a PPTX export without ever
-// revisiting this tool gets a report reflecting the state minus that edit.
-//
-// Fix: also flush the pending save the moment the page is actually being
-// left, via `pagehide` (the modern, bfcache-safe event for this -- not
-// `beforeunload`, which several browsers now discourage/penalize) and a
-// `visibilitychange`-to-hidden fallback for mobile Safari and backgrounded
-// tabs, where `pagehide` doesn't always fire before the page is suspended.
-// A ref holds the latest values so the flush handler never closes over a
-// stale tool/inputs/summary from an earlier render.
+// Debounced account snapshot autosave. The pagehide/visibility flush protects
+// last-second edits during normal cross-tool navigation. Global Reset's barrier
+// is enforced inside saveSnapshot(), so those same flush paths cannot resurrect
+// a scenario after Reset has begun.
 export function useAutosaveSnapshot(tool, inputs, summary, delayMs = 1500) {
   const { saveSnapshot, isLoggedIn } = useAuth();
   const inputsKey = JSON.stringify(inputs);

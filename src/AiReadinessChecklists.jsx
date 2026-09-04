@@ -3,6 +3,7 @@ import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import checklistData from "./checklists.json";
+import { subscribeToWorkspaceReset } from "./workspaceReset.js";
 
 // ---------------------------------------------------------------------------
 // CDW AI Factory — AI Readiness Checklists (Tool 6)
@@ -38,7 +39,11 @@ function loadState() {
 }
 function saveState(state) {
   memStore.state = state;
-  try { window.localStorage.setItem("cdw-readiness", JSON.stringify(state)); } catch (e) { /* memory only */ }
+  try {
+    const hasMeaningfulState = Object.keys(state.answers || {}).length > 0 || Object.keys(state.routes || {}).length > 0;
+    if (hasMeaningfulState) window.localStorage.setItem("cdw-readiness", JSON.stringify(state));
+    else window.localStorage.removeItem("cdw-readiness");
+  } catch (e) { /* memory only */ }
 }
 
 const freshState = () => ({ content_version: checklistData.content_version, answers: {}, routes: {} });
@@ -189,6 +194,19 @@ function AiReadinessChecklistsInner() {
 
   const { answers, routes } = store.state;
   useEffect(() => { saveState(store.state); }, [store.state]);
+
+  // If Global Reset is committed from another tab, reset this already-open
+  // Readiness UI as well. AuthContext blocks stale snapshot writes; this hook
+  // handles Readiness's separate localStorage + in-memory state so continuing
+  // to use an old tab cannot recreate the prior checklist scenario.
+  useEffect(() => subscribeToWorkspaceReset((event) => {
+    if (event.kind !== "committed") return;
+    memStore.state = null;
+    setStore({ state: freshState(), versionNotice: false });
+    setView({ screen: "home", doorId: null });
+    setEmailOpen(false);
+    setEmailDone(false);
+  }), []);
 
   const setAnswer = (itemId, value) =>
     setStore((s) => ({ ...s, state: { ...s.state, answers: { ...s.state.answers, [itemId]: value } } }));
