@@ -12,6 +12,7 @@
 
 export const GPUAAS_CONFIDENCE = Object.freeze({
   LISTED: "Listed",
+  CUSTOM: "Customer-entered rate",
   "NODE-NORM": "Node-normalized",
   EST: "Estimated",
   QUOTE: "Quote / verify",
@@ -30,6 +31,9 @@ function finiteNumber(value) {
  * @param {Object} options.rateRegistry Shared provider -> GPU class registry.
  * @param {(provider:string, rateInfo:Object)=>Object} options.evaluateProvider
  *   Must return at least { cloudTotal }. Optional modeled fields are preserved.
+ *   The evaluator may override confidence/confidenceLabel/rateNote when the
+ *   active TCO assumptions make the registry's base confidence insufficient
+ *   (for example, a derived reserved rate or a customer-entered rate).
  * @returns {Array<Object>} Lowest modeled cloud total first.
  */
 export function rankSameClassGpuAas({ gpuClass, providers, rateRegistry, evaluateProvider }) {
