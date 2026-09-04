@@ -18,7 +18,7 @@ jobs:
 
       - name: Replace stale release-candidate wording
         run: |
-          python3 -c "from pathlib import Path; p=Path('CHANGELOG.md'); t=p.read_text(); old='- The next same-month stable candidate is `v2026.09.1`; when cut, `package.json` should move from legacy `2.8.0` to SemVer-safe `2026.9.1`.'; new='- This release transitions package metadata from legacy `2.8.0` to SemVer-safe `2026.9.1`, matching human suite release `2026.09.1` and tag `v2026.09.1`.'; assert old in t; p.write_text(t.replace(old,new,1))"
+          sed -i 's|^- The next same-month stable candidate is .*|- This release transitions package metadata from legacy 2.8.0 to SemVer-safe 2026.9.1, matching human suite release 2026.09.1 and tag v2026.09.1.|' CHANGELOG.md
 
       - name: Remove helper and commit
         run: |
