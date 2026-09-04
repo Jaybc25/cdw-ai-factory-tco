@@ -17,6 +17,7 @@ function money(value) {
 
 function confidenceTone(confidence) {
   if (confidence === "LISTED") return { bg: "#EAF6EE", fg: "#1D6B39" };
+  if (confidence === "CUSTOM") return { bg: "#EAF2F8", fg: "#245A7A" };
   if (confidence === "NODE-NORM") return { bg: "#FFF5DB", fg: "#7A5700" };
   if (confidence === "QUOTE") return { bg: "#F3EAF7", fg: "#6A3C78" };
   return { bg: "#FDECEC", fg: "#8B2F2F" };
@@ -84,8 +85,8 @@ export default function BestValueGpuAasPanel({
               key={`${row.provider}-${row.gpuClass}`}
               style={{
                 display: "grid",
-                gridTemplateColumns: "28px minmax(105px, 1fr) minmax(110px, auto) minmax(104px, auto) auto",
-                gap: 10,
+                gridTemplateColumns: "28px minmax(0, 1fr) auto auto",
+                gap: 9,
                 alignItems: "center",
                 padding: "9px 0",
                 borderBottom: index === rows.length - 1 ? "none" : `1px solid ${LINE}`,
@@ -94,21 +95,21 @@ export default function BestValueGpuAasPanel({
               <div style={{ width: 24, height: 24, borderRadius: 12, background: index === 0 ? RED : SOFT, color: index === 0 ? "#fff" : INK, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800 }}>
                 {index + 1}
               </div>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{row.provider}</div>
-                <div style={{ fontSize: 10.5, color: SUB }}>{row.gpuClass}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 5, marginTop: 2 }}>
+                  <span style={{ fontSize: 10.5, color: SUB }}>{row.gpuClass}</span>
+                  <span
+                    title={row.rateNote || row.confidenceLabel}
+                    style={{ display: "inline-block", background: tone.bg, color: tone.fg, borderRadius: 999, padding: "2px 6px", fontSize: 9.5, fontWeight: 800, whiteSpace: "nowrap" }}
+                  >
+                    {row.confidence}
+                  </span>
+                </div>
               </div>
-              <div style={{ textAlign: "right" }}>
+              <div style={{ textAlign: "right", whiteSpace: "nowrap" }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: INK }}>{money(row.cloudTotal)}</div>
                 <div style={{ fontSize: 10.5, color: SUB }}>{horizon}-yr cloud</div>
-              </div>
-              <div style={{ textAlign: "center" }}>
-                <span
-                  title={row.rateNote || row.confidenceLabel}
-                  style={{ display: "inline-block", background: tone.bg, color: tone.fg, borderRadius: 999, padding: "4px 7px", fontSize: 10, fontWeight: 800, whiteSpace: "nowrap" }}
-                >
-                  {row.confidence}
-                </span>
               </div>
               <button
                 type="button"
@@ -119,8 +120,8 @@ export default function BestValueGpuAasPanel({
                   borderRadius: 6,
                   background: isActive ? SOFT : RED,
                   color: isActive ? SUB : "#FFFFFF",
-                  padding: "7px 9px",
-                  fontSize: 11,
+                  padding: "7px 8px",
+                  fontSize: 10.5,
                   fontWeight: 700,
                   cursor: isActive ? "default" : "pointer",
                   whiteSpace: "nowrap",
@@ -134,7 +135,7 @@ export default function BestValueGpuAasPanel({
       </div>
 
       <div style={{ background: SOFT, padding: "8px 14px", fontSize: 10.5, color: SUB, lineHeight: 1.45 }}>
-        Ranked by modeled cost, not by SLA, region, enterprise discounts, support, security, availability, or procurement fit. Pricing confidence is shown for every option; QUOTE, EST, and NODE-NORM results should be validated before a customer decision.
+        Ranked by modeled cost, not by SLA, region, enterprise discounts, support, security, availability, or procurement fit. Confidence reflects the pricing actually used: derived reserved rates are EST, and CUSTOM means a saved customer-entered provider rate was used. Validate non-LISTED inputs before a customer decision.
       </div>
     </section>
   );
