@@ -62,6 +62,9 @@ jobs:
       - name: Validate TCO GPU Sizing handoff defaults
         run: node scripts/validate_tco_handoff.mjs
 
+      - name: Validate SafeImageInput resource bounds
+        run: node tests/safe-image-input.cjs
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -120,9 +123,6 @@ jobs:
 
       - name: Build current PR source
         env:
-          # The local PR build exercises anonymous/sessionStorage behavior only.
-          # Supabase still needs syntactically valid client configuration so the
-          # app can mount; no credentialed backend behavior is asserted here.
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_PUBLISHABLE_KEY: local-pr-browser-placeholder
         run: npm run build
