@@ -897,10 +897,31 @@ function AppInner() {
     }
     return profiles;
   });
+  const [onPremRateOverrides, setOnPremRateOverrides] = useState(() => {
+    const profiles = { ...(saved?.onPremRateOverrides ?? {}) };
+    // Loaded system cost, system power, and Equinix bundle are tied to the
+    // on-prem system. Preserve old edits, but only apply them again when that
+    // same system is active so a new GPU Sizing target cannot inherit the
+    // previous hardware's economics.
+    const legacy = saved?.ov ?? {};
+    if ((legacy.perSysCost != null || legacy.sysKw != null || legacy.equinixMo != null) && saved?.ownSys) {
+      const key = saved.ownSys;
+      profiles[key] = {
+        ...(profiles[key] ?? {}),
+        ...(legacy.perSysCost != null ? { perSysCost: legacy.perSysCost } : {}),
+        ...(legacy.sysKw != null ? { sysKw: legacy.sysKw } : {}),
+        ...(legacy.equinixMo != null ? { equinixMo: legacy.equinixMo } : {}),
+      };
+    }
+    return profiles;
+  });
   const [ov, setOv] = useState(() => {
     const next = { ...(saved?.ov ?? {}) };
     delete next.instOD;
     delete next.instRes;
+    delete next.perSysCost;
+    delete next.sysKw;
+    delete next.equinixMo;
     return next;
   });
   const [mode, setMode] = useState(() => (arrivedFromGpuSizing ? (gpuSizingCount ? "workload" : "spend") : saved?.mode ?? (gpuSizingCount ? "workload" : "spend"))); // v2.9: bake-off (spend-derived) vs workload (technical-requirement-driven)
@@ -956,7 +977,7 @@ function AppInner() {
   // tab left off, instead of resetting to defaults on every full page load.
   useEffect(() => {
     saveSessionState("tco", {
-      ov, cloudRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
+      ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
       fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
       residPct, modelId, modelParamsB, quant,
@@ -966,7 +987,7 @@ function AppInner() {
       // component for the full explanation.
       gpuSizingCount, sourceClass, workingDayHours,
     });
-  }, [ov, cloudRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
+  }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
       fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
       residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours]);
@@ -996,10 +1017,18 @@ function AppInner() {
 
   const defaults = defaultsFor(provider, gpuClass, ownSys);
   const cloudRateProfileKey = `${provider}::${gpuClass}`;
+  const onPremRateProfileKey = ownSys;
   const activeCloudRateOverride = cloudRateOverrides[cloudRateProfileKey] ?? {};
-  const rc = { ...defaults, ...ov, ...activeCloudRateOverride };
-  const editedCount = Object.keys(ov).length + Object.keys(activeCloudRateOverride).length;
+  const activeOnPremRateOverride = onPremRateOverrides[onPremRateProfileKey] ?? {};
+  const rc = { ...defaults, ...ov, ...activeCloudRateOverride, ...activeOnPremRateOverride };
+  const editedCount = Object.keys(ov).length + Object.keys(activeCloudRateOverride).length + Object.keys(activeOnPremRateOverride).length;
   const setActiveCloudRateOverride = (next) => setCloudRateOverrides((profiles) => ({ ...profiles, [cloudRateProfileKey]: next }));
+  const setActiveOnPremRateOverride = (next) => setOnPremRateOverrides((profiles) => ({ ...profiles, [onPremRateProfileKey]: next }));
+  const resetActiveRateEdits = () => {
+    setOv({});
+    setCloudRateOverrides((profiles) => { const next = { ...profiles }; delete next[cloudRateProfileKey]; return next; });
+    setOnPremRateOverrides((profiles) => { const next = { ...profiles }; delete next[onPremRateProfileKey]; return next; });
+  };
   const setCloudGpuClass = (next) => {
     setGpuClass(next);
     if (mode === "workload" && matchedCloudGpuClass) setCloudGpuClassOverridden(next !== matchedCloudGpuClass);
@@ -1951,13 +1980,13 @@ function AppInner() {
         <Section title="Rate card" badge={editedCount > 0 ? `${editedCount} EDITED` : "EDITABLE"}
           badgeColor={editedCount > 0 ? "#CC0000" : undefined} defaultOpen={false}>
           <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>
-            Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem defaults = NVIDIA DGX TCO tool ({ONPREM_ASOF}). Cloud instance-rate edits are saved by provider + GPU class, so workload changes do not erase customer-entered pricing.
+            Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem defaults = NVIDIA DGX TCO tool ({ONPREM_ASOF}). Cloud instance-rate edits are saved by provider + GPU class, and system-specific on-prem edits are saved by target system, so workload changes do not erase customer-entered pricing or misapply it to different hardware.
           </div>
           {editedCount > 0 && (
-            <button onClick={() => { setOv({}); setCloudRateOverrides({}); }}
+            <button onClick={resetActiveRateEdits}
               style={{ ...mono, fontSize: 11, padding: "7px 12px", borderRadius: 7, cursor: "pointer",
                 border: "1px solid #CC0000", background: "#FBEAEA", color: "#CC0000", marginBottom: 8, fontWeight: 700 }}>
-              Reset all {editedCount} to defaults
+              Reset current scenario edits ({editedCount})
             </button>
           )}
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "8px 0 2px", color: C.sub }}>CLOUD — {provider} {gpuClass} ($/GPU-hr) · {rateInfo.conf} · as of {RATES_ASOF}</div>
@@ -1970,7 +1999,7 @@ function AppInner() {
           <RateField k="cloudTok" label="Managed API blended $/1M tokens (EST)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.5} fmt={(v)=>`$${v}`} />
           <RateField k="egressGB" label="Egress $/GB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>ON-PREM HARDWARE · NVIDIA TCO tool capture, Aug 2026</div>
-          <RateField k="perSysCost" label={`${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`} eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
+          <RateField k="perSysCost" label={`${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`} eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={1000} fmt={fmt} />
           <RateField k="cluster" label="Cluster mgmt nodes $ (fixed per cluster — amortizes across fleet)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="fastPB" label="Fast storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="bulkPB" label="Bulk storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
@@ -1980,8 +2009,8 @@ function AppInner() {
               On-prem pricing last verified {onpremStaleness.days} days ago{onpremStaleness.level === "stale" ? " — refresh before client use" : " — review due soon"}.
             </div>
           )}
-          <RateField k="sysKw" label={`Power kW per ${ownSys} (avg load)`} eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.1} />
-          <RateField k="equinixMo" label="Equinix bundle $/system/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={100} fmt={fmt} />
+          <RateField k="sysKw" label={`Power kW per ${ownSys} (avg load)`} eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={0.1} />
+          <RateField k="equinixMo" label="Equinix bundle $/system/mo" eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={100} fmt={fmt} />
           <RateField k="adminRatio" label="Systems per admin FTE" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1} />
           <RateField k="opFTE" label="Admin FTE loaded $/yr" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
           <RateField k="netMo" label="Network/VPN/firewall $/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={100} fmt={fmt} />
