@@ -104,7 +104,7 @@ assert.equal(roiFields.find((f) => f.key === "horizonROI")?.value, "580.8%");
 
 const issues = buildScenarioConsistencyIssues(specimen);
 assert.equal(issues.length >= 2, true);
-assert.equal(issues.some((issue) => issue.includes("3 × B300") && issue.includes("8 × B200")), true, "mixed TCO/GPU fleet should be called out");
+assert.equal(issues.some((issue) => issue.includes("3 × DGX B300 (24 GPUs)") && issue.includes("8 × B200 GPUs")), true, "mixed TCO/GPU fleet should be called out");
 assert.equal(issues.some((issue) => issue.includes("Meta Muse Glimmer 30B") && issue.includes("Llama 3.1 70B Instruct")), true, "mixed Advisor/GPU model should be called out");
 
 const coherent = [
@@ -121,7 +121,7 @@ const coherent = [
   {
     tool: "tco",
     updated_at: "2026-09-04T12:10:00-05:00",
-    summary: { gpuSizingFleet: "8 x DGX B200" },
+    summary: { gpuSizingFleet: "1 x DGX B200" },
   },
   {
     tool: "roi",
@@ -130,5 +130,41 @@ const coherent = [
   },
 ];
 assert.deepEqual(buildScenarioConsistencyIssues(coherent), []);
+
+const dgxEightWayEquivalent = [
+  {
+    tool: "gpu-sizing",
+    updated_at: "2026-09-04T14:46:41-05:00",
+    summary: { model: "Meta Muse Glimmer 30B", gpuClass: "B300", recommended: 16 },
+  },
+  {
+    tool: "tco",
+    updated_at: "2026-09-04T14:46:43-05:00",
+    summary: { gpuSizingFleet: "2 x DGX B300" },
+  },
+];
+assert.deepEqual(
+  buildScenarioConsistencyIssues(dgxEightWayEquivalent),
+  [],
+  "2 DGX B300 systems are 16 B300 GPUs and must not trigger a mixed-scenario warning",
+);
+
+const gb200RackEquivalent = [
+  {
+    tool: "gpu-sizing",
+    updated_at: "2026-09-04T14:46:41-05:00",
+    summary: { gpuClass: "GB200 NVL72", recommended: 72 },
+  },
+  {
+    tool: "tco",
+    updated_at: "2026-09-04T14:46:43-05:00",
+    summary: { gpuSizingFleet: "1 x DGX GB200 NVL-72" },
+  },
+];
+assert.deepEqual(
+  buildScenarioConsistencyIssues(gb200RackEquivalent),
+  [],
+  "one GB200 NVL72 system is 72 GPUs and must compare on GPU-equivalent count",
+);
 
 console.log("Combined Summary presentation/consistency checks: PASS");
