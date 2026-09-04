@@ -1,0 +1,35 @@
+name: GPU working-day mobile fix
+
+on:
+  push:
+    branches: [fix/gpu-working-day-mobile-input]
+    paths:
+      - '.github/workflows/gpu-working-day-mobile-fix.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: experiment-only-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: fix/gpu-working-day-mobile-input }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm }
+      - run: npm ci
+      - run: python3 scripts/apply_gpu_working_day_mobile_fix.py
+      - run: npm run build
+      - run: node scripts/validate_pricing_registry.mjs
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/GpuSizingCalculator.jsx
+          git diff --cached --check
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: make GPU working-day input mobile-safe"
+          git push origin HEAD:fix/gpu-working-day-mobile-input
