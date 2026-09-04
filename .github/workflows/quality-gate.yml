@@ -101,7 +101,7 @@ jobs:
           retention-days: 14
 
   branch-handoff-e2e:
-    name: PR TCO handoff ownership browser regression
+    name: PR cross-tool state browser regression
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
@@ -137,10 +137,10 @@ jobs:
           cat /tmp/tco-preview.log
           exit 1
 
-      - name: Run handoff ownership journeys against PR build
+      - name: Run handoff and cross-tool ownership journeys against PR build
         env:
           BASE_URL: http://127.0.0.1:4173
-        run: npx playwright test tests/e2e/tco-handoff-ownership.spec.js
+        run: npx playwright test tests/e2e/tco-handoff-ownership.spec.js tests/e2e/cross-tool-state-precedence.spec.js
 
   live-smoke:
     name: Live Vercel browser regression
