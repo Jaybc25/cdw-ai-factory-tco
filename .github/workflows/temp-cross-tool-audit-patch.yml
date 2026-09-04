@@ -1,0 +1,29 @@
+name: Temporary cross-tool audit patch
+
+on:
+  push:
+    branches: [audit/cross-tool-state-pass-2026-09-04]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: audit/cross-tool-state-pass-2026-09-04
+      - name: Apply GPU Sizing handoff provenance patch
+        run: python3 scripts/temp_cross_tool_audit_patch.py
+      - name: Commit source patch
+        run: |
+          if git diff --quiet; then
+            echo "No patch needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/GpuSizingCalculator.jsx
+          git commit -m "fix: honor active GPU sizing model handoff provenance"
+          git push origin HEAD:audit/cross-tool-state-pass-2026-09-04
