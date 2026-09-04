@@ -11,6 +11,7 @@ on:
       - "scripts/run_tco_parity.mjs"
       - "scripts/validate_pricing_registry.mjs"
       - "scripts/validate_model_registry.mjs"
+      - "scripts/validate_tco_handoff.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -24,6 +25,7 @@ on:
       - "scripts/run_tco_parity.mjs"
       - "scripts/validate_pricing_registry.mjs"
       - "scripts/validate_model_registry.mjs"
+      - "scripts/validate_tco_handoff.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -31,73 +33,9 @@ on:
       - ".github/workflows/quality-gate.yml"
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  temporary-handoff-patch:
-    name: Temporary TCO handoff patch helper
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-
-      - name: Patch TCO like-for-like cloud initialization
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          p = Path("src/TcoCalculator.jsx")
-          s = p.read_text()
-
-          replacements = [
-            (
-              '  const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);\n  const [workingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);',
-              '  const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);\n  const matchedCloudGpuClass = sourceClass ? normalizeSourceClass(sourceClass) : null;\n  const [workingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);'
-            ),
-            (
-              '  const [ov, setOv] = useState(saved?.ov ?? {});',
-              '  const [ov, setOv] = useState(() => {\n    const next = { ...(saved?.ov ?? {}) };\n    // A fresh GPU Sizing handoff establishes a new cloud comparison basis.\n    // Keep unrelated TCO refinements, but do not carry class-specific manual\n    // cloud-rate overrides from an older TCO scenario into the new workload.\n    if (arrivedFromGpuSizing) {\n      delete next.instOD;\n      delete next.instRes;\n    }\n    return next;\n  });'
-            ),
-            (
-              '  const [gpuClass, setGpuClass] = useState(saved?.gpuClass ?? "H100");',
-              '  const [gpuClass, setGpuClass] = useState(() => {\n    // Workload handoffs start like-for-like: the cloud rental class matches\n    // the class GPU Sizing used for its technical recommendation. Saved TCO\n    // cloud-class history only applies when this is not a fresh handoff.\n    if (arrivedFromGpuSizing && matchedCloudGpuClass && RATES[provider]?.[matchedCloudGpuClass]) {\n      return matchedCloudGpuClass;\n    }\n    return saved?.gpuClass ?? "H100";\n  });'
-            ),
-            (
-              '          <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>\n            Sets both the performance factor AND the rate used to reconstruct their GPU-hours from spend.\n          </div>',
-              '          {mode === "workload" && matchedCloudGpuClass ? (\n            <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>\n              {gpuClass === matchedCloudGpuClass\n                ? `Matched to ${sourceClass} from GPU Sizing for a like-for-like starting comparison. Change this only if the proposed cloud rental uses a different GPU class; the technical on-prem fleet remains anchored to GPU Sizing.`\n                : `Cloud comparison changed from the ${sourceClass} workload basis to ${gpuClass}. This changes cloud pricing and workload-equivalent rental hours, not the technical on-prem fleet from GPU Sizing.`}\n            </div>\n          ) : (\n            <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>\n              Sets both the performance factor AND the rate used to reconstruct their GPU-hours from spend.\n            </div>\n          )}'
-            ),
-          ]
-
-          changed = False
-          for old, new in replacements:
-            if new in s:
-              continue
-            if old not in s:
-              raise SystemExit(f"Expected TCO source pattern not found:\n{old}")
-            s = s.replace(old, new, 1)
-            changed = True
-
-          if changed:
-            p.write_text(s)
-            print("Patched src/TcoCalculator.jsx")
-          else:
-            print("TCO patch already present")
-          PY
-
-      - name: Commit patch to PR branch when needed
-        run: |
-          if git diff --quiet -- src/TcoCalculator.jsx; then
-            echo "No TCO patch commit needed."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/TcoCalculator.jsx
-          git commit -m "fix: match TCO cloud class to GPU sizing"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-
   source-and-workbook:
     name: Build + TCO Excel parity
     runs-on: ubuntu-latest
@@ -120,6 +58,9 @@ jobs:
 
       - name: Validate shared model registry
         run: node scripts/validate_model_registry.mjs
+
+      - name: Validate TCO GPU Sizing handoff defaults
+        run: node scripts/validate_tco_handoff.mjs
 
       - uses: actions/setup-python@v5
         with:
