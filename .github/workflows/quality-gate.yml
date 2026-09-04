@@ -11,6 +11,7 @@ on:
       - "scripts/run_tco_parity.mjs"
       - "scripts/validate_pricing_registry.mjs"
       - "scripts/validate_model_registry.mjs"
+      - "scripts/validate_tco_handoff.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -24,6 +25,7 @@ on:
       - "scripts/run_tco_parity.mjs"
       - "scripts/validate_pricing_registry.mjs"
       - "scripts/validate_model_registry.mjs"
+      - "scripts/validate_tco_handoff.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -56,6 +58,9 @@ jobs:
 
       - name: Validate shared model registry
         run: node scripts/validate_model_registry.mjs
+
+      - name: Validate TCO GPU Sizing handoff defaults
+        run: node scripts/validate_tco_handoff.mjs
 
       - uses: actions/setup-python@v5
         with:

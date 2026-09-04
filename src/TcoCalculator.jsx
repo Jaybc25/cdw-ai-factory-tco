@@ -845,6 +845,7 @@ function AppInner() {
   // while `mode` looked fine in isolation.
   const [gpuSizingCount] = useState(() => getInitialGpuCount() ?? saved?.gpuSizingCount ?? null);
   const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);
+  const matchedCloudGpuClass = sourceClass ? normalizeSourceClass(sourceClass) : null;
   const [workingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);
   const [incomingModelContext] = useState(getInitialModelContext);
   const [incomingQuant] = useState(getInitialQuantization);
@@ -871,10 +872,28 @@ function AppInner() {
   // (`saved` itself is loaded earlier now, above gpuSizingCount.)
 
   const [ownSys, setOwnSys] = useState(() => (arrivedFromGpuSizing ? getInitialOwnSys() : saved?.ownSys ?? getInitialOwnSys()));
-  const [ov, setOv] = useState(saved?.ov ?? {});
+  const [ov, setOv] = useState(() => {
+    const next = { ...(saved?.ov ?? {}) };
+    // A fresh GPU Sizing handoff establishes a new cloud comparison basis.
+    // Keep unrelated TCO refinements, but do not carry class-specific manual
+    // cloud-rate overrides from an older TCO scenario into the new workload.
+    if (arrivedFromGpuSizing) {
+      delete next.instOD;
+      delete next.instRes;
+    }
+    return next;
+  });
   const [bill, setBill] = useState(saved?.bill ?? 105000);
   const [provider, setProvider] = useState(saved?.provider ?? "AWS");
-  const [gpuClass, setGpuClass] = useState(saved?.gpuClass ?? "H100");
+  const [gpuClass, setGpuClass] = useState(() => {
+    // Workload handoffs start like-for-like: the cloud rental class matches
+    // the class GPU Sizing used for its technical recommendation. Saved TCO
+    // cloud-class history only applies when this is not a fresh handoff.
+    if (arrivedFromGpuSizing && matchedCloudGpuClass && RATES[provider]?.[matchedCloudGpuClass]) {
+      return matchedCloudGpuClass;
+    }
+    return saved?.gpuClass ?? "H100";
+  });
   const [mode, setMode] = useState(() => (arrivedFromGpuSizing ? (gpuSizingCount ? "workload" : "spend") : saved?.mode ?? (gpuSizingCount ? "workload" : "spend"))); // v2.9: bake-off (spend-derived) vs workload (technical-requirement-driven)
   const [trainShare, setTrainShare] = useState(saved?.trainShare ?? 0.5);
   const [odShare, setOdShare] = useState(saved?.odShare ?? 0);
@@ -1749,9 +1768,17 @@ function AppInner() {
         <Section title="Refine when known" badge="TIER 2" defaultOpen={false}>
           <TipLabel text="GPU class they rent today" tip={TIPS.gpuClass} style={{ fontSize: 13 }} />
           <Seg options={Object.keys(IDX.train)} value={gpuClass} onChange={setGpuClass} />
-          <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
-            Sets both the performance factor AND the rate used to reconstruct their GPU-hours from spend.
-          </div>
+          {mode === "workload" && matchedCloudGpuClass ? (
+            <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
+              {gpuClass === matchedCloudGpuClass
+                ? `Matched to ${sourceClass} from GPU Sizing for a like-for-like starting comparison. Change this only if the proposed cloud rental uses a different GPU class; the technical on-prem fleet remains anchored to GPU Sizing.`
+                : `Cloud comparison changed from the ${sourceClass} workload basis to ${gpuClass}. This changes cloud pricing and workload-equivalent rental hours, not the technical on-prem fleet from GPU Sizing.`}
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
+              Sets both the performance factor AND the rate used to reconstruct their GPU-hours from spend.
+            </div>
+          )}
           <TipLabel text="On-prem target system" tip={TIPS.ownSys} />
           <Seg options={OWN_TARGETS} value={ownSys} onChange={setOwnSys} />
           <Slider label="Workload mix — training share" value={trainShare} min={0} max={1} step={0.05}
