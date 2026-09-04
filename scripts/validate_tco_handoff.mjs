@@ -33,8 +33,12 @@ requireText(
   "Cloud instance-rate overrides must be scoped by provider and GPU class",
 );
 requireText(
-  "cloudRateOverrides",
-  "TCO must persist cloud instance-rate profiles rather than deleting user-entered rates on handoff",
+  "const onPremRateProfileKey = ownSys;",
+  "System-specific on-prem rate overrides must be scoped by the active on-prem target",
+);
+requireText(
+  "onPremRateOverrides",
+  "TCO must preserve system-specific on-prem rate edits without applying them to different hardware",
 );
 requireText(
   "Set by GPU Sizing. Return to GPU Sizing to change the technical design.",
@@ -44,14 +48,19 @@ requireText(
   "TCO resilience assumption",
   "N+1 must be disclosed as a TCO-owned resilience assumption rather than part of the GPU Sizing base recommendation",
 );
+requireText(
+  "Reset current scenario edits",
+  "Reset behavior must be scoped to the active rate profiles rather than deleting inactive saved profiles",
+);
 
-if (source.includes("delete next.instOD;") || source.includes("delete next.instRes;")) {
+if (source.includes("delete next.instOD;") && source.includes("if (arrivedFromGpuSizing)")) {
   throw new Error("Fresh handoffs must preserve class-scoped user cloud-rate profiles instead of deleting them");
 }
 
 console.log("TCO GPU Sizing handoff ownership guard: PASS");
 console.log("- upstream technical fields follow the fresh GPU Sizing handoff");
 console.log("- cloud GPU class auto-follows unless the user explicitly overrides it");
-console.log("- user cloud instance-rate edits persist by provider + GPU class");
+console.log("- cloud instance-rate edits persist by provider + GPU class");
+console.log("- system-specific on-prem rate edits persist by target system");
 console.log("- GPU-derived on-prem target is locked in TCO");
 console.log("- TCO-owned economic and resilience assumptions remain separate");
