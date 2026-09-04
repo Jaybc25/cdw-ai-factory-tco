@@ -872,27 +872,57 @@ function AppInner() {
   // (`saved` itself is loaded earlier now, above gpuSizingCount.)
 
   const [ownSys, setOwnSys] = useState(() => (arrivedFromGpuSizing ? getInitialOwnSys() : saved?.ownSys ?? getInitialOwnSys()));
-  const [ov, setOv] = useState(() => {
-    const next = { ...(saved?.ov ?? {}) };
-    // A fresh GPU Sizing handoff establishes a new cloud comparison basis.
-    // Keep unrelated TCO refinements, but do not carry class-specific manual
-    // cloud-rate overrides from an older TCO scenario into the new workload.
-    if (arrivedFromGpuSizing) {
-      delete next.instOD;
-      delete next.instRes;
-    }
-    return next;
-  });
   const [bill, setBill] = useState(saved?.bill ?? 105000);
   const [provider, setProvider] = useState(saved?.provider ?? "AWS");
+  const [cloudGpuClassOverridden, setCloudGpuClassOverridden] = useState(() => saved?.cloudGpuClassOverridden === true);
   const [gpuClass, setGpuClass] = useState(() => {
-    // Workload handoffs start like-for-like: the cloud rental class matches
-    // the class GPU Sizing used for its technical recommendation. Saved TCO
-    // cloud-class history only applies when this is not a fresh handoff.
-    if (arrivedFromGpuSizing && matchedCloudGpuClass && RATES[provider]?.[matchedCloudGpuClass]) {
-      return matchedCloudGpuClass;
+    // A fresh workload handoff follows GPU Sizing unless the user previously
+    // made an explicit TCO cloud-comparison override. Historical saved values
+    // without override provenance are treated as stale and do not win.
+    if (arrivedFromGpuSizing) {
+      if (saved?.cloudGpuClassOverridden === true && saved?.gpuClass && RATES[provider]?.[saved.gpuClass]) return saved.gpuClass;
+      if (matchedCloudGpuClass && RATES[provider]?.[matchedCloudGpuClass]) return matchedCloudGpuClass;
     }
     return saved?.gpuClass ?? "H100";
+  });
+  const [cloudRateOverrides, setCloudRateOverrides] = useState(() => {
+    const profiles = { ...(saved?.cloudRateOverrides ?? {}) };
+    // One-time migration from the old flat override shape: preserve the
+    // customer-entered instance rates under the provider/class they belonged
+    // to rather than deleting them when a new workload arrives.
+    const legacy = saved?.ov ?? {};
+    if ((legacy.instOD != null || legacy.instRes != null) && saved?.provider && saved?.gpuClass) {
+      const key = `${saved.provider}::${saved.gpuClass}`;
+      profiles[key] = { ...(profiles[key] ?? {}), ...(legacy.instOD != null ? { instOD: legacy.instOD } : {}), ...(legacy.instRes != null ? { instRes: legacy.instRes } : {}) };
+    }
+    return profiles;
+  });
+  const [onPremRateOverrides, setOnPremRateOverrides] = useState(() => {
+    const profiles = { ...(saved?.onPremRateOverrides ?? {}) };
+    // Loaded system cost, system power, and Equinix bundle are tied to the
+    // on-prem system. Preserve old edits, but only apply them again when that
+    // same system is active so a new GPU Sizing target cannot inherit the
+    // previous hardware's economics.
+    const legacy = saved?.ov ?? {};
+    if ((legacy.perSysCost != null || legacy.sysKw != null || legacy.equinixMo != null) && saved?.ownSys) {
+      const key = saved.ownSys;
+      profiles[key] = {
+        ...(profiles[key] ?? {}),
+        ...(legacy.perSysCost != null ? { perSysCost: legacy.perSysCost } : {}),
+        ...(legacy.sysKw != null ? { sysKw: legacy.sysKw } : {}),
+        ...(legacy.equinixMo != null ? { equinixMo: legacy.equinixMo } : {}),
+      };
+    }
+    return profiles;
+  });
+  const [ov, setOv] = useState(() => {
+    const next = { ...(saved?.ov ?? {}) };
+    delete next.instOD;
+    delete next.instRes;
+    delete next.perSysCost;
+    delete next.sysKw;
+    delete next.equinixMo;
+    return next;
   });
   const [mode, setMode] = useState(() => (arrivedFromGpuSizing ? (gpuSizingCount ? "workload" : "spend") : saved?.mode ?? (gpuSizingCount ? "workload" : "spend"))); // v2.9: bake-off (spend-derived) vs workload (technical-requirement-driven)
   const [trainShare, setTrainShare] = useState(saved?.trainShare ?? 0.5);
@@ -947,7 +977,7 @@ function AppInner() {
   // tab left off, instead of resetting to defaults on every full page load.
   useEffect(() => {
     saveSessionState("tco", {
-      ov, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
+      ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
       fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
       residPct, modelId, modelParamsB, quant,
@@ -957,7 +987,7 @@ function AppInner() {
       // component for the full explanation.
       gpuSizingCount, sourceClass, workingDayHours,
     });
-  }, [ov, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
+  }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
       fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
       residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours]);
@@ -986,8 +1016,23 @@ function AppInner() {
   }
 
   const defaults = defaultsFor(provider, gpuClass, ownSys);
-  const rc = { ...defaults, ...ov };
-  const editedCount = Object.keys(ov).length;
+  const cloudRateProfileKey = `${provider}::${gpuClass}`;
+  const onPremRateProfileKey = ownSys;
+  const activeCloudRateOverride = cloudRateOverrides[cloudRateProfileKey] ?? {};
+  const activeOnPremRateOverride = onPremRateOverrides[onPremRateProfileKey] ?? {};
+  const rc = { ...defaults, ...ov, ...activeCloudRateOverride, ...activeOnPremRateOverride };
+  const editedCount = Object.keys(ov).length + Object.keys(activeCloudRateOverride).length + Object.keys(activeOnPremRateOverride).length;
+  const setActiveCloudRateOverride = (next) => setCloudRateOverrides((profiles) => ({ ...profiles, [cloudRateProfileKey]: next }));
+  const setActiveOnPremRateOverride = (next) => setOnPremRateOverrides((profiles) => ({ ...profiles, [onPremRateProfileKey]: next }));
+  const resetActiveRateEdits = () => {
+    setOv({});
+    setCloudRateOverrides((profiles) => { const next = { ...profiles }; delete next[cloudRateProfileKey]; return next; });
+    setOnPremRateOverrides((profiles) => { const next = { ...profiles }; delete next[onPremRateProfileKey]; return next; });
+  };
+  const setCloudGpuClass = (next) => {
+    setGpuClass(next);
+    if (mode === "workload" && matchedCloudGpuClass) setCloudGpuClassOverridden(next !== matchedCloudGpuClass);
+  };
   const rateInfo = RATES[provider][gpuClass];
 
   // Auto mode: size PB so implied cloud storage+egress consumes the non-compute budget (25/75 fast/bulk split)
@@ -1767,12 +1812,12 @@ function AppInner() {
         {/* TIER 2 */}
         <Section title="Refine when known" badge="TIER 2" defaultOpen={false}>
           <TipLabel text="GPU class they rent today" tip={TIPS.gpuClass} style={{ fontSize: 13 }} />
-          <Seg options={Object.keys(IDX.train)} value={gpuClass} onChange={setGpuClass} />
+          <Seg options={Object.keys(IDX.train)} value={gpuClass} onChange={setCloudGpuClass} />
           {mode === "workload" && matchedCloudGpuClass ? (
             <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
-              {gpuClass === matchedCloudGpuClass
-                ? `Matched to ${sourceClass} from GPU Sizing for a like-for-like starting comparison. Change this only if the proposed cloud rental uses a different GPU class; the technical on-prem fleet remains anchored to GPU Sizing.`
-                : `Cloud comparison changed from the ${sourceClass} workload basis to ${gpuClass}. This changes cloud pricing and workload-equivalent rental hours, not the technical on-prem fleet from GPU Sizing.`}
+              {cloudGpuClassOverridden
+                ? `Cloud comparison is a user override: ${gpuClass}, while GPU Sizing is based on ${sourceClass}. This changes cloud pricing and workload-equivalent rental hours only.`
+                : `Matched to ${sourceClass} from GPU Sizing for a like-for-like starting comparison. Change this only if the actual or proposed cloud rental uses a different GPU class.`}
             </div>
           ) : (
             <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
@@ -1780,7 +1825,15 @@ function AppInner() {
             </div>
           )}
           <TipLabel text="On-prem target system" tip={TIPS.ownSys} />
-          <Seg options={OWN_TARGETS} value={ownSys} onChange={setOwnSys} />
+          {gpuSizingCount ? (
+            <div style={{ border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 11px", margin: "6px 0 8px", background: "#F7F7F7" }}>
+              <div style={{ ...mono, fontSize: 13, fontWeight: 700, color: C.ink }}>{ownSys}</div>
+              <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>Set by GPU Sizing. Return to GPU Sizing to change the technical design.</div>
+              <a href="/gpu-sizing" style={{ fontSize: 11, color: C.green, fontWeight: 700, textDecoration: "none" }}>Adjust in GPU Sizing →</a>
+            </div>
+          ) : (
+            <Seg options={OWN_TARGETS} value={ownSys} onChange={setOwnSys} />
+          )}
           <Slider label="Workload mix — training share" value={trainShare} min={0} max={1} step={0.05}
             onChange={setTrainShare} display={`${Math.round(trainShare * 100)}% train`} tip={TIPS.trainShare} />
           <Slider label="On-demand share of billing" value={odShare} min={0} max={1} step={0.05}
@@ -1842,7 +1895,7 @@ function AppInner() {
           <Seg options={["Off", "On (+1 system)"]} value={redundancy ? "On (+1 system)" : "Off"}
             onChange={(v) => setRedundancy(v !== "Off")} />
           <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
-            A 1-system fleet has zero failover; cloud embeds redundancy in its price. Alternative: cloud-burst fallback (hybrid conversation).
+            <strong>TCO resilience assumption:</strong> N+1 adds one spare system beyond the GPU Sizing base requirement. It does not change what GPU Sizing recommended; it changes the fleet being economically evaluated here. A 1-system base fleet otherwise has zero failover.
           </div>
           <Row label="Cloud exit egress (auto)" value={fmt(r.exitEgress)} sub="computed from your storage inputs" tip={TIPS.exitEgress} />
           <Slider label="Residual value at horizon" value={residPct} min={0} max={0.4} step={0.05}
@@ -1927,18 +1980,18 @@ function AppInner() {
         <Section title="Rate card" badge={editedCount > 0 ? `${editedCount} EDITED` : "EDITABLE"}
           badgeColor={editedCount > 0 ? "#CC0000" : undefined} defaultOpen={false}>
           <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>
-            Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem defaults = NVIDIA DGX TCO tool ({ONPREM_ASOF}). Edits stick until reset, including across provider switches.
+            Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem defaults = NVIDIA DGX TCO tool ({ONPREM_ASOF}). Cloud instance-rate edits are saved by provider + GPU class, and system-specific on-prem edits are saved by target system, so workload changes do not erase customer-entered pricing or misapply it to different hardware.
           </div>
           {editedCount > 0 && (
-            <button onClick={() => setOv({})}
+            <button onClick={resetActiveRateEdits}
               style={{ ...mono, fontSize: 11, padding: "7px 12px", borderRadius: 7, cursor: "pointer",
                 border: "1px solid #CC0000", background: "#FBEAEA", color: "#CC0000", marginBottom: 8, fontWeight: 700 }}>
-              Reset all {editedCount} to defaults
+              Reset current scenario edits ({editedCount})
             </button>
           )}
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "8px 0 2px", color: C.sub }}>CLOUD — {provider} {gpuClass} ($/GPU-hr) · {rateInfo.conf} · as of {RATES_ASOF}</div>
-          <RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.001} fmt={(v)=>`$${v}`} />
-          <RateField k="instOD" label="Cloud $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
+          <RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={activeCloudRateOverride} setOv={setActiveCloudRateOverride} step={0.001} fmt={(v)=>`$${v}`} />
+          <RateField k="instOD" label="Cloud $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={activeCloudRateOverride} setOv={setActiveCloudRateOverride} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="nvaieRes" label="NVAIE support $/GPU-hr, reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="nvaieOD" label="NVAIE support $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="fastGB" label="Fast storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
@@ -1946,7 +1999,7 @@ function AppInner() {
           <RateField k="cloudTok" label="Managed API blended $/1M tokens (EST)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.5} fmt={(v)=>`$${v}`} />
           <RateField k="egressGB" label="Egress $/GB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>ON-PREM HARDWARE · NVIDIA TCO tool capture, Aug 2026</div>
-          <RateField k="perSysCost" label={`${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`} eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
+          <RateField k="perSysCost" label={`${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`} eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={1000} fmt={fmt} />
           <RateField k="cluster" label="Cluster mgmt nodes $ (fixed per cluster — amortizes across fleet)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="fastPB" label="Fast storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="bulkPB" label="Bulk storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
@@ -1956,8 +2009,8 @@ function AppInner() {
               On-prem pricing last verified {onpremStaleness.days} days ago{onpremStaleness.level === "stale" ? " — refresh before client use" : " — review due soon"}.
             </div>
           )}
-          <RateField k="sysKw" label={`Power kW per ${ownSys} (avg load)`} eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.1} />
-          <RateField k="equinixMo" label="Equinix bundle $/system/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={100} fmt={fmt} />
+          <RateField k="sysKw" label={`Power kW per ${ownSys} (avg load)`} eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={0.1} />
+          <RateField k="equinixMo" label="Equinix bundle $/system/mo" eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={100} fmt={fmt} />
           <RateField k="adminRatio" label="Systems per admin FTE" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1} />
           <RateField k="opFTE" label="Admin FTE loaded $/yr" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
           <RateField k="netMo" label="Network/VPN/firewall $/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={100} fmt={fmt} />

@@ -97,6 +97,51 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  branch-handoff-e2e:
+    name: PR TCO handoff ownership browser regression
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Install Playwright test runner
+        run: npm install --no-save --no-package-lock @playwright/test
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Build current PR source
+        env:
+          # The local PR build exercises anonymous/sessionStorage behavior only.
+          # Supabase still needs syntactically valid client configuration so the
+          # app can mount; no credentialed backend behavior is asserted here.
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: local-pr-browser-placeholder
+        run: npm run build
+
+      - name: Start local production preview
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 > /tmp/tco-preview.log 2>&1 &
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4173/tco >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/tco-preview.log
+          exit 1
+
+      - name: Run handoff ownership journeys against PR build
+        env:
+          BASE_URL: http://127.0.0.1:4173
+        run: npx playwright test tests/e2e/tco-handoff-ownership.spec.js
+
   live-smoke:
     name: Live Vercel browser regression
     runs-on: ubuntu-latest
