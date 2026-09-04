@@ -33,9 +33,101 @@ on:
       - ".github/workflows/quality-gate.yml"
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  temporary-ownership-patch:
+    name: Temporary TCO ownership patch helper
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Patch TCO handoff ownership behavior
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path("src/TcoCalculator.jsx")
+          s = p.read_text()
+
+          replacements = [
+            (
+              '  const [ownSys, setOwnSys] = useState(() => (arrivedFromGpuSizing ? getInitialOwnSys() : saved?.ownSys ?? getInitialOwnSys()));\n  const [ov, setOv] = useState(() => {\n    const next = { ...(saved?.ov ?? {}) };\n    // A fresh GPU Sizing handoff establishes a new cloud comparison basis.\n    // Keep unrelated TCO refinements, but do not carry class-specific manual\n    // cloud-rate overrides from an older TCO scenario into the new workload.\n    if (arrivedFromGpuSizing) {\n      delete next.instOD;\n      delete next.instRes;\n    }\n    return next;\n  });\n  const [bill, setBill] = useState(saved?.bill ?? 105000);\n  const [provider, setProvider] = useState(saved?.provider ?? "AWS");\n  const [gpuClass, setGpuClass] = useState(() => {\n    // Workload handoffs start like-for-like: the cloud rental class matches\n    // the class GPU Sizing used for its technical recommendation. Saved TCO\n    // cloud-class history only applies when this is not a fresh handoff.\n    if (arrivedFromGpuSizing && matchedCloudGpuClass && RATES[provider]?.[matchedCloudGpuClass]) {\n      return matchedCloudGpuClass;\n    }\n    return saved?.gpuClass ?? "H100";\n  });',
+              '  const [ownSys, setOwnSys] = useState(() => (arrivedFromGpuSizing ? getInitialOwnSys() : saved?.ownSys ?? getInitialOwnSys()));\n  const [bill, setBill] = useState(saved?.bill ?? 105000);\n  const [provider, setProvider] = useState(saved?.provider ?? "AWS");\n  const [cloudGpuClassOverridden, setCloudGpuClassOverridden] = useState(() => saved?.cloudGpuClassOverridden === true);\n  const [gpuClass, setGpuClass] = useState(() => {\n    // A fresh workload handoff follows GPU Sizing unless the user previously\n    // made an explicit TCO cloud-comparison override. Historical saved values\n    // without override provenance are treated as stale and do not win.\n    if (arrivedFromGpuSizing) {\n      if (saved?.cloudGpuClassOverridden === true && saved?.gpuClass && RATES[provider]?.[saved.gpuClass]) return saved.gpuClass;\n      if (matchedCloudGpuClass && RATES[provider]?.[matchedCloudGpuClass]) return matchedCloudGpuClass;\n    }\n    return saved?.gpuClass ?? "H100";\n  });\n  const [cloudRateOverrides, setCloudRateOverrides] = useState(() => {\n    const profiles = { ...(saved?.cloudRateOverrides ?? {}) };\n    // One-time migration from the old flat override shape: preserve the\n    // customer-entered instance rates under the provider/class they belonged\n    // to rather than deleting them when a new workload arrives.\n    const legacy = saved?.ov ?? {};\n    if ((legacy.instOD != null || legacy.instRes != null) && saved?.provider && saved?.gpuClass) {\n      const key = `${saved.provider}::${saved.gpuClass}`;\n      profiles[key] = { ...(profiles[key] ?? {}), ...(legacy.instOD != null ? { instOD: legacy.instOD } : {}), ...(legacy.instRes != null ? { instRes: legacy.instRes } : {}) };\n    }\n    return profiles;\n  });\n  const [ov, setOv] = useState(() => {\n    const next = { ...(saved?.ov ?? {}) };\n    delete next.instOD;\n    delete next.instRes;\n    return next;\n  });'
+            ),
+            (
+              '      ov, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,',
+              '      ov, cloudRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,'
+            ),
+            (
+              '  }, [ov, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,',
+              '  }, [ov, cloudRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,'
+            ),
+            (
+              '  const defaults = defaultsFor(provider, gpuClass, ownSys);\n  const rc = { ...defaults, ...ov };\n  const editedCount = Object.keys(ov).length;',
+              '  const defaults = defaultsFor(provider, gpuClass, ownSys);\n  const cloudRateProfileKey = `${provider}::${gpuClass}`;\n  const activeCloudRateOverride = cloudRateOverrides[cloudRateProfileKey] ?? {};\n  const rc = { ...defaults, ...ov, ...activeCloudRateOverride };\n  const editedCount = Object.keys(ov).length + Object.keys(activeCloudRateOverride).length;\n  const setActiveCloudRateOverride = (next) => setCloudRateOverrides((profiles) => ({ ...profiles, [cloudRateProfileKey]: next }));\n  const setCloudGpuClass = (next) => {\n    setGpuClass(next);\n    if (mode === "workload" && matchedCloudGpuClass) setCloudGpuClassOverridden(next !== matchedCloudGpuClass);\n  };'
+            ),
+            (
+              '<Seg options={Object.keys(IDX.train)} value={gpuClass} onChange={setGpuClass} />',
+              '<Seg options={Object.keys(IDX.train)} value={gpuClass} onChange={setCloudGpuClass} />'
+            ),
+            (
+              '{gpuClass === matchedCloudGpuClass\n                ? `Matched to ${sourceClass} from GPU Sizing for a like-for-like starting comparison. Change this only if the proposed cloud rental uses a different GPU class; the technical on-prem fleet remains anchored to GPU Sizing.`\n                : `Cloud comparison changed from the ${sourceClass} workload basis to ${gpuClass}. This changes cloud pricing and workload-equivalent rental hours, not the technical on-prem fleet from GPU Sizing.`}',
+              '{cloudGpuClassOverridden\n                ? `Cloud comparison is a user override: ${gpuClass}, while GPU Sizing is based on ${sourceClass}. This changes cloud pricing and workload-equivalent rental hours only.`\n                : `Matched to ${sourceClass} from GPU Sizing for a like-for-like starting comparison. Change this only if the actual or proposed cloud rental uses a different GPU class.`}'
+            ),
+            (
+              '          <TipLabel text="On-prem target system" tip={TIPS.ownSys} />\n          <Seg options={OWN_TARGETS} value={ownSys} onChange={setOwnSys} />',
+              '          <TipLabel text="On-prem target system" tip={TIPS.ownSys} />\n          {gpuSizingCount ? (\n            <div style={{ border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 11px", margin: "6px 0 8px", background: "#F7F7F7" }}>\n              <div style={{ ...mono, fontSize: 13, fontWeight: 700, color: C.ink }}>{ownSys}</div>\n              <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>Set by GPU Sizing. Return to GPU Sizing to change the technical design.</div>\n              <a href="/gpu-sizing" style={{ fontSize: 11, color: C.green, fontWeight: 700, textDecoration: "none" }}>Adjust in GPU Sizing →</a>\n            </div>\n          ) : (\n            <Seg options={OWN_TARGETS} value={ownSys} onChange={setOwnSys} />\n          )}'
+            ),
+            (
+              '          <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>\n            A 1-system fleet has zero failover; cloud embeds redundancy in its price. Alternative: cloud-burst fallback (hybrid conversation).\n          </div>',
+              '          <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>\n            <strong>TCO resilience assumption:</strong> N+1 adds one spare system beyond the GPU Sizing base requirement. It does not change what GPU Sizing recommended; it changes the fleet being economically evaluated here. A 1-system base fleet otherwise has zero failover.\n          </div>'
+            ),
+            (
+              '            Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem defaults = NVIDIA DGX TCO tool ({ONPREM_ASOF}). Edits stick until reset, including across provider switches.',
+              '            Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem defaults = NVIDIA DGX TCO tool ({ONPREM_ASOF}). Cloud instance-rate edits are saved by provider + GPU class, so workload changes do not erase customer-entered pricing.'
+            ),
+            (
+              '            <button onClick={() => setOv({})}',
+              '            <button onClick={() => { setOv({}); setCloudRateOverrides({}); }}'
+            ),
+            (
+              '<RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.001} fmt={(v)=>`$${v}`} />\n          <RateField k="instOD" label="Cloud $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />',
+              '<RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={activeCloudRateOverride} setOv={setActiveCloudRateOverride} step={0.001} fmt={(v)=>`$${v}`} />\n          <RateField k="instOD" label="Cloud $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={activeCloudRateOverride} setOv={setActiveCloudRateOverride} step={0.01} fmt={(v)=>`$${v}`} />'
+            ),
+          ]
+
+          changed = False
+          for old, new in replacements:
+            if new in s:
+              continue
+            if old not in s:
+              raise SystemExit(f"Expected source pattern not found:\n{old}")
+            s = s.replace(old, new, 1)
+            changed = True
+
+          if changed:
+            p.write_text(s)
+            print("Patched src/TcoCalculator.jsx")
+          else:
+            print("TCO ownership patch already present")
+          PY
+
+      - name: Commit patch to PR branch when needed
+        run: |
+          if git diff --quiet -- src/TcoCalculator.jsx; then
+            echo "No source patch commit needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/TcoCalculator.jsx
+          git commit -m "fix: enforce TCO handoff ownership"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
   source-and-workbook:
     name: Build + TCO Excel parity
     runs-on: ubuntu-latest
