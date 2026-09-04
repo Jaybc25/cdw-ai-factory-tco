@@ -14,7 +14,6 @@ const money = (value) => `$${Math.round(Number(value)).toLocaleString()}`;
 const count = (value) => Number(value).toLocaleString();
 const months = (value) => `${Number(value).toFixed(1)} months`;
 const percentRatio = (value) => `${(Number(value) * 100).toFixed(1)}%`;
-const percentValue = (value) => `${Number(value).toFixed(1)}%`;
 const years = (value) => `${Number(value)} year${Number(value) === 1 ? "" : "s"}`;
 const paramsB = (value) => `${Number(value).toLocaleString()}B`;
 
@@ -88,7 +87,7 @@ export const PRESENTATION_SCHEMA = {
     baseField("year1Value", "Year 1 Value", money),
     baseField("year1Net", "Year 1 Net Benefit", money),
     baseField("horizonNet", "Horizon Net Benefit", money),
-    baseField("horizonROI", "Horizon ROI", percentValue),
+    baseField("horizonROI", "Horizon ROI", percentRatio),
     baseField("horizonYears", "Analysis Horizon", years),
     baseField("costSource", "Cost Source"),
     baseField("fteEquivalent", "FTE Equivalent Capacity", count),
