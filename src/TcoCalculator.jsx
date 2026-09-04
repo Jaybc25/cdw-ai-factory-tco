@@ -5,6 +5,7 @@ import AuthWidget from "./AuthWidget";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { CLOUD_RATES_VERIFIED_AT, ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
 import { CLOUD_GPU_RATES as RATES, ONPREM_SYSTEMS as SYSTEMS } from "./pricingRegistry.js";
+import { TCO_MODEL_OPTIONS, getDefaultModel, getModelById, formatModelContext } from "./modelRegistry.js";
 
 const OWN_TARGETS = Object.keys(SYSTEMS);
 /* Per-GPU capability indices (B200 = 1.0). Established classes derived from MLPerf pairs;
@@ -19,7 +20,6 @@ const EST_IDX = ["B300", "GB200", "GB300"];
 
 /* v1.9 capacity layer constants — rule-of-thumb serving math, all EST and disclosed in-app */
 const QUANT = { "FP16": { bytes: 2, mult: 1.0 }, "FP8": { bytes: 1, mult: 1.6 }, "FP4": { bytes: 0.5, mult: 2.4 } };
-const MODELS = { "8B": 8, "70B": 70, "405B": 405, "671B": 671 };
 const BASE_TOK = 300;         // tok/s per GPU, 70B @ FP16 on B200-class (EST anchor)
 const KV_OVERHEAD = 1.2;      // memory overhead for KV cache / activations (EST)
 const TOK_PER_USER = 10;      // sustained tok/s per concurrent interactive user (EST)
@@ -343,7 +343,7 @@ function run(inp, RC) {
 
   // v1.9 capacity & unit economics (rule-of-thumb, EST) — based on the year-0 fleet
   const q = QUANT[inp.quant];
-  const modelB = MODELS[inp.modelSize];
+  const modelB = inp.modelParamsB;
   const gpusPerReplica = Math.max(1, Math.ceil((modelB * q.bytes * KV_OVERHEAD) / S.vram));
   const totalGPUs = sysAdj * S.gpus;
   const replicas = Math.floor(totalGPUs / gpusPerReplica);
@@ -738,6 +738,29 @@ function getInitialWorkingDayHours() {
   return Number.isFinite(n) && n > 0 && n <= 24 ? n : null;
 }
 
+function getInitialModelContext() {
+  const params = getIncomingParams();
+  const modelId = params?.get("model");
+  const rawParams = params?.get("modelParamsB");
+  const modelParamsB = rawParams ? parseFloat(rawParams) : NaN;
+  const model = getModelById(modelId);
+  return {
+    model: model && model.id !== "custom" ? model : null,
+    modelParamsB: Number.isFinite(modelParamsB) && modelParamsB > 0 ? modelParamsB : null,
+  };
+}
+
+function getInitialQuantization() {
+  const q = getIncomingParams()?.get("quant");
+  return q && Object.prototype.hasOwnProperty.call(QUANT, q) ? q : null;
+}
+
+function migrateLegacyModelState(saved) {
+  if (!saved?.modelSize) return null;
+  const n = parseFloat(String(saved.modelSize).replace("B", ""));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 // Normalizes GPU Sizing's class naming to TCO's IDX/rate-table naming, where
 // they differ (B200 -> B200-class, GB200 NVL72 -> GB200). Identity otherwise.
 const GPU_SIZING_CLASS_TO_TCO_CLASS = { "B200": "B200-class", "GB200 NVL72": "GB200" };
@@ -823,6 +846,8 @@ function AppInner() {
   const [gpuSizingCount] = useState(() => getInitialGpuCount() ?? saved?.gpuSizingCount ?? null);
   const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);
   const [workingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);
+  const [incomingModelContext] = useState(getInitialModelContext);
+  const [incomingQuant] = useState(getInitialQuantization);
 
   // Consume the handoff: by the time this effect runs, every lazy useState
   // initializer above has already read whatever it needed from the URL, so
@@ -872,8 +897,27 @@ function AppInner() {
   const [dualRun, setDualRun] = useState(saved?.dualRun ?? 2);
   const [redundancy, setRedundancy] = useState(saved?.redundancy ?? false);
   const [residPct, setResidPct] = useState(saved?.residPct ?? 0.15);
-  const [modelSize, setModelSize] = useState(saved?.modelSize ?? "70B");
-  const [quant, setQuant] = useState(saved?.quant ?? "FP8");
+  const [modelId, setModelId] = useState(() => {
+    if (arrivedFromGpuSizing && incomingModelContext.model) return incomingModelContext.model.id;
+    if (getModelById(saved?.modelId)) return getModelById(saved.modelId).id;
+    if (saved?.modelSize) return "custom";
+    return getDefaultModel().id;
+  });
+  const [modelParamsB, setModelParamsB] = useState(() => {
+    if (arrivedFromGpuSizing && incomingModelContext.modelParamsB) return incomingModelContext.modelParamsB;
+    if (Number.isFinite(Number(saved?.modelParamsB)) && Number(saved.modelParamsB) > 0) return Number(saved.modelParamsB);
+    const migrated = migrateLegacyModelState(saved);
+    if (migrated) return migrated;
+    return getModelById(modelId)?.totalParamsB || getDefaultModel().totalParamsB;
+  });
+  const [quant, setQuant] = useState(() => (arrivedFromGpuSizing && incomingQuant) ? incomingQuant : saved?.quant ?? "FP8");
+  const selectedModel = getModelById(modelId);
+  const modelDisplay = formatModelContext(selectedModel, modelParamsB);
+  const setSelectedModelId = (nextId) => {
+    setModelId(nextId);
+    const next = getModelById(nextId);
+    if (next && next.id !== "custom" && Number.isFinite(Number(next.totalParamsB))) setModelParamsB(Number(next.totalParamsB));
+  };
   const [view, setView] = useState("calc"); // calc | gate | report | audit
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
@@ -887,7 +931,7 @@ function AppInner() {
       ov, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
       fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
-      residPct, modelSize, quant,
+      residPct, modelId, modelParamsB, quant,
       // Fix (Bug Group 1a): these three previously weren't persisted at all,
       // which is the actual root cause of the workload-anchor loss -- see
       // the comment above their useState calls near the top of this
@@ -897,7 +941,7 @@ function AppInner() {
   }, [ov, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
       fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
-      residPct, modelSize, quant, gpuSizingCount, sourceClass, workingDayHours]);
+      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours]);
 
   async function submitLead() {
     if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
@@ -936,10 +980,10 @@ function AppInner() {
   const bulkPB = effectiveStorageAuto ? Math.round(autoPB * 0.75 * 100) / 100 : bulkPBm;
   const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (effectiveStorageAuto) setBulkPBm(bulkPB); };
   const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (effectiveStorageAuto) setFastPBm(fastPB); };
-  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelSize, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours };
+  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours };
   const r = useMemo(
     () => run(inputsObj, rc),
-    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelSize, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
+    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
   );
   const t = r.tot(horizon);
 
@@ -1144,7 +1188,7 @@ function AppInner() {
             <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
             <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub={r.isWorkloadMode ? "capex + one-time vs. estimated workload-equivalent cloud cost" : "capex + one-time vs. current monthly cloud bill"} />
             <Row label="Residual value credit" value={`−${fmt(r.adj.resid)}`} sub={`${Math.round(residPct * 100)}% of systems + storage capex at horizon`} />
-            {r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`} sub={`${modelSize} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
+            {r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`} sub={`${modelDisplay} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
             {r.isWorkloadMode ? (
               <>
                 <Row label="Technical workload requirement" value={`${r.sysAdj} × ${ownSys}`} sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- fleet size is duty-cycle-independent`} />
@@ -1216,7 +1260,7 @@ function AppInner() {
                   ["On-prem opex", `${fmt(r.adj.opex)}/mo`],
                   [`Cloud vs on-prem (${horizon}yr)`, `${fmt(t.cloud)} vs ${fmt(t.onAdj)}${r.isWorkloadMode ? ` (floor cloud: ${fmt(t.cloudFloor)})` : ""}`],
                   ["Savings (adjusted / floor)", `${fmt(t.saveAdj)} / ${fmt(t.saveFlr)}`],
-                  ["Model / quantization (capacity est.)", `${modelSize} / ${quant}`],
+                  ["Model / quantization (capacity est.)", `${modelDisplay} / ${quant}`],
                   ["Est. users / $ per 1M tokens", r.cap.fits ? `${r.cap.users.toLocaleString()} / $${r.cap.perM.toFixed(2)} (vs API $${r.cap.cloudPerM.toFixed(2)})` : "model does not fit fleet"],
                   ["Rate card overrides", editedCount > 0 ? Object.keys(ov).join(", ") : "none — all defaults"],
                   ...(r.isWorkloadMode ? [] : [["Spend/storage reconciliation", `${fmt(r.cloudStorage)}/mo implied vs ${fmt(r.storageBudget)}/mo non-compute budget — ${r.cloudStorage > r.storageBudget * 1.02 ? `OVERALLOCATED by ${fmt(r.cloudStorage - r.storageBudget)}` : "within tolerance"}`]]),
@@ -1279,6 +1323,7 @@ function AppInner() {
             <Row label="Target on-prem system" value={ownSys} />
             <Row label="On-demand vs. reserved mix" value={`${Math.round(odShare * 100)}% on-demand / ${Math.round((1 - odShare) * 100)}% reserved`} />
             {r.isWorkloadMode && <Row label="Duty cycle" value={`${workingDayHours} hrs/day`} />}
+            <Row label="Model context" value={`${modelDisplay} @ ${quant}`} sub={r.isWorkloadMode ? "carried from GPU Sizing when available; used only for directional capacity/unit economics" : "standalone TCO capacity assumption"} />
             <Row label="Annual compute growth" value={`${Math.round(growth * 100)}%/yr`} />
             <Row label="Facility" value={facility} />
             <Row label="Analysis horizon" value={`${horizon} years`} />
@@ -1555,6 +1600,7 @@ function AppInner() {
             {mode === "workload" ? (
               <>
                 Comparing <strong>{r.sysAdj} x {ownSys}</strong> ({gpuSizingCount} {sourceClass || ownSys}-class GPUs, your GPU Sizing recommendation)
+                for <strong>{modelDisplay}</strong>{incomingQuant ? ` at ${quant}` : ""}
                 against the estimated cloud cost of running that <em>same workload</em>, not your entered spend. Storage is
                 now a direct input below (no bill to auto-derive it from). Switch to "Existing Cloud Spend" above for the
                 original bake-off against what you're paying today.
@@ -1805,17 +1851,36 @@ function AppInner() {
         {/* CAPACITY & UNIT ECONOMICS (v1.9) */}
         <Section title="Capacity & unit economics" badge="EST" defaultOpen={false}>
           <TipLabel text="How these estimates work" tip={TIPS.capGroup} style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }} />
-          <TipLabel text="Model size" tip={TIPS.modelSize} style={{ fontSize: 13 }} />
-          <Seg options={Object.keys(MODELS)} value={modelSize} onChange={setModelSize} />
+          <TipLabel text="Model" tip={TIPS.modelSize} style={{ fontSize: 13 }} />
+          <select
+            value={modelId}
+            onChange={(e) => setSelectedModelId(e.target.value)}
+            aria-label="Model for capacity estimate"
+            style={{ width: "100%", padding: "9px 10px", border: `1px solid ${C.line}`, borderRadius: 8, background: "#fff", color: C.ink, margin: "4px 0 8px" }}
+          >
+            {TCO_MODEL_OPTIONS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
+          </select>
+          {modelId === "custom" && (
+            <label style={{ display: "block", fontSize: 12, color: C.sub, marginBottom: 8 }}>
+              Model parameters (billions)
+              <input
+                type="number" min="0.1" step="0.1" value={modelParamsB}
+                onChange={(e) => { const n = parseFloat(e.target.value); if (Number.isFinite(n) && n > 0) setModelParamsB(n); }}
+                aria-label="Custom model parameters in billions"
+                style={{ width: "100%", boxSizing: "border-box", marginTop: 4, padding: "8px 10px", border: `1px solid ${C.line}`, borderRadius: 8 }}
+              />
+            </label>
+          )}
+          {gpuSizingCount && <div style={{ fontSize: 11, color: C.sub, marginBottom: 8 }}>Model context is shared with GPU Sizing when available. GPU Sizing remains authoritative for the technical GPU count; this model value only drives the directional capacity and unit-economics estimates below.</div>}
           <TipLabel text="Quantization" tip={TIPS.quant} style={{ fontSize: 13 }} />
           <Seg options={Object.keys(QUANT)} value={quant} onChange={setQuant} />
           {!r.cap.fits ? (
             <div style={{ fontSize: 12, color: "#B4530A", background: "#FBF3EC", borderRadius: 6, padding: "8px 10px", marginTop: 6 }}>
-              A {modelSize} model at {quant} needs {r.cap.gpusPerReplica} GPUs per copy, but the current fleet has {r.sysAdj * SYSTEMS[ownSys].gpus}. Add systems, pick a smaller model, or lower the precision.
+              A {modelDisplay} model at {quant} needs {r.cap.gpusPerReplica} GPUs per copy, but the current fleet has {r.sysAdj * SYSTEMS[ownSys].gpus}. Add systems, pick a smaller model, or lower the precision.
             </div>
           ) : (
             <>
-              <Row label="GPUs per model copy / copies in fleet" value={`${r.cap.gpusPerReplica} / ${r.cap.replicas}`} sub={`${modelSize} @ ${quant} on ${ownSys} (${SYSTEMS[ownSys].vram} GB/GPU, ×${KV_OVERHEAD} overhead)`} />
+              <Row label="GPUs per model copy / copies in fleet" value={`${r.cap.gpusPerReplica} / ${r.cap.replicas}`} sub={`${modelDisplay} @ ${quant} on ${ownSys} (${SYSTEMS[ownSys].vram} GB/GPU, ×${KV_OVERHEAD} overhead)`} />
               <Row label="Concurrent interactive users (est.)" value={r.cap.users.toLocaleString()} sub={`at ${TOK_PER_USER} tok/s per user, ${Math.round(util * 100)}% utilization`} />
               <Row label="Token throughput (est.)" value={`${r.cap.monthlyTokM >= 1000 ? (r.cap.monthlyTokM / 1000).toFixed(1) + "B" : Math.round(r.cap.monthlyTokM) + "M"} tokens/mo`} sub="fleet-wide at target utilization" />
               <Row label="Cost per 1M tokens" value={`$${r.cap.perM.toFixed(2)} vs $${r.cap.cloudPerM.toFixed(2)}`} sub="on-prem all-in vs managed-API blended list (editable in Rate card)" />

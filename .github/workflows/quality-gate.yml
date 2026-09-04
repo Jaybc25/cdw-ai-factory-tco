@@ -10,6 +10,7 @@ on:
       - "scripts/extract_tco_workbook_snapshot.py"
       - "scripts/run_tco_parity.mjs"
       - "scripts/validate_pricing_registry.mjs"
+      - "scripts/validate_model_registry.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -22,6 +23,7 @@ on:
       - "scripts/extract_tco_workbook_snapshot.py"
       - "scripts/run_tco_parity.mjs"
       - "scripts/validate_pricing_registry.mjs"
+      - "scripts/validate_model_registry.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -52,6 +54,9 @@ jobs:
       - name: Validate shared pricing registry
         run: node scripts/validate_pricing_registry.mjs
 
+      - name: Validate shared model registry
+        run: node scripts/validate_model_registry.mjs
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -71,7 +76,7 @@ jobs:
           required = {"Inputs", "Engine", "Results", "Validation", "EngineRegression", "Crossover"}
           missing = sorted(required - set(names))
           if missing:
-              raise SystemExit(f"TCO workbook missing required audit sheets: {missing}. Present: {names}")
+            raise SystemExit(f"TCO workbook missing required audit sheets: {missing}. Present: {names}")
           print("Workbook sheets:", ", ".join(names))
           PY
 

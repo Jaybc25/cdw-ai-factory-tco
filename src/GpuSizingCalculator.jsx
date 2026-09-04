@@ -6,6 +6,7 @@ import AuthWidget from "./AuthWidget";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
 import { GPU_SIZING_PRICE_USD as GPU_PRICE_USD } from "./pricingRegistry.js";
+import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelParamsB } from "./modelRegistry.js";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -101,21 +102,6 @@ function TipDot({ tipKey }) {
 // exactly. If you change a number here, change it there too (and re-run the
 // Validation tab) or the web tool and the reference workbook will disagree.
 // ---------------------------------------------------------------------------
-
-const MODELS = [
-  { id: "llama31-8b", label: "Llama 3.1 8B Instruct", totalParamsB: 8.03, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "llama31-70b", label: "Llama 3.1 70B Instruct", totalParamsB: 70.6, layers: 80, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "llama31-405b", label: "Llama 3.1 405B Instruct", totalParamsB: 405, layers: 126, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "llama33-70b", label: "Llama 3.3 70B Instruct", totalParamsB: 70.6, layers: 80, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "mixtral-8x7b", label: "Mixtral 8x7B Instruct", totalParamsB: 46.7, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "muse-glimmer-30b", label: "Meta Muse Glimmer 30B", totalParamsB: 29.6, layers: 52, kvHeads: 2, headDim: 128, status: "VERIFIED" },
-  { id: "llama4-scout", label: "Llama 4 Scout 17B-16E", totalParamsB: 109, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "llama4-maverick", label: "Llama 4 Maverick 17B-128E", totalParamsB: 402, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "gemma3-27b", label: "Gemma 3 27B", totalParamsB: 27, layers: 62, kvHeads: 16, headDim: 128, status: "VERIFIED" },
-  { id: "deepseek-v3", label: "DeepSeek V3", totalParamsB: 671, layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64, status: "VERIFIED" },
-  { id: "deepseek-r1", label: "DeepSeek R1", totalParamsB: 671, layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64, status: "VERIFIED" },
-  { id: "custom", label: "Custom model...", totalParamsB: null, layers: null, kvHeads: null, headDim: null, status: "CUSTOM" },
-];
 
 const GPU_SPECS = [
   { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8", nodeSize: 8 },
@@ -742,9 +728,12 @@ const TCO_OWN_SYS_FOR_CLASS = {
   B300: "DGX B300",
 };
 
-function TcoHandoff({ selectedClass, recommended, mode, workingDayHours }) {
+function TcoHandoff({ selectedClass, recommended, mode, workingDayHours, model, modelParamsB, quant }) {
   const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
   const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass });
+  if (model?.id) params.set("model", model.id);
+  if (Number.isFinite(Number(modelParamsB)) && Number(modelParamsB) > 0) params.set("modelParamsB", String(modelParamsB));
+  if (mode === "Inference" && quant) params.set("quant", quant);
   // Duty cycle only carries real meaning for inference (business-hours load pattern); training
   // runs to completion rather than on a daily cycle, so it's omitted there and TCO falls back to
   // its own utilization assumption for the cloud-hours estimate.
@@ -790,37 +779,18 @@ function getInitialWorkloadType() {
   return params?.get("workloadType") || null;
 }
 
-// Model Advisor's canonical_model_id (HuggingFace-derived, e.g. "llama-3.1-8b",
-// "llama-4-scout", "gemma-3-27b") uses a different slug convention than this
-// file's own MODELS[].id (e.g. "llama31-8b", "llama4-scout", "gemma3-27b") --
-// the family name and version number are separated by a hyphen on one side and
-// not the other. Verified against the real model_specs.json registry: 7 of 11
-// tracked models mismatch. An explicit table, not a derived pattern, so a
-// future model with an unexpected name fails visibly (see getInitialInfModel)
-// rather than silently matching wrong or breaking a clever regex.
-const MODEL_ADVISOR_ID_TO_GPU_SIZING_ID = {
-  "llama-3.1-8b": "llama31-8b",
-  "llama-3.1-70b": "llama31-70b",
-  "llama-3.1-405b": "llama31-405b",
-  "llama-3.3-70b": "llama33-70b",
-  "mixtral-8x7b": "mixtral-8x7b",
-  "llama-4-scout": "llama4-scout",
-  "llama-4-maverick": "llama4-maverick",
-  "gemma-3-27b": "gemma3-27b",
-  "deepseek-v3": "deepseek-v3",
-  "deepseek-r1": "deepseek-r1",
-  "muse-glimmer-30b": "muse-glimmer-30b",
-};
-
+// Model Advisor and GPU Sizing now share canonical model IDs through
+// modelRegistry.js. Legacy GPU Sizing IDs remain accepted there so saved
+// sessions from before this change restore safely without a second mapping
+// table in this component.
 function getInitialInfModel() {
   const params = getIncomingParams();
   const modelId = params?.get("model");
-  if (!modelId) return { model: MODELS[1], matched: null }; // no handoff at all -- ordinary default, nothing to warn about
-  const normalized = MODEL_ADVISOR_ID_TO_GPU_SIZING_ID[modelId] || modelId;
-  const match = MODELS.find((m) => m.id === normalized);
-  // matched: true (found), false (a model= param arrived but nothing matches it,
-  // even after normalization -- don't silently substitute, tell the user)
-  return match ? { model: match, matched: true } : { model: MODELS[1], matched: false };
+  if (!modelId) return { model: getDefaultModel(), matched: null };
+  const match = getModelById(modelId);
+  return match && match.id !== "custom"
+    ? { model: match, matched: true }
+    : { model: getDefaultModel(), matched: false };
 }
 
 // Precise currency for the audit trail's reconciliation checks -- fmtUsd's
@@ -946,7 +916,7 @@ function GPUSizingCalculatorInner() {
   const [modelHandoff] = useState(getInitialInfModel); // { model, matched: true | false | null }
   const [infModel, setInfModel] = useState(() => {
     if (incomingModelId) return modelHandoff.model; // a real model= handoff always wins
-    return (saved?.infModelId && MODELS.find((m) => m.id === saved.infModelId)) || modelHandoff.model;
+    return getModelById(saved?.infModelId) || modelHandoff.model;
   });
   const [quant, setQuant] = useState(saved?.quant ?? "FP8");
   const [concurrentUsers, setConcurrentUsers] = useState(saved?.concurrentUsers ?? 100);
@@ -963,7 +933,7 @@ function GPUSizingCalculatorInner() {
   const [customHeadDim, setCustomHeadDim] = useState(saved?.customHeadDim ?? 128);
   const [workingDayHours, setWorkingDayHours] = useState(saved?.workingDayHours ?? 10);
 
-  const [trainModel, setTrainModel] = useState(() => (saved?.trainModelId && MODELS.find((m) => m.id === saved.trainModelId)) || MODELS[1]);
+  const [trainModel, setTrainModel] = useState(() => getModelById(saved?.trainModelId) || getDefaultModel());
   const [taskType, setTaskType] = useState(saved?.taskType ?? "Full fine-tune");
   const [precision, setPrecision] = useState(saved?.precision ?? "BF16");
   const [datasetTokensB, setDatasetTokensB] = useState(saved?.datasetTokensB ?? 50);
@@ -1913,7 +1883,15 @@ function GPUSizingCalculatorInner() {
               {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).
             </div>
 
-            <TcoHandoff selectedClass={result.selectedClass} recommended={result.recommended} mode={mode} workingDayHours={workingDayHours} />
+            <TcoHandoff
+              selectedClass={result.selectedClass}
+              recommended={result.recommended}
+              mode={mode}
+              workingDayHours={workingDayHours}
+              model={mode === "Inference" ? infModel : trainModel}
+              modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)}
+              quant={mode === "Inference" ? quant : null}
+            />
 
             <PodSizingHandoff />
 
