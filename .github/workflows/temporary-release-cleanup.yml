@@ -1,0 +1,30 @@
+name: Temporary release cleanup
+
+on:
+  push:
+    branches:
+      - release/2026.09.1-prep
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/2026.09.1-prep
+
+      - name: Replace stale release-candidate wording
+        run: |
+          python3 -c "from pathlib import Path; p=Path('CHANGELOG.md'); t=p.read_text(); old='- The next same-month stable candidate is `v2026.09.1`; when cut, `package.json` should move from legacy `2.8.0` to SemVer-safe `2026.9.1`.'; new='- This release transitions package metadata from legacy `2.8.0` to SemVer-safe `2026.9.1`, matching human suite release `2026.09.1` and tag `v2026.09.1`.'; assert old in t; p.write_text(t.replace(old,new,1))"
+
+      - name: Remove helper and commit
+        run: |
+          rm .github/workflows/temporary-release-cleanup.yml
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add CHANGELOG.md .github/workflows/temporary-release-cleanup.yml
+          git commit -m "release: clean 2026.09.1 changelog wording"
+          git push origin HEAD:release/2026.09.1-prep
