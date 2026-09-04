@@ -644,6 +644,30 @@ function DayCurve({ workingDayHours, utilizationPct }) {
 }
 
 function UtilizationPanel({ result, workingDayHours, onWorkingDayHoursChange }) {
+  // Keep a local editing draft so mobile users can erase the current value
+  // before typing a replacement without committing a transient 0 to the
+  // calculator and making this panel disappear.
+  const [workingDayHoursDraft, setWorkingDayHoursDraft] = useState(String(workingDayHours));
+  useEffect(() => {
+    setWorkingDayHoursDraft(String(workingDayHours));
+  }, [workingDayHours]);
+
+  const handleWorkingDayHoursChange = (raw) => {
+    setWorkingDayHoursDraft(raw);
+    if (raw.trim() === "") return;
+    const next = Number(raw);
+    if (Number.isFinite(next) && next > 0 && next <= 24) {
+      onWorkingDayHoursChange(next);
+    }
+  };
+
+  const handleWorkingDayHoursBlur = () => {
+    const next = Number(workingDayHoursDraft);
+    if (workingDayHoursDraft.trim() === "" || !Number.isFinite(next) || next <= 0 || next > 24) {
+      setWorkingDayHoursDraft(String(workingDayHours));
+    }
+  };
+
   const u = result.utilization;
   if (!u) return null;
   return (
@@ -663,11 +687,13 @@ function UtilizationPanel({ result, workingDayHours, onWorkingDayHoursChange }) 
         <div className="flex items-center gap-1">
           <input
             type="number"
-            value={workingDayHours}
-            min={0}
+            inputMode="numeric"
+            value={workingDayHoursDraft}
+            min={1}
             max={24}
             step={1}
-            onChange={(e) => onWorkingDayHoursChange(parseFloat(e.target.value) || 0)}
+            onChange={(e) => handleWorkingDayHoursChange(e.target.value)}
+            onBlur={handleWorkingDayHoursBlur}
             className="w-14 border border-gray-300 rounded px-1.5 py-1 text-xs text-right"
             aria-label="Length of working day, hours per day"
           />
