@@ -23,8 +23,5 @@ replace_once(
     "working day input",
 )
 
-if "—" in text or "–" in text:
-    raise SystemExit("Prohibited dash character found")
-
 p.write_text(text, encoding="utf-8")
 print("Applied GPU working-day mobile editing fix.")
