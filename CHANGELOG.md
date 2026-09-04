@@ -67,7 +67,7 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 - The permanent gate now covers production build, shared pricing registry validation, shared model registry validation, TCO handoff ownership guards, SafeImageInput resource-bound tests, checked-in TCO workbook extraction/structure, Excel-to-JavaScript parity, PR-local TCO handoff/model-context browser journeys, and the live Vercel browser regression suite.
 - Green CI is treated as evidence that the asserted checks pass, not as proof that no unknown defect exists. Human/adversarial cross-tool review remains a separate pre-release activity because recent live review found a real state-precedence defect that was not yet represented in the gate.
-- The next same-month stable candidate is `v2026.09.1`; when cut, `package.json` should move from legacy `2.8.0` to SemVer-safe `2026.9.1`.
+- This release transitions package metadata from legacy 2.8.0 to SemVer-safe 2026.9.1, matching human suite release 2026.09.1 and tag v2026.09.1.
 - Combined Summary presentation/schema remediation remains a separate unreleased workstream and is not required to be bundled into `v2026.09.1`.
 
 ### Added
