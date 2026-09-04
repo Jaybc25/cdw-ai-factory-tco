@@ -12,6 +12,8 @@ on:
       - "scripts/validate_pricing_registry.mjs"
       - "scripts/validate_model_registry.mjs"
       - "scripts/validate_tco_handoff.mjs"
+      - "scripts/validate_best_value_gpuaas.mjs"
+      - "scripts/validate_best_value_gpuaas_ui.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -26,6 +28,8 @@ on:
       - "scripts/validate_pricing_registry.mjs"
       - "scripts/validate_model_registry.mjs"
       - "scripts/validate_tco_handoff.mjs"
+      - "scripts/validate_best_value_gpuaas.mjs"
+      - "scripts/validate_best_value_gpuaas_ui.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -61,6 +65,12 @@ jobs:
 
       - name: Validate TCO GPU Sizing handoff defaults
         run: node scripts/validate_tco_handoff.mjs
+
+      - name: Validate Best-Value GPUaaS ranking contract
+        run: node scripts/validate_best_value_gpuaas.mjs
+
+      - name: Validate Best-Value GPUaaS UI contract
+        run: node scripts/validate_best_value_gpuaas_ui.mjs
 
       - name: Validate SafeImageInput resource bounds
         run: node tests/safe-image-input.cjs
