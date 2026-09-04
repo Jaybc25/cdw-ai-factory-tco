@@ -64,3 +64,30 @@ export function clearSessionState(key) {
     // no-op
   }
 }
+
+// Global Reset uses the prefix instead of a hardcoded list so any future tool
+// that follows the shared sessionState convention is automatically included.
+export function hasAnySessionState() {
+  try {
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(PREFIX)) return true;
+    }
+  } catch {
+    // no-op
+  }
+  return false;
+}
+
+export function clearAllSessionState() {
+  try {
+    const keys = [];
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+      const key = sessionStorage.key(i);
+      if (key?.startsWith(PREFIX)) keys.push(key);
+    }
+    keys.forEach((key) => sessionStorage.removeItem(key));
+  } catch {
+    // no-op
+  }
+}
