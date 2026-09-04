@@ -14,6 +14,8 @@ Versioning is an internal engineering, audit, maintenance, and recovery mechanis
 
 **Current validated baseline:** AI Factory Suite 2026.09 (`v2026.09`), validated commit `31fdb2ff2a321f6101bfa72d3c45b4c31aa3a0eb`, released September 1, 2026.
 
+**Current unreleased code checkpoint before this documentation catch-up:** `main` at `cfb2ed79ec01320f7669d11b8d5416d09f580117` on September 4, 2026. This includes the five approved individual report-layout upgrades, the GPU working-day mobile input fix, shared model context across Model Advisor / GPU Sizing / TCO, the corrected GPU Sizing -> TCO ownership model, permanent legacy/Custom/model-navigation regression coverage, and SafeImageInput decoded-dimension protection. These changes remain `Unreleased` until a new validated tag is created.
+
 The suite uses calendar versioning for validated releases:
 
 - First validated release in a month: `AI Factory Suite YYYY.MM`, Git tag `vYYYY.MM`.
@@ -21,7 +23,7 @@ The suite uses calendar versioning for validated releases:
 - Changes between validated releases stay under `Unreleased` in `CHANGELOG.md` and do not receive a release identifier merely because code was committed.
 - Git tags and GitHub Releases are the authoritative release identity. Existing release tags are immutable and must never be moved or reused.
 - Individual tools do not maintain authoritative independent release versions. Their changes are documented inside the suite release record.
-- `package.json` still carries the legacy `2.8.0` value. Do not rewrite the already validated `v2026.09` baseline. Starting with the next stable release, mirror the suite release in SemVer-safe package metadata, for example human release `2026.10` maps to package version `2026.10.0`.
+- `package.json` still carries the legacy `2.8.0` value. Do not rewrite the already validated `v2026.09` baseline. Starting with the next stable release, mirror the suite release in SemVer-safe package metadata. The expected next same-month release `v2026.09.1` maps to package version `2026.9.1`; numeric SemVer components do not use leading zeroes.
 
 Use `ReleaseRecordTemplate.md` when preparing each future validated release. The release record captures code changes, rationale, data/pricing state, validation evidence, service/dependency changes, known limitations, and external approval status.
 
@@ -130,12 +132,14 @@ The current pricing provenance dates remain in `src/pricingProvenance.js`. The c
 
 ## Known assurance and maintenance priorities
 
-The permanent GitHub quality gate, TCO Excel-to-JavaScript parity suite, live Vercel regression suite, and first formal known-good release are now in place. The main remaining technical maintenance priorities are:
+The permanent GitHub quality gate, TCO Excel-to-JavaScript parity suite, PR-local handoff regression suite, live Vercel regression suite, and first formal known-good release are now in place. The gate now validates the shared pricing registry, shared model registry, GPU Sizing -> TCO handoff ownership rules, SafeImageInput resource bounds, the checked-in TCO workbook structure, and Excel-to-JavaScript parity in addition to browser regressions. The main remaining technical maintenance priorities are:
 
-1. Run credentialed/manual live checks when a release changes auth, report, download-event, Slack notification, or PDF behavior.
+1. Complete the final pre-release human/adversarial cross-tool pass and run credentialed/manual checks where the release scope requires auth, report, download-event, Slack notification, or PDF verification.
 2. Maintain the shared pricing registry and continue provider-by-provider refreshes with explicit `LISTED`, `NODE-NORM`, `EST`, and `QUOTE` confidence.
 3. Keep NIM compatibility manual until the NVIDIA endpoint is production-validated.
-4. Execute controlled Vite/esbuild and React Router upgrades with regression testing; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo mitigation.
+4. Prepare the next validated same-month release only after the release record, package metadata, merged-tree gate, deployed-scope verification, and exact tag/commit identity are complete.
+5. Resume the Combined Summary presentation/schema work as a separate unreleased workstream after the shared-model/handoff hardening release boundary.
+6. Execute controlled Vite/esbuild and React Router upgrades separately with regression testing; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo mitigation.
 
 See `AiFactoryProjectBrief.md` for the detailed defect history, current source-level remediation status, prior validation record, and current validated baseline.
 

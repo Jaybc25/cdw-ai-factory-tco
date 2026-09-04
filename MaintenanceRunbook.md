@@ -107,7 +107,7 @@ Do not add a schedule until:
 
 Pricing is currently the most important recurring manual data-maintenance task.
 
-The current implementation has cloud rates and on-prem system pricing embedded in source, while `src/pricingProvenance.js` centralizes the verification dates and staleness logic. GPU Sizing also contains derived per-GPU pricing that must remain aligned with TCO.
+`src/pricingRegistry.js` is the shared source of truth for cloud GPU rates and NVIDIA/DGX loaded system economics used by TCO and GPU Sizing. `src/pricingProvenance.js` separately owns verification dates and staleness logic. GPU Sizing derives its loaded per-GPU planning prices from the shared on-prem system records rather than maintaining a second price table.
 
 ### Current provenance policy
 
@@ -115,10 +115,10 @@ The current implementation has cloud rates and on-prem system pricing embedded i
 
 - Review due after 45 days.
 - Stale after 90 days.
-- Current cloud-rate verification baseline: 2026-08-07.
-- Current on-prem pricing verification baseline: 2026-08-07.
+- Current cloud-rate verification baseline: 2026-09-01, after the first formal provider-by-provider refresh.
+- Current on-prem pricing verification baseline: 2026-08-07, from the existing NVIDIA TCO tool capture.
 
-Using that baseline, the current data reaches its 45-day review point on 2026-09-21 and its 90-day stale point on 2026-11-05 if it is not refreshed earlier.
+Under the current 45-day review / 90-day stale policy, the cloud baseline reaches review on 2026-10-16 and stale on 2026-11-30. The on-prem baseline reaches review on 2026-09-21 and stale on 2026-11-05 if not refreshed earlier. Treat the two provenance dates independently.
 
 ### 4.1 NVIDIA / on-prem pricing
 
@@ -136,14 +136,15 @@ Primary items to verify:
 Procedure:
 
 1. Capture the current NVIDIA/CDW-supported pricing source used for the comparison, preferably the NVIDIA DGX TCO tool or another authoritative current source.
-2. Compare each current value against the TCO `SYSTEMS` registry in `src/TcoCalculator.jsx`.
+2. Compare each current value against `ONPREM_SYSTEMS` in `src/pricingRegistry.js`.
 3. Determine whether any changed value is a pricing change, a product/configuration change, or a source-definition change.
-4. Update the TCO `SYSTEMS` registry only after the source is understood.
-5. Recalculate and update the corresponding GPU Sizing `GPU_PRICE_USD` values in `src/GpuSizingCalculator.jsx` so they remain aligned.
+4. Update the shared on-prem registry only after the source is understood. Do not add a local `SYSTEMS` table back into TCO or a `GPU_PRICE_USD` table back into GPU Sizing.
+5. Run `node scripts/validate_pricing_registry.mjs` and confirm GPU Sizing's derived per-GPU planning prices still reconcile to the shared loaded-system economics.
 6. Update `ONPREM_PRICING_VERIFIED_AT` in `src/pricingProvenance.js` only after the underlying values have actually been reviewed.
 7. Build the app and run representative TCO and GPU Sizing scenarios.
-8. Verify the deployed site after deployment.
-9. Record the refresh in `CHANGELOG.md` if values changed materially or the source methodology changed.
+8. Run the TCO Excel-to-JavaScript parity gate for any TCO-relevant economics change.
+9. Verify the deployed site after deployment.
+10. Record the refresh in `CHANGELOG.md` if values changed materially or the source methodology changed.
 
 ### 4.2 Cloud GPU pricing
 
@@ -254,8 +255,15 @@ Verify:
 - Back/Forward navigation does not replay stale URL handoffs.
 - Hard refresh preserves expected session state.
 - Bare-URL returns do not silently revert planning basis.
-- Model identifiers normalize correctly between Advisor and GPU Sizing.
-- GPU Sizing technical count reaches TCO correctly.
+- Canonical model ID, exact model parameter count, and inference quantization survive Advisor/GPU Sizing/TCO handoffs where applicable.
+- Legacy size-only TCO sessions migrate deterministically to `Custom` without inventing a named-model identity.
+- Custom-model handoffs preserve `Custom` identity, exact parameter count, and quantization.
+- Back/Forward and refresh do not replay consumed model-context URL parameters over later persisted edits.
+- GPU Sizing technical count/source class/target system reach TCO correctly and remain the upstream technical subject.
+- When TCO is entered from GPU Sizing, the on-prem target is locked; changing the technical design requires returning to GPU Sizing.
+- TCO-owned economic/planning assumptions survive a fresh sizing handoff unless the upstream change directly invalidates them.
+- Cloud GPU class follows the sizing class by default, while an explicit TCO cloud-class override remains explicit and survives later sizing changes.
+- User cloud rates remain scoped by provider + GPU class, and on-prem overrides remain scoped by target system.
 - TCO cost values and planning basis reach ROI correctly.
 - Directly entered ROI values are not mislabeled as TCO-derived.
 
@@ -359,7 +367,7 @@ The first advisory-level review was completed September 2, 2026. The current `np
 
 - **Vite / esbuild:** current findings concern development-server behavior. The deployed Vercel application is a compiled build, so these are not treated as evidence of an active production exploit path. Upgrade Vite deliberately on an isolated change and run the permanent quality gate rather than using a force upgrade.
 - **React Router:** the SSR constructor-injection advisory is not applicable to the current declarative `BrowserRouter`/`Routes` architecture. The open-redirect advisory remains relevant to affected versions, but current source uses fixed internal routing destinations. Plan a controlled upgrade and regression pass.
-- **PptxGenJS / image-size:** current high-severity advisories concern malformed ICNS/JXL/HEIF image parsing and denial of service. The offline Client Summary path now validates `clientLogoPath` before PptxGenJS sees it: only PNG/JPG/JPEG are accepted, files are capped at 10 MiB, and PNG/JPEG magic bytes must match the extension. Keep this mitigation covered by `src/run_fixture_suite.sh` while monitoring upstream dependency resolution.
+- **PptxGenJS / image-size:** current high-severity advisories concern malformed image parsing and denial of service. The offline Client Summary path validates `clientLogoPath` before PptxGenJS sees it: only PNG/JPG/JPEG are accepted, files are capped at 10 MiB, signatures must match, dimensions are capped at 10,000 x 10,000, and total decoded size is capped at 40,000,000 pixels. Permanent coverage lives in `tests/safe-image-input.cjs` and the quality gate. Path containment is intentionally deferred until the workflow has a defined staging-root contract or becomes upload-driven.
 
 Re-run `npm audit --json` during dependency reviews and update this section only when the advisory set or disposition materially changes.
 
@@ -410,6 +418,7 @@ Do not create a new release identifier for every commit.
 Starting with the next stable release:
 
 - Mirror the internal suite release in `package.json` using SemVer-safe numeric formatting.
+- Human release `2026.09.1` maps to package version `2026.9.1`; SemVer numeric components do not use leading zeroes.
 - Human release `2026.10` maps to package version `2026.10.0`.
 - Human release `2026.10.1` maps to package version `2026.10.1`.
 - The Git tag/GitHub Release remains authoritative if package metadata ever disagrees.
@@ -454,20 +463,30 @@ For a meaningful stable release:
 
 ## 11. Current assurance baseline and remaining backlog
 
-As of September 1, 2026:
+As of September 4, 2026, after PR #11:
 
 ### Completed and now permanent
 
 1. The automated TCO Excel-to-JavaScript parity suite is built into GitHub Actions and the canonical `EngineRegression` fixture passes 20/20 checks.
-2. The automated live Vercel regression suite is built into GitHub Actions and passes 13/13 tests across all routes plus the highest-risk handoff/provenance paths and the canonical TCO live fixture.
-3. The quality gate runs on relevant source, test, workbook, package, and workflow changes, so these checks are reusable rather than one-time audit work.
+2. The shared pricing registry validator, shared model registry validator, TCO GPU Sizing handoff ownership guard, and SafeImageInput resource-bound tests run in the permanent quality gate.
+3. PR-local Chromium regression covers dirty-session -> fresh-handoff ownership, explicit cloud override persistence, legacy size-only migration, Custom model identity, model-context reload persistence, and Back/Forward consumed-query behavior.
+4. The automated live Vercel regression suite remains part of the quality gate for deployed behavior already represented in the live suite.
+5. The on-prem technical target is structurally owned by GPU Sizing for workload handoffs; TCO owns economic comparison/planning assumptions and preserves explicit user cloud-comparison overrides.
+6. All five individual report-producing tools have approved print-layout states in source. Combined Summary remains a separate presentation/schema workstream.
 
-### Remaining
+### Remaining before the next stable tag
 
-1. Perform credentialed live checks when needed for a release that changes auth/report infrastructure: magic-link delivery, database download events, Slack notifications, and final report/PDF visual inspection.
-2. Maintain the shared TCO/GPU Sizing pricing registry and continue disciplined source/provenance refreshes; consider further automation only where provider APIs are dependable.
-3. Establish production-backed NIM compatibility sync only after NVIDIA endpoint validation.
-4. Continue explicit live/manual verification of report/audit-trail presentation as those surfaces evolve.
-5. Execute the planned controlled Vite/esbuild and React Router upgrades when scheduled, with full regression validation; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo input mitigation.
+1. Complete this documentation catch-up across README, project brief, changelog, and runbook.
+2. Perform one deliberate human/adversarial cross-tool pass focused on state precedence and cross-session interactions. Treat a green gate as proof that asserted checks pass, not as proof that no unknown defect exists.
+3. Run credentialed/manual checks if the final release scope requires magic-link delivery, database download events, Slack notifications, or report/PDF visual verification.
+4. Prepare the release record, set `package.json` to `2026.9.1`, run the final merged-tree gate and deployed-scope verification, and create `v2026.09.1` only after the exact release commit is known-good.
+
+### Carried forward after the release boundary
+
+1. Maintain the shared TCO/GPU Sizing pricing registry and disciplined source/provenance refreshes.
+2. Establish production-backed NIM compatibility sync only after NVIDIA endpoint validation.
+3. Resume Combined Summary with a curated per-tool presentation schema, deliberate pagination, and 1-through-5-tool regression fixtures.
+4. Execute controlled Vite/esbuild and React Router upgrades separately, with full regression validation.
+5. Continue monitoring the PptxGenJS/image-size upstream path while retaining SafeImageInput mitigation.
 
 These priorities are technical assurance priorities, not a substitute for business or CDW publication priorities.

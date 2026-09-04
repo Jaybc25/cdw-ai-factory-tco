@@ -13,6 +13,54 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+
+### September 4, 2026 - Report, model-context, handoff, and security hardening
+
+#### Report and mobile presentation work
+
+- Promoted approved customer-facing print layouts for all five report-producing tools without changing calculation/recommendation engines: TCO two pages, ROI one page, GPU Sizing two pages, Model Advisor one page, and Readiness six pages.
+- Fixed the GPU Sizing working-day-hours mobile editing defect by separating transient input text from the committed numeric value. Blank/invalid intermediate edits no longer collapse the result panel, and invalid blur restores the last valid 1-24 hour value.
+
+#### Shared model context - PR #7
+
+- Added `src/modelRegistry.js` as the canonical cross-tool model identity/technical-parameter layer used by Model Advisor, GPU Sizing, and TCO.
+- Model Advisor -> GPU Sizing -> TCO handoffs now preserve canonical model ID, exact parameter count, and inference quantization where applicable.
+- TCO preserves the GPU Sizing technical count as the upstream sizing anchor rather than silently re-sizing the workload from model parameters.
+- Added `scripts/validate_model_registry.mjs` and made canonical coverage, alias uniqueness, alias lookup, and parameter reconciliation part of the permanent quality gate.
+- PR #7 merged as `644caeb8b8a9e51eb2f5b412c3c3f3aa0807e62b`; the exact merged tree passed the permanent quality gate and deployed successfully.
+
+#### GPU Sizing -> TCO ownership model - PRs #8 and #9
+
+- Corrected a live-discovered state-precedence defect where a fresh B200 GPU Sizing handoff could inherit a stale H100 TCO cloud comparison from an earlier session.
+- A fresh handoff now starts the cloud/rental comparison like-for-like with the incoming GPU Sizing class unless the user has explicitly overridden the cloud comparison class in TCO.
+- Clarified ownership semantics: upstream technical facts follow the latest GPU Sizing result; TCO-owned economic/planning assumptions remain intact; explicit TCO cloud-comparison overrides remain explicit.
+- Locked the on-prem target system in workload mode when the scenario is sourced from GPU Sizing. Users return to GPU Sizing to change the technical design rather than re-specifying it inside TCO.
+- Preserved user-entered cloud rates by provider + GPU class and on-prem system-specific economics by target system so prior assumptions do not leak across unrelated hardware classes.
+- Kept N+1 redundancy as a TCO resilience assumption and separated it from the GPU Sizing base technical recommendation.
+- Added permanent source and PR-local browser coverage for dirty-session -> fresh-handoff ownership, explicit cloud override persistence, model context persistence, and consumed-query behavior.
+- PR #8 merged as `fb7801a4625540df2646e6f015b5b8bf65efffad`; PR #9 merged as `a1a9dc2c9daba89b09acf9045bc51f0df322c739`. Both merged trees passed their quality gates and deployed successfully.
+
+#### Model-context regression hardening - PR #10
+
+- Added permanent browser coverage for deterministic legacy size-only TCO migration to `Custom`, canonical Custom-model handoff, query-consumption reload persistence, and Back/Forward behavior after a user edits model context.
+- The new tests found and corrected a real defect where TCO accepted Custom model parameters but discarded the incoming canonical `model=custom` identity, which could pair Custom parameters with a stale/default named model.
+- PR #10 merged as `99c629956745f0403a370dcffd594fe325fb9a38` after the full PR gate passed.
+
+#### SafeImageInput resource bounds - PR #11
+
+- Extended the existing Client Summary image hardening beyond extension, file type, 10 MiB compressed size, and signature checks.
+- Added PNG/JPEG decoded-dimension parsing before PptxGenJS/image-size processes the logo, with 10,000 px maximum width, 10,000 px maximum height, and a 40,000,000 total-pixel ceiling.
+- Added permanent tests for valid PNG/JPEG input, renamed non-image rejection, width/height overflow, total-pixel overflow, and malformed JPEG dimension parsing; the test now runs in the permanent quality gate.
+- Path containment remains intentionally deferred because the current generator is an offline/operator-local workflow and no dedicated logo staging-root contract exists. Revisit containment if the path becomes upload-driven or a staging root is standardized.
+- PR #11 merged as `cfb2ed79ec01320f7669d11b8d5416d09f580117` after the full PR gate passed.
+
+#### Current assurance and release-preparation state
+
+- The permanent gate now covers production build, shared pricing registry validation, shared model registry validation, TCO handoff ownership guards, SafeImageInput resource-bound tests, checked-in TCO workbook extraction/structure, Excel-to-JavaScript parity, PR-local TCO handoff/model-context browser journeys, and the live Vercel browser regression suite.
+- Green CI is treated as evidence that the asserted checks pass, not as proof that no unknown defect exists. Human/adversarial cross-tool review remains a separate pre-release activity because recent live review found a real state-precedence defect that was not yet represented in the gate.
+- The next same-month stable candidate is `v2026.09.1`; when cut, `package.json` should move from legacy `2.8.0` to SemVer-safe `2026.9.1`.
+- Combined Summary presentation/schema remediation remains a separate unreleased workstream and is not required to be bundled into `v2026.09.1`.
+
 ### Added
 
 - `CHANGELOG.md` as the durable human-readable milestone history for the suite.
@@ -70,7 +118,7 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 - Production-backed NVIDIA NIM compatibility sync.
 - Live/manual verification of report/audit-trail presentation where not covered by automated tests.
 - Controlled Vite/esbuild and React Router dependency upgrades remain planned; treat them as regression-tested migrations rather than `npm audit fix --force` changes.
-- PptxGenJS/image-size remains an upstream dependency concern; the current Client Summary client-logo input path is hardened while a clean upstream dependency resolution is monitored.
+- PptxGenJS/image-size remains an upstream dependency concern; the current offline Client Summary client-logo path is restricted to PNG/JPG/JPEG, capped at 10 MiB compressed size, validated by signature, and bounded to 10,000 x 10,000 pixels / 40,000,000 total pixels before PptxGenJS sees the image. Path containment remains deferred until a real staging-root contract exists.
 - External publication/branding approval items tracked in `AiFactoryProjectBrief.md`.
 
 ## 2026-09-01 - Automated assurance baseline

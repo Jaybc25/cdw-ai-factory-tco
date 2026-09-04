@@ -4,6 +4,52 @@
 
 ---
 
+
+## September 4, 2026 Current-State Addendum
+
+This addendum supersedes stale current-state statements elsewhere in the historical export while preserving the older chronology. The immutable stable baseline remains `v2026.09` at `31fdb2ff2a321f6101bfa72d3c45b4c31aa3a0eb`. The pre-documentation current code checkpoint is `main` at `cfb2ed79ec01320f7669d11b8d5416d09f580117`; all changes after `v2026.09` remain `Unreleased` until the next validated tag.
+
+### Customer-facing report state
+
+- Approved individual print layouts are now in source for all five report-producing tools: TCO two pages, ROI one page, GPU Sizing two pages, Model Advisor one page, and Readiness six pages.
+- GPU Sizing's working-day-hours mobile edit path now uses a local draft value so temporary blank/invalid edits do not collapse the results panel.
+- Combined Summary is deliberately not part of the next shared-model/handoff release boundary. Its next workstream is a curated per-tool presentation schema, clearer cloud/on-prem labels, non-splitting print cards, and reproducible 1-through-5-tool fixtures.
+
+### Shared model context and technical authority
+
+- PR #7 introduced `src/modelRegistry.js` and canonical model context across Model Advisor -> GPU Sizing -> TCO: model ID, exact parameter count, and inference quantization where relevant. `scripts/validate_model_registry.mjs` permanently guards coverage, aliases, and parameter reconciliation.
+- Legacy TCO size-only sessions migrate to `Custom` plus the preserved numeric parameter size rather than guessing a named model identity.
+- PR #10 added permanent legacy, Custom, reload, and Back/Forward model-context regression coverage and fixed a discovered defect where incoming `model=custom` identity had been discarded while its parameter count was retained.
+- GPU Sizing is the technical sizing authority. For a workload handoff, TCO locks the on-prem target system/class to the upstream recommendation; changing the technical design requires returning to GPU Sizing.
+
+### GPU Sizing -> TCO ownership model
+
+- PR #8 corrected the stale cloud-class defect discovered during live Combined Summary review: a new B200 sizing handoff can no longer silently inherit an old H100 cloud-comparison class.
+- PR #9 formalized ownership: upstream technical facts follow the latest GPU Sizing result; TCO-owned economic/planning assumptions survive; explicit TCO cloud-comparison overrides remain explicit.
+- Cloud comparison starts like-for-like with the sizing class unless the user deliberately overrides it. Provider remains a TCO assumption because GPU Sizing supplies no provider fact.
+- User cloud rates persist by provider + GPU class; on-prem system-specific economic overrides persist by target system. An old class-specific value cannot silently contaminate a different technical target.
+- N+1 is a TCO resilience assumption layered on top of the GPU Sizing base requirement and must not be described as part of the upstream recommendation.
+- Permanent source and PR-local browser tests now cover dirty prior TCO state, fresh handoff ownership, explicit cloud override persistence, model-context persistence, and URL query consumption.
+
+### Client Summary image hardening
+
+- SafeImageInput continues to restrict client logos to PNG/JPG/JPEG regular files, a 10 MiB compressed-size ceiling, and matching PNG/JPEG signatures.
+- PR #11 additionally validates decoded dimensions before PptxGenJS/image-size processes the logo: maximum 10,000 px width, 10,000 px height, and 40,000,000 total pixels.
+- Path containment is not currently enforced because the pipeline remains offline/operator-local and no dedicated staging-root contract exists. Add containment if the workflow later standardizes a logo staging directory or becomes upload-driven.
+
+### Permanent assurance state
+
+The permanent quality gate now includes production build, shared pricing registry validation, shared model registry validation, TCO handoff ownership guards, SafeImageInput resource-bound tests, TCO workbook extraction/structure validation, 20/20 Excel-to-JavaScript parity, PR-local TCO handoff/model-context Chromium regression, and the live Vercel regression suite. Green CI means the asserted behaviors pass; it is not synonymous with "no unknown defects." Human/adversarial review remains a distinct pre-release activity because a recent live session found a real state-precedence defect before a test existed for it.
+
+### Next release boundary
+
+- The expected next same-month stable candidate is `v2026.09.1` once documentation, final human/adversarial review, release record, package metadata, merged-tree gate, and deployed-scope verification are complete.
+- At that release, legacy `package.json` version `2.8.0` should become SemVer-safe `2026.9.1` while the human/tag identity remains `2026.09.1` / `v2026.09.1`.
+- Combined Summary remediation and controlled Vite/esbuild / React Router migrations remain separate workstreams and should not be bundled into this release solely for convenience.
+- External CDW publication/branding approval remains separate from source and live technical verification.
+
+---
+
 ## 1. Suite Overview
 
 Six tools live on one site, built as a single Vite + React SPA in the private GitHub repo `Jaybc25/cdw-ai-factory-tco`, default branch `main`, auto-deploying via Vercel (Pro plan).
@@ -43,7 +89,7 @@ These apply across all work on the suite:
 - **Slack notifications:** Jay's personal workspace "AI Factory Tools", channel #all-ai-factory-tools. Supabase Edge Function notify-slack-download (deployed slug "bright-endpoint", JWT verification off, SLACK_WEBHOOK_URL as function secret). Called DIRECTLY from AuthContext's logDownloadEvent because Supabase Database Webhooks are broken by a confirmed platform bug (schema "supabase_functions" does not exist). Support case NOT yet filed. Direct invocation is intentional-but-temporary architecture. CORS OPTIONS handling was added after a live 500.
 - **Report deliverables:** TCO, GPU Sizing, Model Advisor, ROI, and Readiness all have "Get the full report" style buttons with the login-skip-gate / contact-gate pattern, each logging a download_events row. Use Case Explorer intentionally has NO report (browse tool, no result worth reporting).
 - **Combined Summary (/summary):** CombinedSummary.jsx reads all tool_snapshots for the account, renders one expanded card per tool used (each carries the substance of that tool's own report, not just headlines), Print/PDF, and fires its own Slack notification listing included tools. Entry point is a "My Summary" link in AuthWidget's signed-in state. Autosave is a shared debounced (1.5s) useAutosaveSnapshot hook on the 5 snapshot-capable tools. The pre-deployment lost-update race is fixed in current source by flushing a pending save on `pagehide` and `visibilitychange`; the premature empty-summary flash is also fixed by separating auth, account, and snapshot loading phases.
-- **Cross-tool handoffs:** Explorer pills to Model Advisor / GPU Sizing (crosswalk-driven, hidden or amber-noted by routingClass); Model Advisor "Size infrastructure for this model" to GPU Sizing (`?model=`); GPU Sizing "Compare TCO" to TCO (`ownSys`, `gpuCount`, `sourceClass`, plus `workingDayHours` for inference); TCO "Send to ROI Calculator" (`initialCost`, `recurringCost`, planning basis). Current GPU Sizing purchase candidates begin at H200, so A100/H100 are no longer emitted as on-prem recommendations. Receiving tools consume handoff params with `history.replaceState` after capture and restore provenance/state from session storage so Back/Forward, refresh, and bare-URL returns do not replay or erase handoff context. Readiness keeps its separate versioned localStorage behavior.
+- **Cross-tool handoffs:** Explorer pills to Model Advisor / GPU Sizing (crosswalk-driven, hidden or amber-noted by routingClass); Model Advisor "Size infrastructure for this model" to GPU Sizing with canonical model identity; GPU Sizing "Compare TCO" to TCO with `ownSys`, `gpuCount`, `sourceClass`, model ID, exact parameter count, inference quantization where applicable, and `workingDayHours` for inference; TCO "Send to ROI Calculator" carries costs and planning-basis provenance. Current GPU Sizing purchase candidates begin at H200, so A100/H100 are no longer emitted as on-prem recommendations. In workload mode, GPU Sizing owns the on-prem technical target and TCO locks it; TCO-owned economic assumptions persist, and the cloud comparison follows the sizing class unless explicitly overridden by the user. Receiving tools consume handoff params with `history.replaceState` after capture and restore provenance/state from session storage so Back/Forward, refresh, and bare-URL returns do not replay or erase handoff context. Readiness keeps its separate versioned localStorage behavior.
 
 ## 4. Audit Trail / Methodology Docs Feature
 
@@ -68,7 +114,7 @@ Built and committed on all four calculating tools, reached via a button next to 
 **Open items and corrected status:**
 - **RESOLVED IN CURRENT SOURCE:** the permanent TCO Excel-to-JavaScript parity suite is built into GitHub Actions. The canonical `EngineRegression` fixture passes 20/20 checks and now consumes the shared production pricing registry while extracting production calculation functions from TCO.
 - **RESOLVED IN CURRENT SOURCE:** the GPU Sizing workload anchor now persists across Back/Forward, refresh, and bare-URL return. `gpuSizingCount`, `sourceClass`, `workingDayHours`, and mode are saved in TCO session state after handoff capture.
-- **RESOLVED IN CURRENT SOURCE:** GPU Sizing to TCO fleet reconciliation is built. Workload mode directly uses the node-rounded technical GPU requirement, with a defensive cross-class capability conversion for legacy/future mismatches and separate workload duty-cycle vs owned-utilization treatment.
+- **RESOLVED IN CURRENT SOURCE:** GPU Sizing to TCO technical authority is structurally enforced for workload handoffs. TCO uses the node-rounded upstream GPU requirement and locks the on-prem target system/class; technical design changes return to GPU Sizing. Cloud comparison class remains a TCO economic assumption and may be explicitly overridden without changing the upstream technical fleet. Workload duty cycle and owned utilization remain separate concepts.
 - Equinix storage-rack colo modeling stays a disclosed assumption; MLPerf provenance per performance factor remains deploy-phase.
 
 ## 6. Tool 2: GPU Sizing Tool (/gpu-sizing)
