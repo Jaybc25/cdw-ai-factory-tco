@@ -1,0 +1,87 @@
+name: Shared model context integration
+
+on:
+  push:
+    branches: [feature/shared-model-context]
+    paths: ['.github/workflows/shared-model-context-integration.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      VITE_SUPABASE_URL: https://example.supabase.co
+      VITE_SUPABASE_PUBLISHABLE_KEY: integration-only-placeholder
+    steps:
+      - uses: actions/checkout@v4
+        with: { ref: feature/shared-model-context }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22', cache: npm }
+      - run: npm ci
+      - name: Apply shared model context integration
+        run: python3 scripts/apply_shared_model_context.py
+      - name: Check source diff
+        run: git diff --check
+      - name: Validate model registry
+        run: node scripts/validate_model_registry.mjs
+      - name: Validate pricing registry
+        run: node scripts/validate_pricing_registry.mjs
+      - name: Production build
+        run: npm run build
+      - name: Install Playwright
+        run: |
+          npm install --no-save --no-package-lock @playwright/test
+          npx playwright install --with-deps chromium
+      - name: Start local preview
+        run: |
+          npm run preview -- --host 127.0.0.1 > /tmp/model-context-preview.log 2>&1 &
+          for i in {1..30}; do curl -fsS http://127.0.0.1:4173/gpu-sizing >/dev/null && exit 0; sleep 1; done
+          cat /tmp/model-context-preview.log
+          exit 1
+      - name: Verify Muse Model Advisor to GPU Sizing to TCO handoff
+        run: |
+          node --input-type=module <<'JS'
+          import { chromium } from '@playwright/test';
+          const browser = await chromium.launch({ headless: true });
+          const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
+          const errors = [];
+          page.on('pageerror', e => errors.push(String(e)));
+
+          await page.goto('http://127.0.0.1:4173/gpu-sizing?model=muse-glimmer-30b', { waitUntil: 'networkidle' });
+          const body = await page.locator('body').innerText();
+          if (!body.includes('Meta Muse Glimmer 30B')) throw new Error('GPU Sizing did not resolve Muse canonical model handoff.');
+          if (!body.includes('carried over from Model Advisor')) throw new Error('GPU Sizing model provenance banner missing.');
+
+          const tcoLink = page.locator('a[href^="/tco?"]').first();
+          await tcoLink.waitFor();
+          const href = await tcoLink.getAttribute('href');
+          const url = new URL(href, 'http://127.0.0.1:4173');
+          if (url.searchParams.get('model') !== 'muse-glimmer-30b') throw new Error(`Wrong model handoff: ${href}`);
+          if (url.searchParams.get('modelParamsB') !== '29.6') throw new Error(`Wrong modelParamsB handoff: ${href}`);
+          if (url.searchParams.get('quant') !== 'FP8') throw new Error(`Wrong quant handoff: ${href}`);
+
+          await page.goto(url.href, { waitUntil: 'networkidle' });
+          const tcoBody = await page.locator('body').innerText();
+          if (!tcoBody.includes('Meta Muse Glimmer 30B')) throw new Error('TCO did not preserve Muse model context.');
+          const saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem('ai-factory-session:tco')));
+          if (saved.modelId !== 'muse-glimmer-30b') throw new Error(`TCO saved wrong modelId: ${saved.modelId}`);
+          if (Number(saved.modelParamsB) !== 29.6) throw new Error(`TCO saved wrong modelParamsB: ${saved.modelParamsB}`);
+          if (saved.quant !== 'FP8') throw new Error(`TCO saved wrong quant: ${saved.quant}`);
+          if (!saved.gpuSizingCount) throw new Error('TCO lost GPU Sizing technical count.');
+          if (errors.length) throw new Error(`Page errors: ${errors.join(' | ')}`);
+
+          console.log(`Muse handoff PASS: ${href}`);
+          await browser.close();
+          JS
+      - name: Commit integrated source
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/ModelAdvisor.jsx src/GpuSizingCalculator.jsx src/TcoCalculator.jsx
+          git diff --cached --check
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: share model context across Advisor GPU Sizing and TCO"
+          git push origin HEAD:feature/shared-model-context
