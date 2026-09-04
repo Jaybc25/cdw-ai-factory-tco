@@ -65,6 +65,9 @@ jobs:
       - name: Validate SafeImageInput resource bounds
         run: node tests/safe-image-input.cjs
 
+      - name: Validate Combined Summary presentation contract
+        run: node tests/combined-summary-presentation.mjs
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
