@@ -1,0 +1,29 @@
+name: Temporary documentation catch-up
+
+on:
+  push:
+    branches: [docs/release-catchup-2026-09-04]
+
+permissions:
+  contents: write
+
+jobs:
+  patch-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: docs/release-catchup-2026-09-04
+      - name: Apply documentation patch
+        run: python3 scripts/temporary_doc_catchup.py
+      - name: Commit documentation updates
+        run: |
+          if git diff --quiet; then
+            echo "Documentation already patched"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md CHANGELOG.md MaintenanceRunbook.md AiFactoryProjectBrief.md
+          git commit -m "docs: catch up September 4 architecture and assurance state"
+          git push origin HEAD:docs/release-catchup-2026-09-04
