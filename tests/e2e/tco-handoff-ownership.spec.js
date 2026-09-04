@@ -38,6 +38,13 @@ async function openTier2(page) {
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
 }
 
+async function openCapacityAndUnitEconomics(page) {
+  const trigger = page.getByRole("button", { name: /Capacity & unit economics/i });
+  await expect(trigger).toBeVisible();
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+}
+
 test("fresh GPU Sizing handoff replaces upstream technical facts but preserves TCO-owned assumptions", async ({ page }) => {
   await seedTcoSession(page, {
     ownSys: "DGX H200",
@@ -169,6 +176,7 @@ test("legacy size-only TCO session migrates deterministically to Custom without 
   expect(saved.modelParamsB).toBe(671);
   expect(saved.quant).toBe("FP8");
 
+  await openCapacityAndUnitEconomics(page);
   const modelSelect = page.getByLabel("Model for capacity estimate");
   await expect(modelSelect).toHaveValue("custom");
   await expect(page.getByLabel("Custom model parameters in billions")).toHaveValue("671");
@@ -195,6 +203,8 @@ test("Custom GPU Sizing handoff preserves Custom identity, exact parameter count
   });
   expect(saved.modelParamsB).toBe(123.4);
   expect(saved.quant).toBe("FP4");
+
+  await openCapacityAndUnitEconomics(page);
   await expect(page.getByLabel("Model for capacity estimate")).toHaveValue("custom");
   await expect(page.getByLabel("Custom model parameters in billions")).toHaveValue("123.4");
 });
@@ -208,6 +218,7 @@ test("Back and Forward do not replay consumed model handoff params or erase pers
   await waitForTcoSession(page, { modelId: "muse-glimmer-30b", sourceClass: "B200" });
   expect(new URL(page.url()).search).toBe("");
 
+  await openCapacityAndUnitEconomics(page);
   const modelSelect = page.getByLabel("Model for capacity estimate");
   await modelSelect.selectOption("gemma-3-27b");
   const edited = await waitForTcoSession(page, { modelId: "gemma-3-27b" });
