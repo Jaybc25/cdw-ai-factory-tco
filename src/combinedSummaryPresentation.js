@@ -126,15 +126,29 @@ export function presentSummary(tool, summary) {
     }));
 }
 
+const SYSTEM_GPUS_BY_CLASS = {
+  H200: 8,
+  B200: 8,
+  B300: 8,
+  GB200: 72,
+};
+
 function parseFleet(value) {
   if (!value) return null;
   const text = String(value);
   const countMatch = text.match(/^(\d+)\s*x\s*/i);
   const classMatch = text.match(/\b(H200|B200|B300|GB200)\b/i);
   if (!classMatch) return null;
+  const systemCount = countMatch ? Number(countMatch[1]) : null;
+  const gpuClass = classMatch[1].toUpperCase();
+  const isDgxSystem = /\bDGX\b/i.test(text);
+  const gpusPerSystem = isDgxSystem ? SYSTEM_GPUS_BY_CLASS[gpuClass] ?? null : 1;
   return {
-    count: countMatch ? Number(countMatch[1]) : null,
-    gpuClass: classMatch[1].toUpperCase(),
+    systemCount,
+    gpuClass,
+    gpusPerSystem,
+    gpuCount: systemCount != null && gpusPerSystem != null ? systemCount * gpusPerSystem : null,
+    isDgxSystem,
   };
 }
 
@@ -170,10 +184,14 @@ export function buildScenarioConsistencyIssues(snapshots) {
     const gpuClass = normalizeGpuClass(gpu.summary.gpuClass);
     const gpuCount = Number.isFinite(Number(gpu.summary.recommended)) ? Number(gpu.summary.recommended) : null;
     const classMismatch = tcoFleet?.gpuClass && gpuClass && tcoFleet.gpuClass !== gpuClass;
-    const countMismatch = tcoFleet?.count != null && gpuCount != null && tcoFleet.count !== gpuCount;
+    const countMismatch = tcoFleet?.gpuCount != null && gpuCount != null && tcoFleet.gpuCount !== gpuCount;
     if (classMismatch || countMismatch) {
-      const tcoText = tcoFleet ? `${tcoFleet.count ?? "?"} × ${tcoFleet.gpuClass}` : "a different fleet";
-      const gpuText = `${gpuCount ?? "?"} × ${gpuClass || "unknown class"}`;
+      const tcoText = tcoFleet
+        ? tcoFleet.isDgxSystem
+          ? `${tcoFleet.systemCount ?? "?"} × DGX ${tcoFleet.gpuClass} (${tcoFleet.gpuCount ?? "?"} GPUs)`
+          : `${tcoFleet.gpuCount ?? "?"} × ${tcoFleet.gpuClass} GPUs`
+        : "a different fleet";
+      const gpuText = `${gpuCount ?? "?"} × ${gpuClass || "unknown class"} GPUs`;
       issues.push(`TCO is based on ${tcoText}, while the latest GPU Sizing result recommends ${gpuText}.`);
     } else if (new Date(tco.updated_at).getTime() < new Date(gpu.updated_at).getTime()) {
       issues.push("The TCO result predates the latest GPU Sizing result and may not include the newest sizing changes.");
