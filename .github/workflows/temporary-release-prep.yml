@@ -1,0 +1,69 @@
+name: Temporary 2026.09.1 release prep
+
+on:
+  push:
+    branches: [release/2026.09.1-prep]
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: release/2026.09.1-prep
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Align package metadata to suite CalVer
+        run: npm version 2026.9.1 --no-git-tag-version
+
+      - name: Finalize changelog release section
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('CHANGELOG.md')
+          text = p.read_text()
+          old = '## Unreleased\n\n\n### September 4, 2026 - Report, model-context, handoff, and security hardening\n'
+          new = '## Unreleased\n\n- No unreleased changes yet.\n\n## AI Factory Suite 2026.09.1 - 2026-09-04\n\n### September 4, 2026 - Report, model-context, handoff, and security hardening\n'
+          if old in text:
+              text = text.replace(old, new, 1)
+          elif '## AI Factory Suite 2026.09.1 - 2026-09-04' not in text:
+              raise SystemExit('Expected Unreleased release anchor not found')
+
+          anchor = '#### Current assurance and release-preparation state\n'
+          addition = '''#### Pre-release cross-tool state-precedence pass - PR #13
+
+- Added permanent cross-tool browser journeys for Use Case Explorer -> Model Advisor, Use Case Explorer -> GPU Sizing, Model Advisor -> GPU Sizing, and TCO -> ROI state ownership and precedence.
+- The pass found and corrected a real Model Advisor -> GPU Sizing defect: a fresh Advisor model recommendation updated only the inference model, so a user already in Training mode could continue sizing a stale training model.
+- A fresh Advisor-only handoff now updates the model for the currently active sizing mode, leaves the inactive mode's settings intact, clears unrelated stale Explorer provenance, persists the Advisor recommendation separately from later GPU Sizing edits, and preserves that provenance after URL consumption and reload.
+- PR #13 merged as `2222fcd2a5ca6b437b7b46c63fda3ffa21a16020`; the exact merged tree passed the build/parity and live Vercel checks and deployed successfully before release preparation.
+
+'''
+          if addition not in text:
+              if anchor not in text:
+                  raise SystemExit('Current assurance anchor not found')
+              text = text.replace(anchor, addition + anchor, 1)
+
+          text = text.replace(
+              '- The next same-month stable candidate is `v2026.09.1`; when cut, `package.json` should move from legacy `2.8.0` to SemVer-safe `2026.9.1`.\n',
+              '- This release transitions package metadata from legacy `2.8.0` to SemVer-safe `2026.9.1`, matching human suite release `2026.09.1` / tag `v2026.09.1`.\n',
+              1,
+          )
+          p.write_text(text)
+          PY
+
+      - name: Remove temporary helper and commit release-prep changes
+        run: |
+          rm .github/workflows/temporary-release-prep.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json CHANGELOG.md .github/workflows/temporary-release-prep.yml
+          git commit -m "release: prepare AI Factory Suite 2026.09.1"
+          git push origin HEAD:release/2026.09.1-prep
