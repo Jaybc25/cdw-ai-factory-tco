@@ -267,7 +267,37 @@ function AiReadinessChecklistsInner() {
 
   return (
     <div style={S.page}>
-      <style>{`@media print { .no-print { display: none !important; } }`}</style>
+      <style>{`
+        .readiness-print-only { display: none; }
+        @media print {
+          .no-print { display: none !important; }
+          body { background: #fff; }
+          body * { visibility: hidden !important; }
+          .readiness-report-root, .readiness-report-root * { visibility: visible !important; }
+          .readiness-report-root {
+            position: absolute !important;
+            inset: 0 auto auto 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            background: #fff !important;
+            z-index: 9999 !important;
+            font-size: 95%;
+          }
+          .readiness-print-only { display: block !important; }
+          .readiness-report-root .readiness-report-section {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+          .readiness-report-root .readiness-report-footer {
+            break-inside: avoid;
+            page-break-inside: avoid;
+            margin-top: 14px !important;
+          }
+          @page { size: Letter; margin: .35in; }
+        }
+      `}</style>
       <div style={S.shell}>
         <header style={S.header}>
           {/* Matches the sub-tool header convention used by the other AI Factory tools. */}
@@ -375,7 +405,7 @@ function AiReadinessChecklistsInner() {
                   </div>
                 )}
                 {emailDone && (
-                  <div>
+                  <div className="readiness-report-root">
                     <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
                       <button style={S.primaryBtn} onClick={() => window.print()}>Print / Save as PDF</button>
                       <button style={{ ...S.primaryBtn, background: "#fff", color: C.charcoal, border: `1px solid ${C.line}` }} onClick={() => { setEmailDone(false); setEmailOpen(false); }}>Back</button>
@@ -460,12 +490,19 @@ function AiReadinessChecklistsInner() {
                       or verify anything, and isn't legal or compliance advice. Confirm with a CDW AI Factory specialist.
                     </p>
 
-                    <div style={{ borderTop: `2px solid ${C.charcoal}`, marginTop: 18, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
+                    <div className="readiness-report-footer" style={{ borderTop: `2px solid ${C.charcoal}`, marginTop: 18, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
                       <div>
                         <div style={{ fontWeight: 700, fontSize: 13, color: C.charcoal }}>Jay B. Carlile</div>
                         <div style={{ fontSize: 11, color: C.slate }}>AI Solutions Executive &middot; CDW AI Factory</div>
                       </div>
                       <div style={{ fontSize: 11, color: C.slate, textAlign: "right" }}>Next step: bring these gaps to<br />a CDW AI Factory specialist</div>
+                    </div>
+                    <div className="readiness-print-only readiness-report-footer" style={{ marginTop: 14, paddingTop: 10, borderTop: `1px solid ${C.line}`, color: C.slate, fontSize: 11.5, lineHeight: 1.45 }}>
+                      <p style={{ margin: "0 0 4px" }}>
+                        These checklists record what you tell them and organize the gaps. They don't certify, validate, or verify anything,
+                        and they aren't legal or compliance advice — the teams named on each question determine what applies to your organization.
+                      </p>
+                      <p style={{ margin: 0 }}>CDW AI Factory · Draft for internal, seller-assisted use · Content version {checklistData.content_version}</p>
                     </div>
                   </div>
                 )}
