@@ -7,7 +7,7 @@ const runningUndeployedBranchAgainstProduction =
 
 test.skip(
   runningUndeployedBranchAgainstProduction,
-  "Branch-only ownership behavior is validated against the local PR build, not the still-current production deployment.",
+  "Branch-only ownership behavior is validated against the PR build, not the still-current production deployment.",
 );
 
 async function seedTcoSession(page, state) {
@@ -17,8 +17,16 @@ async function seedTcoSession(page, state) {
   }, { key: KEY, state });
 }
 
-async function readTcoSession(page) {
-  await page.waitForFunction((key) => !!sessionStorage.getItem(key), KEY);
+async function waitForTcoSession(page, expected = {}) {
+  await page.waitForFunction(
+    ({ key, expected }) => {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return false;
+      const saved = JSON.parse(raw);
+      return Object.entries(expected).every(([field, value]) => saved[field] === value);
+    },
+    { key: KEY, expected },
+  );
   return page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), KEY);
 }
 
@@ -56,12 +64,13 @@ test("fresh GPU Sizing handoff replaces upstream technical facts but preserves T
     { waitUntil: "domcontentloaded" },
   );
 
-  const saved = await readTcoSession(page);
-  expect(saved.ownSys).toBe("DGX B300");
-  expect(saved.gpuSizingCount).toBe(16);
-  expect(saved.sourceClass).toBe("B300");
-  expect(saved.workingDayHours).toBe(10);
-  expect(saved.modelId).toBe("muse-glimmer-30b");
+  const saved = await waitForTcoSession(page, {
+    ownSys: "DGX B300",
+    gpuSizingCount: 16,
+    sourceClass: "B300",
+    workingDayHours: 10,
+    modelId: "muse-glimmer-30b",
+  });
   expect(saved.modelParamsB).toBe(29.6);
   expect(saved.quant).toBe("FP8");
 
@@ -104,10 +113,11 @@ test("explicit cloud GPU override survives later GPU Sizing changes", async ({ p
     { waitUntil: "domcontentloaded" },
   );
 
-  const saved = await readTcoSession(page);
-  expect(saved.ownSys).toBe("DGX B300");
-  expect(saved.gpuSizingCount).toBe(16);
-  expect(saved.sourceClass).toBe("B300");
+  const saved = await waitForTcoSession(page, {
+    ownSys: "DGX B300",
+    gpuSizingCount: 16,
+    sourceClass: "B300",
+  });
   expect(saved.gpuClass).toBe("H100");
   expect(saved.cloudGpuClassOverridden).toBe(true);
   expect(saved.cloudRateOverrides["AWS::H100"]).toEqual({ instOD: 7.25, instRes: 4.5 });
@@ -115,20 +125,23 @@ test("explicit cloud GPU override survives later GPU Sizing changes", async ({ p
 });
 
 test("model context survives query consumption and reload", async ({ page }) => {
+  await seedTcoSession(page, { mode: "spend" });
   await page.goto(
     "/tco?ownSys=DGX%20B200&gpuCount=8&sourceClass=B200&workingDayHours=8&model=muse-glimmer-30b&modelParamsB=29.6&quant=FP8",
     { waitUntil: "domcontentloaded" },
   );
 
-  const first = await readTcoSession(page);
-  expect(first.modelId).toBe("muse-glimmer-30b");
+  const first = await waitForTcoSession(page, {
+    modelId: "muse-glimmer-30b",
+    gpuSizingCount: 8,
+    sourceClass: "B200",
+  });
   expect(first.modelParamsB).toBe(29.6);
   expect(first.quant).toBe("FP8");
   expect(new URL(page.url()).search).toBe("");
 
   await page.reload({ waitUntil: "domcontentloaded" });
-  const afterReload = await readTcoSession(page);
-  expect(afterReload.modelId).toBe("muse-glimmer-30b");
+  const afterReload = await waitForTcoSession(page, { modelId: "muse-glimmer-30b" });
   expect(afterReload.modelParamsB).toBe(29.6);
   expect(afterReload.quant).toBe("FP8");
 });
