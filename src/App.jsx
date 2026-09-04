@@ -8,20 +8,30 @@ import UseCaseExplorer from "./UseCaseExplorer.jsx";
 import RoiCalculator from "./RoiCalculator.jsx";
 import AiReadinessChecklists from "./AiReadinessChecklists.jsx";
 import CombinedSummary from "./CombinedSummary.jsx";
+import LoginFrontDoor from "./LoginFrontDoor.jsx";
+
+function ToolRoutes() {
+  return (
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/tco" element={<TcoCalculator />} />
+      <Route path="/gpu-sizing" element={<GpuSizingCalculator />} />
+      <Route path="/model-advisor" element={<ModelAdvisor />} />
+      <Route path="/use-cases" element={<UseCaseExplorer />} />
+      <Route path="/roi" element={<RoiCalculator />} />
+      <Route path="/readiness" element={<AiReadinessChecklists />} />
+      <Route path="/summary" element={<CombinedSummary />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
+
 export default function App() {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/tco" element={<TcoCalculator />} />
-        <Route path="/gpu-sizing" element={<GpuSizingCalculator />} />
-        <Route path="/model-advisor" element={<ModelAdvisor />} />
-        <Route path="/use-cases" element={<UseCaseExplorer />} />
-        <Route path="/roi" element={<RoiCalculator />} />
-        <Route path="/readiness" element={<AiReadinessChecklists />} />
-        <Route path="/summary" element={<CombinedSummary />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      <LoginFrontDoor>
+        <ToolRoutes />
+      </LoginFrontDoor>
     </BrowserRouter>
   );
 }
