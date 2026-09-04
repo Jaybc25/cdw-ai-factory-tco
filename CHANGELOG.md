@@ -13,6 +13,9 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+- No unreleased changes yet.
+
+## AI Factory Suite 2026.09.1 - 2026-09-04
 
 ### September 4, 2026 - Report, model-context, handoff, and security hardening
 
@@ -53,6 +56,12 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 - Added permanent tests for valid PNG/JPEG input, renamed non-image rejection, width/height overflow, total-pixel overflow, and malformed JPEG dimension parsing; the test now runs in the permanent quality gate.
 - Path containment remains intentionally deferred because the current generator is an offline/operator-local workflow and no dedicated logo staging-root contract exists. Revisit containment if the path becomes upload-driven or a staging root is standardized.
 - PR #11 merged as `cfb2ed79ec01320f7669d11b8d5416d09f580117` after the full PR gate passed.
+
+#### Pre-release cross-tool state-precedence pass - PR 13
+
+- Added permanent cross-tool browser journeys for Use Case Explorer to Model Advisor, Use Case Explorer to GPU Sizing, Model Advisor to GPU Sizing, and TCO to ROI state ownership and precedence.
+- The pass found and corrected a real Model Advisor to GPU Sizing defect in Training mode and stale provenance handling.
+- PR 13 merged as 2222fcd2a5ca6b437b7b46c63fda3ffa21a16020; the exact merged tree passed build/parity and live Vercel checks and deployed successfully before release preparation.
 
 #### Current assurance and release-preparation state
 
