@@ -69,6 +69,15 @@ export function AuthProvider({ children }) {
     return { error };
   }
 
+  // Temporary compatibility path for explicitly provisioned users while
+  // corporate mail filtering prevents magic-link delivery / preview redirects.
+  // This still performs real Supabase authentication against the existing user
+  // account and UID; it is not an email-only bypass and can be removed later.
+  async function signInWithPassword(email, password) {
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    return { error };
+  }
+
   async function signOut() {
     await supabase.auth.signOut();
   }
@@ -136,6 +145,7 @@ export function AuthProvider({ children }) {
     isLoggedIn: !!session,
     needsSetup: !!session && account && !account.setup_completed,
     signInWithEmail,
+    signInWithPassword,
     signOut,
     completeSetup,
     logDownloadEvent,
