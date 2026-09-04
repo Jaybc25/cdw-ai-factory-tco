@@ -1,0 +1,80 @@
+name: Temporary Combined Summary patch
+
+on:
+  push:
+    branches: [feature/combined-summary-curated-schema]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/combined-summary-curated-schema
+      - name: Patch Combined Summary renderer
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('src/CombinedSummary.jsx')
+          text = p.read_text()
+
+          old = 'import { supabase } from "./supabaseClient";\n'
+          new = old + 'import { TOOL_LABELS, TOOL_ORDER, presentSummary, buildScenarioConsistencyIssues } from "./combinedSummaryPresentation.js";\n'
+          if new not in text:
+            if old not in text: raise SystemExit('import anchor missing')
+            text = text.replace(old, new, 1)
+
+          start = text.find('const TOOL_LABELS = {')
+          end = text.find('function CombinedSummaryInner()')
+          if start != -1 and end != -1:
+            text = text[:start] + text[end:]
+
+          old = '''  const ordered = snapshots\n    ? [...snapshots].sort((a, b) => TOOL_ORDER.indexOf(a.tool) - TOOL_ORDER.indexOf(b.tool))\n    : [];\n\n  return ('''
+          new = '''  const ordered = snapshots\n    ? [...snapshots].sort((a, b) => TOOL_ORDER.indexOf(a.tool) - TOOL_ORDER.indexOf(b.tool))\n    : [];\n  const consistencyIssues = buildScenarioConsistencyIssues(ordered);\n\n  return ('''
+          if new not in text:
+            if old not in text: raise SystemExit('ordered anchor missing')
+            text = text.replace(old, new, 1)
+
+          old = '''      <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>'''
+          new = '''      <style>{`\n        @media print {\n          .no-print { display: none !important; }\n          body { background: #fff; }\n          .summary-card { break-inside: avoid; page-break-inside: avoid; }\n          .scenario-warning { break-inside: avoid; page-break-inside: avoid; }\n        }\n      `}</style>'''
+          if new not in text:
+            if old not in text: raise SystemExit('style anchor missing')
+            text = text.replace(old, new, 1)
+
+          old = '''            <div style={{ fontSize: 12, color: GRAY_TEXT, marginBottom: 24 }}>\n              {new Date().toLocaleDateString()} &middot; covering {ordered.length} of 5 AI Factory tools\n            </div>\n\n            {ordered.map((s) => ('''
+          new = '''            <div style={{ fontSize: 12, color: GRAY_TEXT, marginBottom: consistencyIssues.length ? 12 : 24 }}>\n              {new Date().toLocaleDateString()} &middot; covering {ordered.length} of 5 AI Factory tools\n            </div>\n\n            {consistencyIssues.length > 0 && (\n              <div className="scenario-warning" style={{ border: "1px solid #D97706", background: "#FFFBEB", borderRadius: 10, padding: 14, marginBottom: 18, fontSize: 12, lineHeight: 1.5 }}>\n                <div style={{ fontWeight: 700, color: "#92400E", marginBottom: 4 }}>Some results come from different saved scenarios</div>\n                <div style={{ color: "#78350F", marginBottom: 6 }}>Re-run the downstream tools you want included together before using this as one connected business case.</div>\n                <ul style={{ margin: 0, paddingLeft: 18, color: "#78350F" }}>\n                  {consistencyIssues.map((issue) => <li key={issue}>{issue}</li>)}\n                </ul>\n              </div>\n            )}\n\n            {ordered.map((s) => ('''
+          if new not in text:
+            if old not in text: raise SystemExit('warning anchor missing')
+            text = text.replace(old, new, 1)
+
+          old = '''              <div key={s.tool} style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>'''
+          new = '''              <div key={s.tool} className="summary-card" style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>'''
+          if new not in text:
+            if old not in text: raise SystemExit('card anchor missing')
+            text = text.replace(old, new, 1)
+
+          old = '''                {s.summary ? (\n                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 6, columnGap: 12, fontSize: 13 }}>\n                    {Object.entries(s.summary)\n                      .filter(([, v]) => v === null || typeof v !== "object")\n                      .map(([k, v]) => (\n                      <React.Fragment key={k}>\n                        <div style={{ color: GRAY_TEXT }}>{labelize(k)}</div>\n                        <div>{fmtValue(k, v)}</div>\n                      </React.Fragment>\n                    ))}\n                  </div>\n                ) : (\n                  <div style={{ fontSize: 13, color: GRAY_TEXT }}>In progress, no results yet.</div>\n                )}'''
+          new = '''                {s.summary ? (\n                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 6, columnGap: 12, fontSize: 13 }}>\n                    {presentSummary(s.tool, s.summary).map((field) => (\n                      <React.Fragment key={field.key}>\n                        <div style={{ color: GRAY_TEXT }}>{field.label}</div>\n                        <div>{field.value}</div>\n                      </React.Fragment>\n                    ))}\n                  </div>\n                ) : (\n                  <div style={{ fontSize: 13, color: GRAY_TEXT }}>In progress, no results yet.</div>\n                )}'''
+          if new not in text:
+            if old not in text: raise SystemExit('renderer anchor missing')
+            text = text.replace(old, new, 1)
+
+          old = '''              This combined summary reflects your most recent inputs in each tool as of the dates shown above. Each\n              section is a directional estimate from that tool, not a validated business case. Confirm with a CDW AI\n              Factory specialist before using these figures in a formal proposal.'''
+          new = '''              This combined summary reflects the most recent saved result from each tool as of the dates shown above.\n              Unless every section was refreshed through the same tool journey, the sections may represent different scenarios.\n              Each section is a directional estimate from that tool, not a validated business case. Confirm with a CDW AI\n              Factory specialist before using these figures in a formal proposal.'''
+          if new not in text:
+            if old not in text: raise SystemExit('disclaimer anchor missing')
+            text = text.replace(old, new, 1)
+
+          p.write_text(text)
+          PY
+      - name: Commit patch
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/CombinedSummary.jsx
+          git commit -m "feat: curate Combined Summary output and flag mixed scenarios"
+          git push origin HEAD:feature/combined-summary-curated-schema
