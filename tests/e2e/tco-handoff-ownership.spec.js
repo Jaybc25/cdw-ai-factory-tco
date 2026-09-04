@@ -35,6 +35,13 @@ async function waitForTcoSession(page, expected = {}) {
   return page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), KEY);
 }
 
+async function openTier2(page) {
+  const trigger = page.getByRole("button", { name: /Refine when known/i });
+  await expect(trigger).toBeVisible();
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+}
+
 test("fresh GPU Sizing handoff replaces upstream technical facts but preserves TCO-owned assumptions", async ({ page }) => {
   await seedTcoSession(page, {
     ownSys: "DGX H200",
@@ -95,6 +102,10 @@ test("fresh GPU Sizing handoff replaces upstream technical facts but preserves T
   expect(saved.onPremRateOverrides["DGX H200"]).toEqual({ perSysCost: 555000, sysKw: 11.5, equinixMo: 9900 });
   expect(saved.onPremRateOverrides["DGX B300"]).toEqual({ perSysCost: 777000, sysKw: 15.2, equinixMo: 12900 });
 
+  // These ownership/provenance messages live inside collapsed Tier 2 in the
+  // actual calculator. Open that disclosure before asserting customer-visible
+  // copy so the browser test exercises the UI as a user would.
+  await openTier2(page);
   await expect(page.getByText("DGX B300", { exact: true })).toBeVisible();
   await expect(page.getByText(/Set by GPU Sizing\. Return to GPU Sizing to change the technical design\./)).toBeVisible();
 });
@@ -126,6 +137,8 @@ test("explicit cloud GPU override survives later GPU Sizing changes", async ({ p
   expect(saved.gpuClass).toBe("H100");
   expect(saved.cloudGpuClassOverridden).toBe(true);
   expect(saved.cloudRateOverrides["AWS::H100"]).toEqual({ instOD: 7.25, instRes: 4.5 });
+
+  await openTier2(page);
   await expect(page.getByText(/Cloud comparison is a user override/)).toBeVisible();
 });
 
