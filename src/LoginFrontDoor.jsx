@@ -8,16 +8,16 @@ import {
   Layers3,
   Lightbulb,
   Mail,
-  Settings,
   Target,
   Users,
 } from "lucide-react";
 import cdwLogo from "./cdw-logo.png";
+import datacenterPanel from "./assets/login-datacenter-panel.png";
 import { AuthProvider, useAuth } from "./AuthContext.jsx";
 
 const SITE_USE_URL = "https://www.cdw.com/content/cdw/en/terms-conditions/site-use.html";
 const PRIVACY_URL = "https://www.cdw.com/content/cdw/en/terms-conditions/privacy-notice.html";
-const DATA_CENTER_IMAGE = "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1200&q=88";
+const E2E_AUTH_BYPASS = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";
 
 const TOOL_CARDS = [
   { Icon: Lightbulb, name: "AI Use Case Explorer", desc: "Match your industry's use cases to NVIDIA Blueprints CDW can execute." },
@@ -62,6 +62,9 @@ function LoginFrontDoorInner({ children }) {
   const [company, setCompany] = useState("");
   const [savingSetup, setSavingSetup] = useState(false);
 
+  // This flag is injected only into the local PR browser-regression build.
+  // It is never present in Vercel preview or production builds.
+  if (E2E_AUTH_BYPASS) return children;
   if (loading) return <LoadingState text="Opening AI Factory Tools…" />;
   if (isLoggedIn && !account) return <LoadingState text="Preparing your workspace…" />;
   if (isLoggedIn && !needsSetup) return children;
@@ -137,11 +140,7 @@ function LoginFrontDoorInner({ children }) {
         .afd-legal a{color:var(--red)}
         .afd-temp-note{margin-top:7px;color:#8B929A;font-size:9.7px;line-height:1.35;text-align:center}
 
-        .afd-visual{position:relative;overflow:hidden;background-image:url('${DATA_CENTER_IMAGE}');background-size:cover;background-position:center}
-        .afd-visual:before{content:"";position:absolute;inset:0;background:linear-gradient(112deg,rgba(204,0,0,.88) 0 27%,rgba(204,0,0,.42) 27% 46%,rgba(0,0,0,.10) 46% 100%);clip-path:polygon(0 0,100% 0,100% 100%,19% 100%)}
-        .afd-visual:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(0,0,0,.08),rgba(0,0,0,.20))}
-        .afd-visual-message{position:absolute;right:26px;bottom:34px;z-index:2;color:#fff;font-size:15px;line-height:1.45;font-weight:850;letter-spacing:.13em;text-transform:uppercase;max-width:165px;text-shadow:0 2px 13px rgba(0,0,0,.55)}
-        .afd-visual-rule{width:43px;height:3px;background:var(--red);margin-top:12px}
+        .afd-visual{position:relative;overflow:hidden;background-image:url('${datacenterPanel}');background-size:cover;background-position:center}
 
         .afd-tools-section{height:218px;border-top:1px solid #E3E6E9;padding:14px 0 18px;background:#fff}
         .afd-tools-heading{display:flex;align-items:center;gap:20px;color:#69717C;font-size:10.5px;letter-spacing:.29em;font-weight:750;text-transform:uppercase;margin-bottom:13px}
@@ -218,9 +217,7 @@ function LoginFrontDoorInner({ children }) {
             </div>
           </section>
 
-          <aside className="afd-visual" aria-label="Modern AI data center">
-            <div className="afd-visual-message">Turn AI potential into real business value.<div className="afd-visual-rule" /></div>
-          </aside>
+          <aside className="afd-visual" aria-label="Modern AI data center" />
         </main>
 
         <section className="afd-tools-section" aria-label="AI Factory tools">
