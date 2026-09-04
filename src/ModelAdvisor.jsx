@@ -8,6 +8,7 @@ import {
   getCatalog, CATALOG_META, buildRecommendations, explainCard, explainVerificationCandidate, explainOtherEligible,
   METRIC_LABELS,
 } from "./modelAdvisorEngine.js";
+import { getModelById } from "./modelRegistry.js";
 
 const RED = "#CC0000";
 const CHARCOAL = "#2D2D2D";
@@ -223,6 +224,7 @@ function labelFor(options, value) {
 
 function RecommendationCard({ card, ranking, inputs }) {
   const model = card.model;
+  const sharedModel = getModelById(model.canonical_model_id);
   const conf = CONFIDENCE_BADGE[model.confidence] || CONFIDENCE_BADGE.MEDIUM;
   return (
     <div className="rounded-2xl border-2 p-5 flex flex-col gap-3" style={{ borderColor: RED, background: "white" }}>
@@ -231,7 +233,7 @@ function RecommendationCard({ card, ranking, inputs }) {
           <span key={b} className="text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded" style={{ background: RED, color: "white" }}>{b}</span>
         ))}
       </div>
-      <div className="text-lg font-bold" style={{ color: CHARCOAL }}>{model.canonical_model_id}</div>
+      <div className="text-lg font-bold" style={{ color: CHARCOAL }}>{sharedModel?.label || model.canonical_model_id}</div>
       <div className="text-sm text-gray-600">{explainCard(card, ranking, inputs)}</div>
       <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-1">
         <span>{model.param_count_billion != null ? `${model.param_count_billion}B params` : "Param count unverified"}</span>
@@ -250,10 +252,11 @@ function RecommendationCard({ card, ranking, inputs }) {
 }
 
 function OtherEligibleCard({ model, ranking }) {
+  const sharedModel = getModelById(model.canonical_model_id);
   const conf = CONFIDENCE_BADGE[model.confidence] || CONFIDENCE_BADGE.MEDIUM;
   return (
     <div className="rounded-xl border border-gray-200 p-4 flex flex-col gap-2" style={{ background: "white" }}>
-      <div className="text-base font-bold" style={{ color: CHARCOAL }}>{model.canonical_model_id}</div>
+      <div className="text-base font-bold" style={{ color: CHARCOAL }}>{sharedModel?.label || model.canonical_model_id}</div>
       <div className="text-sm text-gray-600">{explainOtherEligible(model, ranking)}</div>
       <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-1">
         <span>{model.param_count_billion != null ? `${model.param_count_billion}B params` : "Param count unverified"}</span>
