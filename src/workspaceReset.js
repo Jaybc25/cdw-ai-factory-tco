@@ -5,7 +5,8 @@ export const READINESS_STORAGE_KEY = "cdw-readiness";
 export const WORKSPACE_RESET_BARRIER_KEY = "ai-factory-workspace-reset-barrier";
 export const WORKSPACE_RESET_EPOCH_KEY = "ai-factory-workspace-reset-epoch";
 
-const RESET_GRACE_MS = 400;
+const PRE_DELETE_GRACE_MS = 650;
+const POST_DELETE_SETTLE_MS = 450;
 
 function browserStorageAvailable() {
   return typeof window !== "undefined" && !!window.localStorage;
@@ -28,6 +29,16 @@ function publishBarrier(id, status) {
   } catch {
     // Cross-tab coordination is a hardening layer. The server delete and
     // current-tab storage clear still proceed if browser storage is blocked.
+  }
+}
+
+export function getWorkspaceResetBarrier() {
+  if (!browserStorageAvailable()) return null;
+  try {
+    const raw = window.localStorage.getItem(WORKSPACE_RESET_BARRIER_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -102,7 +113,7 @@ export async function inspectWorkspaceResetState() {
 
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) {
-    return { hasState: local || true, local, signedIn: false, checkFailed: true };
+    return { hasState: true, local, signedIn: false, checkFailed: true };
   }
 
   const userId = sessionData?.session?.user?.id;
@@ -130,18 +141,39 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function deleteSnapshotsForAccount(userId) {
+  const { error } = await supabase
+    .from("tool_snapshots")
+    .delete()
+    .eq("account_id", userId);
+  if (error) throw error;
+}
+
+async function verifySnapshotsEmpty(userId) {
+  const { data, error } = await supabase
+    .from("tool_snapshots")
+    .select("tool")
+    .eq("account_id", userId)
+    .limit(1);
+  if (error) throw error;
+  if ((data?.length ?? 0) > 0) {
+    throw new Error("Saved tool snapshots are still present after reset.");
+  }
+}
+
 /**
  * Reset the CURRENT scenario while preserving account/profile/auth identity
  * and historical download_events.
  *
  * Sequence matters:
  * 1. Publish a cross-tab write barrier so old tabs stop autosaving.
- * 2. Wait briefly for any already-dispatched pagehide flush to settle.
- * 3. Delete + verify server-side tool_snapshots for the signed-in account.
- * 4. Only after server success, clear browser scenario persistence.
- * 5. Publish the committed reset epoch so other tabs clear their local state.
+ * 2. Give any already-dispatched pagehide flush a brief chance to settle.
+ * 3. Delete server-side tool_snapshots for the signed-in account.
+ * 4. Wait once more, delete a second time, then verify empty. The second pass
+ *    catches a request that was already in flight before the barrier landed.
+ * 5. Commit a reset epoch, clear browser scenario persistence, and notify tabs.
  *
- * If the server delete fails, the barrier is cancelled and current-tab local
+ * If server deletion/verification fails, the barrier is cancelled and local
  * state is left intact. That prevents a partial "looks reset but My Summary
  * comes back" failure.
  */
@@ -150,46 +182,27 @@ export async function resetWorkspace() {
   publishBarrier(resetId, "pending");
 
   try {
-    // useAutosaveSnapshot flushes immediately on pagehide, but its network
-    // request can outlive the old document. This grace window runs AFTER the
-    // write barrier so no new old-scenario saves can start in other live tabs,
-    // while an already-dispatched flush gets a chance to land before deletion.
-    await wait(RESET_GRACE_MS);
+    await wait(PRE_DELETE_GRACE_MS);
 
     const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
     if (sessionError) throw sessionError;
 
     const userId = sessionData?.session?.user?.id;
     if (userId) {
-      const { error: deleteError } = await supabase
-        .from("tool_snapshots")
-        .delete()
-        .eq("account_id", userId);
-      if (deleteError) throw deleteError;
-
-      // RLS can sometimes turn a disallowed mutation into zero affected rows
-      // without making the UI symptom obvious. Read back the user's rows and
-      // refuse to clear browser state unless the server is actually empty.
-      const { data: remaining, error: verifyError } = await supabase
-        .from("tool_snapshots")
-        .select("tool")
-        .eq("account_id", userId)
-        .limit(1);
-      if (verifyError) throw verifyError;
-      if ((remaining?.length ?? 0) > 0) {
-        throw new Error("Saved tool snapshots are still present after reset.");
-      }
+      await deleteSnapshotsForAccount(userId);
+      await wait(POST_DELETE_SETTLE_MS);
+      await deleteSnapshotsForAccount(userId);
+      await verifySnapshotsEmpty(userId);
     }
-
-    clearLocalWorkspaceState();
 
     if (browserStorageAvailable()) {
       try {
         window.localStorage.setItem(WORKSPACE_RESET_EPOCH_KEY, resetId);
       } catch {
-        // Current tab is already cleared; cross-tab sync is best-effort.
+        // Current-tab clear below still proceeds.
       }
     }
+    clearLocalWorkspaceState();
     publishBarrier(resetId, "committed");
 
     return { ok: true, resetId, signedIn: !!userId };
