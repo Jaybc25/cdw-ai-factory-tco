@@ -1,0 +1,65 @@
+name: Temporary DGX topology fix
+
+on:
+  push:
+    branches: [fix/combined-summary-dgx-topology]
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/combined-summary-dgx-topology
+
+      - name: Teach Combined Summary DGX system topology
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/combinedSummaryPresentation.js')
+          text = p.read_text()
+
+          old = '''function parseFleet(value) {\n  if (!value) return null;\n  const text = String(value);\n  const countMatch = text.match(/^(\\d+)\\s*x\\s*/i);\n  const classMatch = text.match(/\\b(H200|B200|B300|GB200)\\b/i);\n  if (!classMatch) return null;\n  return {\n    count: countMatch ? Number(countMatch[1]) : null,\n    gpuClass: classMatch[1].toUpperCase(),\n  };\n}\n'''
+          new = '''const SYSTEM_GPUS_BY_CLASS = {\n  H200: 8,\n  B200: 8,\n  B300: 8,\n  GB200: 72,\n};\n\nfunction parseFleet(value) {\n  if (!value) return null;\n  const text = String(value);\n  const countMatch = text.match(/^(\\d+)\\s*x\\s*/i);\n  const classMatch = text.match(/\\b(H200|B200|B300|GB200)\\b/i);\n  if (!classMatch) return null;\n  const systemCount = countMatch ? Number(countMatch[1]) : null;\n  const gpuClass = classMatch[1].toUpperCase();\n  const isDgxSystem = /\\bDGX\\b/i.test(text);\n  const gpusPerSystem = isDgxSystem ? SYSTEM_GPUS_BY_CLASS[gpuClass] ?? null : 1;\n  return {\n    systemCount,\n    gpuClass,\n    gpusPerSystem,\n    gpuCount: systemCount != null && gpusPerSystem != null ? systemCount * gpusPerSystem : null,\n    isDgxSystem,\n  };\n}\n'''
+          if new not in text:
+            if old not in text: raise SystemExit('parseFleet anchor missing')
+            text = text.replace(old, new, 1)
+
+          old = '''    const classMismatch = tcoFleet?.gpuClass && gpuClass && tcoFleet.gpuClass !== gpuClass;\n    const countMismatch = tcoFleet?.count != null && gpuCount != null && tcoFleet.count !== gpuCount;\n    if (classMismatch || countMismatch) {\n      const tcoText = tcoFleet ? `${tcoFleet.count ?? "?"} × ${tcoFleet.gpuClass}` : "a different fleet";\n      const gpuText = `${gpuCount ?? "?"} × ${gpuClass || "unknown class"}`;\n      issues.push(`TCO is based on ${tcoText}, while the latest GPU Sizing result recommends ${gpuText}.`);\n'''
+          new = '''    const classMismatch = tcoFleet?.gpuClass && gpuClass && tcoFleet.gpuClass !== gpuClass;\n    const countMismatch = tcoFleet?.gpuCount != null && gpuCount != null && tcoFleet.gpuCount !== gpuCount;\n    if (classMismatch || countMismatch) {\n      const tcoText = tcoFleet\n        ? tcoFleet.isDgxSystem\n          ? `${tcoFleet.systemCount ?? "?"} × DGX ${tcoFleet.gpuClass} (${tcoFleet.gpuCount ?? "?"} GPUs)`\n          : `${tcoFleet.gpuCount ?? "?"} × ${tcoFleet.gpuClass} GPUs`\n        : "a different fleet";\n      const gpuText = `${gpuCount ?? "?"} × ${gpuClass || "unknown class"} GPUs`;\n      issues.push(`TCO is based on ${tcoText}, while the latest GPU Sizing result recommends ${gpuText}.`);\n'''
+          if new not in text:
+            if old not in text: raise SystemExit('comparison anchor missing')
+            text = text.replace(old, new, 1)
+
+          p.write_text(text)
+
+          p = Path('tests/combined-summary-presentation.mjs')
+          text = p.read_text()
+          text = text.replace(
+            'issue.includes("3 × B300") && issue.includes("8 × B200")',
+            'issue.includes("3 × DGX B300 (24 GPUs)") && issue.includes("8 × B200 GPUs")'
+          )
+          text = text.replace(
+            'summary: { gpuSizingFleet: "8 x DGX B200" },',
+            'summary: { gpuSizingFleet: "1 x DGX B200" },'
+          )
+          anchor = 'assert.deepEqual(buildScenarioConsistencyIssues(coherent), []);\n'
+          addition = '''\nconst dgxEightWayEquivalent = [\n  {\n    tool: "gpu-sizing",\n    updated_at: "2026-09-04T14:46:41-05:00",\n    summary: { model: "Meta Muse Glimmer 30B", gpuClass: "B300", recommended: 16 },\n  },\n  {\n    tool: "tco",\n    updated_at: "2026-09-04T14:46:43-05:00",\n    summary: { gpuSizingFleet: "2 x DGX B300" },\n  },\n];\nassert.deepEqual(\n  buildScenarioConsistencyIssues(dgxEightWayEquivalent),\n  [],\n  "2 DGX B300 systems are 16 B300 GPUs and must not trigger a mixed-scenario warning",\n);\n\nconst gb200RackEquivalent = [\n  {\n    tool: "gpu-sizing",\n    updated_at: "2026-09-04T14:46:41-05:00",\n    summary: { gpuClass: "GB200 NVL72", recommended: 72 },\n  },\n  {\n    tool: "tco",\n    updated_at: "2026-09-04T14:46:43-05:00",\n    summary: { gpuSizingFleet: "1 x DGX GB200 NVL-72" },\n  },\n];\nassert.deepEqual(\n  buildScenarioConsistencyIssues(gb200RackEquivalent),\n  [],\n  "one GB200 NVL72 system is 72 GPUs and must compare on GPU-equivalent count",\n);\n'''
+          if 'dgxEightWayEquivalent' not in text:
+            if anchor not in text: raise SystemExit('test anchor missing')
+            text = text.replace(anchor, anchor + addition, 1)
+          p.write_text(text)
+          PY
+
+      - name: Commit topology fix
+        run: |
+          if git diff --quiet; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/combinedSummaryPresentation.js tests/combined-summary-presentation.mjs
+          git commit -m "fix: compare DGX fleets by GPU-equivalent count"
+          git push origin HEAD:fix/combined-summary-dgx-topology
