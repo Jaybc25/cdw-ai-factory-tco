@@ -1,25 +1,23 @@
 from pathlib import Path
+import re
 
 p = Path("src/GpuSizingCalculator.jsx")
 text = p.read_text()
 
-old = '''  // Loaded early so sourceUseCase (below) can fall back to it -- see the
-  // Fix comment on that line.
-  const saved = loadSessionState("gpu-sizing");
 
-  // Fix (Bug Group 1b): sourceUseCase previously read ONLY from the URL, so
-  // the "Arrived from Use Case Explorer" banner vanished after Back/Forward
-  // or a hard refresh even though nothing it displays affects any calculation.
-  // Falling back to saved state keeps the banner alive for the rest of the
-  // session, matching how every other field here behaves.
-  const [sourceUseCase] = useState(() => getInitialSourceUseCase() ?? saved?.sourceUseCase ?? null);
-  const [incomingWorkloadType] = useState(getInitialWorkloadType);
-  const [incomingModelId] = useState(() => getIncomingParams()?.get("model") || null);
-'''
-new = '''  // Loaded early so handoff-derived state below can apply field-level
-  // precedence over the prior session without resetting GPU-Sizing-owned
-  // assumptions.
-  const saved = loadSessionState("gpu-sizing");
+def sub_once(pattern, replacement, label, flags=0):
+    global text
+    next_text, count = re.subn(pattern, replacement, text, count=1, flags=flags)
+    if count != 1:
+        raise SystemExit(f"{label} anchor not found")
+    text = next_text
+
+# 1) A fresh Model Advisor handoff is a new immediate provenance source. It
+# must not be masked by a sourceUseCase persisted from an unrelated Explorer
+# journey.
+sub_once(
+    r'  const saved = loadSessionState\("gpu-sizing"\);\n(?:(?:.|\n)*?)  const \[sourceUseCase\] = useState\(\(\) => getInitialSourceUseCase\(\) \?\? saved\?\.sourceUseCase \?\? null\);\n  const \[incomingWorkloadType\] = useState\(getInitialWorkloadType\);\n  const \[incomingModelId\] = useState\(\(\) => getIncomingParams\(\)\?\.get\("model"\) \|\| null\);',
+    '''  const saved = loadSessionState("gpu-sizing");
 
   const [incomingModelId] = useState(() => getIncomingParams()?.get("model") || null);
 
@@ -32,19 +30,15 @@ new = '''  // Loaded early so handoff-derived state below can apply field-level
     if (incomingModelId) return freshSourceUseCase;
     return freshSourceUseCase ?? saved?.sourceUseCase ?? null;
   });
-  const [incomingWorkloadType] = useState(getInitialWorkloadType);
-'''
-if old not in text:
-    raise SystemExit("state provenance anchor not found")
-text = text.replace(old, new, 1)
+  const [incomingWorkloadType] = useState(getInitialWorkloadType);''',
+    "state provenance",
+)
 
-old = '''  const [modelHandoff] = useState(getInitialInfModel); // { model, matched: true | false | null }
-  const [infModel, setInfModel] = useState(() => {
-    if (incomingModelId) return modelHandoff.model; // a real model= handoff always wins
-    return getModelById(saved?.infModelId) || modelHandoff.model;
-  });
-'''
-new = '''  const [modelHandoff] = useState(getInitialInfModel); // { model, matched: true | false | null }
+# 2) Persist the Advisor recommendation separately from the editable active
+# model, and apply a fresh recommendation to whichever sizing mode is active.
+sub_once(
+    r'  const \[modelHandoff\] = useState\(getInitialInfModel\); // \{ model, matched: true \| false \| null \}\n  const \[infModel, setInfModel\] = useState\(\(\) => \{\n    if \(incomingModelId\) return modelHandoff\.model;[^\n]*\n    return getModelById\(saved\?\.infModelId\) \|\| modelHandoff\.model;\n  \}\);',
+    '''  const [modelHandoff] = useState(getInitialInfModel); // { model, matched: true | false | null }
   const [modelAdvisorRecommendedId] = useState(() => {
     if (incomingModelId) return modelHandoff.matched ? modelHandoff.model.id : incomingModelId;
     if (hasFreshSourceUseCase || incomingWorkloadType) return null;
@@ -53,67 +47,45 @@ new = '''  const [modelHandoff] = useState(getInitialInfModel); // { model, matc
   const [infModel, setInfModel] = useState(() => {
     if (incomingModelId && mode === "Inference") return modelHandoff.model;
     return getModelById(saved?.infModelId) || modelHandoff.model;
-  });
-'''
-if old not in text:
-    raise SystemExit("inference model anchor not found")
-text = text.replace(old, new, 1)
+  });''',
+    "inference model",
+)
 
-old = '''  const [trainModel, setTrainModel] = useState(() => getModelById(saved?.trainModelId) || getDefaultModel());
-'''
-new = '''  const [trainModel, setTrainModel] = useState(() => {
+sub_once(
+    r'  const \[trainModel, setTrainModel\] = useState\(\(\) => getModelById\(saved\?\.trainModelId\) \|\| getDefaultModel\(\)\);',
+    '''  const [trainModel, setTrainModel] = useState(() => {
     if (incomingModelId && mode === "Training") return modelHandoff.model;
     return getModelById(saved?.trainModelId) || getDefaultModel();
-  });
-'''
-if old not in text:
-    raise SystemExit("training model anchor not found")
-text = text.replace(old, new, 1)
+  });''',
+    "training model",
+)
 
-old = '''      // Fix (Bug Group 1b): persist the provenance banner's source too.
-      sourceUseCase,
-    });
-  }, [mode, pathLevel, infModel, quant, concurrentUsers, targetTokPerUser, environment,
-      avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,
-      customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
-      trainModel, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,
-      sourceUseCase]);
-'''
-new = '''      // Persist provenance independently from the editable model state so a
-      // later GPU Sizing adjustment can be disclosed without replaying the
-      // original Model Advisor URL handoff.
-      sourceUseCase,
+# 3) Persist recommendation provenance independently from model edits.
+sub_once(
+    r'(      sourceUseCase,\n)(    \}\);\n  \}, \[mode, pathLevel, infModel, quant, concurrentUsers, targetTokPerUser, environment,\n      avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,\n      customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,\n      trainModel, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,\n      sourceUseCase\]\);)',
+    r'''      sourceUseCase,
       modelAdvisorRecommendedId,
-    });
-  }, [mode, pathLevel, infModel, quant, concurrentUsers, targetTokPerUser, environment,
-      avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,
-      customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
-      trainModel, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,
-      sourceUseCase, modelAdvisorRecommendedId]);
-'''
-if old not in text:
-    raise SystemExit("session persistence anchor not found")
-text = text.replace(old, new, 1)
+\2'''.replace('\\2', '\\2'),
+    "session persistence",
+)
+# The replacement above leaves the dependency array unchanged; update it
+# separately so React persistence follows the provenance field.
+text = text.replace(
+    '      sourceUseCase]);',
+    '      sourceUseCase, modelAdvisorRecommendedId]);',
+    1,
+)
 
-old = '''      <div className="no-print border-b border-gray-100 px-6 py-2 flex items-center justify-between gap-3">
-        {incomingModelId ? (
-          <a href="/model-advisor" style={{ fontSize: 12, fontWeight: 600, color: RED, textDecoration: "none" }}>&larr; Change model recommendation</a>
-        ) : <span />}
-        <AuthWidget />
-      </div>
-'''
-new = '''      <div className="no-print border-b border-gray-100 px-6 py-2 flex items-center justify-between gap-3">
-        {modelAdvisorRecommendedId ? (
-          <a href="/model-advisor" style={{ fontSize: 12, fontWeight: 600, color: RED, textDecoration: "none" }}>&larr; Change model recommendation</a>
-        ) : <span />}
-        <AuthWidget />
-      </div>
-'''
-if old not in text:
-    raise SystemExit("model advisor back-link anchor not found")
-text = text.replace(old, new, 1)
+# 4) Keep the return-to-Advisor affordance after URL consumption/reload.
+text = text.replace(
+    '        {incomingModelId ? (\n          <a href="/model-advisor" style={{ fontSize: 12, fontWeight: 600, color: RED, textDecoration: "none" }}>&larr; Change model recommendation</a>',
+    '        {modelAdvisorRecommendedId ? (\n          <a href="/model-advisor" style={{ fontSize: 12, fontWeight: 600, color: RED, textDecoration: "none" }}>&larr; Change model recommendation</a>',
+    1,
+)
 
-old = '''        {(sourceUseCase || incomingModelId) && (
+# 5) Replace URL-only banner logic with durable three-state provenance:
+# carried as recommended, adjusted in GPU Sizing, or unsupported profile.
+old_start = '''        {(sourceUseCase || incomingModelId) && (
           <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}>
             {incomingModelId && !sourceUseCase && (
               modelHandoff.matched === false ? (
@@ -127,7 +99,7 @@ old = '''        {(sourceUseCase || incomingModelId) && (
               )
             )}
 '''
-new = '''        {(sourceUseCase || modelAdvisorRecommendedId) && (
+new_start = '''        {(sourceUseCase || modelAdvisorRecommendedId) && (
           <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}>
             {modelAdvisorRecommendedId && !sourceUseCase && (() => {
               const recommendedModel = getModelById(modelAdvisorRecommendedId);
@@ -145,8 +117,8 @@ new = '''        {(sourceUseCase || modelAdvisorRecommendedId) && (
               return <>Model Advisor recommended <strong>{recommendedModel.label}</strong>; you're currently sizing <strong>{activeModel.label}</strong> after an adjustment in GPU Sizing.</>;
             })()}
 '''
-if old not in text:
+if old_start not in text:
     raise SystemExit("provenance banner anchor not found")
-text = text.replace(old, new, 1)
+text = text.replace(old_start, new_start, 1)
 
 p.write_text(text)
