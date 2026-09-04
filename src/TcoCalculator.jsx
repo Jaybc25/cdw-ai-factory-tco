@@ -745,7 +745,7 @@ function getInitialModelContext() {
   const modelParamsB = rawParams ? parseFloat(rawParams) : NaN;
   const model = getModelById(modelId);
   return {
-    model: model && model.id !== "custom" ? model : null,
+    model: model || null,
     modelParamsB: Number.isFinite(modelParamsB) && modelParamsB > 0 ? modelParamsB : null,
   };
 }
