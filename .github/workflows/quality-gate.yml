@@ -119,6 +119,12 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Build current PR source
+        env:
+          # The local PR build exercises anonymous/sessionStorage behavior only.
+          # Supabase still needs syntactically valid client configuration so the
+          # app can mount; no credentialed backend behavior is asserted here.
+          VITE_SUPABASE_URL: https://example.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: local-pr-browser-placeholder
         run: npm run build
 
       - name: Start local production preview
