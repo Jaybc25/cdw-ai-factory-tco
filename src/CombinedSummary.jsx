@@ -3,104 +3,12 @@ import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import { supabase } from "./supabaseClient";
+import { TOOL_LABELS, TOOL_ORDER, presentSummary, buildScenarioConsistencyIssues } from "./combinedSummaryPresentation.js";
 
 const RED = "#CC0000";
 const CHARCOAL = "#2D2D2D";
 const GRAY_BORDER = "#D1D5DB";
 const GRAY_TEXT = "#595959";
-
-const TOOL_LABELS = {
-  "tco": "Cloud vs On-Prem TCO Calculator",
-  "gpu-sizing": "GPU Sizing Tool",
-  "model-advisor": "Open-Weight Model Advisor",
-  "roi": "AI Use Case ROI Calculator",
-  "readiness": "AI Readiness Checklists",
-};
-
-// Tool display order matches the roadmap/handoff order, not alphabetical or
-// insertion order, so the summary reads like a natural progression through
-// the tools rather than a random list.
-const TOOL_ORDER = ["tco", "gpu-sizing", "model-advisor", "roi", "readiness"];
-
-// Explicit format for every field currently produced by any tool's
-// useAutosaveSnapshot call (TCO, GPU Sizing, Model Advisor, ROI). This
-// replaces a substring-matching heuristic that silently dollar-formatted
-// lowerCostCount (an integer GPU count) because the key contains "cost" --
-// the underlying GPU Sizing data was always correct, this renderer was
-// misreading it. Explicit keys are unambiguous; add new fields here when a
-// tool's snapshot payload changes rather than relying on word-guessing.
-const FIELD_FORMAT = {
-  // TCO
-  savings: "money", floorCaseSavings: "money", cloudCost: "money", onPremCost: "money",
-  capexPlusOneTime: "money", monthlyOpex: "money", residualCredit: "money", monthlyBill: "money",
-  cloudYear1: "money", onPremYear1Capital: "money", onPremYear1Operating: "money",
-  paybackMonths: "months",
-  // GPU Sizing
-  budget: "money", lowerCostCount: "count", higherGrowthCount: "count", minTechnical: "count",
-  recommended: "count", utilizationPct: "percent",
-  // Model Advisor
-  topModelParams: "count", eligibleCount: "count", totalCount: "count",
-  otherEligibleCount: "count", verificationCandidateCount: "count",
-  // ROI
-  grossCapacity: "count", redeployableCapacity: "count", fteEquivalent: "count",
-  steadyStateValue: "money", year1Value: "money", year1Net: "money", horizonNet: "money",
-  horizonROI: "percent", horizonYears: "count", payback: "months",
-  // Readiness (its per-door status values are dynamic, config-driven keys and always
-  // strings -- typeof already guards those regardless of key name, so only its fixed
-  // numeric metadata fields need an entry here)
-  doorsComplete: "count", doorsTotal: "count", suggestedStepCount: "count",
-};
-
-// Lightweight formatter for values coming out of each tool's "summary"
-// object. Known fields use the explicit table above; anything not yet in
-// the table falls back to a heuristic, hardened to never money-format a
-// key that ends in Count/Class/Years (a strong signal it's not a dollar
-// figure even if it contains a money-ish substring elsewhere).
-function fmtValue(key, value) {
-  if (value == null) return "—";
-  if (typeof value === "number") {
-    const known = FIELD_FORMAT[key];
-    if (known === "months") return `${value.toFixed(1)} months`;
-    if (known === "percent") return `${(value * 100).toFixed(1)}%`;
-    if (known === "money") return `$${Math.round(value).toLocaleString()}`;
-    if (known === "count") return value.toLocaleString();
-
-    // Fallback for fields not yet in FIELD_FORMAT (e.g. a newly added
-    // snapshot key). Never trust a money-word match against a key that's
-    // clearly a count/class/year field, regardless of substring content.
-    const k = key.toLowerCase();
-    const isCountLike = /count|class|years?$/i.test(key);
-    if (!isCountLike) {
-      if (k.includes("payback")) return `${value.toFixed(1)} months`;
-      if ((k.includes("pct") || k.includes("roi")) && Math.abs(value) <= 5) {
-        return `${(value * 100).toFixed(1)}%`;
-      }
-      const MONEY_WORDS = ["cost", "savings", "value", "budget", "net", "bill", "opex", "capex", "credit", "spend", "price", "amount"];
-      if (MONEY_WORDS.some((w) => k.includes(w))) {
-        return `$${Math.round(value).toLocaleString()}`;
-      }
-    }
-    return value.toLocaleString();
-  }
-  return String(value);
-}
-
-// Known acronyms get their own casing rather than the generic
-// first-letter-capitalized treatment ("Gpu" -> "GPU", "Roi" -> "ROI").
-const ACRONYMS = ["GPU", "ROI", "AI", "TCO", "FTE"];
-
-function labelize(key) {
-  const spaced = key
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/^./, (c) => c.toUpperCase());
-  return spaced
-    .split(" ")
-    .map((word) => {
-      const upper = word.toUpperCase();
-      return ACRONYMS.includes(upper) ? upper : word;
-    })
-    .join(" ");
-}
 
 function CombinedSummaryInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent, loading: authLoading } = useAuth();
@@ -185,10 +93,18 @@ function CombinedSummaryInner() {
   const ordered = snapshots
     ? [...snapshots].sort((a, b) => TOOL_ORDER.indexOf(a.tool) - TOOL_ORDER.indexOf(b.tool))
     : [];
+  const consistencyIssues = buildScenarioConsistencyIssues(ordered);
 
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif", color: CHARCOAL }}>
-      <style>{`@media print { .no-print { display: none !important; } body { background: #fff; } }`}</style>
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: #fff; }
+          .summary-card { break-inside: avoid; page-break-inside: avoid; }
+          .scenario-warning { break-inside: avoid; page-break-inside: avoid; }
+        }
+      `}</style>
       <div style={{ borderBottom: `1px solid ${GRAY_BORDER}`, padding: "16px 24px", display: "flex", alignItems: "center", gap: 12 }}>
         <a href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }} aria-label="AI Factory Tools home">
           <img src={cdwLogo} alt="CDW" style={{ height: 36, width: "auto" }} />
@@ -251,24 +167,32 @@ function CombinedSummaryInner() {
             <div style={{ fontSize: 22, fontWeight: 700, marginBottom: 2 }}>
               Prepared for {account?.name || "you"}{account?.company ? `, ${account.company}` : ""}
             </div>
-            <div style={{ fontSize: 12, color: GRAY_TEXT, marginBottom: 24 }}>
+            <div style={{ fontSize: 12, color: GRAY_TEXT, marginBottom: consistencyIssues.length ? 12 : 24 }}>
               {new Date().toLocaleDateString()} &middot; covering {ordered.length} of 5 AI Factory tools
             </div>
 
+            {consistencyIssues.length > 0 && (
+              <div className="scenario-warning" style={{ border: "1px solid #D97706", background: "#FFFBEB", borderRadius: 10, padding: 14, marginBottom: 18, fontSize: 12, lineHeight: 1.5 }}>
+                <div style={{ fontWeight: 700, color: "#92400E", marginBottom: 4 }}>Some results come from different saved scenarios</div>
+                <div style={{ color: "#78350F", marginBottom: 6 }}>Re-run the downstream tools you want included together before using this as one connected business case.</div>
+                <ul style={{ margin: 0, paddingLeft: 18, color: "#78350F" }}>
+                  {consistencyIssues.map((issue) => <li key={issue}>{issue}</li>)}
+                </ul>
+              </div>
+            )}
+
             {ordered.map((s) => (
-              <div key={s.tool} style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
+              <div key={s.tool} className="summary-card" style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 12, padding: 20, marginBottom: 16 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
                   <div style={{ fontSize: 16, fontWeight: 700 }}>{TOOL_LABELS[s.tool] || s.tool}</div>
                   <div style={{ fontSize: 11, color: GRAY_TEXT }}>updated {new Date(s.updated_at).toLocaleString()}</div>
                 </div>
                 {s.summary ? (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 6, columnGap: 12, fontSize: 13 }}>
-                    {Object.entries(s.summary)
-                      .filter(([, v]) => v === null || typeof v !== "object")
-                      .map(([k, v]) => (
-                      <React.Fragment key={k}>
-                        <div style={{ color: GRAY_TEXT }}>{labelize(k)}</div>
-                        <div>{fmtValue(k, v)}</div>
+                    {presentSummary(s.tool, s.summary).map((field) => (
+                      <React.Fragment key={field.key}>
+                        <div style={{ color: GRAY_TEXT }}>{field.label}</div>
+                        <div>{field.value}</div>
                       </React.Fragment>
                     ))}
                   </div>
@@ -279,8 +203,9 @@ function CombinedSummaryInner() {
             ))}
 
             <div style={{ fontSize: 11, color: GRAY_TEXT, padding: 14, background: "#F7F7F7", borderRadius: 10, marginTop: 8, lineHeight: 1.5 }}>
-              This combined summary reflects your most recent inputs in each tool as of the dates shown above. Each
-              section is a directional estimate from that tool, not a validated business case. Confirm with a CDW AI
+              This combined summary reflects the most recent saved result from each tool as of the dates shown above.
+              Unless every section was refreshed through the same tool journey, the sections may represent different scenarios.
+              Each section is a directional estimate from that tool, not a validated business case. Confirm with a CDW AI
               Factory specialist before using these figures in a formal proposal.
             </div>
 
