@@ -12,6 +12,11 @@ test.skip(
 
 async function seedTcoSession(page, state) {
   await page.goto("/tco", { waitUntil: "domcontentloaded" });
+  // Let the mounted TCO app complete its own initial persistence first. If we
+  // seed before that effect fires, the app can legitimately overwrite the
+  // fixture with its default session a moment later, making the next handoff
+  // test nondeterministic.
+  await page.waitForFunction((key) => !!sessionStorage.getItem(key), KEY);
   await page.evaluate(({ key, state }) => {
     sessionStorage.setItem(key, JSON.stringify(state));
   }, { key: KEY, state });
