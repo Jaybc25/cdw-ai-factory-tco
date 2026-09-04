@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import cdwLogo from "./cdw-logo.png";
+import { AuthProvider } from "./AuthContext.jsx";
+import AuthWidget from "./AuthWidget.jsx";
 import { clearBrowserWorkspace, inspectWorkspaceResetState, resetWorkspace } from "./workspaceReset.js";
 
 const TOOLS = [
@@ -12,7 +14,7 @@ const TOOLS = [
   { key: "readiness", name: "AI Readiness\nChecklists", desc: "Work through what your data, security, and infrastructure need before deployment.", status: "live", path: "/readiness" },
 ];
 
-export default function LandingPage() {
+function LandingPageInner() {
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
   const [resetOpen, setResetOpen] = useState(false);
@@ -79,11 +81,13 @@ export default function LandingPage() {
     <div className="afl-wrap">
       <style>{`
         .afl-wrap, .afl-wrap * { box-sizing: border-box; }
-        .afl-wrap { --red:#CC0000; --red-dark:#A30000; --charcoal:#2D2D2D; --gray:#6B6B6B; font-family:'Inter',sans-serif; max-width:1000px; margin:0 auto; padding:48px 32px 100px; color:var(--charcoal); }
-        .afl-header { display:flex; align-items:center; gap:14px; margin-bottom:10px; }
+        .afl-wrap { --red:#CC0000; --red-dark:#A30000; --charcoal:#2D2D2D; --gray:#6B6B6B; font-family:'Inter',sans-serif; max-width:1000px; margin:0 auto; padding:32px 32px 100px; color:var(--charcoal); }
+        .afl-header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:16px; border-bottom:1px solid #E7E7E7; }
+        .afl-brand { display:flex; align-items:center; gap:14px; flex-shrink:0; }
+        .afl-account { display:flex; align-items:center; justify-content:flex-end; min-width:0; }
         .afl-logo { height:42px; width:auto; flex-shrink:0; }
         .afl-eyebrow { font-size:12px; font-weight:700; color:var(--red); letter-spacing:.1em; text-transform:uppercase; }
-        .afl-hero { margin:28px 0 18px; max-width:720px; }
+        .afl-hero { margin:32px 0 18px; max-width:720px; }
         .afl-hero h1 { margin:0 0 14px; font-weight:800; font-size:clamp(26px,3.6vw,34px); line-height:1.28; letter-spacing:-.01em; }
         .afl-hero h1 span { color:var(--red); }
         .afl-hero p { margin:0; color:var(--gray); font-size:15px; line-height:1.6; max-width:620px; }
@@ -113,13 +117,18 @@ export default function LandingPage() {
         .afl-reset-cancel { border:1px solid #D1D5DB; background:#fff; color:#555; }
         .afl-reset-confirm { border:1px solid var(--red); background:var(--red); color:#fff; min-width:128px; }
         .afl-reset-cancel:disabled,.afl-reset-confirm:disabled { opacity:.55; cursor:wait; }
-        @media(max-width:900px){.afl-bubbles{grid-template-columns:repeat(2,1fr)}}
-        @media(max-width:560px){.afl-wrap{padding:32px 18px 80px}.afl-bubbles{grid-template-columns:1fr}.afl-bubble{min-height:140px}.afl-reset-row{align-items:flex-start;flex-direction:column}.afl-reset-actions{flex-direction:column-reverse}.afl-reset-cancel,.afl-reset-confirm{width:100%}}
+        @media(max-width:900px){.afl-header{align-items:flex-start;flex-direction:column}.afl-account{width:100%;justify-content:flex-start}.afl-bubbles{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:560px){.afl-wrap{padding:24px 18px 80px}.afl-bubbles{grid-template-columns:1fr}.afl-bubble{min-height:140px}.afl-reset-row{align-items:flex-start;flex-direction:column}.afl-reset-actions{flex-direction:column-reverse}.afl-reset-cancel,.afl-reset-confirm{width:100%}}
       `}</style>
 
       <div className="afl-header">
-        <img className="afl-logo" src={cdwLogo} alt="CDW logo" />
-        <div className="afl-eyebrow">AI Factory Tools</div>
+        <div className="afl-brand">
+          <img className="afl-logo" src={cdwLogo} alt="CDW logo" />
+          <div className="afl-eyebrow">AI Factory Tools</div>
+        </div>
+        <div className="afl-account" aria-label="Account and saved summary">
+          <AuthWidget />
+        </div>
       </div>
 
       <div className="afl-hero">
@@ -168,5 +177,13 @@ export default function LandingPage() {
 
       <div className={`afl-toast${toast ? " show" : ""}`} role="status" aria-live="polite">{toast}</div>
     </div>
+  );
+}
+
+export default function LandingPage() {
+  return (
+    <AuthProvider>
+      <LandingPageInner />
+    </AuthProvider>
   );
 }

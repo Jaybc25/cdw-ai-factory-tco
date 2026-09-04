@@ -18,7 +18,9 @@ need(landing, "Nothing to reset", "Empty-workspace reset state is missing");
 need(reset, '.from("tool_snapshots")', "Reset must operate on saved tool snapshots");
 need(reset, ".delete()", "Reset must delete current server-side snapshots");
 need(reset, "verifySnapshotsEmpty", "Reset must verify server-side snapshots are gone");
-need(reset, "deleteSnapshotsForAccount(userId);\n      await wait(POST_DELETE_SETTLE_MS);\n      await deleteSnapshotsForAccount(userId);", "Reset must drain in-flight snapshot writes with a second delete pass");
+if (!/await deleteSnapshotsForAccount\(userId\);\s*await wait\(POST_DELETE_SETTLE_MS\);\s*await deleteSnapshotsForAccount\(userId\);/.test(reset)) {
+  throw new Error("Reset must drain in-flight snapshot writes with a second delete pass");
+}
 need(reset, "clearLocalWorkspaceState();", "Reset must clear browser scenario persistence");
 need(reset, "WORKSPACE_RESET_EPOCH_KEY", "Reset must publish a cross-tab epoch");
 if (reset.includes('.from("download_events").delete')) throw new Error("Reset must preserve historical download_events");
