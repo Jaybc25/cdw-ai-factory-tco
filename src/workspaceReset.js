@@ -27,8 +27,7 @@ function publishBarrier(id, status) {
       JSON.stringify({ id, status, at: new Date().toISOString() }),
     );
   } catch {
-    // Cross-tab coordination is a hardening layer. The server delete and
-    // current-tab storage clear still proceed if browser storage is blocked.
+    // Cross-tab coordination is best-effort.
   }
 }
 
@@ -70,18 +69,10 @@ export function clearLocalWorkspaceState() {
   try {
     window.localStorage.removeItem(READINESS_STORAGE_KEY);
   } catch {
-    // no-op; session-state clear still stands
+    // no-op
   }
 }
 
-/**
- * Listen for resets initiated in another browser tab.
- *
- * pending: stop old tabs from writing snapshots while the reset is underway.
- * cancelled: release that write barrier if the server-side reset failed.
- * committed: clear this tab's local scenario state; the caller should keep
- *            autosave invalidated until the tab reloads or navigates.
- */
 export function subscribeToWorkspaceReset(handler) {
   if (typeof window === "undefined") return () => {};
 
@@ -103,17 +94,12 @@ export function subscribeToWorkspaceReset(handler) {
   return () => window.removeEventListener("storage", onStorage);
 }
 
-/**
- * Determine whether Reset should be enabled on the home page.
- * A failed server check is treated as "unknown" rather than "empty" so the
- * UI never falsely disables the user's only recovery action.
- */
 export async function inspectWorkspaceResetState() {
   const local = hasLocalWorkspaceState();
 
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) {
-    return { hasState: true, local, signedIn: false, checkFailed: true };
+    return { hasState: local || true, local, signedIn: false, checkFailed: true };
   }
 
   const userId = sessionData?.session?.user?.id;
@@ -161,21 +147,38 @@ async function verifySnapshotsEmpty(userId) {
   }
 }
 
+function commitBrowserReset(resetId) {
+  if (browserStorageAvailable()) {
+    try {
+      window.localStorage.setItem(WORKSPACE_RESET_EPOCH_KEY, resetId);
+    } catch {
+      // Current-tab clear still proceeds.
+    }
+  }
+  clearLocalWorkspaceState();
+  publishBarrier(resetId, "committed");
+}
+
 /**
- * Reset the CURRENT scenario while preserving account/profile/auth identity
- * and historical download_events.
- *
- * Sequence matters:
- * 1. Publish a cross-tab write barrier so old tabs stop autosaving.
- * 2. Give any already-dispatched pagehide flush a brief chance to settle.
- * 3. Delete server-side tool_snapshots for the signed-in account.
- * 4. Wait once more, delete a second time, then verify empty. The second pass
- *    catches a request that was already in flight before the barrier landed.
- * 5. Commit a reset epoch, clear browser scenario persistence, and notify tabs.
- *
- * If server deletion/verification fails, the barrier is cancelled and local
- * state is left intact. That prevents a partial "looks reset but My Summary
- * comes back" failure.
+ * Signed-out/local-only action. Clears this browser's current scenario state,
+ * but cannot and does not alter account-backed tool_snapshots / My Summary.
+ */
+export async function clearBrowserWorkspace() {
+  const resetId = makeResetId();
+  publishBarrier(resetId, "pending");
+  try {
+    commitBrowserReset(resetId);
+    return { ok: true, resetId, scope: "browser" };
+  } catch (error) {
+    publishBarrier(resetId, "cancelled");
+    throw error;
+  }
+}
+
+/**
+ * Signed-in GLOBAL reset. Clears current browser state and the signed-in
+ * account's current tool_snapshots / My Summary data. Historical activity
+ * such as download_events is preserved.
  */
 export async function resetWorkspace() {
   const resetId = makeResetId();
@@ -188,24 +191,17 @@ export async function resetWorkspace() {
     if (sessionError) throw sessionError;
 
     const userId = sessionData?.session?.user?.id;
-    if (userId) {
-      await deleteSnapshotsForAccount(userId);
-      await wait(POST_DELETE_SETTLE_MS);
-      await deleteSnapshotsForAccount(userId);
-      await verifySnapshotsEmpty(userId);
+    if (!userId) {
+      throw new Error("Sign in is required to clear saved account results and My Summary.");
     }
 
-    if (browserStorageAvailable()) {
-      try {
-        window.localStorage.setItem(WORKSPACE_RESET_EPOCH_KEY, resetId);
-      } catch {
-        // Current-tab clear below still proceeds.
-      }
-    }
-    clearLocalWorkspaceState();
-    publishBarrier(resetId, "committed");
+    await deleteSnapshotsForAccount(userId);
+    await wait(POST_DELETE_SETTLE_MS);
+    await deleteSnapshotsForAccount(userId);
+    await verifySnapshotsEmpty(userId);
 
-    return { ok: true, resetId, signedIn: !!userId };
+    commitBrowserReset(resetId);
+    return { ok: true, resetId, scope: "account" };
   } catch (error) {
     publishBarrier(resetId, "cancelled");
     throw error;
