@@ -1,6 +1,14 @@
 import { test, expect } from "@playwright/test";
 
 const KEY = "ai-factory-session:tco";
+const runningUndeployedBranchAgainstProduction =
+  process.env.GITHUB_EVENT_NAME === "pull_request" &&
+  (process.env.BASE_URL || "").includes("vercel.app");
+
+test.skip(
+  runningUndeployedBranchAgainstProduction,
+  "Branch-only ownership behavior is validated against the local PR build, not the still-current production deployment.",
+);
 
 async function seedTcoSession(page, state) {
   await page.goto("/tco", { waitUntil: "domcontentloaded" });
@@ -37,6 +45,10 @@ test("fresh GPU Sizing handoff replaces upstream technical facts but preserves T
       "Azure::H100": { instOD: 9.91, instRes: 5.11 },
       "Azure::B300": { instOD: 18.25, instRes: 10.75 },
     },
+    onPremRateOverrides: {
+      "DGX H200": { perSysCost: 555000, sysKw: 11.5, equinixMo: 9900 },
+      "DGX B300": { perSysCost: 777000, sysKw: 15.2, equinixMo: 12900 },
+    },
   });
 
   await page.goto(
@@ -66,6 +78,8 @@ test("fresh GPU Sizing handoff replaces upstream technical facts but preserves T
   expect(saved.bulkPBm).toBe(2);
   expect(saved.cloudRateOverrides["Azure::H100"]).toEqual({ instOD: 9.91, instRes: 5.11 });
   expect(saved.cloudRateOverrides["Azure::B300"]).toEqual({ instOD: 18.25, instRes: 10.75 });
+  expect(saved.onPremRateOverrides["DGX H200"]).toEqual({ perSysCost: 555000, sysKw: 11.5, equinixMo: 9900 });
+  expect(saved.onPremRateOverrides["DGX B300"]).toEqual({ perSysCost: 777000, sysKw: 15.2, equinixMo: 12900 });
 
   await expect(page.getByText("DGX B300", { exact: true })).toBeVisible();
   await expect(page.getByText(/Set by GPU Sizing\. Return to GPU Sizing to change the technical design\./)).toBeVisible();
