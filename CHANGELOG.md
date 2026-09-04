@@ -13,6 +13,9 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+- No unreleased changes yet.
+
+## AI Factory Suite 2026.09.1 - 2026-09-04
 
 ### September 4, 2026 - Report, model-context, handoff, and security hardening
 
@@ -54,11 +57,17 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 - Path containment remains intentionally deferred because the current generator is an offline/operator-local workflow and no dedicated logo staging-root contract exists. Revisit containment if the path becomes upload-driven or a staging root is standardized.
 - PR #11 merged as `cfb2ed79ec01320f7669d11b8d5416d09f580117` after the full PR gate passed.
 
+#### Pre-release cross-tool state-precedence pass - PR 13
+
+- Added permanent cross-tool browser journeys for Use Case Explorer to Model Advisor, Use Case Explorer to GPU Sizing, Model Advisor to GPU Sizing, and TCO to ROI state ownership and precedence.
+- The pass found and corrected a real Model Advisor to GPU Sizing defect in Training mode and stale provenance handling.
+- PR 13 merged as 2222fcd2a5ca6b437b7b46c63fda3ffa21a16020; the exact merged tree passed build/parity and live Vercel checks and deployed successfully before release preparation.
+
 #### Current assurance and release-preparation state
 
 - The permanent gate now covers production build, shared pricing registry validation, shared model registry validation, TCO handoff ownership guards, SafeImageInput resource-bound tests, checked-in TCO workbook extraction/structure, Excel-to-JavaScript parity, PR-local TCO handoff/model-context browser journeys, and the live Vercel browser regression suite.
 - Green CI is treated as evidence that the asserted checks pass, not as proof that no unknown defect exists. Human/adversarial cross-tool review remains a separate pre-release activity because recent live review found a real state-precedence defect that was not yet represented in the gate.
-- The next same-month stable candidate is `v2026.09.1`; when cut, `package.json` should move from legacy `2.8.0` to SemVer-safe `2026.9.1`.
+- This release transitions package metadata from legacy 2.8.0 to SemVer-safe 2026.9.1, matching human suite release 2026.09.1 and tag v2026.09.1.
 - Combined Summary presentation/schema remediation remains a separate unreleased workstream and is not required to be bundled into `v2026.09.1`.
 
 ### Added
