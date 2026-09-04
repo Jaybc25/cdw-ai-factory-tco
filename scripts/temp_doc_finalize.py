@@ -1,8 +1,0 @@
-from pathlib import Path
-p = Path('MaintenanceRunbook.md')
-text = p.read_text()
-old = "### Remaining before the next stable tag\n\n1. Complete this documentation catch-up across README, project brief, changelog, and runbook.\n2. Perform one deliberate human/adversarial cross-tool pass focused on state precedence and cross-session interactions. Treat a green gate as proof that asserted checks pass, not as proof that no unknown defect exists.\n3. Run credentialed/manual checks if the final release scope requires magic-link delivery, database download events, Slack notifications, or report/PDF visual verification.\n4. Prepare the release record, set `package.json` to `2026.9.1`, run the final merged-tree gate and deployed-scope verification, and create `v2026.09.1` only after the exact release commit is known-good.\n"
-new = "### Remaining before the next stable tag\n\n1. Perform one deliberate human/adversarial cross-tool pass focused on state precedence and cross-session interactions. Treat a green gate as proof that asserted checks pass, not as proof that no unknown defect exists.\n2. Run credentialed/manual checks if the final release scope requires magic-link delivery, database download events, Slack notifications, or report/PDF visual verification.\n3. Prepare the release record, set `package.json` to `2026.9.1`, run the final merged-tree gate and deployed-scope verification, and create `v2026.09.1` only after the exact release commit is known-good.\n"
-if old not in text:
-    raise SystemExit('Expected release checklist block not found')
-p.write_text(text.replace(old, new, 1))
