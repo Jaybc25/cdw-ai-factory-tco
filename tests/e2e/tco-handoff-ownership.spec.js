@@ -12,10 +12,6 @@ test.skip(
 
 async function seedTcoSession(page, state) {
   await page.goto("/tco", { waitUntil: "domcontentloaded" });
-  // Let the mounted TCO app complete its own initial persistence first. If we
-  // seed before that effect fires, the app can legitimately overwrite the
-  // fixture with its default session a moment later, making the next handoff
-  // test nondeterministic.
   await page.waitForFunction((key) => !!sessionStorage.getItem(key), KEY);
   await page.evaluate(({ key, state }) => {
     sessionStorage.setItem(key, JSON.stringify(state));
@@ -102,9 +98,6 @@ test("fresh GPU Sizing handoff replaces upstream technical facts but preserves T
   expect(saved.onPremRateOverrides["DGX H200"]).toEqual({ perSysCost: 555000, sysKw: 11.5, equinixMo: 9900 });
   expect(saved.onPremRateOverrides["DGX B300"]).toEqual({ perSysCost: 777000, sysKw: 15.2, equinixMo: 12900 });
 
-  // These ownership/provenance messages live inside collapsed Tier 2 in the
-  // actual calculator. Open that disclosure before asserting customer-visible
-  // copy so the browser test exercises the UI as a user would.
   await openTier2(page);
   await expect(page.getByText("DGX B300", { exact: true })).toBeVisible();
   await expect(page.getByText(/Set by GPU Sizing\. Return to GPU Sizing to change the technical design\./)).toBeVisible();
@@ -162,4 +155,73 @@ test("model context survives query consumption and reload", async ({ page }) => 
   const afterReload = await waitForTcoSession(page, { modelId: "muse-glimmer-30b" });
   expect(afterReload.modelParamsB).toBe(29.6);
   expect(afterReload.quant).toBe("FP8");
+});
+
+test("legacy size-only TCO session migrates deterministically to Custom without inventing a model identity", async ({ page }) => {
+  await seedTcoSession(page, {
+    mode: "spend",
+    modelSize: "671B",
+    quant: "FP8",
+  });
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const saved = await waitForTcoSession(page, { modelId: "custom" });
+  expect(saved.modelParamsB).toBe(671);
+  expect(saved.quant).toBe("FP8");
+
+  const modelSelect = page.getByLabel("Model for capacity estimate");
+  await expect(modelSelect).toHaveValue("custom");
+  await expect(page.getByLabel("Custom model parameters in billions")).toHaveValue("671");
+});
+
+test("Custom GPU Sizing handoff preserves Custom identity, exact parameter count, and quantization", async ({ page }) => {
+  await seedTcoSession(page, {
+    mode: "spend",
+    modelId: "llama-3.1-70b",
+    modelParamsB: 70.6,
+    quant: "FP8",
+  });
+
+  await page.goto(
+    "/tco?ownSys=DGX%20B300&gpuCount=8&sourceClass=B300&workingDayHours=8&model=custom&modelParamsB=123.4&quant=FP4",
+    { waitUntil: "domcontentloaded" },
+  );
+
+  const saved = await waitForTcoSession(page, {
+    ownSys: "DGX B300",
+    gpuSizingCount: 8,
+    sourceClass: "B300",
+    modelId: "custom",
+  });
+  expect(saved.modelParamsB).toBe(123.4);
+  expect(saved.quant).toBe("FP4");
+  await expect(page.getByLabel("Model for capacity estimate")).toHaveValue("custom");
+  await expect(page.getByLabel("Custom model parameters in billions")).toHaveValue("123.4");
+});
+
+test("Back and Forward do not replay consumed model handoff params or erase persisted edits", async ({ page }) => {
+  await seedTcoSession(page, { mode: "spend" });
+  await page.goto(
+    "/tco?ownSys=DGX%20B200&gpuCount=8&sourceClass=B200&workingDayHours=8&model=muse-glimmer-30b&modelParamsB=29.6&quant=FP8",
+    { waitUntil: "domcontentloaded" },
+  );
+  await waitForTcoSession(page, { modelId: "muse-glimmer-30b", sourceClass: "B200" });
+  expect(new URL(page.url()).search).toBe("");
+
+  const modelSelect = page.getByLabel("Model for capacity estimate");
+  await modelSelect.selectOption("gemma-3-27b");
+  const edited = await waitForTcoSession(page, { modelId: "gemma-3-27b" });
+  expect(edited.modelParamsB).toBe(27);
+
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  expect(new URL(page.url()).search).toBe("");
+  let restored = await waitForTcoSession(page, { modelId: "gemma-3-27b" });
+  expect(restored.modelParamsB).toBe(27);
+
+  await page.goForward({ waitUntil: "domcontentloaded" });
+  await page.goBack({ waitUntil: "domcontentloaded" });
+  expect(new URL(page.url()).search).toBe("");
+  restored = await waitForTcoSession(page, { modelId: "gemma-3-27b" });
+  expect(restored.modelParamsB).toBe(27);
 });
