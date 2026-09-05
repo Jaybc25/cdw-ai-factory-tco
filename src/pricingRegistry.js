@@ -1,17 +1,18 @@
-// Commercial/customer-facing eligibility for Best-Value GPUaaS recommendations.
+// Commercial/customer-facing eligibility for GPUaaS providers.
 // Keep this separate from rate availability: a provider can remain fully modeled
-// for TCO comparisons while being excluded from the recommendation/ranking layer.
-// This makes commercial enablement a one-line config change and provides a clean
-// path for future providers (for example Nebius) to be modeled before activation.
+// for existing-state TCO calculations while being hidden from customer-facing
+// selection and recommendation surfaces. This makes commercial enablement a
+// config change and provides a clean path for future providers (for example
+// Nebius) to be modeled before activation.
 export const GPUAAS_PROVIDER_CONFIG = Object.freeze({
-  AWS: Object.freeze({ bestValueEnabled: true, status: "active" }),
-  Azure: Object.freeze({ bestValueEnabled: true, status: "active" }),
-  GCP: Object.freeze({ bestValueEnabled: true, status: "active" }),
-  OCI: Object.freeze({ bestValueEnabled: true, status: "active" }),
-  CoreWeave: Object.freeze({ bestValueEnabled: false, status: "pending-commercial-enablement" }),
+  AWS: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active" }),
+  Azure: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active" }),
+  GCP: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active" }),
+  OCI: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active" }),
+  CoreWeave: Object.freeze({ customerFacingEnabled: false, bestValueEnabled: false, status: "pending-commercial-enablement" }),
 });
 
-export const CLOUD_GPU_RATES = {
+const ALL_CLOUD_GPU_RATES = {
   AWS: {
     A100: { od: 3.43, conf: "LISTED", note: "A100 80GB: p4de.24xlarge $27.44705/8, AWS EC2 public price catalog, us-east-1" },
     H100: { od: 6.88, conf: "LISTED", note: "p5.48xlarge $55.04/8, AWS EC2 public price catalog, us-east-1" },
@@ -58,6 +59,22 @@ export const CLOUD_GPU_RATES = {
     GB300: { od: 12.00, conf: "QUOTE", note: "CoreWeave public On-Demand price is Contact sales; retain prior planning placeholder, verify quote" },
   },
 };
+
+// TCO intentionally uses Object.keys(CLOUD_GPU_RATES) to build the visible
+// provider selector. Commercially inactive providers are therefore defined as
+// non-enumerable: their historical/modeling data remains addressable by name
+// (protecting old saved scenarios), while they disappear from new customer-facing
+// provider choices and from Best-Value candidate enumeration.
+export const CLOUD_GPU_RATES = {};
+for (const [provider, rates] of Object.entries(ALL_CLOUD_GPU_RATES)) {
+  Object.defineProperty(CLOUD_GPU_RATES, provider, {
+    value: rates,
+    enumerable: GPUAAS_PROVIDER_CONFIG[provider]?.customerFacingEnabled !== false,
+    writable: false,
+    configurable: false,
+  });
+}
+Object.freeze(CLOUD_GPU_RATES);
 
 export const ONPREM_SYSTEMS = {
   "DGX H200": { gpus: 8, perSys: 549764, kW: 10.2, perRack: 2, rackCost: 15000, vram: 141, prof: 25000, sw: 99000 },
