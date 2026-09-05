@@ -42,8 +42,14 @@ const b300 = rankSameClassGpuAas({
   rateRegistry: CLOUD_GPU_RATES,
   evaluateProvider: evaluateFromRate,
 });
-assert.equal(b300[0].provider, "Oracle Cloud", "Lowest eligible numeric B300 value should rank first");
-assert.equal(b300[0].confidence, "LISTED", "pricing confidence must remain visible after eligibility filtering");
+assert.deepEqual(
+  b300.map((row) => row.provider),
+  ["Azure", "Google Cloud", "Oracle Cloud", "AWS"],
+  "Tied lowest B300 rates should sort deterministically by provider name",
+);
+assert.equal(b300[0].confidence, "QUOTE", "Azure B300 must retain its QUOTE confidence");
+assert.equal(b300.find((row) => row.provider === "Google Cloud")?.confidence, "QUOTE", "Google Cloud B300 must retain its QUOTE confidence");
+assert.equal(b300.find((row) => row.provider === "Oracle Cloud")?.confidence, "LISTED", "Oracle Cloud B300 must retain its LISTED confidence");
 
 const explicitDisabledCandidate = rankSameClassGpuAas({
   gpuClass: "H200",
