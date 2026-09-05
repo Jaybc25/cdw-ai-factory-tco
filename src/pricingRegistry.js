@@ -1,4 +1,22 @@
-export const CLOUD_GPU_RATES = {
+// Commercial/customer-facing eligibility for GPUaaS providers.
+// Keep this separate from rate availability: a provider can remain fully modeled
+// for existing-state TCO calculations while being hidden from customer-facing
+// selection and recommendation surfaces. This makes commercial enablement a
+// config change and provides a clean path for future providers (for example
+// Nebius) to be modeled before activation.
+export const GPUAAS_PROVIDER_CONFIG = Object.freeze({
+  AWS: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "AWS" }),
+  Azure: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "Azure" }),
+  GCP: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "Google Cloud" }),
+  OCI: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "Oracle Cloud" }),
+  "Google Cloud": Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", canonicalProvider: "GCP", displayName: "Google Cloud" }),
+  "Oracle Cloud": Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", canonicalProvider: "OCI", displayName: "Oracle Cloud" }),
+  CoreWeave: Object.freeze({ customerFacingEnabled: false, bestValueEnabled: false, status: "pending-commercial-enablement", displayName: "CoreWeave" }),
+});
+
+export const getGpuAasProviderDisplayName = (provider) => GPUAAS_PROVIDER_CONFIG[provider]?.displayName || provider;
+
+const ALL_CLOUD_GPU_RATES = {
   AWS: {
     A100: { od: 3.43, conf: "LISTED", note: "A100 80GB: p4de.24xlarge $27.44705/8, AWS EC2 public price catalog, us-east-1" },
     H100: { od: 6.88, conf: "LISTED", note: "p5.48xlarge $55.04/8, AWS EC2 public price catalog, us-east-1" },
@@ -45,6 +63,30 @@ export const CLOUD_GPU_RATES = {
     GB300: { od: 12.00, conf: "QUOTE", note: "CoreWeave public On-Demand price is Contact sales; retain prior planning placeholder, verify quote" },
   },
 };
+
+const CUSTOMER_FACING_PROVIDER_KEYS = Object.freeze(["AWS", "Azure", "Google Cloud", "Oracle Cloud"]);
+const PROVIDER_ALIASES = Object.freeze({ "Google Cloud": "GCP", "Oracle Cloud": "OCI" });
+
+// A Proxy lets the TCO UI enumerate clear customer-facing names while keeping
+// old internal/saved keys (GCP, OCI) and dormant providers (CoreWeave)
+// addressable by name. No rate data is duplicated or discarded.
+export const CLOUD_GPU_RATES = new Proxy(ALL_CLOUD_GPU_RATES, {
+  ownKeys() {
+    return CUSTOMER_FACING_PROVIDER_KEYS;
+  },
+  get(target, prop, receiver) {
+    if (typeof prop === "string" && PROVIDER_ALIASES[prop]) return target[PROVIDER_ALIASES[prop]];
+    return Reflect.get(target, prop, receiver);
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    if (typeof prop === "string" && PROVIDER_ALIASES[prop]) {
+      return { value: target[PROVIDER_ALIASES[prop]], enumerable: true, configurable: true, writable: false };
+    }
+    const descriptor = Reflect.getOwnPropertyDescriptor(target, prop);
+    if (!descriptor) return undefined;
+    return { ...descriptor, enumerable: CUSTOMER_FACING_PROVIDER_KEYS.includes(String(prop)), configurable: true };
+  },
+});
 
 export const ONPREM_SYSTEMS = {
   "DGX H200": { gpus: 8, perSys: 549764, kW: 10.2, perRack: 2, rackCost: 15000, vram: 141, prof: 25000, sw: 99000 },

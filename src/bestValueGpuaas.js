@@ -10,6 +10,8 @@
 // calculator run its existing validated engine for every candidate provider
 // instead of duplicating cloud/TCO math here.
 
+import { GPUAAS_PROVIDER_CONFIG } from "./pricingRegistry.js";
+
 export const GPUAAS_CONFIDENCE = Object.freeze({
   LISTED: "Listed",
   CUSTOM: "Customer-entered rate",
@@ -20,6 +22,14 @@ export const GPUAAS_CONFIDENCE = Object.freeze({
 
 function finiteNumber(value) {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function providerIsBestValueEligible(provider) {
+  const config = GPUAAS_PROVIDER_CONFIG?.[provider];
+  // Real production providers are explicitly governed by the shared config.
+  // Unknown names remain eligible so isolated tests/custom registries that use
+  // synthetic provider names continue to exercise the generic ranking helper.
+  return config ? config.bestValueEnabled === true : true;
 }
 
 /**
@@ -44,6 +54,11 @@ export function rankSameClassGpuAas({ gpuClass, providers, rateRegistry, evaluat
   const rows = [];
 
   for (const provider of providers) {
+    // Commercial/customer-facing eligibility is separate from rate/model
+    // availability. An ineligible provider stays fully modeled in the shared
+    // registry but is not ranked or recommended in Best-Value GPUaaS.
+    if (!providerIsBestValueEligible(provider)) continue;
+
     const rateInfo = rateRegistry?.[provider]?.[gpuClass];
 
     // v1 is intentionally like-for-like only. If this exact class is absent,
