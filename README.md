@@ -12,9 +12,9 @@ For a human-readable history of meaningful milestones and current open items, re
 
 Versioning is an internal engineering, audit, maintenance, and recovery mechanism. It is not intended to be displayed prominently in the customer-facing application unless a business reason is established later.
 
-**Current validated baseline:** AI Factory Suite 2026.09 (`v2026.09`), validated commit `31fdb2ff2a321f6101bfa72d3c45b4c31aa3a0eb`, released September 1, 2026.
+**Current validated releases:** `v2026.09` remains the immutable September 1 baseline, followed by `AI Factory Suite 2026.09.1` released September 4, 2026. Existing release tags/releases are immutable.
 
-**Current unreleased code checkpoint before this documentation catch-up:** `main` at `cfb2ed79ec01320f7669d11b8d5416d09f580117` on September 4, 2026. This includes the five approved individual report-layout upgrades, the GPU working-day mobile input fix, shared model context across Model Advisor / GPU Sizing / TCO, the corrected GPU Sizing -> TCO ownership model, permanent legacy/Custom/model-navigation regression coverage, and SafeImageInput decoded-dimension protection. These changes remain `Unreleased` until a new validated tag is created.
+**Current unreleased code checkpoint before this documentation catch-up:** `main` at `696c4c87122b7dfab25ac5eec59c2c0db8dcef78` on September 5, 2026. Post-2026.09.1 work includes curated My Summary consistency handling, Best-Value GPUaaS, Global Reset, home account/My Summary access, the Phase 1 authenticated front door, auth-aware regression architecture, provider commercial-eligibility gating, and the GPU Sizing print/PDF hierarchy refinement. These changes remain `Unreleased` until a new validated tag is created.
 
 The suite uses calendar versioning for validated releases:
 
@@ -46,7 +46,7 @@ The tools are designed as one connected journey, with state and provenance hando
 - Front end: React 18 + Vite
 - Routing: React Router
 - Backend services: Supabase Postgres, Auth, and Edge Functions
-- Authentication: Supabase magic-link login
+- Authentication: Phase 1 authenticated front door backed by Supabase Auth; magic-link primary, temporary-password compatibility for provisioned users
 - Email delivery: Resend SMTP through Supabase Auth
 - Hosting and deployment: Vercel
 - Notifications: Slack webhook invoked through a Supabase Edge Function
@@ -69,7 +69,7 @@ Relevant workflows live under `.github/workflows/`.
 ### Manual or partially manual today
 
 - NVIDIA DGX loaded system pricing used by TCO and GPU Sizing
-- Cloud GPU list-rate verification for AWS, Azure, GCP, OCI, and CoreWeave
+- Cloud GPU list-rate verification for AWS, Azure, Google Cloud, Oracle Cloud, and internally preserved provider records such as CoreWeave
 - MLPerf/performance-factor refreshes when new evidence materially changes the sizing model
 - Review of newly discovered models before adding them to the canonical registry
 - NVIDIA NIM compatibility sync, which intentionally remains manual-only until a documented and live-tested catalog-wide endpoint is confirmed

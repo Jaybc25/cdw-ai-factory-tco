@@ -5,6 +5,139 @@
 ---
 
 
+## September 5, 2026 Current-State Addendum
+
+This addendum supersedes stale current-state statements in earlier dated sections while preserving the historical record. The Project Brief is intentionally cumulative institutional memory: dated addenda record what was true at each checkpoint, while the newest addendum is the primary current-state orientation. GitHub `main`, immutable release tags, and current source files remain authoritative for exact implementation details.
+
+### Record-keeping policy
+
+- Preserve prior dated addenda and historical narrative. Do not rewrite old decisions merely because later architecture supersedes them.
+- Add a new dated current-state addendum whenever a material tranche changes architecture, customer behavior, methodology ownership, commercial eligibility, assurance, or operating procedures.
+- Use `CHANGELOG.md` for the concise chronological release/change ledger and this brief for rationale, architecture, validation history, decisions, and durable context.
+- Use Git history, pull requests, tags, and release records as the forensic source for exact code, timestamps, and diffs.
+- If this file eventually becomes genuinely unwieldy, archive old low-value chronology into `docs/history/` while retaining summaries and links here. No archive is needed yet.
+- Never allow record-keeping updates to silently change calculator logic, pricing values, sizing methodology, or release tags.
+
+### Current release and source state
+
+- Immutable stable release `v2026.09` remains frozen at `31fdb2ff2a321f6101bfa72d3c45b4c31aa3a0eb`.
+- `AI Factory Suite 2026.09.1` was prepared and released on September 4, 2026. Its frozen release history must remain immutable.
+- All post-`2026.09.1` work described below remains `Unreleased` until the next explicit validated tag/release.
+- Current production `main` checkpoint before this documentation catch-up is `696c4c87122b7dfab25ac5eec59c2c0db8dcef78`, the merge of PR #24 on September 5, 2026.
+
+### Customer-facing report state
+
+- All five report-producing tools have approved print/PDF layouts in current source: TCO two pages, ROI one page, GPU Sizing two pages, Model Advisor one page, and Readiness six pages.
+- PR #24 added a print-only GPU Sizing refinement after Windows PDF review. The Recommended configuration now prints with a white background, strong dark outline, fully opaque dark text, and no shadow so it does not resemble a disabled/de-selected card in grayscale. Screen styling and sizing/pricing logic are unchanged.
+- Use Case Explorer remains intentionally report-free because it is a browse/discovery tool rather than a result artifact.
+
+### Shared model context and technical authority
+
+- PR #7 introduced `src/modelRegistry.js` and canonical model context across Model Advisor -> GPU Sizing -> TCO: model ID, exact parameter count, and inference quantization where relevant.
+- `scripts/validate_model_registry.mjs` permanently guards canonical coverage, aliases, lookup behavior, and parameter reconciliation.
+- PR #10 added permanent legacy, Custom, reload, and Back/Forward regression coverage and corrected a real defect where incoming `model=custom` identity could be discarded while Custom parameters were retained.
+- GPU Sizing is the technical sizing authority for workload-driven handoffs. TCO does not silently re-size the upstream technical requirement from model parameters.
+
+### GPU Sizing -> TCO ownership model
+
+- PR #8 corrected stale cloud-class precedence so a fresh GPU Sizing handoff begins TCO's cloud comparison like-for-like with the incoming GPU class instead of inheriting an unrelated prior class.
+- PR #9 formalized ownership: upstream technical facts follow the latest GPU Sizing result; TCO-owned economic/planning assumptions survive; explicit TCO cloud-comparison overrides remain explicit.
+- User cloud-rate overrides persist by provider + GPU class. On-prem economic overrides persist by target system. Old assumptions cannot silently contaminate a different technical target.
+- N+1 remains a TCO resilience assumption layered on top of the GPU Sizing base technical recommendation and must not be described as part of the upstream sizing recommendation.
+- PR #13 expanded permanent cross-tool state-precedence journeys across Explorer -> Model Advisor, Explorer -> GPU Sizing, Model Advisor -> GPU Sizing, and TCO -> ROI. That review found and corrected a real Model Advisor -> GPU Sizing Training-mode/provenance defect.
+
+### Combined Summary / My Summary current state
+
+- PR #15 replaced generic snapshot-key rendering with an explicit per-tool customer-facing presentation schema: curated labels, order, units, formatting, friendly model names, and clearer cloud/on-prem terminology.
+- My Summary now states that it contains the latest saved result from each tool rather than implying historical scenario linkage that the current snapshot schema does not store.
+- It detects and visibly warns on likely cross-snapshot incoherence, including TCO/GPU fleet mismatch, Advisor/GPU model mismatch, stale downstream timestamps, and stale TCO-sourced ROI.
+- It suppresses duplicate TCO evaluated-fleet output when it matches the GPU Sizing base fleet and protects summary cards from splitting poorly in print.
+- PR #16 corrected the consistency checker to compare DGX/NVL system topology in GPU-equivalent units rather than comparing system count directly with GPU count. Current equivalence includes DGX H200/B200/B300 at 8 GPUs per system and GB200 NVL72 at 72 GPUs.
+- Signed-in account identity, My Summary, and Sign out are now directly available from the home experience through PR #19.
+
+### Global Reset and scenario lifecycle
+
+- PR #18 added `Reset All Tools` as a whole-workspace current-scenario reset.
+- Reset clears shared `ai-factory-session:*` state, Readiness local state, and the signed-in user's current Supabase `tool_snapshots`, which powers My Summary.
+- Reset preserves the authenticated session, account/profile, and historical `download_events`.
+- The implementation protects against stale-state resurrection with a reset write barrier, waits for in-flight autosaves, performs server-side snapshot deletion and verification, uses a second delete pass, publishes a cross-tab reset epoch, and invalidates stale background/suspended-tab state before later reads/writes.
+- Reset is fail-safe: if server-side reset cannot be verified, the application does not falsely claim success.
+
+### Best-Value GPUaaS and provider eligibility
+
+- PR #17 added Best-Value GPUaaS v1 to TCO Workload Requirement mode. It ranks eligible providers only for the exact current rented GPU class and uses the existing TCO engine for candidate economics rather than a duplicate calculation path.
+- Ranking is same-class only. GPU Sizing remains the technical GPU-class authority; TCO does not invent cross-class substitution/equivalence in Best-Value v1.
+- The user explicitly chooses `Use provider`; ranking never silently changes the active provider.
+- Pricing confidence/provenance is disclosed with results, including `LISTED`, `EST`, `NODE-NORM`, `QUOTE`, and `CUSTOM` where applicable. Confidence is disclosed rather than secretly altering ranking order.
+- Best-Value intentionally excludes SLA, support, region, availability, enterprise discounts, security, procurement, networking, and operational-fit recommendations.
+- PR #23 added commercial eligibility/display metadata to the provider registry. A provider may remain internally modeled while being excluded from customer-facing selection/ranking.
+- Current customer-facing providers are AWS, Azure, Google Cloud, and Oracle Cloud.
+- CoreWeave pricing/provenance/modeling remains preserved internally for possible future re-enable, but it is commercially ineligible in the current CDW context because no reseller agreement is in place. It must not appear in customer-facing provider selection or Best-Value recommendations while that status remains false.
+- Provider eligibility is configuration-driven so future neoclouds such as Nebius can be added without rewriting the ranking engine, subject to commercial approval, source-quality review, and validation.
+
+### Authenticated Phase 1 front door
+
+- PR #20 introduced the Phase 1 authenticated front door. Signed-out users see the CDW-styled access experience before calculator interfaces.
+- Existing deep links are preserved through authentication and return the user to the originally requested route.
+- Supabase magic-link remains the primary sign-in method. Temporary-password compatibility remains for provisioned users. Existing incomplete-profile setup remains in place.
+- Phase 1 is an access-control/front-door improvement. It does not claim that all pricing, methodology, or recommendation logic has been relocated server-side.
+- Email-domain restrictions remain deliberately deferred. Do not add consumer-email blocking, competitor/watchlist rules, or other domain policy until explicitly revisited.
+- Future authenticated-header direction remains a single horizontal row with `CDW | AI FACTORY TOOLS` left-aligned and signed-in identity, `My Summary`, and `Sign out` right-aligned.
+
+### GPU Sizing usability clarification
+
+- PR #21 clarified `Peak concurrent users` without changing the field name or sizing math. It now means simultaneous active request streams during the busiest period and explicitly includes human users, AI agents, copilots, automations, and parallel sub-agents.
+- The working-day-hours mobile edit path remains hardened so transient blank/invalid edits do not collapse the result panel.
+
+### Client Summary image hardening
+
+- SafeImageInput restricts client logos to PNG/JPG/JPEG regular files, 10 MiB compressed size, and matching PNG/JPEG signatures.
+- PR #11 additionally validates decoded dimensions before PptxGenJS/image-size processing: maximum 10,000 px width, 10,000 px height, and 40,000,000 total pixels.
+- Path containment remains deferred because the current pipeline is offline/operator-local and no dedicated logo staging-root contract exists. Revisit if the workflow becomes upload-driven or a staging root is standardized.
+
+### Permanent assurance and regression architecture
+
+The permanent quality gate now protects a materially larger surface than the original release baseline. Depending on change scope it includes:
+
+- production build,
+- shared pricing registry validation,
+- shared model registry validation,
+- TCO handoff ownership guards,
+- SafeImageInput resource-bound tests,
+- checked-in TCO workbook extraction/structure validation,
+- canonical Excel-to-JavaScript TCO parity,
+- model-context and cross-tool state regressions,
+- Best-Value GPUaaS validators,
+- provider eligibility guards,
+- Global Reset contract coverage,
+- Combined Summary presentation/consistency regression,
+- local auth-bypassed browser regression for protected tool internals,
+- live Vercel regression for the authenticated production front door and route behavior.
+
+PR #22 corrected the browser-test architecture after the authenticated front door made signed-out production behavior intentionally different from the open local test build. Production/preview tests now assert that signed-out users receive the front door and cannot see protected tool navigation. Tool-internal browser journeys run against the local build with `E2E_AUTH_BYPASS`; that signal is test-only and is not inlined into or enabled in production.
+
+Green CI means the represented assertions pass. It is not synonymous with "no unknown defects." Human/adversarial review and real rendered/PDF review remain distinct validation activities. Recent examples include the state-precedence defects found before permanent tests existed and the Windows GPU Sizing print hierarchy issue found through actual PDF inspection.
+
+### Current provider and naming conventions
+
+- Customer-facing cloud provider names are `AWS`, `Azure`, `Google Cloud`, and `Oracle Cloud`.
+- Legacy internal aliases such as GCP/OCI may remain supported for backward compatibility, but new customer-facing copy should use Google Cloud and Oracle Cloud.
+- CoreWeave may remain in internal pricing/provenance structures while commercially disabled.
+
+### Current open / deferred items
+
+- Keep email-domain restriction policy on hold until explicitly revisited.
+- Future NeoCloud expansion should use provider configuration/eligibility rather than ranking-engine rewrites. Nebius is a known CDW-relevant future candidate; any additional provider must pass commercial, pricing-source, and validation review before customer exposure.
+- Continue monthly/manual cloud and on-prem pricing review under the shared registry/provenance process.
+- NVIDIA NIM compatibility remains manual-only until a production-backed catalog-wide endpoint is validated.
+- Controlled Vite/esbuild and React Router upgrades remain maintenance migrations, not blind `npm audit fix --force` work.
+- External CDW publication/branding approval remains separate from source and live technical verification.
+
+### Documentation health at this checkpoint
+
+This addendum intentionally catches the durable Project Brief up through PR #24. `CHANGELOG.md`, `README.md`, and `MaintenanceRunbook.md` are updated in the same documentation-only tranche so the current release/unreleased state, authentication model, provider eligibility, Best-Value GPUaaS, and regression architecture do not contradict this brief.
+
+
 ## September 4, 2026 Current-State Addendum
 
 This addendum supersedes stale current-state statements elsewhere in the historical export while preserving the older chronology. The immutable stable baseline remains `v2026.09` at `31fdb2ff2a321f6101bfa72d3c45b4c31aa3a0eb`. The pre-documentation current code checkpoint is `main` at `cfb2ed79ec01320f7669d11b8d5416d09f580117`; all changes after `v2026.09` remain `Unreleased` until the next validated tag.

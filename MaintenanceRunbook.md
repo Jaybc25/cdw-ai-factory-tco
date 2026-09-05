@@ -148,7 +148,7 @@ Procedure:
 
 ### 4.2 Cloud GPU pricing
 
-Providers currently represented in TCO include AWS, Azure, GCP, OCI, and CoreWeave.
+Provider records currently represented in the shared TCO pricing architecture include AWS, Azure, Google Cloud, Oracle Cloud, and CoreWeave. Customer-facing eligibility is separate from internal modeling: the current selectable/rankable provider set is AWS, Azure, Google Cloud, and Oracle Cloud. CoreWeave remains internally preserved but customer-facing disabled while commercially ineligible.
 
 #### Canonical provider pricing basis
 
@@ -189,6 +189,19 @@ Rules:
 4. Run `node scripts/validate_pricing_registry.mjs` after pricing-architecture or value changes. The permanent quality gate runs this automatically for relevant changes.
 5. Run the TCO Excel-to-JavaScript parity gate after any TCO-relevant pricing change.
 6. Verify the deployed site after a material pricing refresh before calling the new data live-verified.
+
+
+### 4.4 GPUaaS commercial eligibility maintenance
+
+Provider pricing/model presence and customer-facing commercial eligibility are separate concerns.
+
+1. `src/pricingRegistry.js` may preserve a provider's pricing/provenance/modeling data even when that provider is not customer-facing eligible.
+2. Best-Value GPUaaS and provider selectors must honor the eligibility/display metadata rather than hard-coding provider names in ranking logic.
+3. Current customer-facing providers are AWS, Azure, Google Cloud, and Oracle Cloud.
+4. CoreWeave remains internally preserved but customer-facing disabled in the current CDW context because no reseller agreement is in place.
+5. Re-enable a provider only after the commercial status is explicitly confirmed and the full quality gate passes.
+6. Add future neoclouds such as Nebius through the provider configuration/registry architecture, with pricing-source review, confidence/provenance classification, commercial eligibility confirmation, and regression validation before customer exposure.
+7. Customer-facing copy should use `Google Cloud` and `Oracle Cloud`; legacy GCP/OCI aliases may remain internally for backward compatibility.
 
 ## 5. Model-catalog refresh procedure
 
@@ -489,3 +502,18 @@ As of September 4, 2026, after PR #11:
 5. Continue monitoring the PptxGenJS/image-size upstream path while retaining SafeImageInput mitigation.
 
 These priorities are technical assurance priorities, not a substitute for business or CDW publication priorities.
+
+## 10. Authentication-aware browser regression
+
+The Phase 1 authenticated front door creates two intentional browser-test contexts:
+
+- **Preview/production:** signed-out users should receive the authenticated front door. Live tests verify route health and that protected tool navigation is not exposed before authentication.
+- **Local auth-bypassed build:** tool-internal journeys, calculations, state handoffs, Back/Forward behavior, and other protected UI regressions run locally with the test-only `E2E_AUTH_BYPASS` signal.
+
+Rules:
+
+1. Never enable the auth bypass in production or expose it as a Vite client variable.
+2. A production regression that expects protected tool internals while signed out is testing the wrong context.
+3. After authentication/front-door changes, run both the live route/front-door checks and the local protected-tool regression suite.
+4. Credentialed manual checks remain appropriate for real magic-link delivery, account setup, My Summary persistence, Global Reset server-side deletion, report/download events, and Slack side effects where automation does not hold real credentials.
+

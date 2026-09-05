@@ -13,7 +13,65 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
-- No unreleased changes yet.
+### September 4-5, 2026 - Post-2026.09.1 integration, GPUaaS, authentication, and workspace hardening
+
+#### Combined Summary / My Summary - PRs #15 and #16
+- Replaced generic snapshot-key rendering with an explicit per-tool customer-facing presentation schema, curated labels/order/units, friendly model names, and clearer cloud/on-prem terminology.
+- Added visible consistency warnings when the latest saved tool snapshots do not appear to describe one coherent scenario, including TCO/GPU fleet mismatch, Advisor/GPU model mismatch, stale downstream timestamps, and stale TCO-sourced ROI.
+- Clarified that My Summary contains the latest saved result from each tool rather than implying historical scenario linkage that the current snapshot schema does not store.
+- Suppressed duplicate TCO fleet output when it matches GPU Sizing and added print break protection.
+- Corrected DGX/NVL consistency checking to compare GPU-equivalent capacity rather than system count directly to GPU count.
+- PR #15 merged as `87776956dab793d70f1472f953a631737f7f45d2`; PR #16 merged as `255d85b57d037ca7c6349468e69e2b9b5fda5ded`.
+
+#### Best-Value GPUaaS v1 - PR #17
+- Added same-class Best-Value GPUaaS ranking to TCO Workload Requirement mode using the existing TCO engine for candidate economics.
+- Ranking preserves GPU Sizing as the technical GPU-class authority, never invents cross-class substitution, and never silently changes the active provider.
+- Added pricing-confidence disclosure (`LISTED`, `EST`, `NODE-NORM`, `QUOTE`, `CUSTOM`) and explicit `Use provider` selection.
+- Deliberately excludes SLA, region, availability, enterprise discount, support, security, networking, procurement, and operational-fit recommendations from v1.
+- PR #17 merged as `1c5153ddf15a32cdd25c5aac2e44ac43697c3f32`.
+
+#### Global Reset - PR #18
+- Added whole-workspace `Reset All Tools` for current scenario state while preserving authentication/account/profile and historical download events.
+- Added reset write barrier, autosave coordination, two-pass snapshot deletion, server-side emptiness verification, cross-tab reset epoch, and stale-tab invalidation to prevent old scenario data from resurrecting after reset.
+- Reset is fail-safe when server-side deletion cannot be verified.
+- PR #18 merged as `0235f58cff1944aa935b8e5fc7382504db9e9e9f`.
+
+#### Home account and My Summary access - PR #19
+- Added the existing account/auth surface to the home page so signed-in users can see identity, open My Summary, and sign out without first entering a tool.
+- Preserved Global Reset and signed-out browser-clear behavior and improved narrow-screen header stacking.
+- PR #19 merged as `6a1217fc3a158b7ade9571e7dd84da21db0408be`.
+
+#### Phase 1 authenticated front door - PR #20
+- Added a CDW-styled authenticated front door before calculator interfaces for signed-out visitors.
+- Preserved deep links through authentication, Supabase magic-link as primary login, temporary-password compatibility for provisioned users, and existing first-time account setup.
+- This is an access-control/front-door tranche only; it does not claim all methodology/pricing logic is server-side.
+- Email-domain restrictions remain deliberately deferred.
+- PR #20 merged as `200c47427e60fee409e32d7dc2dbb2358657a6a2`.
+
+#### GPU Sizing terminology - PR #21
+- Clarified `Peak concurrent users` to mean simultaneous active request streams and explicitly include human users, AI agents, copilots, automations, and parallel sub-agents.
+- No sizing math, default, label, or validation behavior changed.
+- PR #21 merged as `ab7deb03c5e074a861f743a9f89c6ff7686e1d98`.
+
+#### Auth-aware browser regression architecture - PR #22
+- Split browser validation by authentication context after the front door changed intentional signed-out production behavior.
+- Preview/production tests now assert route health plus signed-out front-door protection; protected tool-internal journeys run against the local auth-bypassed build.
+- `E2E_AUTH_BYPASS` is test-only and absent from live production behavior.
+- PR #22 merged as `9e975f65aaf8d61f0091308f075173226171857b`.
+
+#### GPUaaS commercial eligibility - PR #23
+- Added provider eligibility/display metadata so commercially unavailable providers can remain modeled internally without appearing in customer-facing selection or Best-Value recommendations.
+- Current customer-facing provider set is AWS, Azure, Google Cloud, and Oracle Cloud.
+- CoreWeave pricing/provenance/modeling remains preserved internally but is commercially disabled in the current CDW context because no reseller agreement is in place.
+- No pricing values, TCO math, GPU-class logic, or on-prem economics changed.
+- PR #23 merged as `fddf437a5b5ec1cb8514bee8f32f35ce39c59787`.
+
+#### GPU Sizing print/PDF hierarchy - PR #24
+- After real Windows PDF review, changed print-only styling so the Recommended configuration does not resemble a disabled/de-selected card in grayscale output.
+- Recommended now prints with a white background, strong dark outline, fully opaque dark text, and no shadow; screen styling is unchanged.
+- No sizing, pricing, provider, handoff, or calculation logic changed.
+- PR #24 merged as `696c4c87122b7dfab25ac5eec59c2c0db8dcef78` and was manually confirmed working in production on Windows.
+
 
 ## AI Factory Suite 2026.09.1 - 2026-09-04
 
