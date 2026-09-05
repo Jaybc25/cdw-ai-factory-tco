@@ -9,6 +9,8 @@ export const GPUAAS_PROVIDER_CONFIG = Object.freeze({
   Azure: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "Azure" }),
   GCP: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "Google Cloud" }),
   OCI: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "Oracle Cloud" }),
+  "Google Cloud": Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", canonicalProvider: "GCP", displayName: "Google Cloud" }),
+  "Oracle Cloud": Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", canonicalProvider: "OCI", displayName: "Oracle Cloud" }),
   CoreWeave: Object.freeze({ customerFacingEnabled: false, bestValueEnabled: false, status: "pending-commercial-enablement", displayName: "CoreWeave" }),
 });
 
@@ -62,21 +64,29 @@ const ALL_CLOUD_GPU_RATES = {
   },
 };
 
-// TCO intentionally uses Object.keys(CLOUD_GPU_RATES) to build the visible
-// provider selector. Commercially inactive providers are therefore defined as
-// non-enumerable: their historical/modeling data remains addressable by name
-// (protecting old saved scenarios), while they disappear from new customer-facing
-// provider choices and from Best-Value candidate enumeration.
-export const CLOUD_GPU_RATES = {};
-for (const [provider, rates] of Object.entries(ALL_CLOUD_GPU_RATES)) {
-  Object.defineProperty(CLOUD_GPU_RATES, provider, {
-    value: rates,
-    enumerable: GPUAAS_PROVIDER_CONFIG[provider]?.customerFacingEnabled !== false,
-    writable: false,
-    configurable: false,
-  });
-}
-Object.freeze(CLOUD_GPU_RATES);
+const CUSTOMER_FACING_PROVIDER_KEYS = Object.freeze(["AWS", "Azure", "Google Cloud", "Oracle Cloud"]);
+const PROVIDER_ALIASES = Object.freeze({ "Google Cloud": "GCP", "Oracle Cloud": "OCI" });
+
+// A Proxy lets the TCO UI enumerate clear customer-facing names while keeping
+// old internal/saved keys (GCP, OCI) and dormant providers (CoreWeave)
+// addressable by name. No rate data is duplicated or discarded.
+export const CLOUD_GPU_RATES = new Proxy(ALL_CLOUD_GPU_RATES, {
+  ownKeys() {
+    return CUSTOMER_FACING_PROVIDER_KEYS;
+  },
+  get(target, prop, receiver) {
+    if (typeof prop === "string" && PROVIDER_ALIASES[prop]) return target[PROVIDER_ALIASES[prop]];
+    return Reflect.get(target, prop, receiver);
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    if (typeof prop === "string" && PROVIDER_ALIASES[prop]) {
+      return { value: target[PROVIDER_ALIASES[prop]], enumerable: true, configurable: true, writable: false };
+    }
+    const descriptor = Reflect.getOwnPropertyDescriptor(target, prop);
+    if (!descriptor) return undefined;
+    return { ...descriptor, enumerable: CUSTOMER_FACING_PROVIDER_KEYS.includes(String(prop)), configurable: true };
+  },
+});
 
 export const ONPREM_SYSTEMS = {
   "DGX H200": { gpus: 8, perSys: 549764, kW: 10.2, perRack: 2, rackCost: 15000, vram: 141, prof: 25000, sw: 99000 },
