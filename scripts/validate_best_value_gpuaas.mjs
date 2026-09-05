@@ -5,31 +5,30 @@ import { rankSameClassGpuAas, topGpuAasValues } from "../src/bestValueGpuaas.js"
 const PROVIDERS = Object.keys(CLOUD_GPU_RATES);
 
 function evaluateFromRate(_provider, rateInfo) {
-  // Deterministic harness only: production integration will call the existing
-  // TCO engine. This validator checks ranking/eligibility/confidence behavior,
-  // not TCO arithmetic.
   return {
     cloudTotal: rateInfo.od * 1000,
     monthlyCloudBaseline: rateInfo.od * 100,
   };
 }
 
-assert.deepEqual(PROVIDERS, ["AWS", "Azure", "GCP", "OCI"], "Customer-facing provider list should contain only commercially enabled providers");
+assert.deepEqual(PROVIDERS, ["AWS", "Azure", "Google Cloud", "Oracle Cloud"], "Customer-facing provider list should use clear enabled provider names");
+assert.equal(GPUAAS_PROVIDER_CONFIG.CoreWeave.customerFacingEnabled, false, "CoreWeave must be hidden from customer-facing provider choices until commercially enabled");
 assert.equal(GPUAAS_PROVIDER_CONFIG.CoreWeave.bestValueEnabled, false, "CoreWeave must remain disabled for Best-Value recommendations until commercially enabled");
 assert.ok(CLOUD_GPU_RATES.CoreWeave?.H200, "CoreWeave modeling data should remain preserved internally for future re-enablement");
+assert.strictEqual(CLOUD_GPU_RATES["Google Cloud"], CLOUD_GPU_RATES.GCP, "Google Cloud display name should resolve to the canonical GCP rate data");
+assert.strictEqual(CLOUD_GPU_RATES["Oracle Cloud"], CLOUD_GPU_RATES.OCI, "Oracle Cloud display name should resolve to the canonical OCI rate data");
 
 const h200 = rankSameClassGpuAas({
   gpuClass: "H200",
   providers: PROVIDERS,
   rateRegistry: CLOUD_GPU_RATES,
-  providerConfig: GPUAAS_PROVIDER_CONFIG,
   evaluateProvider: evaluateFromRate,
 });
 
 assert.equal(h200.length, PROVIDERS.length, "Every customer-facing provider with an H200 row should be ranked");
 assert.deepEqual(
   h200.map((row) => row.provider),
-  ["AWS", "OCI", "Azure", "GCP"],
+  ["AWS", "Oracle Cloud", "Azure", "Google Cloud"],
   "H200 ranking should follow modeled same-class cost among commercially enabled providers",
 );
 assert.ok(!h200.some((row) => row.provider === "CoreWeave"), "Commercially disabled providers must not enter Best-Value rankings");
@@ -41,17 +40,15 @@ const b300 = rankSameClassGpuAas({
   gpuClass: "B300",
   providers: PROVIDERS,
   rateRegistry: CLOUD_GPU_RATES,
-  providerConfig: GPUAAS_PROVIDER_CONFIG,
   evaluateProvider: evaluateFromRate,
 });
-assert.equal(b300[0].provider, "OCI", "Lowest eligible numeric B300 value should rank first");
+assert.equal(b300[0].provider, "Oracle Cloud", "Lowest eligible numeric B300 value should rank first");
 assert.equal(b300[0].confidence, "LISTED", "pricing confidence must remain visible after eligibility filtering");
 
 const explicitDisabledCandidate = rankSameClassGpuAas({
   gpuClass: "H200",
   providers: ["CoreWeave", "AWS"],
   rateRegistry: CLOUD_GPU_RATES,
-  providerConfig: GPUAAS_PROVIDER_CONFIG,
   evaluateProvider: evaluateFromRate,
 });
 assert.deepEqual(explicitDisabledCandidate.map((row) => row.provider), ["AWS"], "Ranking helper must reject an explicitly supplied but commercially disabled provider");
@@ -60,7 +57,6 @@ const missingClass = rankSameClassGpuAas({
   gpuClass: "DOES_NOT_EXIST",
   providers: PROVIDERS,
   rateRegistry: CLOUD_GPU_RATES,
-  providerConfig: GPUAAS_PROVIDER_CONFIG,
   evaluateProvider: evaluateFromRate,
 });
 assert.deepEqual(missingClass, [], "Missing exact class must yield no candidates, never cross-class fallback");
@@ -78,8 +74,9 @@ const tie = rankSameClassGpuAas({
 assert.deepEqual(tie.map((row) => row.provider), ["A", "B"], "Equal modeled costs should sort deterministically by provider name");
 
 console.log("Best-Value GPUaaS v1 validator: PASS");
+console.log("- customer-facing providers are AWS, Azure, Google Cloud, Oracle Cloud");
+console.log("- CoreWeave data is preserved but hidden and ineligible");
 console.log("- ranks only the exact requested GPU class");
-console.log("- excludes commercially disabled providers without deleting their modeling data");
 console.log("- never performs cross-class substitution");
 console.log("- preserves pricing confidence/provenance");
 console.log("- top-N output is deterministic");
