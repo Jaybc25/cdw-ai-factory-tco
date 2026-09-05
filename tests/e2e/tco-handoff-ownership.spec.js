@@ -1,14 +1,9 @@
 import { test, expect } from "@playwright/test";
+import { AUTH_BYPASSED, BYPASS_ONLY_REASON } from "./helpers/auth-context.js";
+
+test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
 
 const KEY = "ai-factory-session:tco";
-const runningUndeployedBranchAgainstProduction =
-  process.env.GITHUB_EVENT_NAME === "pull_request" &&
-  (process.env.BASE_URL || "").includes("vercel.app");
-
-test.skip(
-  runningUndeployedBranchAgainstProduction,
-  "Branch-only ownership behavior is validated against the PR build, not the still-current production deployment.",
-);
 
 async function seedTcoSession(page, state) {
   await page.goto("/tco", { waitUntil: "domcontentloaded" });
