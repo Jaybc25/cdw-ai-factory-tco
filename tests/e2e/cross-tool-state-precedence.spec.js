@@ -1,13 +1,7 @@
 import { test, expect } from "@playwright/test";
+import { AUTH_BYPASSED, BYPASS_ONLY_REASON } from "./helpers/auth-context.js";
 
-const runningUndeployedBranchAgainstProduction =
-  process.env.GITHUB_EVENT_NAME === "pull_request" &&
-  (process.env.BASE_URL || "").includes("vercel.app");
-
-test.skip(
-  runningUndeployedBranchAgainstProduction,
-  "Branch-only cross-tool behavior is validated against the PR build, not the still-current production deployment.",
-);
+test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
 
 const KEYS = {
   advisor: "ai-factory-session:model-advisor",

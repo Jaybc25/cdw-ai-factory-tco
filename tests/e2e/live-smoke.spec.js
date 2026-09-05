@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { AUTH_BYPASSED, BYPASS_ONLY_REASON, FRONT_DOOR_ONLY_REASON } from "./helpers/auth-context.js";
 
 const ROUTES = [
   "/",
@@ -33,7 +34,23 @@ for (const route of ROUTES) {
   });
 }
 
+test("every route serves the authenticated front door to signed-out visitors", async ({ page }) => {
+  test.skip(AUTH_BYPASSED, FRONT_DOOR_ONLY_REASON);
+  for (const route of ROUTES) {
+    await page.goto(route, { waitUntil: "domcontentloaded" });
+    await expect(
+      page.getByRole("heading", { name: "Access AI Factory Tools" }),
+      `${route} did not render the sign-in front door`,
+    ).toBeVisible();
+    await expect(
+      page.locator('a[href="/use-cases"]'),
+      `${route} leaked tool navigation to a signed-out visitor`,
+    ).toHaveCount(0);
+  }
+});
+
 test("landing page exposes all six customer-journey tools", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   await page.goto("/", { waitUntil: "domcontentloaded" });
   const expectedHrefs = [
     "/use-cases",
@@ -49,6 +66,7 @@ test("landing page exposes all six customer-journey tools", async ({ page }) => 
 });
 
 test("GPU Sizing handoff persists TCO workload anchor after query consumption and reload", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
   await page.goto(
     "/tco?ownSys=DGX%20B200&gpuCount=8&sourceClass=B200&workingDayHours=8",
@@ -78,6 +96,7 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 });
 
 test("TCO handoff persists ROI values and provenance after query consumption and reload", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
   await page.goto(
     "/roi?initialCost=1250000&recurringCost=180000&planningBasis=workload",
@@ -107,6 +126,7 @@ test("TCO handoff persists ROI values and provenance after query consumption and
 });
 
 test("malformed ROI handoff does not manufacture TCO provenance or zero-dollar costs", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
   await page.goto("/roi?initialCost=abc&recurringCost=", { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => !!sessionStorage.getItem("ai-factory-session:roi"));

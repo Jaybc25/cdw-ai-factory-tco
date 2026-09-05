@@ -119,8 +119,7 @@ jobs:
           retention-days: 14
 
   branch-handoff-e2e:
-    name: PR cross-tool state browser regression
-    if: github.event_name == 'pull_request'
+    name: Auth-bypassed build browser regression
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -156,10 +155,11 @@ jobs:
           cat /tmp/tco-preview.log
           exit 1
 
-      - name: Run handoff and cross-tool ownership journeys against PR build
+      - name: Run full browser regression suite against the auth-bypassed build
         env:
           BASE_URL: http://127.0.0.1:4173
-        run: npx playwright test tests/e2e/tco-handoff-ownership.spec.js tests/e2e/cross-tool-state-precedence.spec.js
+          E2E_AUTH_BYPASS: "true"
+        run: npx playwright test tests/e2e
 
   live-smoke:
     name: Live Vercel browser regression
