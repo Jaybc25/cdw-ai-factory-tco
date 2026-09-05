@@ -5,12 +5,14 @@
 // config change and provides a clean path for future providers (for example
 // Nebius) to be modeled before activation.
 export const GPUAAS_PROVIDER_CONFIG = Object.freeze({
-  AWS: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active" }),
-  Azure: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active" }),
-  GCP: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active" }),
-  OCI: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active" }),
-  CoreWeave: Object.freeze({ customerFacingEnabled: false, bestValueEnabled: false, status: "pending-commercial-enablement" }),
+  AWS: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "AWS" }),
+  Azure: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "Azure" }),
+  GCP: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "Google Cloud" }),
+  OCI: Object.freeze({ customerFacingEnabled: true, bestValueEnabled: true, status: "active", displayName: "Oracle Cloud" }),
+  CoreWeave: Object.freeze({ customerFacingEnabled: false, bestValueEnabled: false, status: "pending-commercial-enablement", displayName: "CoreWeave" }),
 });
+
+export const getGpuAasProviderDisplayName = (provider) => GPUAAS_PROVIDER_CONFIG[provider]?.displayName || provider;
 
 const ALL_CLOUD_GPU_RATES = {
   AWS: {
