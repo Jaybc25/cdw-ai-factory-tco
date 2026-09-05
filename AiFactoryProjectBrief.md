@@ -371,11 +371,11 @@ Current verification dates in source are September 1, 2026 for cloud pricing and
 8. Client-summary fixture absence/zero-fixture false-pass issue; current repo contains 14 fixtures.
 9. **TCO Excel-to-JS automated parity suite.** Built September 1, 2026 as a permanent GitHub Actions quality gate. The checked-in final audit workbook is extracted directly in CI and the canonical `EngineRegression` fixture passes 20/20 comparisons against the current production JavaScript engine.
 10. **Automated live Vercel regression.** Built September 1, 2026 with Playwright. The current public-production suite passes 13/13 tests covering all routes, landing links, key handoff/state/provenance defects, and a canonical TCO fixture through the real TCO-to-ROI link.
+11. **Shared pricing data module/registry.** Resolved September 2, 2026. Cloud GPU rates and NVIDIA/DGX loaded system economics are centralized in `src/pricingRegistry.js`; GPU Sizing derives its planning prices from the shared system records, and `scripts/validate_pricing_registry.mjs` guards against reintroducing local duplicate tables.
 
 ### Still open or not independently proven live
 
-11. **Credentialed/external-side-effect live checks.** Magic-link email delivery, authenticated report/download event verification, Slack notification verification, and final report/PDF visual inspection remain a separate live-manual layer when those paths change.
-12. **Shared pricing data module/registry.** Current provenance dates are shared; price values remain duplicated.
+12. **Credentialed/external-side-effect live checks.** Magic-link email delivery, authenticated report/download event verification, Slack notification verification, and final report/PDF visual inspection remain a separate live-manual layer when those paths change.
 13. **Production NVIDIA NIM sync endpoint.** Manual workflow remains intentionally unscheduled.
 14. **Deployment verification for latest ROI/report and Readiness verbose-report changes.** Source may be correct without the latest deployed PDF path having been independently re-proven.
 15. **Supabase Database Webhooks platform/support resolution.** Direct Edge Function invocation remains the current workaround.
@@ -393,7 +393,7 @@ Current verification dates in source are September 1, 2026 for cloud pricing and
 5. **ChatGPT project knowledge:** consolidated in Section 18 below.
 6. **CDW sign-off:** still external/unresolved. Repo visibility, deployment, logo presence, or draft approval does not establish website-publication approval.
 7. **Formspree:** no current repo implementation or dependency found. Current implementation uses Supabase/Resend/Slack. Treat Formspree as superseded/dead scope unless deliberately revived.
-8. **Roadmap priority:** the TCO parity suite and automated public-production regression were completed September 1, 2026. The next major technical-maintenance priority is the shared pricing registry, while credentialed auth/report/notification checks remain release-specific and business-facing future features are ordered separately.
+8. **Roadmap priority:** the TCO parity suite and automated public-production regression were completed September 1, 2026, and the shared pricing registry was completed September 2. Current technical-maintenance priorities are disciplined pricing/provenance refreshes, release-specific credentialed auth/report/notification checks, controlled dependency upgrades, NIM endpoint validation, and future provider expansion through the eligibility/configuration architecture.
 
 ## 18. ChatGPT Independent Validation / Audit Memory
 
@@ -466,7 +466,7 @@ Current source contains fixes for the serious pre-deployment defects. On Septemb
 
 At the time of the August 31 consolidated export, the repo was public; it was changed to private on September 1, 2026 and authenticated connector access was subsequently re-verified. The default branch remains `main`.
 
-The pre-brief source snapshot was `4106962aa657075ef313f34160e7c3b130a0b5af`; the consolidated brief itself was later committed as a documentation change. `package.json` identifies the package as `cdw-ai-factory-tools`, version 2.8.0, private npm package flag, using React/Vite/Supabase/PptxGenJS.
+The pre-brief source snapshot was `4106962aa657075ef313f34160e7c3b130a0b5af`; the consolidated brief itself was later committed as a documentation change. At that August 31 snapshot, `package.json` identified the package as `cdw-ai-factory-tools`, version 2.8.0. The validated 2026.09.1 release later transitioned current package metadata to `2026.9.1`; historical release/tag state remains immutable.
 
 Current live-source modules under `src/` at the snapshot include:
 
