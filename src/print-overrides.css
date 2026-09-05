@@ -1,0 +1,20 @@
+@media print {
+  /*
+   * GPU Sizing report: the on-screen Recommended card uses a dark fill.
+   * In grayscale print/PDF that fill can make the card look disabled or
+   * de-selected, so print it as a white card with a strong dark outline and
+   * fully legible dark typography. Screen styling remains unchanged.
+   */
+  .gpu-print-report .flex.flex-wrap.gap-3.mb-6 > .rounded-xl:has(.lucide-zap) {
+    background: #fff !important;
+    color: #2d2d2d !important;
+    border: 2px solid #2d2d2d !important;
+    box-shadow: none !important;
+  }
+
+  .gpu-print-report .flex.flex-wrap.gap-3.mb-6 > .rounded-xl:has(.lucide-zap) > div,
+  .gpu-print-report .flex.flex-wrap.gap-3.mb-6 > .rounded-xl:has(.lucide-zap) span {
+    color: #2d2d2d !important;
+    opacity: 1 !important;
+  }
+}
