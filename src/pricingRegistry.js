@@ -1,3 +1,16 @@
+// Commercial/customer-facing eligibility for Best-Value GPUaaS recommendations.
+// Keep this separate from rate availability: a provider can remain fully modeled
+// for TCO comparisons while being excluded from the recommendation/ranking layer.
+// This makes commercial enablement a one-line config change and provides a clean
+// path for future providers (for example Nebius) to be modeled before activation.
+export const GPUAAS_PROVIDER_CONFIG = Object.freeze({
+  AWS: Object.freeze({ bestValueEnabled: true, status: "active" }),
+  Azure: Object.freeze({ bestValueEnabled: true, status: "active" }),
+  GCP: Object.freeze({ bestValueEnabled: true, status: "active" }),
+  OCI: Object.freeze({ bestValueEnabled: true, status: "active" }),
+  CoreWeave: Object.freeze({ bestValueEnabled: false, status: "pending-commercial-enablement" }),
+});
+
 export const CLOUD_GPU_RATES = {
   AWS: {
     A100: { od: 3.43, conf: "LISTED", note: "A100 80GB: p4de.24xlarge $27.44705/8, AWS EC2 public price catalog, us-east-1" },
