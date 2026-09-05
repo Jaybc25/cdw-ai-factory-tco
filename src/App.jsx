@@ -9,6 +9,7 @@ import RoiCalculator from "./RoiCalculator.jsx";
 import AiReadinessChecklists from "./AiReadinessChecklists.jsx";
 import CombinedSummary from "./CombinedSummary.jsx";
 import LoginFrontDoor from "./LoginFrontDoor.jsx";
+import "./print-overrides.css";
 
 function ToolRoutes() {
   return (
