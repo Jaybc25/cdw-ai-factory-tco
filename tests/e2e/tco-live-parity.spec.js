@@ -1,4 +1,7 @@
 import { test, expect } from "@playwright/test";
+import { AUTH_BYPASSED, BYPASS_ONLY_REASON } from "./helpers/auth-context.js";
+
+test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
 
 const TCO_SESSION_KEY = "ai-factory-session:tco";
 const ROI_SESSION_KEY = "ai-factory-session:roi";
