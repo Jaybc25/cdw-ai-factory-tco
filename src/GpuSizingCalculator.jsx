@@ -15,7 +15,7 @@ import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelPar
 const TIPS = {
   infModel: "The model you plan to run. If you're not sure yet, Llama 3.1 70B is a reasonable default for a general-purpose assistant -- pick 8B for lightweight/cheap, or 405B if you need frontier-level quality.",
   quant: "How compressed the model's weights are in memory. FP8 is the safe default for H200-class hardware and up; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300) and roughly halves memory again.",
-  concurrentUsers: "How many people will be generating a response at the same moment, not your total user count. A team of 500 might only have 20-50 concurrent at peak -- when unsure, estimate 5-10% of total users at peak hours.",
+  concurrentUsers: "The maximum number of simultaneous active request streams during your busiest period. Include human users, AI agents, copilots, automations, and parallel sub-agents that may be generating model requests at the same time.",
   targetTokPerUser: "How fast each user's response should stream in. 20-30 tokens/sec feels roughly like natural reading speed for a chat experience; lower it for batch/offline jobs where speed matters less.",
   environment: "Whether this is a real production deployment or something lighter-weight. Dev/Test/POC unlocks a note about cheaper workstation-class GPUs, since production reliability requirements don't apply yet.",
   infGpuOverride: "Leave this on Auto-recommend to let the tool pick the most efficient class for your workload. Only override it if you already own a specific GPU class and want to see how it performs.",
