@@ -426,9 +426,9 @@ Do not create a new release identifier for every commit.
 
 ### 10.3 Package metadata transition
 
-`package.json` currently contains the legacy version `2.8.0`. Because `v2026.09` is already an immutable validated baseline, do not rewrite that tagged commit merely to align metadata.
+`package.json` transitioned to `2026.9.1` with the validated `AI Factory Suite 2026.09.1` release. The earlier `v2026.09` tag remains immutable with its historical metadata.
 
-Starting with the next stable release:
+For current and future stable releases:
 
 - Mirror the internal suite release in `package.json` using SemVer-safe numeric formatting.
 - Human release `2026.09.1` maps to package version `2026.9.1`; SemVer numeric components do not use leading zeroes.
@@ -476,34 +476,31 @@ For a meaningful stable release:
 
 ## 11. Current assurance baseline and remaining backlog
 
-As of September 4, 2026, after PR #11:
+As of September 5, 2026, after PR #25:
 
 ### Completed and now permanent
 
-1. The automated TCO Excel-to-JavaScript parity suite is built into GitHub Actions and the canonical `EngineRegression` fixture passes 20/20 checks.
-2. The shared pricing registry validator, shared model registry validator, TCO GPU Sizing handoff ownership guard, and SafeImageInput resource-bound tests run in the permanent quality gate.
-3. PR-local Chromium regression covers dirty-session -> fresh-handoff ownership, explicit cloud override persistence, legacy size-only migration, Custom model identity, model-context reload persistence, and Back/Forward consumed-query behavior.
-4. The automated live Vercel regression suite remains part of the quality gate for deployed behavior already represented in the live suite.
-5. The on-prem technical target is structurally owned by GPU Sizing for workload handoffs; TCO owns economic comparison/planning assumptions and preserves explicit user cloud-comparison overrides.
-6. All five individual report-producing tools have approved print-layout states in source. Combined Summary remains a separate presentation/schema workstream.
+1. `AI Factory Suite 2026.09.1` shipped September 4 with package metadata `2026.9.1`; the release/tag history is immutable.
+2. The automated TCO Excel-to-JavaScript parity suite remains in GitHub Actions and the canonical `EngineRegression` fixture passes 20/20 comparisons against the production JavaScript engine.
+3. Shared pricing/model registry validators, GPU Sizing -> TCO ownership guards, SafeImageInput bounds, Best-Value GPUaaS/provider-eligibility guards, Global Reset contracts, Combined Summary presentation/consistency checks, and cross-tool/model-context browser regressions are part of the permanent assurance surface.
+4. All five report-producing tools have approved print/PDF layouts; the GPU Sizing Recommended-card print hierarchy was additionally confirmed in production on Windows after PR #24.
+5. Combined Summary/My Summary now uses a curated per-tool presentation schema, warns on likely mixed scenarios, and compares DGX/NVL capacity in GPU-equivalent units.
+6. The Phase 1 authenticated front door is current production behavior. Browser assurance is intentionally split between signed-out production/front-door checks and protected-tool journeys in the local auth-bypassed test build.
+7. Best-Value GPUaaS is current in TCO Workload Requirement mode, and provider commercial eligibility is configuration-driven. CoreWeave remains modeled internally but customer-facing disabled in the current CDW context.
 
-### Remaining before the next stable tag
+### Current technical maintenance backlog
 
-1. Perform one deliberate human/adversarial cross-tool pass focused on state precedence and cross-session interactions. Treat a green gate as proof that asserted checks pass, not as proof that no unknown defect exists.
-2. Run credentialed/manual checks if the final release scope requires magic-link delivery, database download events, Slack notifications, or report/PDF visual verification.
-3. Prepare the release record, set `package.json` to `2026.9.1`, run the final merged-tree gate and deployed-scope verification, and create `v2026.09.1` only after the exact release commit is known-good.
-
-### Carried forward after the release boundary
-
-1. Maintain the shared TCO/GPU Sizing pricing registry and disciplined source/provenance refreshes.
-2. Establish production-backed NIM compatibility sync only after NVIDIA endpoint validation.
-3. Resume Combined Summary with a curated per-tool presentation schema, deliberate pagination, and 1-through-5-tool regression fixtures.
-4. Execute controlled Vite/esbuild and React Router upgrades separately, with full regression validation.
+1. Maintain cloud and on-prem pricing through the shared registry/provenance process and revalidate provider commercial eligibility before changing customer-facing availability.
+2. Run credentialed/manual checks when a change affects real magic-link delivery, account setup, My Summary persistence, Global Reset server-side deletion, report/download events, Slack side effects, or PDF presentation not fully represented in automation.
+3. Establish production-backed NVIDIA NIM compatibility sync only after a supported catalog-wide endpoint is identified and validated.
+4. Execute controlled Vite/esbuild and React Router upgrades separately with full regression validation rather than force-upgrading around audit findings.
 5. Continue monitoring the PptxGenJS/image-size upstream path while retaining SafeImageInput mitigation.
+6. Keep email-domain restrictions deferred until explicitly revisited.
+7. Add future NeoCloud providers only through the provider configuration/eligibility architecture with pricing-source review, provenance/confidence classification, commercial confirmation, and regression validation before customer exposure.
 
 These priorities are technical assurance priorities, not a substitute for business or CDW publication priorities.
 
-## 10. Authentication-aware browser regression
+## 12. Authentication-aware browser regression
 
 The Phase 1 authenticated front door creates two intentional browser-test contexts:
 
