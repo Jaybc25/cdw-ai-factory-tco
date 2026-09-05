@@ -140,7 +140,8 @@ function LoginFrontDoorInner({ children }) {
         .afd-legal a{color:var(--red)}
         .afd-temp-note{margin-top:7px;color:#8B929A;font-size:9.7px;line-height:1.35;text-align:center}
 
-        .afd-visual{position:relative;overflow:hidden;background-image:url('${datacenterPanel}');background-size:cover;background-position:center}
+        .afd-visual{position:relative;overflow:hidden}
+        .afd-visual img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
 
         .afd-tools-section{height:218px;border-top:1px solid #E3E6E9;padding:14px 0 18px;background:#fff}
         .afd-tools-heading{display:flex;align-items:center;gap:20px;color:#69717C;font-size:10.5px;letter-spacing:.29em;font-weight:750;text-transform:uppercase;margin-bottom:13px}
@@ -217,7 +218,9 @@ function LoginFrontDoorInner({ children }) {
             </div>
           </section>
 
-          <aside className="afd-visual" aria-label="Modern AI data center" />
+          <aside className="afd-visual">
+            <img src={datacenterPanel} alt="Modern AI data center" />
+          </aside>
         </main>
 
         <section className="afd-tools-section" aria-label="AI Factory tools">
