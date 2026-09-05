@@ -26,3 +26,4 @@ jobs:
           git add -A
           git commit -m "docs: catch up durable project record through PR 24"
           git push origin HEAD:docs/project-record-catchup-2026-09-05
+      # One-time documentation-only maintenance workflow.
