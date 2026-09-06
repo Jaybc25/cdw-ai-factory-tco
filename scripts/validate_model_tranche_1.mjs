@@ -11,6 +11,9 @@ const policy = JSON.parse(
 const governance = JSON.parse(
   fs.readFileSync(new URL("../data/model_governance.json", import.meta.url), "utf8")
 );
+const canonical = JSON.parse(
+  fs.readFileSync(new URL("../data/canonical_models.json", import.meta.url), "utf8")
+);
 
 const EXPECTED_IDS = new Set([
   "qwen3.8-27b",
@@ -23,6 +26,19 @@ const EXPECTED_IDS = new Set([
   "gpt-oss-120b",
   "nemotron-3-super-120b-a12b",
   "granite-4.2-30b",
+]);
+
+const EXPECTED_AA_ALIASES = new Map([
+  ["qwen3.8-27b", null],
+  ["deepseek-v4-flash-0731", null],
+  ["deepseek-v4-pro-0813", null],
+  ["gemma-4-26b-a4b-it", null],
+  ["mistral-small-4", "mistral-small-4"],
+  ["mistral-large-3", "mistral-large-3"],
+  ["gpt-oss-20b", "gpt-oss-20b"],
+  ["gpt-oss-120b", "gpt-oss-120b"],
+  ["nemotron-3-super-120b-a12b", "nvidia-nemotron-3-super-120b-a12b"],
+  ["granite-4.2-30b", "granite-4-2-30b"],
 ]);
 
 const ALLOWED_ARCH = new Set(["dense", "moe", "hybrid"]);
@@ -43,16 +59,35 @@ if (!Array.isArray(policy.models)) {
 if (!Array.isArray(policy.staged_models)) {
   throw new Error("Catalog policy must declare a separate `staged_models` collection for pre-activation candidates.");
 }
+if (!Array.isArray(canonical.models)) {
+  throw new Error("Canonical model registry must declare a models collection.");
+}
 
 const activePolicyIds = new Set(policy.models.map((entry) => entry.canonical_model_id));
 const stagedPolicyIds = new Set(policy.staged_models.map((entry) => entry.canonical_model_id));
+if (policy.staged_models.length !== EXPECTED_IDS.size || stagedPolicyIds.size !== EXPECTED_IDS.size) {
+  throw new Error("Catalog policy staged_models must contain each tranche model exactly once.");
+}
 for (const id of EXPECTED_IDS) {
   if (activePolicyIds.has(id)) {
     throw new Error(`${id} leaked into the active catalog-policy collection before PR4 activation.`);
   }
 }
-if (stagedPolicyIds.size !== EXPECTED_IDS.size || [...EXPECTED_IDS].some((id) => !stagedPolicyIds.has(id))) {
+if ([...EXPECTED_IDS].some((id) => !stagedPolicyIds.has(id))) {
   throw new Error("Catalog policy staged_models must match tranche 1 exactly before PR4 activation.");
+}
+
+const canonicalIds = canonical.models.map((entry) => entry.canonical_model_id);
+const canonicalIdSet = new Set(canonicalIds);
+if (canonicalIds.length !== canonicalIdSet.size) {
+  throw new Error("Canonical model registry contains duplicate canonical_model_id values.");
+}
+const canonicalById = new Map(canonical.models.map((entry) => [entry.canonical_model_id, entry]));
+const aaAliases = canonical.models
+  .map((entry) => entry.aliases?.artificial_analysis_slug)
+  .filter(Boolean);
+if (aaAliases.length !== new Set(aaAliases).size) {
+  throw new Error("Canonical model registry contains duplicate Artificial Analysis aliases.");
 }
 
 const policyById = new Map(policy.staged_models.map((entry) => [entry.canonical_model_id, entry]));
@@ -119,6 +154,18 @@ for (const model of manifest.models) {
     }
   }
 
+  const canonicalEntry = canonicalById.get(model.canonical_model_id);
+  if (!canonicalEntry) {
+    throw new Error(`${model.canonical_model_id} is missing from the canonical model registry.`);
+  }
+  if (canonicalEntry.aliases?.huggingface !== model.upstream_model_id) {
+    throw new Error(`${model.canonical_model_id} canonical Hugging Face alias does not match the qualified upstream_model_id.`);
+  }
+  const expectedAaAlias = EXPECTED_AA_ALIASES.get(model.canonical_model_id);
+  if ((canonicalEntry.aliases?.artificial_analysis_slug ?? null) !== expectedAaAlias) {
+    throw new Error(`${model.canonical_model_id} has an unexpected Artificial Analysis alias; ambiguous variants must remain unmapped.`);
+  }
+
   const policyEntry = policyById.get(model.canonical_model_id);
   if (!policyEntry) {
     throw new Error(`${model.canonical_model_id} is missing a staged CDW catalog-policy record.`);
@@ -180,7 +227,8 @@ for (const id of EXPECTED_IDS) {
 }
 
 console.log(
-  `Modern model tranche 1 PASS: ${manifest.models.length} staged models; identity/license/source present; ` +
-  `separate staged catalog-policy and governance coverage complete; dense-vs-sparse parameter semantics valid; ` +
-  `context/modality metadata present; no staged model is active in Model Advisor, GPU Sizing, or TCO before PR4.`
+  `Modern model tranche 1 PASS: ${manifest.models.length} staged models; canonical HF identities complete; ` +
+  `${[...EXPECTED_AA_ALIASES.values()].filter(Boolean).length} exact AA aliases mapped and ambiguous variants intentionally unmapped; ` +
+  `identity/license/source present; staged policy/governance coverage complete; dense-vs-sparse semantics valid; ` +
+  `no staged model is active in Model Advisor, GPU Sizing, or TCO before PR4.`
 );
