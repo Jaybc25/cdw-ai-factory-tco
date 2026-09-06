@@ -11,125 +11,28 @@
 
 import catalogPolicyData from "../data/model_catalog_policy.json" with { type: "json" };
 
-export const DEFAULT_MODEL_ID = "muse-glimmer-30b";
+// Preserve the established standalone default during the governance-only
+// portion of PR1. The UI-toggle commit will change newcomer-facing defaults
+// deliberately, with browser coverage, rather than changing behavior here as
+// an incidental side effect of adding status metadata.
+export const DEFAULT_MODEL_ID = "llama-3.1-70b";
 
 const CATALOG_STATUS = new Map(
   catalogPolicyData.models.map((entry) => [entry.canonical_model_id, entry.catalog_status])
 );
 
 const TECHNICAL_MODEL_REGISTRY = [
-  {
-    id: "llama-3.1-8b",
-    legacyIds: ["llama31-8b"],
-    label: "Llama 3.1 8B Instruct",
-    totalParamsB: 8.03,
-    layers: 32,
-    kvHeads: 8,
-    headDim: 128,
-    status: "VERIFIED",
-  },
-  {
-    id: "llama-3.1-70b",
-    legacyIds: ["llama31-70b"],
-    label: "Llama 3.1 70B Instruct",
-    totalParamsB: 70.6,
-    layers: 80,
-    kvHeads: 8,
-    headDim: 128,
-    status: "VERIFIED",
-  },
-  {
-    id: "llama-3.1-405b",
-    legacyIds: ["llama31-405b"],
-    label: "Llama 3.1 405B Instruct",
-    totalParamsB: 405,
-    layers: 126,
-    kvHeads: 8,
-    headDim: 128,
-    status: "VERIFIED",
-  },
-  {
-    id: "llama-3.3-70b",
-    legacyIds: ["llama33-70b"],
-    label: "Llama 3.3 70B Instruct",
-    totalParamsB: 70.6,
-    layers: 80,
-    kvHeads: 8,
-    headDim: 128,
-    status: "VERIFIED",
-  },
-  {
-    id: "mixtral-8x7b",
-    legacyIds: [],
-    label: "Mixtral 8x7B Instruct",
-    totalParamsB: 46.7,
-    layers: 32,
-    kvHeads: 8,
-    headDim: 128,
-    status: "VERIFIED",
-  },
-  {
-    id: "muse-glimmer-30b",
-    legacyIds: [],
-    label: "Meta Muse Glimmer 30B",
-    totalParamsB: 29.6,
-    layers: 52,
-    kvHeads: 2,
-    headDim: 128,
-    status: "VERIFIED",
-  },
-  {
-    id: "llama-4-scout",
-    legacyIds: ["llama4-scout"],
-    label: "Llama 4 Scout 17B-16E",
-    totalParamsB: 109,
-    layers: 48,
-    kvHeads: 8,
-    headDim: 128,
-    status: "VERIFIED",
-  },
-  {
-    id: "llama-4-maverick",
-    legacyIds: ["llama4-maverick"],
-    label: "Llama 4 Maverick 17B-128E",
-    totalParamsB: 402,
-    layers: 48,
-    kvHeads: 8,
-    headDim: 128,
-    status: "VERIFIED",
-  },
-  {
-    id: "gemma-3-27b",
-    legacyIds: ["gemma3-27b"],
-    label: "Gemma 3 27B",
-    totalParamsB: 27,
-    layers: 62,
-    kvHeads: 16,
-    headDim: 128,
-    status: "VERIFIED",
-  },
-  {
-    id: "deepseek-v3",
-    legacyIds: [],
-    label: "DeepSeek V3",
-    totalParamsB: 671,
-    layers: 61,
-    attentionType: "MLA",
-    kvLoraRank: 512,
-    qkRopeHeadDim: 64,
-    status: "VERIFIED",
-  },
-  {
-    id: "deepseek-r1",
-    legacyIds: [],
-    label: "DeepSeek R1",
-    totalParamsB: 671,
-    layers: 61,
-    attentionType: "MLA",
-    kvLoraRank: 512,
-    qkRopeHeadDim: 64,
-    status: "VERIFIED",
-  },
+  { id: "llama-3.1-8b", legacyIds: ["llama31-8b"], label: "Llama 3.1 8B Instruct", totalParamsB: 8.03, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "llama-3.1-70b", legacyIds: ["llama31-70b"], label: "Llama 3.1 70B Instruct", totalParamsB: 70.6, layers: 80, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "llama-3.1-405b", legacyIds: ["llama31-405b"], label: "Llama 3.1 405B Instruct", totalParamsB: 405, layers: 126, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "llama-3.3-70b", legacyIds: ["llama33-70b"], label: "Llama 3.3 70B Instruct", totalParamsB: 70.6, layers: 80, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "mixtral-8x7b", legacyIds: [], label: "Mixtral 8x7B Instruct", totalParamsB: 46.7, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "muse-glimmer-30b", legacyIds: [], label: "Meta Muse Glimmer 30B", totalParamsB: 29.6, layers: 52, kvHeads: 2, headDim: 128, status: "VERIFIED" },
+  { id: "llama-4-scout", legacyIds: ["llama4-scout"], label: "Llama 4 Scout 17B-16E", totalParamsB: 109, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "llama-4-maverick", legacyIds: ["llama4-maverick"], label: "Llama 4 Maverick 17B-128E", totalParamsB: 402, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
+  { id: "gemma-3-27b", legacyIds: ["gemma3-27b"], label: "Gemma 3 27B", totalParamsB: 27, layers: 62, kvHeads: 16, headDim: 128, status: "VERIFIED" },
+  { id: "deepseek-v3", legacyIds: [], label: "DeepSeek V3", totalParamsB: 671, layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64, status: "VERIFIED" },
+  { id: "deepseek-r1", legacyIds: [], label: "DeepSeek R1", totalParamsB: 671, layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64, status: "VERIFIED" },
 ];
 
 export const MODEL_REGISTRY = TECHNICAL_MODEL_REGISTRY.map((model) => ({
@@ -153,15 +56,15 @@ export const RECOMMENDED_MODELS = MODEL_REGISTRY.filter((model) => model.catalog
 export const EXISTING_DEPLOYMENT_MODELS = MODEL_REGISTRY.filter((model) => model.catalogStatus === "existing-deployment");
 export const SUPPORTED_NAMED_MODELS = MODEL_REGISTRY.filter((model) => model.catalogStatus !== "retired");
 
-// Default selectors present the newcomer-oriented recommended set. Existing
-// deployments remain fully resolvable through getModelById() and are exposed
-// separately for the opt-in UI toggle added by this workstream.
-export const GPU_SIZING_MODELS = [...RECOMMENDED_MODELS, CUSTOM_MODEL];
+// Compatibility exports stay unchanged until the UI toggle lands later in
+// PR1. New status-aware exports let that UI filter without creating a second
+// model list or breaking saved/deep-linked existing-deployment scenarios.
+export const GPU_SIZING_MODELS = [...SUPPORTED_NAMED_MODELS, CUSTOM_MODEL];
+export const GPU_SIZING_RECOMMENDED_MODELS = [...RECOMMENDED_MODELS, CUSTOM_MODEL];
 export const GPU_SIZING_EXISTING_DEPLOYMENT_MODELS = EXISTING_DEPLOYMENT_MODELS;
-export const GPU_SIZING_ALL_SUPPORTED_MODELS = [...SUPPORTED_NAMED_MODELS, CUSTOM_MODEL];
-export const TCO_MODEL_OPTIONS = [...RECOMMENDED_MODELS, CUSTOM_MODEL];
+export const TCO_MODEL_OPTIONS = [...SUPPORTED_NAMED_MODELS, CUSTOM_MODEL];
+export const TCO_RECOMMENDED_MODEL_OPTIONS = [...RECOMMENDED_MODELS, CUSTOM_MODEL];
 export const TCO_EXISTING_DEPLOYMENT_MODEL_OPTIONS = EXISTING_DEPLOYMENT_MODELS;
-export const TCO_ALL_SUPPORTED_MODEL_OPTIONS = [...SUPPORTED_NAMED_MODELS, CUSTOM_MODEL];
 
 const BY_ID = new Map();
 for (const model of [...MODEL_REGISTRY, CUSTOM_MODEL]) {
