@@ -5,6 +5,8 @@ import {
   RECOMMENDED_MODELS,
   EXISTING_DEPLOYMENT_MODELS,
   getModelById,
+  getVisibleModelOptions,
+  isRecommendedModel,
 } from "../src/modelRegistry.js";
 
 const specs = JSON.parse(fs.readFileSync(new URL("../data/model_specs.json", import.meta.url), "utf8"));
@@ -35,6 +37,9 @@ for (const entry of policy.models) {
 
 if (!getModelById(DEFAULT_MODEL_ID)) throw new Error(`Default model ${DEFAULT_MODEL_ID} is not registered.`);
 if (!RECOMMENDED_MODELS.length) throw new Error("At least one recommended model is required.");
+if (!isRecommendedModel(DEFAULT_MODEL_ID)) {
+  throw new Error(`Default model ${DEFAULT_MODEL_ID} must be in the current recommended catalog.`);
+}
 
 const seenAliases = new Map();
 for (const model of MODEL_REGISTRY) {
@@ -66,8 +71,31 @@ for (const model of EXISTING_DEPLOYMENT_MODELS) {
   }
 }
 
+const defaultVisible = getVisibleModelOptions();
+if (defaultVisible.some((m) => m.catalogStatus === "existing-deployment")) {
+  throw new Error("Default visible model list must not expose existing-deployment models.");
+}
+if (!defaultVisible.some((m) => m.id === "custom")) {
+  throw new Error("Custom model must remain available in the default visible model list.");
+}
+
+const withExisting = getVisibleModelOptions({ includeExisting: true });
+for (const model of EXISTING_DEPLOYMENT_MODELS) {
+  if (!withExisting.some((m) => m.id === model.id)) {
+    throw new Error(`Existing-deployment toggle list is missing ${model.id}.`);
+  }
+}
+
+const restoredExisting = EXISTING_DEPLOYMENT_MODELS[0];
+if (restoredExisting) {
+  const restoredVisible = getVisibleModelOptions({ selectedId: restoredExisting.id });
+  if (!restoredVisible.some((m) => m.id === restoredExisting.id)) {
+    throw new Error(`Selected existing-deployment model ${restoredExisting.id} must remain visible with the toggle off.`);
+  }
+}
+
 console.log(
   `Shared model registry PASS: ${MODEL_REGISTRY.length} canonical models; ` +
   `${RECOMMENDED_MODELS.length} recommended; ${EXISTING_DEPLOYMENT_MODELS.length} existing-deployment; ` +
-  `aliases unique; policy coverage complete; parameter values within tolerance.`
+  `recommended default; visibility policy valid; aliases unique; policy coverage complete; parameter values within tolerance.`
 );
