@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import {
   INFERENCE_REFERENCE_MODEL,
   getInferenceThroughputScale,
@@ -55,7 +56,34 @@ const unknown = getInferenceThroughputScale({ id: "unknown", status: "CUSTOM" })
 approx(unknown.factor, 1);
 if (unknown.confidence !== "LOW") throw new Error("Unknown active-compute semantics must remain LOW confidence.");
 
+// Wiring contract: the production GPU Sizing calculator must consume these
+// primitives rather than leaving them as disconnected documentation/tests.
+const gpuSizingSource = fs.readFileSync(
+  new URL("../src/GpuSizingCalculator.jsx", import.meta.url),
+  "utf8"
+);
+const requiredSourceSnippets = [
+  'from "./modelSizingMethodology.js"',
+  "getInferenceThroughputScale(model, inputs.customParamsB)",
+  "gpu.anchor * throughputScale.factor",
+  "getTrainingParameterSemantics(model, inputs.customParamsB)",
+  "trainingSemantics.residencyParamsB * precisionBytes * multiplier",
+  "6 * trainingSemantics.activeComputeParamsB * inputs.datasetTokensB * 1e18",
+];
+for (const snippet of requiredSourceSnippets) {
+  if (!gpuSizingSource.includes(snippet)) {
+    throw new Error(`GPU Sizing architecture-aware integration missing required source contract: ${snippet}`);
+  }
+}
+if (gpuSizingSource.includes("const flopsRequired = 6 * model.totalParamsB * inputs.datasetTokensB * 1e18")) {
+  throw new Error("GPU Sizing still uses totalParamsB for sparse token-level training FLOPs.");
+}
+if (gpuSizingSource.includes("const gpusPerf = ceilDiv(totalThroughputNeeded, gpu.anchor)")) {
+  throw new Error("GPU Sizing still applies the raw hardware anchor universally without model-aware adjustment.");
+}
+
 console.log(
   `Model sizing methodology PASS: ${INFERENCE_REFERENCE_MODEL.label} ${INFERENCE_REFERENCE_MODEL.activeParamsB}B reference; ` +
-  "one-sided inference scaling prevents unsupported speedups; training residency and active-compute semantics remain distinct."
+  "one-sided inference scaling prevents unsupported speedups; training residency and active-compute semantics remain distinct; " +
+  "production GPU Sizing is wired to the guarded methodology."
 );
