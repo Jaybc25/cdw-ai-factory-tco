@@ -8,8 +8,28 @@
 // lifecycle_status and lives in data/model_catalog_policy.json. A model can be
 // technically active upstream while CDW treats it as an existing-deployment
 // option rather than a greenfield recommendation.
+//
+// Architecture schema v2 deliberately separates resident model size from
+// sparse per-token compute. `totalParamsB` is the full parameter/residency
+// concept. `activeParamsB`, when known, is the routed/active parameter concept
+// for sparse models. Neither field may silently substitute for the other.
+// `architectureType` describes the language backbone's FFN topology: `dense`
+// for dense-only, `moe` for MoE throughout, and `hybrid` when dense and MoE
+// layers coexist. Vision/perception towers do not by themselves make a model
+// `hybrid`. `modalities` describes accepted input modalities.
+//
+// Expert semantics are explicit: `numExperts` means routed experts per MoE
+// layer, `numSharedExperts` means always-on shared experts, and
+// `routedExpertsPerToken` is the routed top-k. `activeExpertsPerToken` is the
+// sum of routed + shared experts that execute for a token in an MoE layer.
+//
+// GPU Sizing continues to use totalParamsB in the existing formulas until the
+// methodology PR explicitly introduces architecture-aware performance math.
 
 import catalogPolicyData from "../data/model_catalog_policy.json" with { type: "json" };
+
+export const MODEL_ARCHITECTURE_SCHEMA_VERSION = 2;
+export const MODEL_ARCHITECTURE_TYPES = Object.freeze(["dense", "moe", "hybrid"]);
 
 // Standalone sessions should start on a current CDW-recommended model rather
 // than an existing-deployment option. Muse Glimmer is the smallest of the
@@ -22,21 +42,101 @@ const CATALOG_STATUS = new Map(
 );
 
 const TECHNICAL_MODEL_REGISTRY = [
-  { id: "llama-3.1-8b", legacyIds: ["llama31-8b"], label: "Llama 3.1 8B Instruct", totalParamsB: 8.03, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "llama-3.1-70b", legacyIds: ["llama31-70b"], label: "Llama 3.1 70B Instruct", totalParamsB: 70.6, layers: 80, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "llama-3.1-405b", legacyIds: ["llama31-405b"], label: "Llama 3.1 405B Instruct", totalParamsB: 405, layers: 126, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "llama-3.3-70b", legacyIds: ["llama33-70b"], label: "Llama 3.3 70B Instruct", totalParamsB: 70.6, layers: 80, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "mixtral-8x7b", legacyIds: [], label: "Mixtral 8x7B Instruct", totalParamsB: 46.7, layers: 32, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "muse-glimmer-30b", legacyIds: [], label: "Meta Muse Glimmer 30B", totalParamsB: 29.6, layers: 52, kvHeads: 2, headDim: 128, status: "VERIFIED" },
-  { id: "llama-4-scout", legacyIds: ["llama4-scout"], label: "Llama 4 Scout 17B-16E", totalParamsB: 109, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "llama-4-maverick", legacyIds: ["llama4-maverick"], label: "Llama 4 Maverick 17B-128E", totalParamsB: 402, layers: 48, kvHeads: 8, headDim: 128, status: "VERIFIED" },
-  { id: "gemma-3-27b", legacyIds: ["gemma3-27b"], label: "Gemma 3 27B", totalParamsB: 27, layers: 62, kvHeads: 16, headDim: 128, status: "VERIFIED" },
-  { id: "deepseek-v3", legacyIds: [], label: "DeepSeek V3", totalParamsB: 671, layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64, status: "VERIFIED" },
-  { id: "deepseek-r1", legacyIds: [], label: "DeepSeek R1", totalParamsB: 671, layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64, status: "VERIFIED" },
+  {
+    id: "llama-3.1-8b", legacyIds: ["llama31-8b"], label: "Llama 3.1 8B Instruct",
+    architectureType: "dense", totalParamsB: 8.03, activeParamsB: 8.03,
+    numExperts: null, numSharedExperts: null, routedExpertsPerToken: null, activeExpertsPerToken: null,
+    layers: 32, attentionType: "standard", kvHeads: 8, headDim: 128,
+    contextLength: 131072, modalities: ["text"], status: "VERIFIED",
+    architectureSource: "https://huggingface.co/meta-llama/Meta-Llama-3.1-8B-Instruct",
+  },
+  {
+    id: "llama-3.1-70b", legacyIds: ["llama31-70b"], label: "Llama 3.1 70B Instruct",
+    architectureType: "dense", totalParamsB: 70.6, activeParamsB: 70.6,
+    numExperts: null, numSharedExperts: null, routedExpertsPerToken: null, activeExpertsPerToken: null,
+    layers: 80, attentionType: "standard", kvHeads: 8, headDim: 128,
+    contextLength: 131072, modalities: ["text"], status: "VERIFIED",
+    architectureSource: "https://huggingface.co/meta-llama/Meta-Llama-3.1-70B-Instruct",
+  },
+  {
+    id: "llama-3.1-405b", legacyIds: ["llama31-405b"], label: "Llama 3.1 405B Instruct",
+    architectureType: "dense", totalParamsB: 405, activeParamsB: 405,
+    numExperts: null, numSharedExperts: null, routedExpertsPerToken: null, activeExpertsPerToken: null,
+    layers: 126, attentionType: "standard", kvHeads: 8, headDim: 128,
+    contextLength: 131072, modalities: ["text"], status: "VERIFIED",
+    architectureSource: "https://huggingface.co/meta-llama/Meta-Llama-3.1-405B-Instruct",
+  },
+  {
+    id: "llama-3.3-70b", legacyIds: ["llama33-70b"], label: "Llama 3.3 70B Instruct",
+    architectureType: "dense", totalParamsB: 70.6, activeParamsB: 70.6,
+    numExperts: null, numSharedExperts: null, routedExpertsPerToken: null, activeExpertsPerToken: null,
+    layers: 80, attentionType: "standard", kvHeads: 8, headDim: 128,
+    contextLength: 131072, modalities: ["text"], status: "VERIFIED",
+    architectureSource: "https://huggingface.co/meta-llama/Llama-3.3-70B-Instruct",
+  },
+  {
+    id: "mixtral-8x7b", legacyIds: [], label: "Mixtral 8x7B Instruct",
+    architectureType: "moe", totalParamsB: 46.7, activeParamsB: 12.9,
+    numExperts: 8, numSharedExperts: 0, routedExpertsPerToken: 2, activeExpertsPerToken: 2,
+    layers: 32, attentionType: "standard", kvHeads: 8, headDim: 128,
+    contextLength: 32768, modalities: ["text"], status: "VERIFIED",
+    architectureSource: "https://mistral.ai/news/mixtral-of-experts/",
+  },
+  {
+    id: "muse-glimmer-30b", legacyIds: [], label: "Meta Muse Glimmer 30B",
+    architectureType: "dense", totalParamsB: 29.6, activeParamsB: 29.6,
+    numExperts: null, numSharedExperts: null, routedExpertsPerToken: null, activeExpertsPerToken: null,
+    layers: 52, attentionType: "standard", kvHeads: 2, headDim: 128,
+    contextLength: 131072, modalities: ["text", "image"], status: "VERIFIED",
+    architectureSource: "https://docs.api.nvidia.com/nim/reference/meta-muse-glimmer-30b",
+  },
+  {
+    id: "llama-4-scout", legacyIds: ["llama4-scout"], label: "Llama 4 Scout 17B-16E",
+    architectureType: "moe", totalParamsB: 109, activeParamsB: 17,
+    numExperts: 16, numSharedExperts: 1, routedExpertsPerToken: 1, activeExpertsPerToken: 2,
+    layers: 48, attentionType: "standard", kvHeads: 8, headDim: 128,
+    contextLength: 10000000, modalities: ["text", "image"], status: "VERIFIED",
+    architectureSource: "https://ai.meta.com/blog/llama-4-multimodal-intelligence/",
+  },
+  {
+    id: "llama-4-maverick", legacyIds: ["llama4-maverick"], label: "Llama 4 Maverick 17B-128E",
+    architectureType: "hybrid", totalParamsB: 400, activeParamsB: 17,
+    numExperts: 128, numSharedExperts: 1, routedExpertsPerToken: 1, activeExpertsPerToken: 2,
+    layers: 48, attentionType: "standard", kvHeads: 8, headDim: 128,
+    contextLength: 1000000, modalities: ["text", "image"], status: "VERIFIED",
+    architectureSource: "https://ai.meta.com/blog/llama-4-multimodal-intelligence/",
+  },
+  {
+    id: "gemma-3-27b", legacyIds: ["gemma3-27b"], label: "Gemma 3 27B",
+    architectureType: "dense", totalParamsB: 27, activeParamsB: 27,
+    numExperts: null, numSharedExperts: null, routedExpertsPerToken: null, activeExpertsPerToken: null,
+    layers: 62, attentionType: "standard", kvHeads: 16, headDim: 128,
+    contextLength: 131072, modalities: ["text", "image"], status: "VERIFIED",
+    architectureSource: "https://ai.google.dev/gemma/docs/core/model_card_3",
+  },
+  {
+    id: "deepseek-v3", legacyIds: [], label: "DeepSeek V3",
+    architectureType: "hybrid", totalParamsB: 671, activeParamsB: 37,
+    numExperts: 256, numSharedExperts: 1, routedExpertsPerToken: 8, activeExpertsPerToken: 9,
+    layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64,
+    contextLength: 131072, modalities: ["text"], status: "VERIFIED",
+    architectureSource: "https://arxiv.org/abs/2412.19437",
+  },
+  {
+    id: "deepseek-r1", legacyIds: [], label: "DeepSeek R1",
+    architectureType: "hybrid", totalParamsB: 671, activeParamsB: 37,
+    numExperts: 256, numSharedExperts: 1, routedExpertsPerToken: 8, activeExpertsPerToken: 9,
+    layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64,
+    contextLength: 131072, modalities: ["text"], status: "VERIFIED",
+    architectureSource: "https://github.com/deepseek-ai/DeepSeek-R1",
+  },
 ];
 
 export const MODEL_REGISTRY = TECHNICAL_MODEL_REGISTRY.map((model) => ({
   ...model,
+  schemaVersion: MODEL_ARCHITECTURE_SCHEMA_VERSION,
+  contextLength: model.contextLength ?? null,
+  modalities: model.modalities ?? ["text"],
   catalogStatus: CATALOG_STATUS.get(model.id) || "retired",
 }));
 
@@ -44,10 +144,23 @@ export const CUSTOM_MODEL = {
   id: "custom",
   legacyIds: [],
   label: "Custom model...",
+  schemaVersion: MODEL_ARCHITECTURE_SCHEMA_VERSION,
+  architectureType: "dense",
   totalParamsB: null,
+  activeParamsB: null,
+  numExperts: null,
+  numSharedExperts: null,
+  routedExpertsPerToken: null,
+  activeExpertsPerToken: null,
   layers: null,
+  attentionType: "standard",
   kvHeads: null,
   headDim: null,
+  kvLoraRank: null,
+  qkRopeHeadDim: null,
+  contextLength: null,
+  modalities: ["text"],
+  architectureSource: null,
   status: "CUSTOM",
   catalogStatus: "custom",
 };
@@ -78,6 +191,23 @@ export function isRecommendedModel(modelOrId) {
 export function isExistingDeploymentModel(modelOrId) {
   const model = typeof modelOrId === "string" ? getModelById(modelOrId) : modelOrId;
   return model?.catalogStatus === "existing-deployment";
+}
+
+export function getModelResidencyParamsB(modelOrId, customParamsB = null) {
+  const model = typeof modelOrId === "string" ? getModelById(modelOrId) : modelOrId;
+  if (!model) return null;
+  if (model.id === "custom") {
+    const n = Number(customParamsB);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }
+  return Number.isFinite(model.totalParamsB) && model.totalParamsB > 0 ? model.totalParamsB : null;
+}
+
+export function getModelActiveParamsB(modelOrId, customParamsB = null) {
+  const model = typeof modelOrId === "string" ? getModelById(modelOrId) : modelOrId;
+  if (!model) return null;
+  if (model.id === "custom") return getModelResidencyParamsB(model, customParamsB);
+  return Number.isFinite(model.activeParamsB) && model.activeParamsB > 0 ? model.activeParamsB : null;
 }
 
 // Default UI list = current recommended models + Custom. When a restored or
@@ -131,13 +261,10 @@ export function setTcoModelVisibility({ includeExisting = false, selectedIds = [
   );
 }
 
+// Backward-compatible alias used by current handoffs/TCO. This intentionally
+// returns residency/total parameters; active parameters are never substituted.
 export function getModelParamsB(model, customParamsB = null) {
-  if (!model) return null;
-  if (model.id === "custom") {
-    const n = Number(customParamsB);
-    return Number.isFinite(n) && n > 0 ? n : null;
-  }
-  return model.totalParamsB;
+  return getModelResidencyParamsB(model, customParamsB);
 }
 
 export function formatModelContext(model, paramsB = null) {
