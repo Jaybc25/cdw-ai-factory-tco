@@ -47,6 +47,8 @@ if (!isRecommendedModel(DEFAULT_MODEL_ID)) {
 }
 
 const architectureTypes = new Set(MODEL_ARCHITECTURE_TYPES);
+const allowedAttentionTypes = new Set(["standard", "MLA"]);
+const allowedModalities = new Set(["text", "image", "audio", "video"]);
 const seenAliases = new Map();
 for (const model of MODEL_REGISTRY) {
   if (model.schemaVersion !== MODEL_ARCHITECTURE_SCHEMA_VERSION) {
@@ -73,28 +75,56 @@ for (const model of MODEL_REGISTRY) {
   if (!(Number.isFinite(model.layers) && model.layers > 0)) {
     throw new Error(`Model ${model.id} has invalid layers: ${model.layers}`);
   }
+  if (!allowedAttentionTypes.has(model.attentionType)) {
+    throw new Error(`Model ${model.id} has unsupported attentionType: ${model.attentionType}`);
+  }
   if (model.attentionType === "MLA") {
     if (!(Number.isFinite(model.kvLoraRank) && model.kvLoraRank > 0 && Number.isFinite(model.qkRopeHeadDim) && model.qkRopeHeadDim > 0)) {
       throw new Error(`MLA model ${model.id} requires positive kvLoraRank and qkRopeHeadDim.`);
     }
-  } else {
-    if (!(Number.isFinite(model.kvHeads) && model.kvHeads > 0 && Number.isFinite(model.headDim) && model.headDim > 0)) {
-      throw new Error(`Standard-attention model ${model.id} requires positive kvHeads and headDim.`);
-    }
+  } else if (!(Number.isFinite(model.kvHeads) && model.kvHeads > 0 && Number.isFinite(model.headDim) && model.headDim > 0)) {
+    throw new Error(`Standard-attention model ${model.id} requires positive kvHeads and headDim.`);
   }
-  if (model.numExperts != null && (!(Number.isFinite(model.numExperts)) || model.numExperts < 1)) {
-    throw new Error(`Model ${model.id} has invalid numExperts: ${model.numExperts}`);
+
+  const isSparse = model.architectureType === "moe" || model.architectureType === "hybrid";
+  if (isSparse) {
+    if (!(Number.isFinite(model.numExperts) && model.numExperts >= 1)) {
+      throw new Error(`Sparse model ${model.id} requires positive routed numExperts.`);
+    }
+    if (!(Number.isFinite(model.numSharedExperts) && model.numSharedExperts >= 0)) {
+      throw new Error(`Sparse model ${model.id} requires non-negative numSharedExperts.`);
+    }
+    if (!(Number.isFinite(model.routedExpertsPerToken) && model.routedExpertsPerToken >= 1)) {
+      throw new Error(`Sparse model ${model.id} requires positive routedExpertsPerToken.`);
+    }
+    if (model.routedExpertsPerToken > model.numExperts) {
+      throw new Error(`Model ${model.id} routedExpertsPerToken cannot exceed routed numExperts.`);
+    }
+    if (!(Number.isFinite(model.activeExpertsPerToken) && model.activeExpertsPerToken >= 1)) {
+      throw new Error(`Sparse model ${model.id} requires positive activeExpertsPerToken.`);
+    }
+    const expectedActiveExperts = model.routedExpertsPerToken + model.numSharedExperts;
+    if (model.activeExpertsPerToken !== expectedActiveExperts) {
+      throw new Error(`Model ${model.id} activeExpertsPerToken (${model.activeExpertsPerToken}) must equal routedExpertsPerToken + numSharedExperts (${expectedActiveExperts}).`);
+    }
+  } else if ([model.numExperts, model.numSharedExperts, model.routedExpertsPerToken, model.activeExpertsPerToken].some((v) => v != null)) {
+    throw new Error(`Dense model ${model.id} must not define MoE expert-routing fields.`);
   }
-  if (model.activeExpertsPerToken != null) {
-    if (!(Number.isFinite(model.activeExpertsPerToken) && model.activeExpertsPerToken > 0)) {
-      throw new Error(`Model ${model.id} has invalid activeExpertsPerToken: ${model.activeExpertsPerToken}`);
-    }
-    if (model.numExperts != null && model.activeExpertsPerToken > model.numExperts) {
-      throw new Error(`Model ${model.id} activeExpertsPerToken cannot exceed numExperts.`);
-    }
+
+  if (model.contextLength != null && !(Number.isFinite(model.contextLength) && model.contextLength > 0)) {
+    throw new Error(`Model ${model.id} has invalid contextLength: ${model.contextLength}`);
   }
   if (!Array.isArray(model.modalities) || model.modalities.length === 0) {
     throw new Error(`Model ${model.id} must have at least one modality.`);
+  }
+  for (const modality of model.modalities) {
+    if (!allowedModalities.has(modality)) throw new Error(`Model ${model.id} has unsupported modality: ${modality}.`);
+  }
+  if (!model.modalities.includes("text")) {
+    throw new Error(`Current language-model catalog entry ${model.id} must include text modality.`);
+  }
+  if (!(typeof model.architectureSource === "string" && /^https:\/\//.test(model.architectureSource))) {
+    throw new Error(`Model ${model.id} requires an architectureSource URL before architecture metadata is treated as verified.`);
   }
   if (!allowedStatuses.has(model.catalogStatus)) {
     throw new Error(`Model ${model.id} has invalid resolved catalogStatus: ${model.catalogStatus}`);
@@ -183,6 +213,6 @@ if (advisorResult.totalCount !== RECOMMENDED_MODELS.length) {
 console.log(
   `Shared model registry PASS: schema v${MODEL_ARCHITECTURE_SCHEMA_VERSION}; ${MODEL_REGISTRY.length} canonical models; ` +
   `${RECOMMENDED_MODELS.length} recommended; ${EXISTING_DEPLOYMENT_MODELS.length} existing-deployment; ` +
-  `dense/MoE/hybrid parameter semantics valid; residency/active helpers distinct; ` +
-  `recommended default; visibility policy valid; Advisor greenfield-only; aliases unique; policy coverage complete.`
+  `dense/MoE/hybrid parameter, expert-routing, attention, context, modality, and provenance semantics valid; ` +
+  `residency/active helpers distinct; recommended default; visibility policy valid; Advisor greenfield-only; aliases unique; policy coverage complete.`
 );
