@@ -8,6 +8,7 @@ import {
   getVisibleModelOptions,
   isRecommendedModel,
 } from "../src/modelRegistry.js";
+import { getCatalog, buildRecommendations } from "../src/modelAdvisorEngine.js";
 
 const specs = JSON.parse(fs.readFileSync(new URL("../data/model_specs.json", import.meta.url), "utf8"));
 const policy = JSON.parse(fs.readFileSync(new URL("../data/model_catalog_policy.json", import.meta.url), "utf8"));
@@ -94,8 +95,35 @@ if (restoredExisting) {
   }
 }
 
+// Model Advisor is a greenfield recommender: existing-deployment models may
+// remain in the underlying shared catalog but must never enter its ranking,
+// verification, or "other eligible" surfaces.
+const advisorResult = buildRecommendations(getCatalog(), {
+  license: "need-to-check",
+  governance: "none",
+  contextWindow: "8k",
+  multimodal: "any",
+  primaryWorkload: "rag",
+  qualityPriority: "strong",
+  optimizationPriority: "balanced",
+});
+const advisorSurfaceIds = new Set([
+  ...advisorResult.cards.map((card) => card.model.canonical_model_id),
+  ...advisorResult.otherEligible.map((model) => model.canonical_model_id),
+  ...advisorResult.verificationCandidates.map((model) => model.canonical_model_id),
+  ...advisorResult.eligibilityTrace.allModels.map((model) => model.canonical_model_id),
+]);
+for (const model of EXISTING_DEPLOYMENT_MODELS) {
+  if (advisorSurfaceIds.has(model.id)) {
+    throw new Error(`Model Advisor exposed existing-deployment model ${model.id}.`);
+  }
+}
+if (advisorResult.totalCount !== RECOMMENDED_MODELS.length) {
+  throw new Error(`Model Advisor totalCount ${advisorResult.totalCount} does not match recommended catalog size ${RECOMMENDED_MODELS.length}.`);
+}
+
 console.log(
   `Shared model registry PASS: ${MODEL_REGISTRY.length} canonical models; ` +
   `${RECOMMENDED_MODELS.length} recommended; ${EXISTING_DEPLOYMENT_MODELS.length} existing-deployment; ` +
-  `recommended default; visibility policy valid; aliases unique; policy coverage complete; parameter values within tolerance.`
+  `recommended default; visibility policy valid; Advisor greenfield-only; aliases unique; policy coverage complete; parameter values within tolerance.`
 );
