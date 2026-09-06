@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-09-05",
+  "note": "CDW-owned product policy for how canonical open-weight models appear in AI Factory Tools. This is intentionally separate from upstream lifecycle_status: recommended means eligible for greenfield Model Advisor recommendations; existing-deployment means retained for sizing/costing and backward compatibility but hidden from the default newcomer experience; retired remains resolvable internally but is not user-selectable.",
+  "models": [
+    { "canonical_model_id": "llama-3.1-8b", "catalog_status": "existing-deployment" },
+    { "canonical_model_id": "llama-3.1-70b", "catalog_status": "existing-deployment" },
+    { "canonical_model_id": "llama-3.1-405b", "catalog_status": "existing-deployment" },
+    { "canonical_model_id": "llama-3.3-70b", "catalog_status": "existing-deployment" },
+    { "canonical_model_id": "mixtral-8x7b", "catalog_status": "existing-deployment" },
+    { "canonical_model_id": "llama-4-scout", "catalog_status": "recommended" },
+    { "canonical_model_id": "llama-4-maverick", "catalog_status": "recommended" },
+    { "canonical_model_id": "deepseek-v3", "catalog_status": "existing-deployment" },
+    { "canonical_model_id": "deepseek-r1", "catalog_status": "existing-deployment" },
+    { "canonical_model_id": "gemma-3-27b", "catalog_status": "existing-deployment" },
+    { "canonical_model_id": "muse-glimmer-30b", "catalog_status": "recommended" }
+  ]
+}
