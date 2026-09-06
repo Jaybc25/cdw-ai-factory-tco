@@ -9,14 +9,29 @@ import RoiCalculator from "./RoiCalculator.jsx";
 import AiReadinessChecklists from "./AiReadinessChecklists.jsx";
 import CombinedSummary from "./CombinedSummary.jsx";
 import LoginFrontDoor from "./LoginFrontDoor.jsx";
+import ModelCatalogVisibilityRoute from "./ModelCatalogVisibilityRoute.jsx";
 import "./print-overrides.css";
 
 function ToolRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/tco" element={<TcoCalculator />} />
-      <Route path="/gpu-sizing" element={<GpuSizingCalculator />} />
+      <Route
+        path="/tco"
+        element={(
+          <ModelCatalogVisibilityRoute tool="tco">
+            <TcoCalculator />
+          </ModelCatalogVisibilityRoute>
+        )}
+      />
+      <Route
+        path="/gpu-sizing"
+        element={(
+          <ModelCatalogVisibilityRoute tool="gpu-sizing">
+            <GpuSizingCalculator />
+          </ModelCatalogVisibilityRoute>
+        )}
+      />
       <Route path="/model-advisor" element={<ModelAdvisor />} />
       <Route path="/use-cases" element={<UseCaseExplorer />} />
       <Route path="/roi" element={<RoiCalculator />} />
