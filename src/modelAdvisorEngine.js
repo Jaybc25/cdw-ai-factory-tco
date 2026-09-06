@@ -7,23 +7,28 @@
 import modelSpecsData from "../data/model_specs.json" with { type: "json" };
 import capabilityData from "../data/model_capability_db.json" with { type: "json" };
 import governanceData from "../data/model_governance.json" with { type: "json" };
+import catalogPolicyData from "../data/model_catalog_policy.json" with { type: "json" };
 
 // ---------------------------------------------------------------------------
-// Catalog assembly -- joins the three live registries into one flat list.
-// Read at build time via Vite's native JSON import, so a new sync commit ->
-// Vercel rebuild bakes fresh data into the next deploy automatically.
+// Catalog assembly -- joins the three live registries plus CDW's product-facing
+// catalog policy into one flat list. Upstream lifecycle_status remains distinct
+// from catalog_status: a technically active model can still be kept only for
+// existing-deployment sizing rather than greenfield recommendations.
 // ---------------------------------------------------------------------------
 export function getCatalog() {
   const specs = modelSpecsData.data.models;
   const capability = capabilityData.data.models;
   const governance = governanceData.entries;
+  const policy = catalogPolicyData.models;
 
   const capByCanonical = Object.fromEntries(capability.map((c) => [c.canonical_model_id, c]));
   const govByCanonical = Object.fromEntries(governance.map((g) => [g.canonical_model_id, g]));
+  const policyByCanonical = Object.fromEntries(policy.map((p) => [p.canonical_model_id, p]));
 
   return specs.map((spec) => {
     const cap = capByCanonical[spec.canonical_model_id] || {};
     const gov = govByCanonical[spec.canonical_model_id] || {};
+    const catalogPolicy = policyByCanonical[spec.canonical_model_id] || {};
     return {
       canonical_model_id: spec.canonical_model_id,
       license: spec.license ? spec.license.value : null,
@@ -32,6 +37,7 @@ export function getCatalog() {
       modality: spec.modality,
       confidence: spec.confidence, // model_data_confidence: HIGH / MEDIUM
       lifecycle_status: spec.lifecycle_status,
+      catalog_status: catalogPolicy.catalog_status || "retired",
       intelligence_index: cap.intelligence_index ?? null,
       coding_index: cap.coding_index ?? null,
       agentic_index: cap.agentic_index ?? null,
@@ -58,19 +64,19 @@ export const CATALOG_META = {
 const PERMISSIVE_LICENSE_KEYWORDS = ["apache", "mit", "llama3.1", "llama3.3", "llama4", "gemma", "mixtral"];
 
 function checkLicense(model, requirement) {
-  if (requirement === "need-to-check") return "PASS"; // customer hasn't stated a requirement yet
+  if (requirement === "need-to-check") return "PASS";
   const lic = (model.license || "").toLowerCase();
   if (!lic || lic === "unknown" || lic === "other") return "REQUIRES_VERIFICATION";
   const isPermissive = PERMISSIVE_LICENSE_KEYWORDS.some((k) => lic.includes(k));
   if (requirement === "permissive-commercial") return isPermissive ? "PASS" : "FAIL";
-  return "PASS"; // research-only-ok: any known license clears this bar
+  return "PASS";
 }
 
 function checkGovernance(model, requirement) {
   if (requirement === "none") return "PASS";
   if (!model.developer_country) return "REQUIRES_VERIFICATION";
   if (requirement === "us-only") return model.developer_country === "us" ? "PASS" : "FAIL";
-  return "PASS"; // approved-vendor-families: no vendor-family list defined in V1, informational only
+  return "PASS";
 }
 
 function checkContext(model, requirement) {
@@ -106,9 +112,6 @@ export function applyHardFilters(catalog, inputs) {
   });
 }
 
-// ---------------------------------------------------------------------------
-// Step 2 -- Metric selection by primary workload (ask, don't infer).
-// ---------------------------------------------------------------------------
 const WORKLOAD_METRIC = { coding: "coding_index", agentic: "agentic_index" };
 
 export function selectMetric(primaryWorkload) {
@@ -121,36 +124,12 @@ export const METRIC_LABELS = {
   agentic_index: "agentic performance",
 };
 
-// ---------------------------------------------------------------------------
-// Step 4 -- Per-metric quality margins. Derived from live data gaps/clusters,
-// tagged tentative beta calibration per the spec -- NOT a fixed percentage
-// formula, verified against the real distribution for each metric.
-//
-// RECALIBRATED 2026-08-12 (same day as original calibration): adding Muse
-// Glimmer (Meta, released 2 days prior) as an 11th model made the original
-// margins non-functional. It scores far above every other tracked model on
-// all three metrics (35.1 vs previous top 20.4 on intelligence, 49 vs 23 on
-// coding, 22.9 vs 1.6 on agentic) -- the original margins, sized for a
-// catalog without that outlier, no longer reached ANY second-place model.
-// All three quality tiers were silently collapsing to the identical
-// single-model result regardless of which one the customer selected. This
-// is exactly the "catalog grows materially" trigger the spec's own
-// calibration-metadata section anticipated -- caught by re-running the same
-// real-data verification used for the original calibration, not assumed
-// safe just because it worked before.
-// intelligence_index: n=11. coding_index: n=7. agentic_index: n=5 (still
-// thin -- treat as a placeholder, revisit again as coverage grows).
-// ---------------------------------------------------------------------------
 export const MARGINS = {
   intelligence_index: { "frontier-like": 1.0, strong: 21.0, economical: 28.0 },
   coding_index: { "frontier-like": 1.0, strong: 33.0, economical: 41.0 },
   agentic_index: { "frontier-like": 0.1, strong: 21.5, economical: 23.0 },
 };
 
-// ---------------------------------------------------------------------------
-// Step 6 -- Deterministic tie-breaking cascade: HIGH > MEDIUM, then
-// lifecycle active > other, then canonical_model_id alphabetical.
-// ---------------------------------------------------------------------------
 function tieBreakSort(list) {
   return [...list].sort((a, b) => {
     if (a.confidence !== b.confidence) return a.confidence === "HIGH" ? -1 : 1;
@@ -159,11 +138,6 @@ function tieBreakSort(list) {
   });
 }
 
-// Sorts a list by the given metric, descending, with models missing that
-// metric placed after all models that have it (each group internally
-// tie-broken the same deterministic way). Used for the "other eligible
-// models" list, where there's no margin/slot logic -- just a plain,
-// explainable ordering of everyone who passed the hard filters.
 function sortByMetricDesc(list, metric) {
   const withMetric = tieBreakSort(list.filter((m) => m[metric] != null))
     .sort((a, b) => (b[metric] ?? 0) - (a[metric] ?? 0));
@@ -171,22 +145,11 @@ function sortByMetricDesc(list, metric) {
   return [...withMetric, ...withoutMetric];
 }
 
-// Floating point tolerance for margin threshold comparisons -- JS arithmetic
-// (e.g. 1.6 - 1.3 = 0.30000000000000004) can otherwise wrongly exclude a
-// model whose score sits exactly at the qualifying threshold.
 const EPSILON = 1e-9;
 
-// ---------------------------------------------------------------------------
-// Step 3 + 4 + 8.1/8.2 -- Two-tier ranking, margin qualification, and the
-// null-param-count / Tier-2 eligibility rules for the size-based slots.
-// ---------------------------------------------------------------------------
 export function rankModels(eligible, metric, qualityPriority) {
   const tier1 = tieBreakSort(eligible.filter((m) => m[metric] != null)).sort((a, b) => (b[metric] ?? 0) - (a[metric] ?? 0));
   const tier2 = eligible.filter((m) => m[metric] == null);
-
-  // Kept as its own named list (not just the [0] winner) so the fallback
-  // path can show a real runner-up and the real score that actually won
-  // the slot -- both were previously undiscoverable once only [0] survived.
   const tier2ByIntelligence = tieBreakSort(tier2).sort((a, b) => (b.intelligence_index ?? 0) - (a.intelligence_index ?? 0));
   const bestPerformance = tier1[0] || tier2ByIntelligence[0] || null;
   const bestPerformanceIsFallback = tier1.length === 0 && !!bestPerformance;
@@ -196,11 +159,8 @@ export function rankModels(eligible, metric, qualityPriority) {
   const fullMargin = margins[qualityPriority];
   const halfMargin = fullMargin / 2;
 
-  // Per spec 8.1: Tier 2 models are ineligible for the size-based slots
-  // whenever at least one Tier 1 model exists. Per spec 8.2: a model with
-  // unknown param_count_billion.value is ineligible for the same slots.
   function sizeQualified(marginValue) {
-    if (tier1.length === 0) return []; // handled by the intelligence_index restart below
+    if (tier1.length === 0) return [];
     const top = tier1[0][metric];
     return tier1.filter((m) => m[metric] >= top - marginValue - EPSILON && m.param_count_billion != null);
   }
@@ -214,13 +174,6 @@ export function rankModels(eligible, metric, qualityPriority) {
 
   let efficiency = smallest(sizeQualified(fullMargin));
   let balanced = smallest(sizeQualified(halfMargin));
-
-  // Decision-trace intermediates for the size slots specifically -- kept
-  // separate from fullMargin/halfMargin above because those describe the
-  // PRIMARY metric's margin, which is not necessarily what actually governed
-  // the size-slot decision once the zero-Tier-1 restart (below) fires. An
-  // audit trail showing fullMargin/halfMargin for a restarted decision would
-  // be citing the wrong number for that specific choice.
   let sizeSlotMetric = metric;
   let sizeSlotFullMargin = fullMargin;
   let sizeSlotHalfMargin = halfMargin;
@@ -228,9 +181,6 @@ export function rankModels(eligible, metric, qualityPriority) {
   let efficiencyQualified = sizeQualified(fullMargin);
   let balancedQualified = sizeQualified(halfMargin);
 
-  // Spec 8.1 zero-Tier-1 restart: if the selected metric has no Tier 1
-  // candidates at all, restart size-slot ranking using intelligence_index
-  // for the whole eligible pool, with intelligence_index's own margins.
   let restarted = false;
   if (tier1.length === 0 && metric !== "intelligence_index") {
     restarted = true;
@@ -266,13 +216,9 @@ export function rankModels(eligible, metric, qualityPriority) {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Step 14 -- Explanation text. Every card names the specific metric and
-// value that won it the slot -- no generic "great fit" text anywhere.
-// ---------------------------------------------------------------------------
 export function explainCard(card, ranking, inputs) {
   const metricLabel = METRIC_LABELS[ranking.metric];
-  const sizeSlotMetricLabel = METRIC_LABELS[ranking.sizeSlotMetric]; // efficiency/balanced use this -- may differ from metricLabel when the zero-Tier-1 restart fired
+  const sizeSlotMetricLabel = METRIC_LABELS[ranking.sizeSlotMetric];
   const model = card.model;
   const isFallback = ranking.bestPerformanceIsFallback && card.badges.includes("Best Performance");
   const lines = [];
@@ -302,9 +248,6 @@ export function explainVerificationCandidate(model) {
   return `May be a strong candidate, but ${reasons.join(" and ")}. Excluded from the recommendation ranking until confirmed.`;
 }
 
-// Explanation line for the "other models meeting your requirements" list --
-// same rule as explainCard: name the actual metric and value, never a
-// generic "also a good fit" line.
 export function explainOtherEligible(model, ranking) {
   const metricLabel = METRIC_LABELS[ranking.metric];
   if (model[ranking.metric] != null) {
@@ -313,17 +256,16 @@ export function explainOtherEligible(model, ranking) {
   return `Meets your stated requirements. ${metricLabel} not available for this model.`;
 }
 
-// ---------------------------------------------------------------------------
-// Step 5 -- Fill up to 3 output slots, dedupe into combined badges.
-// ---------------------------------------------------------------------------
 export function buildRecommendations(catalog, inputs) {
-  const filtered = applyHardFilters(catalog, inputs);
+  // Model Advisor is a greenfield decision aid. Existing-deployment models
+  // remain in the shared technical catalog for sizing/costing and saved-state
+  // compatibility, but they must never enter the recommendation population.
+  const advisorCatalog = catalog.filter((model) => model.catalog_status === "recommended");
+  const filtered = applyHardFilters(advisorCatalog, inputs);
   const eligible = filtered.filter((m) => m.filterState === "PASS");
   const verificationPool = filtered.filter((m) => m.filterState === "REQUIRES_VERIFICATION");
   const excludedModels = filtered.filter((m) => m.filterState === "FAIL");
 
-  // A model can fail more than one check at once, so these counts are
-  // independent tallies per dimension, not a partition of excludedModels.
   const exclusionCounts = { license: 0, governance: 0, context: 0, modality: 0 };
   excludedModels.forEach((m) => {
     if (m.filterDetails.licenseState === "FAIL") exclusionCounts.license++;
@@ -336,16 +278,12 @@ export function buildRecommendations(catalog, inputs) {
   const ranking = rankModels(eligible, metric, inputs.qualityPriority);
 
   let overallFitModel;
-  let overallFitReason;
   if (inputs.optimizationPriority === "best-capability") {
     overallFitModel = ranking.bestPerformance;
-    overallFitReason = "performance";
   } else if (inputs.optimizationPriority === "infrastructure-efficiency") {
     overallFitModel = ranking.efficiency;
-    overallFitReason = "efficiency";
   } else {
     overallFitModel = ranking.balanced;
-    overallFitReason = "balanced";
   }
 
   const slotDefs = [
@@ -367,12 +305,6 @@ export function buildRecommendations(catalog, inputs) {
   });
 
   const cards = order.map((id) => cardsByModel[id]);
-
-  // Every eligible model NOT already featured in a slot card, so a single
-  // model sweeping all three slots (e.g. one clear best-in-class release)
-  // doesn't make the rest of the eligible pool disappear from view. Capped
-  // at 3 -- enough to give a seller real alternatives to present without
-  // turning this into a full re-listing of everyone who passed the filters.
   const featuredIds = new Set(order);
   const otherEligible = sortByMetricDesc(
     eligible.filter((m) => !featuredIds.has(m.canonical_model_id)),
@@ -385,7 +317,7 @@ export function buildRecommendations(catalog, inputs) {
 
   return {
     cards, otherEligible, verificationCandidates, metric, ranking,
-    eligibleCount: eligible.length, totalCount: catalog.length,
+    eligibleCount: eligible.length, totalCount: advisorCatalog.length,
     verificationCount: verificationPool.length,
     eligibilityTrace: { allModels: filtered, excludedModels, exclusionCounts },
   };
