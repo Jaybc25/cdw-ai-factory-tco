@@ -37,8 +37,25 @@ if (manifest.activation_policy?.state !== "staged-until-methodology") {
 if (!Array.isArray(manifest.models) || manifest.models.length !== EXPECTED_IDS.size) {
   throw new Error(`Expected exactly ${EXPECTED_IDS.size} staged models; found ${manifest.models?.length ?? 0}.`);
 }
+if (!Array.isArray(policy.models)) {
+  throw new Error("Catalog policy must retain an active `models` collection.");
+}
+if (!Array.isArray(policy.staged_models)) {
+  throw new Error("Catalog policy must declare a separate `staged_models` collection for pre-activation candidates.");
+}
 
-const policyById = new Map(policy.models.map((entry) => [entry.canonical_model_id, entry]));
+const activePolicyIds = new Set(policy.models.map((entry) => entry.canonical_model_id));
+const stagedPolicyIds = new Set(policy.staged_models.map((entry) => entry.canonical_model_id));
+for (const id of EXPECTED_IDS) {
+  if (activePolicyIds.has(id)) {
+    throw new Error(`${id} leaked into the active catalog-policy collection before PR4 activation.`);
+  }
+}
+if (stagedPolicyIds.size !== EXPECTED_IDS.size || [...EXPECTED_IDS].some((id) => !stagedPolicyIds.has(id))) {
+  throw new Error("Catalog policy staged_models must match tranche 1 exactly before PR4 activation.");
+}
+
+const policyById = new Map(policy.staged_models.map((entry) => [entry.canonical_model_id, entry]));
 const governanceById = new Map(governance.entries.map((entry) => [entry.canonical_model_id, entry]));
 const runtimeIds = new Set(MODEL_REGISTRY.map((model) => model.id));
 const advisorCatalogIds = new Set(getCatalog().map((model) => model.canonical_model_id));
@@ -104,7 +121,7 @@ for (const model of manifest.models) {
 
   const policyEntry = policyById.get(model.canonical_model_id);
   if (!policyEntry) {
-    throw new Error(`${model.canonical_model_id} is missing a CDW catalog-policy record.`);
+    throw new Error(`${model.canonical_model_id} is missing a staged CDW catalog-policy record.`);
   }
   if (policyEntry.catalog_status !== "staged") {
     throw new Error(`${model.canonical_model_id} must remain catalog_status=staged before PR4 activation.`);
@@ -121,9 +138,6 @@ for (const model of manifest.models) {
     throw new Error(`${model.canonical_model_id} governance country does not match qualification manifest.`);
   }
 
-  // PR3 staging barrier: source-qualified models are known to governance/product
-  // policy but are deliberately absent from the active technical/Advisor catalogs
-  // until PR4 introduces architecture-aware sizing and ranking recalibration.
   if (runtimeIds.has(model.canonical_model_id)) {
     throw new Error(`${model.canonical_model_id} leaked into MODEL_REGISTRY before PR4 activation.`);
   }
@@ -167,6 +181,6 @@ for (const id of EXPECTED_IDS) {
 
 console.log(
   `Modern model tranche 1 PASS: ${manifest.models.length} staged models; identity/license/source present; ` +
-  `governance and catalog-policy coverage complete; dense-vs-sparse parameter semantics valid; ` +
+  `separate staged catalog-policy and governance coverage complete; dense-vs-sparse parameter semantics valid; ` +
   `context/modality metadata present; no staged model is active in Model Advisor, GPU Sizing, or TCO before PR4.`
 );
