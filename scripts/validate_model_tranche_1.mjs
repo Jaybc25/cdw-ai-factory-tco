@@ -1,7 +1,15 @@
 import fs from "node:fs";
+import { MODEL_REGISTRY, getVisibleModelOptions } from "../src/modelRegistry.js";
+import { getCatalog, buildRecommendations } from "../src/modelAdvisorEngine.js";
 
 const manifest = JSON.parse(
   fs.readFileSync(new URL("../data/model_catalog_tranche_1_qualification.json", import.meta.url), "utf8")
+);
+const policy = JSON.parse(
+  fs.readFileSync(new URL("../data/model_catalog_policy.json", import.meta.url), "utf8")
+);
+const governance = JSON.parse(
+  fs.readFileSync(new URL("../data/model_governance.json", import.meta.url), "utf8")
 );
 
 const EXPECTED_IDS = new Set([
@@ -29,6 +37,11 @@ if (manifest.activation_policy?.state !== "staged-until-methodology") {
 if (!Array.isArray(manifest.models) || manifest.models.length !== EXPECTED_IDS.size) {
   throw new Error(`Expected exactly ${EXPECTED_IDS.size} staged models; found ${manifest.models?.length ?? 0}.`);
 }
+
+const policyById = new Map(policy.models.map((entry) => [entry.canonical_model_id, entry]));
+const governanceById = new Map(governance.entries.map((entry) => [entry.canonical_model_id, entry]));
+const runtimeIds = new Set(MODEL_REGISTRY.map((model) => model.id));
+const advisorCatalogIds = new Set(getCatalog().map((model) => model.canonical_model_id));
 
 const seen = new Set();
 for (const model of manifest.models) {
@@ -88,6 +101,35 @@ for (const model of manifest.models) {
       throw new Error(`${model.canonical_model_id} active_experts_per_token exceeds num_experts.`);
     }
   }
+
+  const policyEntry = policyById.get(model.canonical_model_id);
+  if (!policyEntry) {
+    throw new Error(`${model.canonical_model_id} is missing a CDW catalog-policy record.`);
+  }
+  if (policyEntry.catalog_status !== "staged") {
+    throw new Error(`${model.canonical_model_id} must remain catalog_status=staged before PR4 activation.`);
+  }
+  if (policyEntry.activation_dependency !== "pr4-methodology-and-advisor-recalibration") {
+    throw new Error(`${model.canonical_model_id} must declare the PR4 activation dependency.`);
+  }
+
+  const governanceEntry = governanceById.get(model.canonical_model_id);
+  if (!governanceEntry) {
+    throw new Error(`${model.canonical_model_id} is missing a governance record.`);
+  }
+  if (governanceEntry.developer_country !== model.developer_country) {
+    throw new Error(`${model.canonical_model_id} governance country does not match qualification manifest.`);
+  }
+
+  // PR3 staging barrier: source-qualified models are known to governance/product
+  // policy but are deliberately absent from the active technical/Advisor catalogs
+  // until PR4 introduces architecture-aware sizing and ranking recalibration.
+  if (runtimeIds.has(model.canonical_model_id)) {
+    throw new Error(`${model.canonical_model_id} leaked into MODEL_REGISTRY before PR4 activation.`);
+  }
+  if (advisorCatalogIds.has(model.canonical_model_id)) {
+    throw new Error(`${model.canonical_model_id} leaked into the Model Advisor catalog before PR4 activation.`);
+  }
 }
 
 const missing = [...EXPECTED_IDS].filter((id) => !seen.has(id));
@@ -95,7 +137,36 @@ if (missing.length) {
   throw new Error(`Tranche manifest missing expected models: ${missing.join(", ")}`);
 }
 
+const visibleIds = new Set(getVisibleModelOptions({ includeExisting: true }).map((model) => model.id));
+for (const id of EXPECTED_IDS) {
+  if (visibleIds.has(id)) {
+    throw new Error(`${id} leaked into GPU/TCO model selection before PR4 activation.`);
+  }
+}
+
+const advisorResult = buildRecommendations(getCatalog(), {
+  license: "need-to-check",
+  governance: "none",
+  contextWindow: "8k",
+  multimodal: "any",
+  primaryWorkload: "rag",
+  qualityPriority: "strong",
+  optimizationPriority: "balanced",
+});
+const advisorSurfaceIds = new Set([
+  ...advisorResult.cards.map((card) => card.model.canonical_model_id),
+  ...advisorResult.otherEligible.map((model) => model.canonical_model_id),
+  ...advisorResult.verificationCandidates.map((model) => model.canonical_model_id),
+  ...advisorResult.eligibilityTrace.allModels.map((model) => model.canonical_model_id),
+]);
+for (const id of EXPECTED_IDS) {
+  if (advisorSurfaceIds.has(id)) {
+    throw new Error(`${id} leaked into a customer-facing Model Advisor surface before PR4 activation.`);
+  }
+}
+
 console.log(
   `Modern model tranche 1 PASS: ${manifest.models.length} staged models; identity/license/source present; ` +
-  `dense-vs-sparse parameter semantics valid; context/modality metadata present; activation remains gated on PR4 methodology.`
+  `governance and catalog-policy coverage complete; dense-vs-sparse parameter semantics valid; ` +
+  `context/modality metadata present; no staged model is active in Model Advisor, GPU Sizing, or TCO before PR4.`
 );
