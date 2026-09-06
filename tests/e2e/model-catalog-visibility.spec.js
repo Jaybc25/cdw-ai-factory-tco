@@ -4,6 +4,16 @@ import { AUTH_BYPASSED, BYPASS_ONLY_REASON } from "./helpers/auth-context.js";
 test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
 
 const GPU_SESSION = "ai-factory-session:gpu-sizing";
+const EXISTING_DEPLOYMENT_LABELS = [
+  "Llama 3.1 8B Instruct",
+  "Llama 3.1 70B Instruct",
+  "Llama 3.1 405B Instruct",
+  "Llama 3.3 70B Instruct",
+  "Mixtral 8x7B Instruct",
+  "DeepSeek V3",
+  "DeepSeek R1",
+  "Gemma 3 27B",
+];
 
 async function existingModelOptionCount(page, modelId = "llama-3.1-70b") {
   return page.locator(`option[value="${modelId}"]`).count();
@@ -16,6 +26,15 @@ async function openTcoCapacitySection(page) {
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByLabel("Model for capacity estimate")).toBeVisible();
 }
+
+test("Model Advisor never surfaces existing-deployment models", async ({ page }) => {
+  await page.goto("/model-advisor", { waitUntil: "domcontentloaded" });
+  await expect(page.getByText(/Llama 4 Scout|Llama 4 Maverick|Meta Muse Glimmer 30B/).first()).toBeVisible();
+
+  for (const label of EXISTING_DEPLOYMENT_LABELS) {
+    await expect(page.getByText(label, { exact: true })).toHaveCount(0);
+  }
+});
 
 test("GPU Sizing hides existing-deployment models by default and reveals them on opt-in", async ({ page }) => {
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
