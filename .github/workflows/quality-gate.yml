@@ -14,6 +14,7 @@ on:
       - "scripts/validate_model_registry.mjs"
       - "scripts/validate_model_tranche_1.mjs"
       - "scripts/validate_model_sizing_methodology.mjs"
+      - "scripts/validate_model_advisor_semantics.mjs"
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
@@ -34,6 +35,7 @@ on:
       - "scripts/validate_model_registry.mjs"
       - "scripts/validate_model_tranche_1.mjs"
       - "scripts/validate_model_sizing_methodology.mjs"
+      - "scripts/validate_model_advisor_semantics.mjs"
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
@@ -76,6 +78,9 @@ jobs:
 
       - name: Validate architecture-aware model sizing methodology
         run: node scripts/validate_model_sizing_methodology.mjs
+
+      - name: Validate Model Advisor semantic calibration
+        run: node scripts/validate_model_advisor_semantics.mjs
 
       - name: Validate TCO GPU Sizing handoff defaults
         run: node scripts/validate_tco_handoff.mjs
