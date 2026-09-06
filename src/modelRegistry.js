@@ -56,16 +56,6 @@ export const RECOMMENDED_MODELS = MODEL_REGISTRY.filter((model) => model.catalog
 export const EXISTING_DEPLOYMENT_MODELS = MODEL_REGISTRY.filter((model) => model.catalogStatus === "existing-deployment");
 export const SUPPORTED_NAMED_MODELS = MODEL_REGISTRY.filter((model) => model.catalogStatus !== "retired");
 
-// Compatibility exports stay broad so saved/deep-linked existing-deployment
-// scenarios remain resolvable. Product UIs should use the visibility helper
-// below for their default-selectable lists.
-export const GPU_SIZING_MODELS = [...SUPPORTED_NAMED_MODELS, CUSTOM_MODEL];
-export const GPU_SIZING_RECOMMENDED_MODELS = [...RECOMMENDED_MODELS, CUSTOM_MODEL];
-export const GPU_SIZING_EXISTING_DEPLOYMENT_MODELS = EXISTING_DEPLOYMENT_MODELS;
-export const TCO_MODEL_OPTIONS = [...SUPPORTED_NAMED_MODELS, CUSTOM_MODEL];
-export const TCO_RECOMMENDED_MODEL_OPTIONS = [...RECOMMENDED_MODELS, CUSTOM_MODEL];
-export const TCO_EXISTING_DEPLOYMENT_MODEL_OPTIONS = EXISTING_DEPLOYMENT_MODELS;
-
 const BY_ID = new Map();
 for (const model of [...MODEL_REGISTRY, CUSTOM_MODEL]) {
   BY_ID.set(model.id, model);
@@ -94,15 +84,51 @@ export function isExistingDeploymentModel(modelOrId) {
 // deep-linked existing-deployment model is active, keep that one visible even
 // with the opt-in toggle off so a valid historical scenario never becomes an
 // invisible/invalid select value.
-export function getVisibleModelOptions({ includeExisting = false, selectedId = null, includeCustom = true } = {}) {
+export function getVisibleModelOptions({ includeExisting = false, selectedId = null, selectedIds = null, includeCustom = true } = {}) {
   const options = [...RECOMMENDED_MODELS];
   if (includeExisting) options.push(...EXISTING_DEPLOYMENT_MODELS);
-  const selected = getModelById(selectedId);
-  if (selected && selected.id !== "custom" && selected.catalogStatus === "existing-deployment" && !options.some((m) => m.id === selected.id)) {
-    options.push(selected);
+
+  const preserveIds = selectedIds ?? (selectedId ? [selectedId] : []);
+  for (const id of preserveIds) {
+    const selected = getModelById(id);
+    if (selected && selected.id !== "custom" && selected.catalogStatus === "existing-deployment" && !options.some((m) => m.id === selected.id)) {
+      options.push(selected);
+    }
   }
+
   if (includeCustom) options.push(CUSTOM_MODEL);
   return options;
+}
+
+function replaceVisibleOptions(target, options) {
+  target.splice(0, target.length, ...options);
+  return target;
+}
+
+// These arrays are intentionally mutable references. GPU Sizing and TCO have
+// historically imported them once at module scope, so mutating the existing
+// array lets a lightweight route wrapper change visibility without breaking
+// those imports or duplicating model lists inside either calculator.
+export const GPU_SIZING_MODELS = getVisibleModelOptions();
+export const TCO_MODEL_OPTIONS = getVisibleModelOptions();
+
+export const GPU_SIZING_RECOMMENDED_MODELS = [...RECOMMENDED_MODELS, CUSTOM_MODEL];
+export const GPU_SIZING_EXISTING_DEPLOYMENT_MODELS = EXISTING_DEPLOYMENT_MODELS;
+export const TCO_RECOMMENDED_MODEL_OPTIONS = [...RECOMMENDED_MODELS, CUSTOM_MODEL];
+export const TCO_EXISTING_DEPLOYMENT_MODEL_OPTIONS = EXISTING_DEPLOYMENT_MODELS;
+
+export function setGpuSizingModelVisibility({ includeExisting = false, selectedIds = [] } = {}) {
+  return replaceVisibleOptions(
+    GPU_SIZING_MODELS,
+    getVisibleModelOptions({ includeExisting, selectedIds })
+  );
+}
+
+export function setTcoModelVisibility({ includeExisting = false, selectedIds = [] } = {}) {
+  return replaceVisibleOptions(
+    TCO_MODEL_OPTIONS,
+    getVisibleModelOptions({ includeExisting, selectedIds })
+  );
 }
 
 export function getModelParamsB(model, customParamsB = null) {
