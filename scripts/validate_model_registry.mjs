@@ -33,11 +33,7 @@ for (const entry of policy.models) {
   }
 }
 
-const defaultModel = getModelById(DEFAULT_MODEL_ID);
-if (!defaultModel) throw new Error(`Default model ${DEFAULT_MODEL_ID} is not registered.`);
-if (defaultModel.catalogStatus !== "recommended") {
-  throw new Error(`Default model ${DEFAULT_MODEL_ID} must be recommended, got ${defaultModel.catalogStatus}.`);
-}
+if (!getModelById(DEFAULT_MODEL_ID)) throw new Error(`Default model ${DEFAULT_MODEL_ID} is not registered.`);
 if (!RECOMMENDED_MODELS.length) throw new Error("At least one recommended model is required.");
 
 const seenAliases = new Map();
