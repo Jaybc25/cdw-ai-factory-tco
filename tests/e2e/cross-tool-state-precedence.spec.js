@@ -144,6 +144,10 @@ test("fresh Model Advisor handoff updates the active GPU sizing model and supers
   expect(new URL(page.url()).search).toBe("");
   await expect(page.getByText(/Model pre-set to Meta Muse Glimmer 30B, carried over from Model Advisor/)).toBeVisible();
 
+  // Gemma 3 is now an existing-deployment choice, so an intentional edit to
+  // that older model must first opt into the older supported catalog.
+  const legacyToggle = page.getByLabel("Include models for existing deployments");
+  await legacyToggle.check();
   const modelSelect = page.locator('select').filter({ has: page.locator('option[value="gemma-3-27b"]') }).first();
   await expect(modelSelect).toBeVisible();
   await modelSelect.selectOption("gemma-3-27b");
@@ -151,6 +155,7 @@ test("fresh Model Advisor handoff updates the active GPU sizing model and supers
   expect(saved.modelAdvisorRecommendedId).toBe("muse-glimmer-30b");
   await expect(page.getByText(/Model Advisor recommended Meta Muse Glimmer 30B.*currently sizing Gemma 3 27B/i)).toBeVisible();
 
+  await legacyToggle.uncheck();
   await page.reload({ waitUntil: "domcontentloaded" });
   saved = await waitForSession(page, KEYS.gpu, { trainModelId: "gemma-3-27b", modelAdvisorRecommendedId: "muse-glimmer-30b" });
   expect(saved.sourceUseCase).toBeNull();

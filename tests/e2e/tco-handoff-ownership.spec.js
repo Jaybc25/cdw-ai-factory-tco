@@ -213,11 +213,16 @@ test("Back and Forward do not replay consumed model handoff params or erase pers
   await waitForTcoSession(page, { modelId: "muse-glimmer-30b", sourceClass: "B200" });
   expect(new URL(page.url()).search).toBe("");
 
+  // Gemma 3 is now an existing-deployment option. An intentional edit from a
+  // current model to Gemma therefore explicitly opts into the older catalog.
+  const legacyToggle = page.getByLabel("Include models for existing deployments");
+  await legacyToggle.check();
   await openCapacityAndUnitEconomics(page);
   const modelSelect = page.getByLabel("Model for capacity estimate");
   await modelSelect.selectOption("gemma-3-27b");
   const edited = await waitForTcoSession(page, { modelId: "gemma-3-27b" });
   expect(edited.modelParamsB).toBe(27);
+  await legacyToggle.uncheck();
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.goBack({ waitUntil: "domcontentloaded" });
