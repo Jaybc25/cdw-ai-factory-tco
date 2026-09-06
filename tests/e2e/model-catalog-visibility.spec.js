@@ -9,6 +9,14 @@ async function existingModelOptionCount(page, modelId = "llama-3.1-70b") {
   return page.locator(`option[value="${modelId}"]`).count();
 }
 
+async function openTcoCapacitySection(page) {
+  const trigger = page.getByRole("button", { name: /Capacity & unit economics/i });
+  await expect(trigger).toBeVisible();
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(page.getByLabel("Model for capacity estimate")).toBeVisible();
+}
+
 test("GPU Sizing hides existing-deployment models by default and reveals them on opt-in", async ({ page }) => {
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
 
@@ -51,6 +59,7 @@ test("GPU Sizing restores an existing-deployment model from saved session state"
 
 test("TCO uses the same hidden-by-default existing-deployment policy", async ({ page }) => {
   await page.goto("/tco", { waitUntil: "domcontentloaded" });
+  await openTcoCapacitySection(page);
 
   const toggle = page.getByLabel("Include models for existing deployments");
   await expect(toggle).toBeVisible();
