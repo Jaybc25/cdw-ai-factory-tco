@@ -7,6 +7,7 @@ on:
     paths:
       - "src/**"
       - "data/model_*.json"
+      - "data/canonical_models.json"
       - "tests/**"
       - "scripts/extract_tco_workbook_snapshot.py"
       - "scripts/run_tco_parity.mjs"
@@ -28,6 +29,7 @@ on:
     paths:
       - "src/**"
       - "data/model_*.json"
+      - "data/canonical_models.json"
       - "tests/**"
       - "scripts/extract_tco_workbook_snapshot.py"
       - "scripts/run_tco_parity.mjs"
