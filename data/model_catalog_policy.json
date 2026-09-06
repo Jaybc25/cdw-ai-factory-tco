@@ -1,7 +1,7 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "updated_at": "2026-09-05",
-  "note": "CDW-owned product policy for how canonical open-weight models appear in AI Factory Tools. This is intentionally separate from upstream lifecycle_status: recommended means eligible for greenfield Model Advisor recommendations; existing-deployment means retained for sizing/costing and backward compatibility but hidden from the default newcomer experience; retired remains resolvable internally but is not user-selectable.",
+  "note": "CDW-owned product policy for how canonical open-weight models appear in AI Factory Tools. `models` is the exact active runtime/catalog-policy set and must match the active model registry. `staged_models` contains source-qualified future candidates that are governed but deliberately excluded from customer-facing recommendation/selection until their activation dependency is cleared. Upstream lifecycle_status remains a separate concern.",
   "models": [
     { "canonical_model_id": "llama-3.1-8b", "catalog_status": "existing-deployment" },
     { "canonical_model_id": "llama-3.1-70b", "catalog_status": "existing-deployment" },
@@ -14,5 +14,17 @@
     { "canonical_model_id": "deepseek-r1", "catalog_status": "existing-deployment" },
     { "canonical_model_id": "gemma-3-27b", "catalog_status": "existing-deployment" },
     { "canonical_model_id": "muse-glimmer-30b", "catalog_status": "recommended" }
+  ],
+  "staged_models": [
+    { "canonical_model_id": "qwen3.8-27b", "catalog_status": "staged", "activation_dependency": "pr4-methodology-and-advisor-recalibration" },
+    { "canonical_model_id": "deepseek-v4-flash-0731", "catalog_status": "staged", "activation_dependency": "pr4-methodology-and-advisor-recalibration" },
+    { "canonical_model_id": "deepseek-v4-pro-0813", "catalog_status": "staged", "activation_dependency": "pr4-methodology-and-advisor-recalibration" },
+    { "canonical_model_id": "gemma-4-26b-a4b-it", "catalog_status": "staged", "activation_dependency": "pr4-methodology-and-advisor-recalibration" },
+    { "canonical_model_id": "mistral-small-4", "catalog_status": "staged", "activation_dependency": "pr4-methodology-and-advisor-recalibration" },
+    { "canonical_model_id": "mistral-large-3", "catalog_status": "staged", "activation_dependency": "pr4-methodology-and-advisor-recalibration" },
+    { "canonical_model_id": "gpt-oss-20b", "catalog_status": "staged", "activation_dependency": "pr4-methodology-and-advisor-recalibration" },
+    { "canonical_model_id": "gpt-oss-120b", "catalog_status": "staged", "activation_dependency": "pr4-methodology-and-advisor-recalibration" },
+    { "canonical_model_id": "nemotron-3-super-120b-a12b", "catalog_status": "staged", "activation_dependency": "pr4-methodology-and-advisor-recalibration" },
+    { "canonical_model_id": "granite-4.2-30b", "catalog_status": "staged", "activation_dependency": "pr4-methodology-and-advisor-recalibration" }
   ]
 }
