@@ -11,11 +11,11 @@
 
 import catalogPolicyData from "../data/model_catalog_policy.json" with { type: "json" };
 
-// Preserve the established standalone default during the governance-only
-// portion of PR1. The UI-toggle commit will change newcomer-facing defaults
-// deliberately, with browser coverage, rather than changing behavior here as
-// an incidental side effect of adding status metadata.
-export const DEFAULT_MODEL_ID = "llama-3.1-70b";
+// Standalone sessions should start on a current CDW-recommended model rather
+// than an existing-deployment option. Muse Glimmer is the smallest of the
+// current recommended set and therefore the least infrastructure-prescriptive
+// newcomer default until the expanded catalog/recalibration work lands.
+export const DEFAULT_MODEL_ID = "muse-glimmer-30b";
 
 const CATALOG_STATUS = new Map(
   catalogPolicyData.models.map((entry) => [entry.canonical_model_id, entry.catalog_status])
@@ -56,9 +56,9 @@ export const RECOMMENDED_MODELS = MODEL_REGISTRY.filter((model) => model.catalog
 export const EXISTING_DEPLOYMENT_MODELS = MODEL_REGISTRY.filter((model) => model.catalogStatus === "existing-deployment");
 export const SUPPORTED_NAMED_MODELS = MODEL_REGISTRY.filter((model) => model.catalogStatus !== "retired");
 
-// Compatibility exports stay unchanged until the UI toggle lands later in
-// PR1. New status-aware exports let that UI filter without creating a second
-// model list or breaking saved/deep-linked existing-deployment scenarios.
+// Compatibility exports stay broad so saved/deep-linked existing-deployment
+// scenarios remain resolvable. Product UIs should use the visibility helper
+// below for their default-selectable lists.
 export const GPU_SIZING_MODELS = [...SUPPORTED_NAMED_MODELS, CUSTOM_MODEL];
 export const GPU_SIZING_RECOMMENDED_MODELS = [...RECOMMENDED_MODELS, CUSTOM_MODEL];
 export const GPU_SIZING_EXISTING_DEPLOYMENT_MODELS = EXISTING_DEPLOYMENT_MODELS;
@@ -88,6 +88,21 @@ export function isRecommendedModel(modelOrId) {
 export function isExistingDeploymentModel(modelOrId) {
   const model = typeof modelOrId === "string" ? getModelById(modelOrId) : modelOrId;
   return model?.catalogStatus === "existing-deployment";
+}
+
+// Default UI list = current recommended models + Custom. When a restored or
+// deep-linked existing-deployment model is active, keep that one visible even
+// with the opt-in toggle off so a valid historical scenario never becomes an
+// invisible/invalid select value.
+export function getVisibleModelOptions({ includeExisting = false, selectedId = null, includeCustom = true } = {}) {
+  const options = [...RECOMMENDED_MODELS];
+  if (includeExisting) options.push(...EXISTING_DEPLOYMENT_MODELS);
+  const selected = getModelById(selectedId);
+  if (selected && selected.id !== "custom" && selected.catalogStatus === "existing-deployment" && !options.some((m) => m.id === selected.id)) {
+    options.push(selected);
+  }
+  if (includeCustom) options.push(CUSTOM_MODEL);
+  return options;
 }
 
 export function getModelParamsB(model, customParamsB = null) {
