@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   setGpuSizingModelVisibility,
   setTcoModelVisibility,
@@ -28,20 +28,17 @@ function readVisibilityPreference() {
 export default function ModelCatalogVisibilityRoute({ tool, children }) {
   const [includeExisting, setIncludeExisting] = useState(readVisibilityPreference);
 
-  // Preserve currently selected historical models even when the broad legacy
-  // toggle is off. This keeps saved sessions and deep links valid without
-  // re-exposing the full existing-deployment catalog to greenfield users.
-  const selectedIds = useMemo(() => {
-    const saved = readSavedSession(tool);
-    const incoming = readIncomingModelId();
-    if (tool === "gpu-sizing") {
-      return [incoming, saved.infModelId, saved.trainModelId].filter(Boolean);
-    }
-    if (tool === "tco") {
-      return [incoming, saved.modelId].filter(Boolean);
-    }
-    return incoming ? [incoming] : [];
-  }, [tool]);
+  // Re-read the persisted tool state on every wrapper render. When the user
+  // toggles visibility off after selecting an existing-deployment model, the
+  // latest saved selection must remain visible rather than disappearing from
+  // the select as an invalid hidden value.
+  const saved = readSavedSession(tool);
+  const incoming = readIncomingModelId();
+  const selectedIds = tool === "gpu-sizing"
+    ? [incoming, saved.infModelId, saved.trainModelId].filter(Boolean)
+    : tool === "tco"
+      ? [incoming, saved.modelId].filter(Boolean)
+      : incoming ? [incoming] : [];
 
   if (tool === "gpu-sizing") {
     setGpuSizingModelVisibility({ includeExisting, selectedIds });
@@ -52,6 +49,14 @@ export default function ModelCatalogVisibilityRoute({ tool, children }) {
   useEffect(() => {
     sessionStorage.setItem(VISIBILITY_KEY, includeExisting ? "true" : "false");
   }, [includeExisting]);
+
+  // `children` is a stable React element created by the route table. Cloning
+  // it with a visibility-version prop ensures the calculator itself rerenders
+  // after the shared model-option array changes; otherwise the wrapper checkbox
+  // rerenders but the already-rendered <select> can keep its old option DOM.
+  const toolElement = React.isValidElement(children)
+    ? React.cloneElement(children, { modelCatalogVisibilityVersion: includeExisting ? 1 : 0 })
+    : children;
 
   return (
     <>
@@ -70,7 +75,7 @@ export default function ModelCatalogVisibilityRoute({ tool, children }) {
           </span>
         </label>
       </div>
-      {children}
+      {toolElement}
     </>
   );
 }
