@@ -35,7 +35,7 @@ export function getCatalog() {
       param_count_billion: spec.param_count_billion ? spec.param_count_billion.value : null,
       context_length: spec.context_length ?? null,
       modality: spec.modality,
-      confidence: spec.confidence, // model_data_confidence: HIGH / MEDIUM
+      confidence: spec.confidence,
       lifecycle_status: spec.lifecycle_status,
       catalog_status: catalogPolicy.catalog_status || "retired",
       intelligence_index: cap.intelligence_index ?? null,
@@ -52,15 +52,6 @@ export const CATALOG_META = {
   recordCount: modelSpecsData.record_count,
 };
 
-// ---------------------------------------------------------------------------
-// Step 1 -- Hard filters. Every check returns PASS / FAIL / REQUIRES_VERIFICATION.
-// Unknown is never silently treated as a pass or a fail.
-// ---------------------------------------------------------------------------
-
-// Simplified beta heuristic, disclosed in the UI: license text known to
-// generally permit commercial use for typical (non-hyperscale) customers.
-// Meta's Llama licenses carry a >700M-MAU commercial exception CDW customers
-// are very unlikely to hit; flagged in the UI copy rather than modeled here.
 const PERMISSIVE_LICENSE_KEYWORDS = ["apache", "mit", "llama3.1", "llama3.3", "llama4", "gemma", "mixtral"];
 
 function checkLicense(model, requirement) {
@@ -124,10 +115,15 @@ export const METRIC_LABELS = {
   agentic_index: "agentic performance",
 };
 
+// Recalibrated for the Artificial Analysis 4.2 score distribution and the
+// expanded modern-model shadow population. These windows are intentionally
+// capability-preserving: frontier-like is narrowest, strong is moderate, and
+// economical is the only tier broad enough to accept a material capability
+// trade-off for a smaller infrastructure footprint.
 export const MARGINS = {
-  intelligence_index: { "frontier-like": 1.0, strong: 21.0, economical: 28.0 },
-  coding_index: { "frontier-like": 1.0, strong: 33.0, economical: 41.0 },
-  agentic_index: { "frontier-like": 0.1, strong: 21.5, economical: 23.0 },
+  intelligence_index: { "frontier-like": 1.0, strong: 10.0, economical: 16.0 },
+  coding_index: { "frontier-like": 2.0, strong: 18.0, economical: 30.0 },
+  agentic_index: { "frontier-like": 0.5, strong: 5.0, economical: 9.5 },
 };
 
 function tieBreakSort(list) {
@@ -257,9 +253,6 @@ export function explainOtherEligible(model, ranking) {
 }
 
 export function buildRecommendations(catalog, inputs) {
-  // Model Advisor is a greenfield decision aid. Existing-deployment models
-  // remain in the shared technical catalog for sizing/costing and saved-state
-  // compatibility, but they must never enter the recommendation population.
   const advisorCatalog = catalog.filter((model) => model.catalog_status === "recommended");
   const filtered = applyHardFilters(advisorCatalog, inputs);
   const eligible = filtered.filter((m) => m.filterState === "PASS");
