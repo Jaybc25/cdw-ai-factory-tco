@@ -6,6 +6,7 @@ import {
   getModelResidencyParamsB, getModelActiveParamsB,
 } from "../src/modelRegistry.js";
 import { getCatalog, buildRecommendations } from "../src/modelAdvisorEngine.js";
+import { SEQUENCE_STATE_TYPES, getInferenceSequenceStateMemory } from "../src/modelSizingMethodology.js";
 
 const baseSpecs = JSON.parse(fs.readFileSync(new URL("../data/model_specs.json", import.meta.url), "utf8"));
 const activationSpecs = JSON.parse(fs.readFileSync(new URL("../data/model_specs_activation.json", import.meta.url), "utf8"));
@@ -20,10 +21,12 @@ const missing = diff(catalogIds, registryIds); const extra = diff(registryIds, c
 if (missing.length || extra.length) throw new Error(`Shared model registry coverage mismatch. Missing: ${missing.join(", ") || "none"}. Extra: ${extra.join(", ") || "none"}.`);
 const policyMissing = diff(registryIds, policyIds); const policyExtra = diff(policyIds, registryIds);
 if (policyMissing.length || policyExtra.length) throw new Error(`Model catalog policy coverage mismatch. Missing: ${policyMissing.join(", ") || "none"}. Extra: ${policyExtra.join(", ") || "none"}.`);
+if ((policy.staged_models || []).length !== 0) throw new Error("No tranche model should remain in staged product policy after coordinated activation.");
 
 const allowedStatuses = new Set(["recommended", "existing-deployment", "retired"]);
 if (!getModelById(DEFAULT_MODEL_ID) || !isRecommendedModel(DEFAULT_MODEL_ID)) throw new Error(`Default model ${DEFAULT_MODEL_ID} must be registered and recommended.`);
 const architectureTypes = new Set(MODEL_ARCHITECTURE_TYPES);
+const sequenceStateTypes = new Set(SEQUENCE_STATE_TYPES);
 const allowedAttentionTypes = new Set(["standard", "MLA"]);
 const allowedModalities = new Set(["text", "image", "audio", "video"]);
 const seenAliases = new Map();
@@ -35,10 +38,17 @@ for (const model of MODEL_REGISTRY) {
   if (model.architectureType === "dense" && Math.abs(model.activeParamsB - model.totalParamsB) > 1e-9) throw new Error(`Dense model ${model.id} must have active=total.`);
   if ((model.architectureType === "moe" || model.architectureType === "hybrid") && !(model.activeParamsB < model.totalParamsB)) throw new Error(`Sparse model ${model.id} must have active<total.`);
   if (!(Number.isFinite(model.layers) && model.layers > 0)) throw new Error(`Model ${model.id} has invalid layer count.`);
-  if (!allowedAttentionTypes.has(model.attentionType)) throw new Error(`Model ${model.id} has unsupported attention type.`);
-  if (model.attentionType === "MLA") {
-    if (!(Number.isFinite(model.kvLoraRank) && model.kvLoraRank > 0 && Number.isFinite(model.qkRopeHeadDim) && model.qkRopeHeadDim > 0)) throw new Error(`MLA model ${model.id} lacks KV fields.`);
-  } else if (!(Number.isFinite(model.kvHeads) && model.kvHeads > 0 && Number.isFinite(model.headDim) && model.headDim > 0)) throw new Error(`Standard model ${model.id} lacks KV fields.`);
+
+  if (model.sequenceStateType) {
+    if (!sequenceStateTypes.has(model.sequenceStateType)) throw new Error(`Model ${model.id} has unsupported sequenceStateType ${model.sequenceStateType}.`);
+    const state = getInferenceSequenceStateMemory(model, 8192, 2);
+    if (!(state.bytesPerSequence > 0)) throw new Error(`Model ${model.id} hybrid sequence-state contract is not computable.`);
+  } else {
+    if (!allowedAttentionTypes.has(model.attentionType)) throw new Error(`Model ${model.id} has unsupported attention type.`);
+    if (model.attentionType === "MLA") {
+      if (!(Number.isFinite(model.kvLoraRank) && model.kvLoraRank > 0 && Number.isFinite(model.qkRopeHeadDim) && model.qkRopeHeadDim > 0)) throw new Error(`MLA model ${model.id} lacks KV fields.`);
+    } else if (!(Number.isFinite(model.kvHeads) && model.kvHeads > 0 && Number.isFinite(model.headDim) && model.headDim > 0)) throw new Error(`Standard model ${model.id} lacks KV fields.`);
+  }
 
   const sparse = model.architectureType !== "dense";
   if (sparse) {
@@ -75,4 +85,4 @@ const advisorSurfaceIds = new Set([...advisorResult.cards, ...advisorResult.othe
 for (const model of EXISTING_DEPLOYMENT_MODELS) if (advisorSurfaceIds.has(model.id)) throw new Error(`Advisor exposed existing-deployment model ${model.id}.`);
 if (advisorResult.totalCount !== RECOMMENDED_MODELS.length) throw new Error(`Advisor totalCount ${advisorResult.totalCount} != recommended registry size ${RECOMMENDED_MODELS.length}.`);
 
-console.log(`Shared model registry PASS: schema v${MODEL_ARCHITECTURE_SCHEMA_VERSION}; ${MODEL_REGISTRY.length} canonical models; ${RECOMMENDED_MODELS.length} recommended; ${EXISTING_DEPLOYMENT_MODELS.length} existing-deployment; activated specs/policy/runtime coverage aligned; architecture and visibility semantics valid.`);
+console.log(`Shared model registry PASS: schema v${MODEL_ARCHITECTURE_SCHEMA_VERSION}; ${MODEL_REGISTRY.length} canonical models; ${RECOMMENDED_MODELS.length} recommended; ${EXISTING_DEPLOYMENT_MODELS.length} existing-deployment; activation specs/policy/runtime coverage aligned; standard, MLA, and hybrid sequence-state semantics valid.`);
