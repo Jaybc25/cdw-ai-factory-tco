@@ -35,7 +35,7 @@ export function getCatalog() {
       param_count_billion: spec.param_count_billion ? spec.param_count_billion.value : null,
       context_length: spec.context_length ?? null,
       modality: spec.modality,
-      confidence: spec.confidence,
+      confidence: spec.confidence, // model_data_confidence: HIGH / MEDIUM
       lifecycle_status: spec.lifecycle_status,
       catalog_status: catalogPolicy.catalog_status || "retired",
       intelligence_index: cap.intelligence_index ?? null,
@@ -52,6 +52,15 @@ export const CATALOG_META = {
   recordCount: modelSpecsData.record_count,
 };
 
+// ---------------------------------------------------------------------------
+// Step 1 -- Hard filters. Every check returns PASS / FAIL / REQUIRES_VERIFICATION.
+// Unknown is never silently treated as a pass or a fail.
+// ---------------------------------------------------------------------------
+
+// Simplified beta heuristic, disclosed in the UI: license text known to
+// generally permit commercial use for typical (non-hyperscale) customers.
+// Meta's Llama licenses carry a >700M-MAU commercial exception CDW customers
+// are very unlikely to hit; flagged in the UI copy rather than modeled here.
 const PERMISSIVE_LICENSE_KEYWORDS = ["apache", "mit", "llama3.1", "llama3.3", "llama4", "gemma", "mixtral"];
 
 function checkLicense(model, requirement) {
@@ -253,6 +262,9 @@ export function explainOtherEligible(model, ranking) {
 }
 
 export function buildRecommendations(catalog, inputs) {
+  // Model Advisor is a greenfield decision aid. Existing-deployment models
+  // remain in the shared technical catalog for sizing/costing and saved-state
+  // compatibility, but they must never enter the recommendation population.
   const advisorCatalog = catalog.filter((model) => model.catalog_status === "recommended");
   const filtered = applyHardFilters(advisorCatalog, inputs);
   const eligible = filtered.filter((m) => m.filterState === "PASS");
