@@ -18,6 +18,7 @@ on:
       - "scripts/validate_model_advisor_semantics.mjs"
       - "scripts/validate_model_activation_readiness.mjs"
       - "scripts/validate_staged_model_runtime.mjs"
+      - "scripts/validate_model_advisor_shadow_calibration.mjs"
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
@@ -42,6 +43,7 @@ on:
       - "scripts/validate_model_advisor_semantics.mjs"
       - "scripts/validate_model_activation_readiness.mjs"
       - "scripts/validate_staged_model_runtime.mjs"
+      - "scripts/validate_model_advisor_shadow_calibration.mjs"
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
@@ -91,8 +93,11 @@ jobs:
       - name: Validate staged model activation readiness
         run: node scripts/validate_model_activation_readiness.mjs
 
-      - name: Validate staged Granite runtime semantics
+      - name: Validate staged runtime semantics
         run: node scripts/validate_staged_model_runtime.mjs
+
+      - name: Validate expanded Model Advisor shadow calibration
+        run: node scripts/validate_model_advisor_shadow_calibration.mjs
 
       - name: Validate TCO GPU Sizing handoff defaults
         run: node scripts/validate_tco_handoff.mjs
