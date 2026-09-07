@@ -20,7 +20,7 @@ const EXPECTED_ACTIVATION_DEPENDENCIES = new Map([
   ["qwen3.8-27b", "activation-readiness-review"],
   ["deepseek-v4-flash-0731", "activation-readiness-review"],
   ["deepseek-v4-pro-0813", "activation-readiness-review"],
-  ["nemotron-3-super-120b-a12b", "context-contract-reconciliation-and-activation-review"],
+  ["nemotron-3-super-120b-a12b", "activation-readiness-review"],
 ]);
 const ALLOWED_ARCH = new Set(["dense", "moe", "hybrid"]);
 const ALLOWED_COUNTRIES = new Set(["us", "cn", "fr"]);
