@@ -18,6 +18,13 @@ const activePolicyById = new Map(
     .map((entry) => [entry.canonical_model_id, entry])
 );
 
+const EXPECTED_METHODOLOGY_BLOCKS = new Map([
+  ["qwen3.8-27b", "hybrid DeltaNet/attention state is not represented by the current standard-KV/MLA cache formulas"],
+  ["deepseek-v4-flash-0731", "hybrid compressed/sparse attention state is not faithfully represented by the current KV-cache formulas"],
+  ["deepseek-v4-pro-0813", "hybrid compressed/sparse attention state is not faithfully represented by the current KV-cache formulas"],
+  ["nemotron-3-super-120b-a12b", "hybrid Mamba/Transformer recurrent state is not represented by the current KV-cache formulas"],
+]);
+
 function positive(value) {
   return Number.isFinite(value) && value > 0;
 }
@@ -46,26 +53,6 @@ function runtimeSizingReadiness(model) {
   return { ready: true, reason: "runtime fields required by current inference sizing are present" };
 }
 
-function manifestEvidenceReadiness(model) {
-  if (!positive(model.layers)) {
-    return { ready: false, reason: "qualification manifest has no verified layer count" };
-  }
-  if (positive(model.kv_heads) && positive(model.head_dim)) {
-    return { ready: true, reason: "manifest has layer + standard KV-cache fields" };
-  }
-  if (positive(model.kv_lora_rank) && positive(model.qk_rope_head_dim)) {
-    return { ready: true, reason: "manifest has layer + MLA KV-cache fields" };
-  }
-  return { ready: false, reason: "qualification manifest lacks verified KV-cache fields" };
-}
-
-const evidenceReady = [];
-const evidenceBlocked = [];
-for (const model of manifest.models) {
-  const state = manifestEvidenceReadiness(model);
-  (state.ready ? evidenceReady : evidenceBlocked).push({ id: model.canonical_model_id, reason: state.reason });
-}
-
 const stagedRuntimeReady = [];
 for (const [id, model] of stagedRuntimeById) {
   if (!trancheIds.has(id)) {
@@ -79,6 +66,22 @@ for (const [id, model] of stagedRuntimeById) {
     throw new Error(`${id} entered staged technical runtime without complete sizing fields: ${readiness.reason}.`);
   }
   stagedRuntimeReady.push(id);
+}
+
+const unresolvedIds = [...trancheIds].filter((id) => !stagedRuntimeById.has(id) && !runtimeById.has(id));
+if (unresolvedIds.length !== EXPECTED_METHODOLOGY_BLOCKS.size) {
+  throw new Error(`Expected ${EXPECTED_METHODOLOGY_BLOCKS.size} methodology-blocked tranche models; found ${unresolvedIds.length}: ${unresolvedIds.join(", ")}.`);
+}
+for (const id of unresolvedIds) {
+  if (!EXPECTED_METHODOLOGY_BLOCKS.has(id)) {
+    throw new Error(`${id} is unresolved without an explicit methodology block.`);
+  }
+}
+for (const id of EXPECTED_METHODOLOGY_BLOCKS.keys()) {
+  if (!trancheIds.has(id)) throw new Error(`Methodology block references non-tranche model ${id}.`);
+  if (stagedRuntimeById.has(id) || runtimeById.has(id)) {
+    throw new Error(`${id} remains listed as methodology-blocked after entering a technical runtime registry.`);
+  }
 }
 
 // Activation safety contract: a tranche model may not move into the active
@@ -95,8 +98,6 @@ for (const [id, policyEntry] of activePolicyById) {
   }
 }
 
-// Any tranche model already introduced into the production runtime registry
-// must itself be technically complete.
 for (const id of trancheIds) {
   if (!runtimeById.has(id)) continue;
   const readiness = runtimeSizingReadiness(runtimeById.get(id));
@@ -106,12 +107,10 @@ for (const id of trancheIds) {
 }
 
 console.log(
-  `Model activation readiness PASS: ${evidenceReady.length}/${manifest.models.length} staged models have source-recorded ` +
-  `KV-cache evidence sufficient for the current inference sizing contract; ${stagedRuntimeReady.length} have complete ` +
-  `staged technical runtime records; customer-facing activation remains a separate gated step.`
+  `Model activation readiness PASS: ${stagedRuntimeReady.length}/${manifest.models.length} tranche models have complete staged technical runtime records; ` +
+  `${unresolvedIds.length} remain deliberately methodology-blocked; customer-facing activation remains a separate gated step.`
 );
-console.log(`Evidence-ready: ${evidenceReady.map((item) => item.id).join(", ") || "none"}.`);
 console.log(`Staged-runtime-ready: ${stagedRuntimeReady.join(", ") || "none"}.`);
 console.log(
-  `Evidence-blocked: ${evidenceBlocked.map((item) => `${item.id} (${item.reason})`).join("; ") || "none"}.`
+  `Methodology-blocked: ${unresolvedIds.map((id) => `${id} (${EXPECTED_METHODOLOGY_BLOCKS.get(id)})`).join("; ") || "none"}.`
 );
