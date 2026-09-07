@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { MODEL_REGISTRY } from "../src/modelRegistry.js";
+import { STAGED_TECHNICAL_MODEL_REGISTRY } from "../src/stagedModelRegistry.js";
 
 const manifest = JSON.parse(
   fs.readFileSync(new URL("../data/model_catalog_tranche_1_qualification.json", import.meta.url), "utf8")
@@ -10,6 +11,7 @@ const policy = JSON.parse(
 
 const trancheIds = new Set(manifest.models.map((model) => model.canonical_model_id));
 const runtimeById = new Map(MODEL_REGISTRY.map((model) => [model.id, model]));
+const stagedRuntimeById = new Map(STAGED_TECHNICAL_MODEL_REGISTRY.map((model) => [model.id, model]));
 const activePolicyById = new Map(
   policy.models
     .filter((entry) => trancheIds.has(entry.canonical_model_id))
@@ -21,7 +23,7 @@ function positive(value) {
 }
 
 function runtimeSizingReadiness(model) {
-  if (!model) return { ready: false, reason: "not present in runtime technical registry" };
+  if (!model) return { ready: false, reason: "not present in a technical runtime registry" };
   if (!positive(model.totalParamsB) || !positive(model.activeParamsB)) {
     return { ready: false, reason: "missing total/active parameter semantics" };
   }
@@ -64,23 +66,37 @@ for (const model of manifest.models) {
   (state.ready ? evidenceReady : evidenceBlocked).push({ id: model.canonical_model_id, reason: state.reason });
 }
 
+const stagedRuntimeReady = [];
+for (const [id, model] of stagedRuntimeById) {
+  if (!trancheIds.has(id)) {
+    throw new Error(`${id} exists in staged technical runtime but is not part of the qualified tranche.`);
+  }
+  if (runtimeById.has(id)) {
+    throw new Error(`${id} exists in both staged and production runtime registries.`);
+  }
+  const readiness = runtimeSizingReadiness(model);
+  if (!readiness.ready) {
+    throw new Error(`${id} entered staged technical runtime without complete sizing fields: ${readiness.reason}.`);
+  }
+  stagedRuntimeReady.push(id);
+}
+
 // Activation safety contract: a tranche model may not move into the active
-// product-policy collection until its runtime technical registry entry can be
-// consumed safely by the actual GPU Sizing inference path. This specifically
-// prevents missing/null architecture fields from being coerced into zero-value
-// KV-cache math.
+// product-policy collection until its production runtime technical record can
+// be consumed safely by the actual GPU Sizing inference path. Staged-runtime
+// readiness is an intermediate validation state, not customer activation.
 for (const [id, policyEntry] of activePolicyById) {
   if (policyEntry.catalog_status !== "recommended" && policyEntry.catalog_status !== "existing-deployment") {
     continue;
   }
   const readiness = runtimeSizingReadiness(runtimeById.get(id));
   if (!readiness.ready) {
-    throw new Error(`${id} is active in catalog policy but is not GPU-sizing ready: ${readiness.reason}.`);
+    throw new Error(`${id} is active in catalog policy but is not production GPU-sizing ready: ${readiness.reason}.`);
   }
 }
 
-// Any tranche model that has already been introduced into the runtime registry
-// must itself be technically complete, even before policy activation.
+// Any tranche model already introduced into the production runtime registry
+// must itself be technically complete.
 for (const id of trancheIds) {
   if (!runtimeById.has(id)) continue;
   const readiness = runtimeSizingReadiness(runtimeById.get(id));
@@ -90,11 +106,12 @@ for (const id of trancheIds) {
 }
 
 console.log(
-  `Model activation readiness PASS: ${evidenceReady.length}/${manifest.models.length} staged models currently have ` +
-  `source-recorded KV-cache evidence sufficient for the current inference sizing contract; activation remains blocked ` +
-  `for incomplete runtime entries.`
+  `Model activation readiness PASS: ${evidenceReady.length}/${manifest.models.length} staged models have source-recorded ` +
+  `KV-cache evidence sufficient for the current inference sizing contract; ${stagedRuntimeReady.length} have complete ` +
+  `staged technical runtime records; customer-facing activation remains a separate gated step.`
 );
 console.log(`Evidence-ready: ${evidenceReady.map((item) => item.id).join(", ") || "none"}.`);
+console.log(`Staged-runtime-ready: ${stagedRuntimeReady.join(", ") || "none"}.`);
 console.log(
   `Evidence-blocked: ${evidenceBlocked.map((item) => `${item.id} (${item.reason})`).join("; ") || "none"}.`
 );
