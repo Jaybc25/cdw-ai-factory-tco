@@ -1,5 +1,5 @@
 import fs from "node:fs";
-import { getCatalog, rankModels } from "../src/modelAdvisorEngine.js";
+import { getCatalog, rankModels, MARGINS } from "../src/modelAdvisorEngine.js";
 import { STAGED_TECHNICAL_MODEL_REGISTRY } from "../src/stagedModelRegistry.js";
 
 const capability = JSON.parse(
@@ -17,6 +17,13 @@ const SHADOW_MARGINS = Object.freeze({
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+for (const [metric, priorities] of Object.entries(SHADOW_MARGINS)) {
+  for (const [priority, expected] of Object.entries(priorities)) {
+    assert(MARGINS[metric]?.[priority] === expected,
+      `Live Advisor margin does not match accepted shadow calibration for ${metric}/${priority}: expected ${expected}, found ${MARGINS[metric]?.[priority]}.`);
+  }
 }
 
 const capById = new Map(capability.data.models.map((model) => [model.canonical_model_id, model]));
@@ -103,14 +110,14 @@ for (const [workload, metric] of Object.entries(metricByWorkload)) {
   }
 }
 
-// Ensure the production engine has not been changed by the shadow-calibration
-// exercise yet. PR4 will promote these margins only in a deliberate activation
-// commit after this expanded-population semantic gate is accepted.
+// The live engine now uses the accepted shadow margins, while the product
+// catalog remains pre-activation. Verify that the currently visible three-model
+// population still preserves its established Best Performance behavior.
 const productionStrong = rankModels(currentRecommended, "intelligence_index", "strong");
 assert(productionStrong.bestPerformance?.canonical_model_id === "muse-glimmer-30b",
-  "Production Advisor baseline drifted while shadow calibration was being prepared.");
+  "Current production-catalog Advisor behavior drifted after margin promotion.");
 
 console.log(
-  "Model Advisor shadow calibration PASS: 9-model population preserves evidence-backed Muse performance/balanced leadership, " +
-  "surfaces gpt-oss-20b only for explicit economical infrastructure-efficiency tolerance, and does not manufacture card diversity."
+  "Model Advisor calibration PASS: live margins equal the accepted 9-model shadow calibration, Muse remains evidence-backed performance/balanced leader, " +
+  "gpt-oss-20b appears only for explicit economical infrastructure-efficiency tolerance, and the current three-model product surface remains stable."
 );
