@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import { MODEL_REGISTRY } from "../src/modelRegistry.js";
 import { STAGED_TECHNICAL_MODEL_REGISTRY } from "../src/stagedModelRegistry.js";
+import { getInferenceSequenceStateMemory } from "../src/modelSizingMethodology.js";
 
 const manifest = JSON.parse(
   fs.readFileSync(new URL("../data/model_catalog_tranche_1_qualification.json", import.meta.url), "utf8")
@@ -17,101 +18,93 @@ const activePolicyById = new Map(
     .filter((entry) => trancheIds.has(entry.canonical_model_id))
     .map((entry) => [entry.canonical_model_id, entry])
 );
+const stagedPolicyById = new Map(
+  policy.staged_models
+    .filter((entry) => trancheIds.has(entry.canonical_model_id))
+    .map((entry) => [entry.canonical_model_id, entry])
+);
 
-const EXPECTED_METHODOLOGY_BLOCKS = new Map([
-  ["qwen3.8-27b", "hybrid DeltaNet/attention state is not represented by the current standard-KV/MLA cache formulas"],
-  ["deepseek-v4-flash-0731", "hybrid compressed/sparse attention state is not faithfully represented by the current KV-cache formulas"],
-  ["deepseek-v4-pro-0813", "hybrid compressed/sparse attention state is not faithfully represented by the current KV-cache formulas"],
-  ["nemotron-3-super-120b-a12b", "hybrid Mamba/Transformer recurrent state is not represented by the current KV-cache formulas"],
+const EXPECTED_METHODOLOGY_STAGED = new Map([
+  ["qwen3.8-27b", "deltanet-attention-hybrid"],
+  ["deepseek-v4-flash-0731", "deepseek-v4-compressed-attention"],
+  ["deepseek-v4-pro-0813", "deepseek-v4-compressed-attention"],
+  ["nemotron-3-super-120b-a12b", "mamba-attention-hybrid"],
 ]);
 
 function positive(value) {
   return Number.isFinite(value) && value > 0;
 }
 
-function runtimeSizingReadiness(model) {
-  if (!model) return { ready: false, reason: "not present in a technical runtime registry" };
+function productionRuntimeSizingReadiness(model) {
+  if (!model) return { ready: false, reason: "not present in production runtime" };
   if (!positive(model.totalParamsB) || !positive(model.activeParamsB)) {
     return { ready: false, reason: "missing total/active parameter semantics" };
   }
   if (!positive(model.layers)) {
-    return { ready: false, reason: "missing verified layer count required by KV-cache sizing" };
+    return { ready: false, reason: "missing verified layer count required by sequence-state sizing" };
   }
 
-  if (model.attentionType === "MLA") {
-    if (!positive(model.kvLoraRank) || !positive(model.qkRopeHeadDim)) {
-      return { ready: false, reason: "MLA model missing verified kvLoraRank/qkRopeHeadDim" };
-    }
-  } else if (model.attentionType === "standard") {
-    if (!positive(model.kvHeads) || !positive(model.headDim)) {
-      return { ready: false, reason: "standard-attention model missing verified kvHeads/headDim" };
-    }
-  } else {
-    return { ready: false, reason: "attention type is not explicitly modeled" };
+  try {
+    const state = getInferenceSequenceStateMemory(model, 8192, 2);
+    if (!(state.bytesPerSequence >= 0)) return { ready: false, reason: "sequence-state helper returned invalid memory" };
+  } catch (error) {
+    return { ready: false, reason: error.message };
   }
 
-  return { ready: true, reason: "runtime fields required by current inference sizing are present" };
+  return { ready: true, reason: "production model has a supported inference sequence-state contract" };
 }
 
-const stagedRuntimeReady = [];
-for (const [id, model] of stagedRuntimeById) {
-  if (!trancheIds.has(id)) {
-    throw new Error(`${id} exists in staged technical runtime but is not part of the qualified tranche.`);
+function stagedMethodologyReadiness(model) {
+  if (!model) return { ready: false, reason: "missing staged technical record" };
+  if (!positive(model.totalParamsB) || !positive(model.activeParamsB) || !positive(model.layers)) {
+    return { ready: false, reason: "missing staged parameter/layer semantics" };
   }
-  if (runtimeById.has(id)) {
-    throw new Error(`${id} exists in both staged and production runtime registries.`);
+  if (!model.sequenceStateType) return { ready: false, reason: "missing explicit sequence-state type" };
+  try {
+    const state = getInferenceSequenceStateMemory(model, 8192, 2);
+    if (!(state.bytesPerSequence > 0)) return { ready: false, reason: "sequence-state memory is not positive" };
+  } catch (error) {
+    return { ready: false, reason: error.message };
   }
-  const readiness = runtimeSizingReadiness(model);
-  if (!readiness.ready) {
-    throw new Error(`${id} entered staged technical runtime without complete sizing fields: ${readiness.reason}.`);
-  }
-  stagedRuntimeReady.push(id);
+  return { ready: true, reason: "source-qualified staged sequence-state memory contract is computable" };
 }
 
-const unresolvedIds = [...trancheIds].filter((id) => !stagedRuntimeById.has(id) && !runtimeById.has(id));
-if (unresolvedIds.length !== EXPECTED_METHODOLOGY_BLOCKS.size) {
-  throw new Error(`Expected ${EXPECTED_METHODOLOGY_BLOCKS.size} methodology-blocked tranche models; found ${unresolvedIds.length}: ${unresolvedIds.join(", ")}.`);
-}
-for (const id of unresolvedIds) {
-  if (!EXPECTED_METHODOLOGY_BLOCKS.has(id)) {
-    throw new Error(`${id} is unresolved without an explicit methodology block.`);
-  }
-}
-for (const id of EXPECTED_METHODOLOGY_BLOCKS.keys()) {
-  if (!trancheIds.has(id)) throw new Error(`Methodology block references non-tranche model ${id}.`);
-  if (stagedRuntimeById.has(id) || runtimeById.has(id)) {
-    throw new Error(`${id} remains listed as methodology-blocked after entering a technical runtime registry.`);
-  }
-}
-
-// Activation safety contract: every active tranche model must have a complete
-// production technical record that the actual GPU Sizing inference path can
-// consume safely. The remaining four models stay outside all technical runtime
-// registries until their hybrid cache/state semantics are modeled explicitly.
+// The six previously activated tranche models must remain production-ready.
 for (const [id, policyEntry] of activePolicyById) {
-  if (policyEntry.catalog_status !== "recommended" && policyEntry.catalog_status !== "existing-deployment") {
-    continue;
-  }
-  const readiness = runtimeSizingReadiness(runtimeById.get(id));
+  if (policyEntry.catalog_status !== "recommended" && policyEntry.catalog_status !== "existing-deployment") continue;
+  const readiness = productionRuntimeSizingReadiness(runtimeById.get(id));
   if (!readiness.ready) {
     throw new Error(`${id} is active in catalog policy but is not production GPU-sizing ready: ${readiness.reason}.`);
   }
 }
 
-for (const id of trancheIds) {
-  if (!runtimeById.has(id)) continue;
-  const readiness = runtimeSizingReadiness(runtimeById.get(id));
-  if (!readiness.ready) {
-    throw new Error(`${id} entered MODEL_REGISTRY without complete sizing fields: ${readiness.reason}.`);
-  }
+// PR5 methodology state: the four formerly metadata-only blocks now have
+// source-qualified staged technical records and computable memory contracts,
+// but they remain deliberately outside product policy/runtime activation.
+if (stagedRuntimeById.size !== EXPECTED_METHODOLOGY_STAGED.size) {
+  throw new Error(`Expected ${EXPECTED_METHODOLOGY_STAGED.size} staged hybrid technical records; found ${stagedRuntimeById.size}.`);
+}
+for (const [id, stateType] of EXPECTED_METHODOLOGY_STAGED) {
+  if (!trancheIds.has(id)) throw new Error(`Methodology-staged model ${id} is not in tranche 1.`);
+  const model = stagedRuntimeById.get(id);
+  if (!model) throw new Error(`${id} is missing its staged technical record.`);
+  if (runtimeById.has(id)) throw new Error(`${id} entered production runtime before activation.`);
+  if (model.sequenceStateType !== stateType) throw new Error(`${id} sequenceStateType drifted from ${stateType}.`);
+  const readiness = stagedMethodologyReadiness(model);
+  if (!readiness.ready) throw new Error(`${id} staged methodology is incomplete: ${readiness.reason}.`);
+  if (stagedPolicyById.get(id)?.catalog_status !== "staged") throw new Error(`${id} must remain staged in product policy.`);
+  if (activePolicyById.has(id)) throw new Error(`${id} entered active product policy before activation.`);
+}
+
+const unresolvedIds = [...trancheIds].filter((id) => !stagedRuntimeById.has(id) && !runtimeById.has(id));
+if (unresolvedIds.length) {
+  throw new Error(`Every tranche model must now be either production-active or methodology-staged; unresolved: ${unresolvedIds.join(", ")}.`);
 }
 
 const activeTrancheIds = [...activePolicyById.keys()];
 console.log(
-  `Model activation readiness PASS: ${activeTrancheIds.length}/${manifest.models.length} tranche models are active with complete production technical runtime records; ` +
-  `${unresolvedIds.length} remain deliberately methodology-blocked; staged technical runtime contains ${stagedRuntimeReady.length}.`
+  `Model activation readiness PASS: ${activeTrancheIds.length}/${manifest.models.length} tranche models remain active with production sequence-state contracts; ` +
+  `${stagedRuntimeById.size} are source-qualified methodology-staged with explicit hybrid state contracts and remain non-customer-facing.`
 );
 console.log(`Active-runtime-ready: ${activeTrancheIds.join(", ") || "none"}.`);
-console.log(
-  `Methodology-blocked: ${unresolvedIds.map((id) => `${id} (${EXPECTED_METHODOLOGY_BLOCKS.get(id)})`).join("; ") || "none"}.`
-);
+console.log(`Methodology-staged: ${[...EXPECTED_METHODOLOGY_STAGED.keys()].join(", ")}.`);
