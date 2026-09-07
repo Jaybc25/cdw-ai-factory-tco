@@ -5,6 +5,7 @@ on:
     branches: [hybrid-sequence-state-methodology]
     paths:
       - ".github/workflows/pr31-apply-hybrid-audit.yml"
+      - "scripts/apply_pr31_hybrid_audit_patch.mjs"
 
 permissions:
   contents: write
