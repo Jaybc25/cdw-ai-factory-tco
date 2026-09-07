@@ -19,6 +19,7 @@ on:
       - "scripts/validate_model_activation_readiness.mjs"
       - "scripts/validate_staged_model_runtime.mjs"
       - "scripts/validate_model_advisor_shadow_calibration.mjs"
+      - "scripts/validate_model_activation_contract.mjs"
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
@@ -44,6 +45,7 @@ on:
       - "scripts/validate_model_activation_readiness.mjs"
       - "scripts/validate_staged_model_runtime.mjs"
       - "scripts/validate_model_advisor_shadow_calibration.mjs"
+      - "scripts/validate_model_activation_contract.mjs"
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
@@ -98,6 +100,9 @@ jobs:
 
       - name: Validate expanded Model Advisor shadow calibration
         run: node scripts/validate_model_advisor_shadow_calibration.mjs
+
+      - name: Validate six-model activation contract
+        run: node scripts/validate_model_activation_contract.mjs
 
       - name: Validate TCO GPU Sizing handoff defaults
         run: node scripts/validate_tco_handoff.mjs
