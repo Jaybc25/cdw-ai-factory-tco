@@ -7,7 +7,7 @@ import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
 import { GPU_SIZING_PRICE_USD as GPU_PRICE_USD } from "./pricingRegistry.js";
 import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelParamsB } from "./modelRegistry.js";
-import { getInferenceThroughputScale, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
+import { getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -153,16 +153,18 @@ function validateTraining(inputs) {
 
 function computeInference(inputs) {
   const model = inputs.model.id === "custom"
-    ? { id: "custom", totalParamsB: inputs.customParamsB, activeParamsB: inputs.customParamsB, architectureType: "dense", layers: inputs.customLayers, kvHeads: inputs.customKvHeads, headDim: inputs.customHeadDim, status: "CUSTOM" }
+    ? { id: "custom", totalParamsB: inputs.customParamsB, activeParamsB: inputs.customParamsB, architectureType: "dense", layers: inputs.customLayers, attentionType: "standard", kvHeads: inputs.customKvHeads, headDim: inputs.customHeadDim, status: "CUSTOM" }
     : inputs.model;
 
   const quantBytes = QUANT_BYTES[inputs.quant];
   const weightMemoryGB = model.totalParamsB * quantBytes;
   const avgTokens = inputs.avgInputTokens + inputs.avgOutputTokens;
-  const kvBytesPerToken = model.attentionType === "MLA"
-    ? model.layers * (model.kvLoraRank + model.qkRopeHeadDim) * inputs.kvBytesPerElement
-    : 2 * model.layers * model.kvHeads * model.headDim * inputs.kvBytesPerElement;
-  const kvCacheGBPerSeq = (kvBytesPerToken * avgTokens) / 1e9;
+  const sequenceStateMemory = getInferenceSequenceStateMemory(model, avgTokens, inputs.kvBytesPerElement);
+  // Retain the historical audit field for standard KV/MLA parity. For hybrid
+  // state models, this represents only the token-growing portion; fixed
+  // recurrent/compression state is carried separately in sequenceStateMemory.
+  const kvBytesPerToken = avgTokens > 0 ? sequenceStateMemory.tokenGrowingBytes / avgTokens : 0;
+  const kvCacheGBPerSeq = sequenceStateMemory.totalGBPerSequence;
   const kvCacheTotalGB = kvCacheGBPerSeq * inputs.concurrentUsers;
   const runtimeOverheadGB = (weightMemoryGB + kvCacheTotalGB) * inputs.overheadPct;
   const totalMemoryGB = weightMemoryGB + kvCacheTotalGB + runtimeOverheadGB;
@@ -267,7 +269,7 @@ function computeInference(inputs) {
     idleGpuHoursAfterHours,
     headroomGpuHoursDuringDay,
     throughputScale,
-    model, quantBytes, weightMemoryGB, kvBytesPerToken, kvCacheGBPerSeq, kvCacheTotalGB, runtimeOverheadGB,
+    model, quantBytes, weightMemoryGB, sequenceStateMemory, kvBytesPerToken, kvCacheGBPerSeq, kvCacheTotalGB, runtimeOverheadGB,
   };
 }
 
