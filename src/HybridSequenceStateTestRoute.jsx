@@ -2,7 +2,7 @@ import React from "react";
 import { STAGED_TECHNICAL_MODEL_REGISTRY } from "./stagedModelRegistry.js";
 import { getInferenceSequenceStateMemory } from "./modelSizingMethodology.js";
 
-const TOKENS = 2500;
+const TOKENS = 8192;
 const CACHE_BYTES = 2;
 
 export default function HybridSequenceStateTestRoute() {
