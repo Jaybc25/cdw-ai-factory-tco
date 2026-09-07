@@ -139,11 +139,8 @@ function deltaNetHybridState(model, tokens, cacheBytesPerElement) {
   const convBytes = requirePositive(model.convolutionStateBytesPerElement, "convolutionStateBytesPerElement", model);
 
   const fullAttentionBytes = 2 * fullLayers * kvHeads * headDim * tokens * cacheBytesPerElement;
-  // HF Qwen3.5/3.8 Gated DeltaNet recurrent state shape:
-  // [batch, num_value_heads, key_head_dim, value_head_dim].
   const recurrentElementsPerLayer = valueHeads * keyHeadDim * valueHeadDim;
   const recurrentStateBytes = linearLayers * recurrentElementsPerLayer * recurrentBytes;
-  // Convolution state concatenates K, K and V channels across the conv kernel.
   const keyDim = keyHeads * keyHeadDim;
   const valueDim = valueHeads * valueHeadDim;
   const convElementsPerLayer = (2 * keyDim + valueDim) * convKernel;
@@ -181,17 +178,11 @@ function deepseekV4CompressedState(model, tokens, cacheBytesPerElement) {
     throw new Error(`${model.id} DeepSeek layer counts do not reconcile to total layers.`);
   }
 
-  // DeepSeek V4 uses shared K=V MQA in every attention layer, so persistent
-  // sliding state stores one tensor rather than separate K and V tensors.
   const slidingTokens = Math.min(tokens, slidingWindow);
   const slidingBytes = layers * kvHeads * headDim * slidingTokens * cacheBytesPerElement;
 
   const csaEntries = Math.floor(tokens / csaRate);
   const csaRemainder = tokens % csaRate;
-  // CSA holds two compressed series during window formation, but each emitted
-  // long-range entry collapses to headDim. A parallel indexer maintains the
-  // same pattern at indexHeadDim. Buffer KV + gate each use 2*dim features;
-  // overlap KV + gate each retain one dim slice after at least one full window.
   const csaCompressedBytes = csaLayers * csaEntries * (headDim + indexHeadDim) * auxBytes;
   const csaBufferElementsPerLayer = 4 * csaRemainder * (headDim + indexHeadDim);
   const csaOverlapElementsPerLayer = csaEntries > 0 ? 2 * (headDim + indexHeadDim) : 0;
@@ -200,7 +191,6 @@ function deepseekV4CompressedState(model, tokens, cacheBytesPerElement) {
   const hcaEntries = Math.floor(tokens / hcaRate);
   const hcaRemainder = tokens % hcaRate;
   const hcaCompressedBytes = hcaLayers * hcaEntries * headDim * auxBytes;
-  // HCA has compressor KV + gate buffers, no overlap and no parallel indexer.
   const hcaBufferBytes = hcaLayers * 2 * hcaRemainder * headDim * auxBytes;
 
   const compressedBytes = csaCompressedBytes + hcaCompressedBytes;
@@ -238,10 +228,8 @@ function mambaHybridState(model, tokens, cacheBytesPerElement) {
   const convBytes = requirePositive(model.convolutionStateBytesPerElement, "convolutionStateBytesPerElement", model);
 
   const attentionBytes = 2 * attentionLayers * kvHeads * attentionHeadDim * tokens * cacheBytesPerElement;
-  // HF Nemotron-H cache shape: [B, mamba_num_heads, mamba_head_dim, ssm_state_size].
   const ssmElementsPerLayer = mambaHeads * mambaHeadDim * stateSize;
   const ssmBytes = mambaLayers * ssmElementsPerLayer * recurrentBytes;
-  // Conv cache shape: [B, intermediate_size + 2*n_groups*ssm_state_size, conv_kernel].
   const intermediateSize = mambaHeads * mambaHeadDim;
   const convElementsPerLayer = (intermediateSize + 2 * groups * stateSize) * convKernel;
   const convolutionBytes = mambaLayers * convElementsPerLayer * convBytes;
@@ -271,19 +259,27 @@ export function getInferenceSequenceStateMemory(model, tokens, cacheBytesPerElem
   const sequenceTokens = requireNonNegative(tokens, "sequence tokens", model);
   const cacheBytes = requirePositive(cacheBytesPerElement, "cacheBytesPerElement", model);
 
+  let state;
   if (model.sequenceStateType === "deltanet-attention-hybrid") {
-    return deltaNetHybridState(model, sequenceTokens, cacheBytes);
+    state = deltaNetHybridState(model, sequenceTokens, cacheBytes);
+  } else if (model.sequenceStateType === "deepseek-v4-compressed-attention") {
+    state = deepseekV4CompressedState(model, sequenceTokens, cacheBytes);
+  } else if (model.sequenceStateType === "mamba-attention-hybrid") {
+    state = mambaHybridState(model, sequenceTokens, cacheBytes);
+  } else if (model.attentionType === "MLA") {
+    state = mlaState(model, sequenceTokens, cacheBytes);
+  } else if (model.attentionType === "standard") {
+    state = standardKvState(model, sequenceTokens, cacheBytes);
+  } else {
+    throw new Error(`${model.id} has no supported inference sequence-state contract.`);
   }
-  if (model.sequenceStateType === "deepseek-v4-compressed-attention") {
-    return deepseekV4CompressedState(model, sequenceTokens, cacheBytes);
-  }
-  if (model.sequenceStateType === "mamba-attention-hybrid") {
-    return mambaHybridState(model, sequenceTokens, cacheBytes);
-  }
-  if (model.attentionType === "MLA") return mlaState(model, sequenceTokens, cacheBytes);
-  if (model.attentionType === "standard") return standardKvState(model, sequenceTokens, cacheBytes);
 
-  throw new Error(`${model.id} has no supported inference sequence-state contract.`);
+  return {
+    ...state,
+    totalGBPerSequence: state.bytesPerSequence / 1e9,
+    tokenGrowingGBPerSequence: state.tokenGrowingBytes / 1e9,
+    fixedGBPerSequence: state.fixedBytes / 1e9,
+  };
 }
 
 // Training separates resident optimizer/model-state memory from token-level
