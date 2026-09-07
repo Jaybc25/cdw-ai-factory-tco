@@ -1,6 +1,6 @@
 import { MODEL_REGISTRY, getVisibleModelOptions, getModelById } from "../src/modelRegistry.js";
-import { STAGED_TECHNICAL_MODEL_REGISTRY } from "../src/stagedModelRegistry.js";
-import { getInferenceThroughputScale, getTrainingParameterSemantics } from "../src/modelSizingMethodology.js";
+import { STAGED_TECHNICAL_MODEL_REGISTRY, getStagedTechnicalModelById } from "../src/stagedModelRegistry.js";
+import { getInferenceThroughputScale, getTrainingParameterSemantics, getInferenceSequenceStateMemory } from "../src/modelSizingMethodology.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -9,7 +9,7 @@ function approx(actual, expected, tolerance = 1e-9) {
   if (Math.abs(actual - expected) > tolerance) throw new Error(`Expected ${expected}; received ${actual}.`);
 }
 
-const expectedIds = new Set([
+const activatedIds = new Set([
   "granite-4.2-30b",
   "gpt-oss-20b",
   "gpt-oss-120b",
@@ -17,20 +17,23 @@ const expectedIds = new Set([
   "mistral-small-4",
   "mistral-large-3",
 ]);
+const methodologyStagedIds = new Set([
+  "qwen3.8-27b",
+  "deepseek-v4-flash-0731",
+  "deepseek-v4-pro-0813",
+  "nemotron-3-super-120b-a12b",
+]);
 
-assert(STAGED_TECHNICAL_MODEL_REGISTRY.length === 0, "Promoted tranche models must no longer remain in staged technical runtime.");
-for (const id of expectedIds) {
+assert(STAGED_TECHNICAL_MODEL_REGISTRY.length === 4, "Exactly four blocked hybrid models should be in staged technical runtime during methodology development.");
+for (const id of activatedIds) {
   const model = getModelById(id);
   assert(model, `${id} is missing from production MODEL_REGISTRY after activation.`);
-  assert(model.catalogStatus === "recommended", `${id} must be catalogStatus=recommended after activation.`);
+  assert(model.catalogStatus === "recommended", `${id} must remain catalogStatus=recommended.`);
   assert(model.status === "VERIFIED", `${id} production runtime record must remain source-verified.`);
   assert(model.layers > 0, `${id} is missing a verified layer count.`);
-  if (model.attentionType === "MLA") {
-    assert(model.kvLoraRank > 0 && model.qkRopeHeadDim > 0, `${id} is missing required MLA KV sizing fields.`);
-  } else {
-    assert(model.attentionType === "standard", `${id} has an unsupported attentionType.`);
-    assert(model.kvHeads > 0 && model.headDim > 0, `${id} is missing required standard KV sizing fields.`);
-  }
+  const state = getInferenceSequenceStateMemory(model, 8192, 2);
+  assert(state.bytesPerSequence > 0, `${id} production sequence-state contract failed.`);
+  assert(!getStagedTechnicalModelById(id), `${id} unexpectedly appears in staged technical runtime.`);
 }
 
 const granite = getModelById("granite-4.2-30b");
@@ -68,17 +71,29 @@ for (const [id, expected] of Object.entries({
 })) {
   const model = getModelById(id);
   assert(model.architectureType === "moe", `${id} must remain MoE.`);
-  assert(model.attentionType === "MLA", `${id} must use the MLA KV-cache contract.`);
+  assert(model.attentionType === "MLA", `${id} must use the MLA cache contract.`);
   approx(model.totalParamsB, expected.total); approx(model.activeParamsB, expected.active); approx(model.layers, expected.layers); approx(model.kvLoraRank, expected.rank); approx(model.qkRopeHeadDim, 64); approx(model.numExperts, expected.experts); approx(model.routedExpertsPerToken, 4); approx(model.activeExpertsPerToken, 5); approx(model.contextLength, 262144);
   approx(getInferenceThroughputScale(model).factor, 1);
   const training = getTrainingParameterSemantics(model);
   approx(training.residencyParamsB, expected.total); approx(training.activeComputeParamsB, expected.active);
 }
 
-const visibleIds = new Set(getVisibleModelOptions({ includeExisting: true }).map((model) => model.id));
-for (const id of expectedIds) {
-  assert(MODEL_REGISTRY.some((model) => model.id === id), `${id} is absent from production MODEL_REGISTRY after activation.`);
-  assert(visibleIds.has(id), `${id} is absent from GPU/TCO visible options after activation.`);
+for (const id of methodologyStagedIds) {
+  const model = getStagedTechnicalModelById(id);
+  assert(model, `${id} is missing staged technical methodology.`);
+  assert(model.status === "VERIFIED", `${id} staged technical fields must be source-verified.`);
+  assert(model.sequenceStateType, `${id} staged technical record lacks sequenceStateType.`);
+  assert(model.stateSizingNote, `${id} staged technical record must disclose its memory treatment.`);
+  const state = getInferenceSequenceStateMemory(model, 8192, 2);
+  assert(state.bytesPerSequence > 0, `${id} staged sequence-state contract failed.`);
+  assert(!getModelById(id), `${id} leaked into production MODEL_REGISTRY before activation.`);
 }
 
-console.log("Activated model runtime PASS: six source-backed models are production-recommended, retain guarded dense/MoE standard-KV/MLA sizing semantics, and are visible to GPU/TCO while conservative memory disclosures remain intact.");
+const visibleIds = new Set(getVisibleModelOptions({ includeExisting: true }).map((model) => model.id));
+for (const id of activatedIds) {
+  assert(MODEL_REGISTRY.some((model) => model.id === id), `${id} is absent from production MODEL_REGISTRY.`);
+  assert(visibleIds.has(id), `${id} is absent from GPU/TCO visible options.`);
+}
+for (const id of methodologyStagedIds) assert(!visibleIds.has(id), `${id} became customer-facing during methodology-only work.`);
+
+console.log("Model runtime PASS: six activated source-backed models retain production standard-KV/MLA semantics; four hybrid models now have source-backed staged DeltaNet/compressed-attention/Mamba state contracts while remaining absent from customer-facing runtime.");
