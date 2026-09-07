@@ -10,7 +10,10 @@ import AiReadinessChecklists from "./AiReadinessChecklists.jsx";
 import CombinedSummary from "./CombinedSummary.jsx";
 import LoginFrontDoor from "./LoginFrontDoor.jsx";
 import ModelCatalogVisibilityRoute from "./ModelCatalogVisibilityRoute.jsx";
+import HybridSequenceStateTestRoute from "./HybridSequenceStateTestRoute.jsx";
 import "./print-overrides.css";
+
+const E2E_AUTH_BYPASS = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";
 
 function ToolRoutes() {
   return (
@@ -37,6 +40,7 @@ function ToolRoutes() {
       <Route path="/roi" element={<RoiCalculator />} />
       <Route path="/readiness" element={<AiReadinessChecklists />} />
       <Route path="/summary" element={<CombinedSummary />} />
+      {E2E_AUTH_BYPASS && <Route path="/__e2e/hybrid-sequence-state" element={<HybridSequenceStateTestRoute />} />}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

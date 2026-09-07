@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "qualified_at": "2026-09-05",
-  "purpose": "Source-qualified manifest for the first modern model-catalog expansion tranche. Six methodology-ready models are active in Model Advisor and GPU/TCO selection; four hybrid-state architectures remain staged until their cache/state methodology is supported faithfully.",
+  "purpose": "Source-qualified manifest for the first modern model-catalog expansion tranche. Six models are active in Model Advisor and GPU/TCO selection; four hybrid-state architectures now have source-qualified sizing methodology and remain staged pending explicit activation-readiness review.",
   "activation_policy": {
-    "state": "partially-activated-6-active-4-blocked",
-    "reason": "PR4 activated the six models that have source-qualified runtime fields compatible with the current standard-KV or MLA sizing methodology. Qwen3.8 27B, DeepSeek V4 Flash 0731, DeepSeek V4 Pro 0813, and NVIDIA Nemotron 3 Super 120B-A12B remain staged because their hybrid DeltaNet/compressed-attention/Mamba state is not represented faithfully by the current sizing formulas."
+    "state": "partially-activated-6-active-4-methodology-ready-staged",
+    "reason": "PR4 activated six source-qualified models. PR5 adds explicit DeltaNet, DeepSeek compressed-attention, and Mamba sequence-state sizing methodology for the remaining four. Those four remain staged so methodology completion does not silently become customer-facing activation; each must pass a separate activation-readiness review, and Nemotron's context contract is represented explicitly as a 262,144-token verified runtime/config context plus a separately disclosed 1M advertised extended context."
   },
   "models": [
     {
@@ -164,7 +164,8 @@
       "sequence_architecture": "hybrid-mamba-transformer",
       "total_params_b": 120,
       "active_params_b": 12,
-      "context_length": 1000000,
+      "context_length": 262144,
+      "extended_context_length": 1000000,
       "modalities": ["text"],
       "source": "https://research.nvidia.com/labs/nemotron/Nemotron-3-Super/",
       "secondary_architecture_source": "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8",

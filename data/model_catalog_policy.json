@@ -22,9 +22,9 @@
     { "canonical_model_id": "granite-4.2-30b", "catalog_status": "recommended" }
   ],
   "staged_models": [
-    { "canonical_model_id": "qwen3.8-27b", "catalog_status": "staged", "activation_dependency": "hybrid-attention-state-methodology" },
-    { "canonical_model_id": "deepseek-v4-flash-0731", "catalog_status": "staged", "activation_dependency": "hybrid-compressed-attention-state-methodology" },
-    { "canonical_model_id": "deepseek-v4-pro-0813", "catalog_status": "staged", "activation_dependency": "hybrid-compressed-attention-state-methodology" },
-    { "canonical_model_id": "nemotron-3-super-120b-a12b", "catalog_status": "staged", "activation_dependency": "hybrid-mamba-state-methodology" }
+    { "canonical_model_id": "qwen3.8-27b", "catalog_status": "staged", "activation_dependency": "activation-readiness-review" },
+    { "canonical_model_id": "deepseek-v4-flash-0731", "catalog_status": "staged", "activation_dependency": "activation-readiness-review" },
+    { "canonical_model_id": "deepseek-v4-pro-0813", "catalog_status": "staged", "activation_dependency": "activation-readiness-review" },
+    { "canonical_model_id": "nemotron-3-super-120b-a12b", "catalog_status": "staged", "activation_dependency": "activation-readiness-review" }
   ]
 }
