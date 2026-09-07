@@ -20,6 +20,7 @@ const ALLOWED_COUNTRIES = new Set(["us", "cn", "fr"]);
 function assert(condition, message) { if (!condition) throw new Error(message); }
 
 assert(manifest.schema_version === 1, `Unexpected tranche manifest schema_version: ${manifest.schema_version}`);
+assert(manifest.activation_policy?.state === "partially-activated-6-active-4-blocked", "Tranche activation-policy metadata must match the post-PR4 6-active / 4-blocked state.");
 assert(Array.isArray(manifest.models) && manifest.models.length === 10, "Tranche 1 must contain exactly 10 qualified models.");
 assert(ACTIVE.size === 6 && BLOCKED.size === 4, "Tranche activation split must remain 6 active / 4 blocked.");
 
@@ -66,4 +67,4 @@ for (const id of BLOCKED) {
   assert(!advisorIds.has(id), `${id} leaked into Advisor catalog.`);
 }
 
-console.log("Modern model tranche 1 PASS: 10 source-qualified identities remain governed; exactly six methodology-ready models are active across policy/runtime/Advisor joins; exactly four unsupported hybrid-state models remain staged and absent from customer-facing tools; ambiguous AA mappings remain unmapped.");
+console.log("Modern model tranche 1 PASS: manifest metadata and runtime state agree on exactly six methodology-ready active models and four unsupported staged models; source/governance/canonical identity coverage remains intact; ambiguous AA mappings remain unmapped.");
