@@ -1,8 +1,7 @@
-// Source-verified technical model records that are intentionally NOT yet part
-// of the customer-facing MODEL_REGISTRY. These records are methodology inputs,
-// not activation. A model stays staged until its sequence-state memory contract,
-// sizing behavior, product policy, Advisor behavior, and browser regressions all
-// pass their activation gates.
+// Source-verified technical records for the four hybrid-state tranche models.
+// Product exposure is governed by data/model_catalog_policy.json; these records
+// remain the single architecture source used by methodology fixtures and, once
+// activated, by the production MODEL_REGISTRY promotion path.
 
 export const STAGED_TECHNICAL_MODEL_REGISTRY = Object.freeze([
   {
@@ -99,6 +98,10 @@ export const STAGED_TECHNICAL_MODEL_REGISTRY = Object.freeze([
     architectureType: "hybrid",
     totalParamsB: 120,
     activeParamsB: 12,
+    numExperts: 512,
+    numSharedExperts: 1,
+    routedExpertsPerToken: 22,
+    activeExpertsPerToken: 23,
     layers: 88,
     contextLength: 262144,
     advertisedExtendedContextLength: 1000000,
@@ -119,7 +122,7 @@ export const STAGED_TECHNICAL_MODEL_REGISTRY = Object.freeze([
     status: "VERIFIED",
     architectureSource: "https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8/blob/main/config.json",
     stateImplementationSource: "https://github.com/huggingface/transformers/blob/main/src/transformers/models/nemotron_h/modeling_nemotron_h.py",
-    stateSizingNote: "The verified 88-layer hybrid pattern contains 40 Mamba layers, 40 MoE layers, and 8 attention layers. Mamba SSM state is fixed-size per sequence and float32; convolution state is conservatively BF16/model dtype; only the 8 attention layers contribute token-growing KV state. The config exposes 262,144 max positions while the model card advertises up to 1M, so sizing uses the config value until that product-level context contract is reconciled.",
+    stateSizingNote: "The verified 88-layer hybrid pattern contains 40 Mamba layers, 40 MoE layers, and 8 attention layers. The config defines 512 routed experts, one shared expert, and 22 routed experts per token. Mamba SSM state is fixed-size per sequence and float32; convolution state is conservatively BF16/model dtype; only the 8 attention layers contribute token-growing KV state. The verified runtime/config context is 262,144 tokens, while the model card separately advertises up to 1M.",
   },
 ]);
 
