@@ -17,11 +17,11 @@ function replaceCount(oldText, newText, expected, label) {
 
 replaceExact(
   'kvBytesPerElement: "Precision used for the KV cache specifically (separate from the model weights). 2 bytes (FP16) is the safe default; dropping to 1 (FP8) saves memory but needs backend support to be accurate.",',
-  'kvBytesPerElement: "Precision used for token-growing attention/KV cache state (separate from model weights). 2 bytes (FP16) is the safe default; dropping to 1 (FP8) needs backend support, and source-defined recurrent/compression state may retain its own precision instead of following this control.",',
+  'kvBytesPerElement: "Precision used for token-growing attention/KV cache state (separate from the model weights). 2 bytes (FP16) is the safe default; dropping to 1 (FP8) needs backend support, and source-defined recurrent/compression state may retain its own precision instead of following this control.",',
   "KV precision tooltip"
 );
 
-replaceCount("KV cache precision", "Attention/KV cache precision", 2, "KV precision labels");
+replaceCount("KV cache precision", "Attention/KV cache precision", 4, "KV precision labels");
 replaceCount("weights + KV cache + overhead", "weights + inference sequence state + overhead", 2, "inference memory summary copy");
 
 replaceExact(
