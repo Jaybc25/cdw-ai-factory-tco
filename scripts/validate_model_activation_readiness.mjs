@@ -84,10 +84,10 @@ for (const id of EXPECTED_METHODOLOGY_BLOCKS.keys()) {
   }
 }
 
-// Activation safety contract: a tranche model may not move into the active
-// product-policy collection until its production runtime technical record can
-// be consumed safely by the actual GPU Sizing inference path. Staged-runtime
-// readiness is an intermediate validation state, not customer activation.
+// Activation safety contract: every active tranche model must have a complete
+// production technical record that the actual GPU Sizing inference path can
+// consume safely. The remaining four models stay outside all technical runtime
+// registries until their hybrid cache/state semantics are modeled explicitly.
 for (const [id, policyEntry] of activePolicyById) {
   if (policyEntry.catalog_status !== "recommended" && policyEntry.catalog_status !== "existing-deployment") {
     continue;
@@ -106,11 +106,12 @@ for (const id of trancheIds) {
   }
 }
 
+const activeTrancheIds = [...activePolicyById.keys()];
 console.log(
-  `Model activation readiness PASS: ${stagedRuntimeReady.length}/${manifest.models.length} tranche models have complete staged technical runtime records; ` +
-  `${unresolvedIds.length} remain deliberately methodology-blocked; customer-facing activation remains a separate gated step.`
+  `Model activation readiness PASS: ${activeTrancheIds.length}/${manifest.models.length} tranche models are active with complete production technical runtime records; ` +
+  `${unresolvedIds.length} remain deliberately methodology-blocked; staged technical runtime contains ${stagedRuntimeReady.length}.`
 );
-console.log(`Staged-runtime-ready: ${stagedRuntimeReady.join(", ") || "none"}.`);
+console.log(`Active-runtime-ready: ${activeTrancheIds.join(", ") || "none"}.`);
 console.log(
   `Methodology-blocked: ${unresolvedIds.map((id) => `${id} (${EXPECTED_METHODOLOGY_BLOCKS.get(id)})`).join("; ") || "none"}.`
 );
