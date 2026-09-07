@@ -18,6 +18,19 @@ for (const id of expectedCurrentIds) {
   if (!recommendedIds.has(id)) throw new Error(`Missing current recommended model ${id}.`);
 }
 
+const expectedMargins = {
+  intelligence_index: { "frontier-like": 1.0, strong: 10.0, economical: 16.0 },
+  coding_index: { "frontier-like": 2.0, strong: 18.0, economical: 30.0 },
+  agentic_index: { "frontier-like": 0.5, strong: 5.0, economical: 9.5 },
+};
+for (const [metric, priorities] of Object.entries(expectedMargins)) {
+  for (const [priority, expected] of Object.entries(priorities)) {
+    if (MARGINS[metric]?.[priority] !== expected) {
+      throw new Error(`Advisor margin drift for ${metric}/${priority}: expected ${expected}, found ${MARGINS[metric]?.[priority]}.`);
+    }
+  }
+}
+
 const workloads = ["chat", "coding", "agentic"];
 const qualityPriorities = ["frontier-like", "strong", "economical"];
 const optimizationPriorities = ["best-capability", "balanced", "infrastructure-efficiency"];
@@ -80,8 +93,6 @@ for (const primaryWorkload of workloads) {
   }
 }
 
-// Quality tolerances must broaden monotonically. The engine is intentionally
-// explainable: frontier-like is the narrowest score window, economical widest.
 for (const metric of ["intelligence_index", "coding_index", "agentic_index"]) {
   const frontier = MARGINS[metric]["frontier-like"];
   const strong = MARGINS[metric].strong;
@@ -91,11 +102,6 @@ for (const metric of ["intelligence_index", "coding_index", "agentic_index"]) {
   }
 }
 
-// Current three-model baseline is intentionally recorded before activation.
-// Muse Glimmer currently dominates both source capability scores and size among
-// the recommended set, so margin tuning alone cannot manufacture diversity.
-// This is a diagnostic, not a target behavior: the assertion must be replaced
-// with expanded-catalog semantic expectations in the activation commit.
 for (const workload of workloads) {
   if (topByWorkload.get(workload) !== "muse-glimmer-30b") {
     throw new Error(`Unexpected pre-activation Best Performance baseline for ${workload}: ${topByWorkload.get(workload)}.`);
@@ -106,5 +112,5 @@ if (featuredAcrossMatrix.size !== 1 || !featuredAcrossMatrix.has("muse-glimmer-3
 }
 
 console.log(
-  "Model Advisor semantic calibration PASS: current 3-model recommended baseline is isolated, margin widening is monotonic, and the known Muse-dominant pre-activation concentration is explicitly regression-tracked rather than hidden by margin changes."
+  "Model Advisor semantic calibration PASS: recalibrated AA 4.2 margins are exact and monotonic, current 3-model recommended behavior remains isolated, and Muse remains the evidence-backed pre-activation featured model."
 );
