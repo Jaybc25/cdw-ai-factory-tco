@@ -47,7 +47,7 @@ export const CATALOG_META = {
   recordCount: modelSpecsData.record_count + activatedModelSpecsData.record_count,
 };
 
-const PERMISSIVE_LICENSE_KEYWORDS = ["apache", "mit", "llama3.1", "llama3.3", "llama4", "gemma", "mixtral"];
+const PERMISSIVE_LICENSE_KEYWORDS = ["apache", "mit", "llama3.1", "llama3.3", "llama4", "gemma", "mixtral", "nvidia-open-model"];
 
 function checkLicense(model, requirement) {
   if (requirement === "need-to-check") return "PASS";
