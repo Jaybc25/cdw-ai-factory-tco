@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "qualified_at": "2026-09-05",
-  "purpose": "Source-qualified manifest for the first modern model-catalog expansion tranche. Six methodology-ready models are active in Model Advisor and GPU/TCO selection; four hybrid-state architectures remain staged until their cache/state methodology is supported faithfully.",
+  "purpose": "Source-qualified manifest for the first modern model-catalog expansion tranche. Six models are active in Model Advisor and GPU/TCO selection; four hybrid-state architectures now have source-qualified sizing methodology and remain staged pending explicit activation-readiness review.",
   "activation_policy": {
-    "state": "partially-activated-6-active-4-blocked",
-    "reason": "PR4 activated the six models that have source-qualified runtime fields compatible with the current standard-KV or MLA sizing methodology. Qwen3.8 27B, DeepSeek V4 Flash 0731, DeepSeek V4 Pro 0813, and NVIDIA Nemotron 3 Super 120B-A12B remain staged because their hybrid DeltaNet/compressed-attention/Mamba state is not represented faithfully by the current sizing formulas."
+    "state": "partially-activated-6-active-4-methodology-ready-staged",
+    "reason": "PR4 activated six source-qualified models. PR5 adds explicit DeltaNet, DeepSeek compressed-attention, and Mamba sequence-state sizing methodology for the remaining four. Those four remain staged so methodology completion does not silently become customer-facing activation; each must pass a separate activation-readiness review, and Nemotron's verified 262,144-token config versus advertised 1M context claim must be reconciled before product exposure."
   },
   "models": [
     {
