@@ -28,6 +28,25 @@ assert(
 );
 
 assert(
+  gpuSource.includes('const state = result.sequenceStateMemory;') &&
+    gpuSource.includes('const isStandardKv = state.stateType === "standard-kv";'),
+  "GPU Sizing audit must branch on the shared sequence-state contract rather than assuming every model is standard KV or MLA."
+);
+assert(
+  gpuSource.includes("Inference sequence state (${state.stateType})") &&
+    gpuSource.includes('"Total inference sequence state"'),
+  "GPU Sizing audit must disclose hybrid sequence state explicitly."
+);
+assert(
+  gpuSource.includes('label="Attention/KV cache precision"'),
+  "GPU Sizing must label the generic cache-precision control as attention/KV precision, not universal recurrent-state precision."
+);
+assert(
+  gpuSource.includes("source-defined recurrent/compression state may retain its own precision"),
+  "GPU Sizing tooltip must disclose that recurrent/compression state can retain source-defined precision."
+);
+
+assert(
   appSource.includes('const E2E_AUTH_BYPASS = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";'),
   "Hybrid sequence-state browser harness must remain gated by the explicit E2E auth-bypass build flag."
 );
@@ -36,4 +55,4 @@ assert(
   "Hybrid sequence-state browser harness route must remain conditional on E2E_AUTH_BYPASS."
 );
 
-console.log("GPU sequence-state integration PASS: GPU Sizing consumes the shared state-memory helper, the legacy inline standard/MLA-only formula is absent, and the staged browser harness remains E2E-only.");
+console.log("GPU sequence-state integration PASS: GPU Sizing consumes the shared state-memory helper, preserves hybrid-aware audit/report semantics, the legacy inline standard/MLA-only formula is absent, and the staged browser harness remains E2E-only.");
