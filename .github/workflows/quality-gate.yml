@@ -7,12 +7,19 @@ on:
     paths:
       - "src/**"
       - "data/model_*.json"
+      - "data/canonical_models.json"
       - "tests/**"
       - "scripts/extract_tco_workbook_snapshot.py"
       - "scripts/run_tco_parity.mjs"
       - "scripts/validate_pricing_registry.mjs"
       - "scripts/validate_model_registry.mjs"
       - "scripts/validate_model_tranche_1.mjs"
+      - "scripts/validate_model_sizing_methodology.mjs"
+      - "scripts/validate_model_advisor_semantics.mjs"
+      - "scripts/validate_model_activation_readiness.mjs"
+      - "scripts/validate_staged_model_runtime.mjs"
+      - "scripts/validate_model_advisor_shadow_calibration.mjs"
+      - "scripts/validate_model_activation_contract.mjs"
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
@@ -26,12 +33,19 @@ on:
     paths:
       - "src/**"
       - "data/model_*.json"
+      - "data/canonical_models.json"
       - "tests/**"
       - "scripts/extract_tco_workbook_snapshot.py"
       - "scripts/run_tco_parity.mjs"
       - "scripts/validate_pricing_registry.mjs"
       - "scripts/validate_model_registry.mjs"
       - "scripts/validate_model_tranche_1.mjs"
+      - "scripts/validate_model_sizing_methodology.mjs"
+      - "scripts/validate_model_advisor_semantics.mjs"
+      - "scripts/validate_model_activation_readiness.mjs"
+      - "scripts/validate_staged_model_runtime.mjs"
+      - "scripts/validate_model_advisor_shadow_calibration.mjs"
+      - "scripts/validate_model_activation_contract.mjs"
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
@@ -71,6 +85,24 @@ jobs:
 
       - name: Validate staged modern model tranche
         run: node scripts/validate_model_tranche_1.mjs
+
+      - name: Validate architecture-aware model sizing methodology
+        run: node scripts/validate_model_sizing_methodology.mjs
+
+      - name: Validate Model Advisor semantic calibration
+        run: node scripts/validate_model_advisor_semantics.mjs
+
+      - name: Validate staged model activation readiness
+        run: node scripts/validate_model_activation_readiness.mjs
+
+      - name: Validate staged runtime semantics
+        run: node scripts/validate_staged_model_runtime.mjs
+
+      - name: Validate expanded Model Advisor shadow calibration
+        run: node scripts/validate_model_advisor_shadow_calibration.mjs
+
+      - name: Validate six-model activation contract
+        run: node scripts/validate_model_activation_contract.mjs
 
       - name: Validate TCO GPU Sizing handoff defaults
         run: node scripts/validate_tco_handoff.mjs

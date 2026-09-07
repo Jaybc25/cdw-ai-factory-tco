@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "qualified_at": "2026-09-05",
-  "purpose": "Source-qualified staging manifest for the first modern model-catalog expansion tranche. Entries are not customer-facing merely because they appear here; activation into Model Advisor and GPU/TCO selection waits for the architecture-aware sizing and Advisor recalibration tranche.",
+  "purpose": "Source-qualified manifest for the first modern model-catalog expansion tranche. Six methodology-ready models are active in Model Advisor and GPU/TCO selection; four hybrid-state architectures remain staged until their cache/state methodology is supported faithfully.",
   "activation_policy": {
-    "state": "staged-until-methodology",
-    "reason": "Several models use sparse MoE, hybrid attention, Mamba/Transformer, or other architectures that the current GPU Sizing formulas do not yet model faithfully. PR3 may ingest their verified identity/governance/architecture metadata, but PR4 must explicitly validate sizing semantics and Advisor ranking before greenfield exposure."
+    "state": "partially-activated-6-active-4-blocked",
+    "reason": "PR4 activated the six models that have source-qualified runtime fields compatible with the current standard-KV or MLA sizing methodology. Qwen3.8 27B, DeepSeek V4 Flash 0731, DeepSeek V4 Pro 0813, and NVIDIA Nemotron 3 Super 120B-A12B remain staged because their hybrid DeltaNet/compressed-attention/Mamba state is not represented faithfully by the current sizing formulas."
   },
   "models": [
     {

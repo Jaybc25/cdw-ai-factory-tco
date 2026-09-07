@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "source": "pr4-source-qualified-activation",
+  "activated_at": "2026-09-07",
+  "record_count": 6,
+  "data": {
+    "models": [
+      {
+        "model_id": "ibm-granite/granite-4.2-30b",
+        "license": { "value": "apache-2.0", "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "param_count_billion": { "value": 30, "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "context_length": 131072,
+        "architecture": "transformer",
+        "modality": "text",
+        "confidence": "HIGH",
+        "canonical_model_id": "granite-4.2-30b",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      },
+      {
+        "model_id": "openai/gpt-oss-20b",
+        "license": { "value": "apache-2.0", "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "param_count_billion": { "value": 21, "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "context_length": 131072,
+        "architecture": "transformer",
+        "modality": "text",
+        "confidence": "HIGH",
+        "canonical_model_id": "gpt-oss-20b",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      },
+      {
+        "model_id": "openai/gpt-oss-120b",
+        "license": { "value": "apache-2.0", "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "param_count_billion": { "value": 117, "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "context_length": 131072,
+        "architecture": "transformer",
+        "modality": "text",
+        "confidence": "HIGH",
+        "canonical_model_id": "gpt-oss-120b",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      },
+      {
+        "model_id": "google/gemma-4-26B-A4B-it",
+        "license": { "value": "apache-2.0", "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "param_count_billion": { "value": 26, "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "context_length": 262144,
+        "architecture": "transformer",
+        "modality": "multimodal",
+        "confidence": "HIGH",
+        "canonical_model_id": "gemma-4-26b-a4b-it",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      },
+      {
+        "model_id": "mistralai/Mistral-Small-4-119B-2603",
+        "license": { "value": "apache-2.0", "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "param_count_billion": { "value": 119, "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "context_length": 262144,
+        "architecture": "transformer",
+        "modality": "multimodal",
+        "confidence": "HIGH",
+        "canonical_model_id": "mistral-small-4",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      },
+      {
+        "model_id": "mistralai/Mistral-Large-3-675B-Instruct-2512",
+        "license": { "value": "apache-2.0", "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "param_count_billion": { "value": 675, "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "context_length": 262144,
+        "architecture": "transformer",
+        "modality": "multimodal",
+        "confidence": "HIGH",
+        "canonical_model_id": "mistral-large-3",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      }
+    ]
+  }
+}

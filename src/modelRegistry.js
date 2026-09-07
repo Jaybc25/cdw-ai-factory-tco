@@ -22,9 +22,6 @@
 // layer, `numSharedExperts` means always-on shared experts, and
 // `routedExpertsPerToken` is the routed top-k. `activeExpertsPerToken` is the
 // sum of routed + shared experts that execute for a token in an MoE layer.
-//
-// GPU Sizing continues to use totalParamsB in the existing formulas until the
-// methodology PR explicitly introduces architecture-aware performance math.
 
 import catalogPolicyData from "../data/model_catalog_policy.json" with { type: "json" };
 
@@ -32,9 +29,8 @@ export const MODEL_ARCHITECTURE_SCHEMA_VERSION = 2;
 export const MODEL_ARCHITECTURE_TYPES = Object.freeze(["dense", "moe", "hybrid"]);
 
 // Standalone sessions should start on a current CDW-recommended model rather
-// than an existing-deployment option. Muse Glimmer is the smallest of the
-// current recommended set and therefore the least infrastructure-prescriptive
-// newcomer default until the expanded catalog/recalibration work lands.
+// than an existing-deployment option. Muse Glimmer remains the neutral default
+// even as the greenfield catalog expands.
 export const DEFAULT_MODEL_ID = "muse-glimmer-30b";
 
 const CATALOG_STATUS = new Map(
@@ -129,6 +125,57 @@ const TECHNICAL_MODEL_REGISTRY = [
     layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64,
     contextLength: 131072, modalities: ["text"], status: "VERIFIED",
     architectureSource: "https://github.com/deepseek-ai/DeepSeek-R1",
+  },
+  {
+    id: "granite-4.2-30b", legacyIds: [], label: "IBM Granite 4.2 30B",
+    architectureType: "dense", totalParamsB: 30, activeParamsB: 30,
+    numExperts: null, numSharedExperts: null, routedExpertsPerToken: null, activeExpertsPerToken: null,
+    layers: 64, attentionType: "standard", kvHeads: 8, headDim: 128,
+    contextLength: 131072, modalities: ["text"], status: "VERIFIED",
+    architectureSource: "https://huggingface.co/ibm-granite/granite-4.2-30b",
+  },
+  {
+    id: "gpt-oss-20b", legacyIds: [], label: "gpt-oss-20b",
+    architectureType: "moe", totalParamsB: 21, activeParamsB: 3.6,
+    numExperts: 32, numSharedExperts: 0, routedExpertsPerToken: 4, activeExpertsPerToken: 4,
+    layers: 24, attentionType: "standard", kvHeads: 8, headDim: 64,
+    contextLength: 131072, modalities: ["text"], status: "VERIFIED",
+    kvSizingNote: "Upstream alternates sliding and full attention. Current GPU Sizing applies the full-context standard KV formula to every layer, which is conservative for memory and may over-size rather than under-size this model.",
+    architectureSource: "https://huggingface.co/openai/gpt-oss-20b/blob/main/config.json",
+  },
+  {
+    id: "gpt-oss-120b", legacyIds: [], label: "gpt-oss-120b",
+    architectureType: "moe", totalParamsB: 117, activeParamsB: 5.1,
+    numExperts: 128, numSharedExperts: 0, routedExpertsPerToken: 4, activeExpertsPerToken: 4,
+    layers: 36, attentionType: "standard", kvHeads: 8, headDim: 64,
+    contextLength: 131072, modalities: ["text"], status: "VERIFIED",
+    kvSizingNote: "Upstream alternates sliding and full attention. Current GPU Sizing applies the full-context standard KV formula to every layer, which is conservative for memory and may over-size rather than under-size this model.",
+    architectureSource: "https://huggingface.co/openai/gpt-oss-120b/blob/main/config.json",
+  },
+  {
+    id: "gemma-4-26b-a4b-it", legacyIds: [], label: "Gemma 4 26B-A4B IT",
+    architectureType: "moe", totalParamsB: 26, activeParamsB: 4,
+    numExperts: 128, numSharedExperts: 0, routedExpertsPerToken: 8, activeExpertsPerToken: 8,
+    layers: 30, attentionType: "standard", kvHeads: 8, headDim: 256,
+    contextLength: 262144, modalities: ["text", "image"], status: "VERIFIED",
+    kvSizingNote: "Upstream uses five sliding-attention layers followed by one full-attention layer. Current GPU Sizing applies the full-context standard KV formula to all 30 language layers, intentionally over-estimating KV memory rather than under-sizing it.",
+    architectureSource: "https://huggingface.co/google/gemma-4-26B-A4B-it/blob/main/config.json",
+  },
+  {
+    id: "mistral-small-4", legacyIds: [], label: "Mistral Small 4",
+    architectureType: "moe", totalParamsB: 119, activeParamsB: 6.5,
+    numExperts: 128, numSharedExperts: 1, routedExpertsPerToken: 4, activeExpertsPerToken: 5,
+    layers: 36, attentionType: "MLA", kvLoraRank: 256, qkRopeHeadDim: 64,
+    contextLength: 262144, modalities: ["text", "image"], status: "VERIFIED",
+    architectureSource: "https://huggingface.co/mistralai/Mistral-Small-4-119B-2603/blob/main/config.json",
+  },
+  {
+    id: "mistral-large-3", legacyIds: [], label: "Mistral Large 3",
+    architectureType: "moe", totalParamsB: 675, activeParamsB: 41,
+    numExperts: 128, numSharedExperts: 1, routedExpertsPerToken: 4, activeExpertsPerToken: 5,
+    layers: 61, attentionType: "MLA", kvLoraRank: 512, qkRopeHeadDim: 64,
+    contextLength: 262144, modalities: ["text", "image"], status: "VERIFIED",
+    architectureSource: "https://huggingface.co/mistralai/Mistral-Large-3-675B-Instruct-2512/blob/main/params.json",
   },
 ];
 
