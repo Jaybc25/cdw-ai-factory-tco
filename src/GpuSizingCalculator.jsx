@@ -22,7 +22,7 @@ const TIPS = {
   infGpuOverride: "Leave this on Auto-recommend to let the tool pick the most efficient class for your workload. Only override it if you already own a specific GPU class and want to see how it performs.",
   avgInputTokens: "The typical length of what a user sends in, in tokens (~4 characters per token). 2,000 is a reasonable default for a chat-style prompt with some context; raise it for document-heavy use cases.",
   avgOutputTokens: "The typical length of the model's response, in tokens. 500 covers a solid paragraph-to-page answer; lower it for short-form chat, raise it for long-form generation.",
-  kvBytesPerElement: "Precision used for the KV cache specifically (separate from the model weights). 2 bytes (FP16) is the safe default; dropping to 1 (FP8) saves memory but needs backend support to be accurate.",
+  kvBytesPerElement: "Precision used for token-growing attention/KV cache state (separate from the model weights). 2 bytes (FP16) is the safe default; dropping to 1 (FP8) needs backend support, and source-defined recurrent/compression state may retain its own precision instead of following this control.",
   overheadPct: "A safety margin added on top of weights and KV cache for runtime/activation memory. 15% is a conservative default -- lower it only if you know your serving stack is unusually memory-efficient.",
   trainModel: "The model you're training or fine-tuning. This list defaults to current choices; enable existing-deployment models only when modeling an existing environment.",
   taskType: "Full fine-tune updates every weight and needs the most memory; LoRA/PEFT trains a small adapter and needs far less. If you're unsure which you need, LoRA is the cheaper starting point for most use cases.",
@@ -133,7 +133,7 @@ function validateInference(inputs) {
   if (!(inputs.avgInputTokens >= 0)) errors.push("Avg input tokens can't be negative.");
   if (!(inputs.avgOutputTokens >= 0)) errors.push("Avg output tokens can't be negative.");
   if (inputs.avgInputTokens + inputs.avgOutputTokens <= 0) errors.push("Avg input + output tokens must add up to more than 0.");
-  if (!(inputs.kvBytesPerElement > 0)) errors.push("KV cache precision (bytes/element) must be greater than 0.");
+  if (!(inputs.kvBytesPerElement > 0)) errors.push("Attention/KV cache precision (bytes/element) must be greater than 0.");
   if (!(inputs.overheadPct >= 0)) errors.push("Runtime/activation overhead % can't be negative.");
   if (inputs.overheadPct > 2) errors.push("Runtime/activation overhead % over 200% is almost certainly a typo -- check the value.");
   if (!(inputs.workingDayHours > 0) || inputs.workingDayHours > 24) errors.push("Length of working day must be between 0 and 24 hours.");
@@ -1033,7 +1033,7 @@ function GPUSizingCalculatorInner() {
                     <div className="text-gray-500">Target tokens/sec per user</div><div>{targetTokPerUser}</div>
                     <div className="text-gray-500">Environment</div><div>{environment}</div>
                     <div className="text-gray-500">Avg input / output tokens</div><div>{avgInputTokens.toLocaleString()} / {avgOutputTokens.toLocaleString()}</div>
-                    <div className="text-gray-500">KV cache precision</div><div>{kvBytesPerElement} bytes/element</div>
+                    <div className="text-gray-500">Attention/KV cache precision</div><div>{kvBytesPerElement} bytes/element</div>
                     <div className="text-gray-500">Runtime/activation overhead</div><div>{Math.round(overheadPct * 100)}%</div>
                     <div className="text-gray-500">GPU class</div><div>{infGpuOverride}</div>
                   </>
@@ -1064,7 +1064,7 @@ function GPUSizingCalculatorInner() {
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Caveats &amp; methodology</div>
             <div className="text-xs text-gray-500 p-4 bg-gray-50 rounded-lg mb-6 leading-relaxed">
               {mode === "Inference"
-                ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + KV cache + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
+                ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
                 : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}
               {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes. This is a directional sizing estimate, not a final bill of materials -- confirm with a CDW AI Factory specialist before purchasing.
             </div>
@@ -1096,7 +1096,7 @@ function GPUSizingCalculatorInner() {
               <AuditRow label="Target tokens/sec per user" value={targetTokPerUser} />
               <AuditRow label="Environment" value={environment} />
               <AuditRow label="Avg input / output tokens" value={`${avgInputTokens.toLocaleString()} / ${avgOutputTokens.toLocaleString()}`} />
-              <AuditRow label="KV cache precision" value={`${kvBytesPerElement} bytes/element`} />
+              <AuditRow label="Attention/KV cache precision" value={`${kvBytesPerElement} bytes/element`} />
               <AuditRow label="Runtime/activation overhead" value={`${Math.round(overheadPct * 100)}%`} />
               <AuditRow label="GPU class" value={infGpuOverride} />
             </>
@@ -1116,7 +1116,9 @@ function GPUSizingCalculatorInner() {
             const selected = result.candidates.find((c) => c.id === result.selectedClass);
             const boundBy = selected.gpusMem >= selected.gpusPerf ? "memory" : "throughput";
             const m = result.model;
-            const isMLA = m.attentionType === "MLA";
+            const state = result.sequenceStateMemory;
+            const isMLA = state.stateType === "mla";
+            const isStandardKv = state.stateType === "standard-kv";
             const avgTokens = avgInputTokens + avgOutputTokens;
             return (
               <>
@@ -1124,11 +1126,15 @@ function GPUSizingCalculatorInner() {
                 <AuditFormula label={`Model weight memory (${modelLabel}, ${m.totalParamsB}B params)`} formula="weightMemoryGB = totalParamsB × bytesPerParam(quant)" substituted={`= ${m.totalParamsB}B × ${result.quantBytes} byte/param (${quant})`} result={`${result.weightMemoryGB.toFixed(1)} GB`} />
                 {isMLA ? (
                   <AuditFormula label="KV cache bytes/token (MLA attention)" formula="kvBytesPerToken = layers × (kvLoraRank + qkRopeHeadDim) × bytesPerElement" substituted={`= ${m.layers} × (${m.kvLoraRank} + ${m.qkRopeHeadDim}) × ${kvBytesPerElement}`} result={`${result.kvBytesPerToken.toLocaleString()} bytes/token`} />
-                ) : (
+                ) : isStandardKv ? (
                   <AuditFormula label="KV cache bytes/token (standard attention)" formula="kvBytesPerToken = 2 × layers × kvHeads × headDim × bytesPerElement" substituted={`= 2 × ${m.layers} × ${m.kvHeads} × ${m.headDim} × ${kvBytesPerElement}`} result={`${result.kvBytesPerToken.toLocaleString()} bytes/token`} />
+                ) : (
+                  <AuditFormula label={`Inference sequence state (${state.stateType})`} formula="sequenceStateGBPerSeq = sum(source-qualified persistent state components) ÷ 1e9" substituted={state.components.map((component) => `${component.name}: ${(component.bytes / 1e9).toFixed(4)} GB`).join(" + ")} result={`${state.totalGBPerSequence.toFixed(4)} GB/sequence`} />
                 )}
-                <AuditFormula label="KV cache per sequence" formula="kvCacheGBPerSeq = (kvBytesPerToken × avgTokens) ÷ 1e9" substituted={`= (${result.kvBytesPerToken.toLocaleString()} × ${avgTokens.toLocaleString()}) ÷ 1e9`} result={`${result.kvCacheGBPerSeq.toFixed(4)} GB`} />
-                <AuditFormula label="Total KV cache" formula="kvCacheTotalGB = kvCacheGBPerSeq × concurrentUsers" substituted={`= ${result.kvCacheGBPerSeq.toFixed(4)} × ${concurrentUsers.toLocaleString()}`} result={`${result.kvCacheTotalGB.toFixed(1)} GB`} />
+                {(isMLA || isStandardKv) && (
+                  <AuditFormula label="KV cache per sequence" formula="kvCacheGBPerSeq = (kvBytesPerToken × avgTokens) ÷ 1e9" substituted={`= (${result.kvBytesPerToken.toLocaleString()} × ${avgTokens.toLocaleString()}) ÷ 1e9`} result={`${result.kvCacheGBPerSeq.toFixed(4)} GB`} />
+                )}
+                <AuditFormula label={isMLA || isStandardKv ? "Total KV cache" : "Total inference sequence state"} formula="sequenceStateTotalGB = stateGBPerSeq × concurrentUsers" substituted={`= ${result.kvCacheGBPerSeq.toFixed(4)} × ${concurrentUsers.toLocaleString()}`} result={`${result.kvCacheTotalGB.toFixed(1)} GB`} />
                 <AuditFormula label="Runtime/activation overhead" formula="runtimeOverheadGB = (weightMemoryGB + kvCacheTotalGB) × overhead%" substituted={`= (${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)}) × ${Math.round(overheadPct * 100)}%`} result={`${result.runtimeOverheadGB.toFixed(1)} GB`} />
                 <AuditFormula label="Total memory required" formula="totalMemoryGB = weightMemoryGB + kvCacheTotalGB + runtimeOverheadGB" substituted={`= ${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)} + ${result.runtimeOverheadGB.toFixed(1)}`} result={`${result.totalMemoryGB.toFixed(1)} GB`} />
                 <AuditFormula label="Total throughput required" formula="totalThroughputNeeded = concurrentUsers × targetTokPerUser" substituted={`= ${concurrentUsers.toLocaleString()} × ${targetTokPerUser}`} result={`${result.totalThroughputNeeded.toLocaleString()} tok/s`} />
@@ -1194,7 +1200,7 @@ function GPUSizingCalculatorInner() {
                 <AuditRow label="Architecture status" value={m.status === "VERIFIED" ? "VERIFIED" : "CUSTOM (unverified entry)"} />
                 <AuditRow label="Resident / total parameters" value={`${m.totalParamsB}B`} />
                 {m.activeParamsB != null && <AuditRow label="Active compute parameters" value={`${m.activeParamsB}B`} sub="Used as a per-token compute concept for sparse models; it does not replace resident model size." />}
-                {m.attentionType === "MLA" ? <AuditRow label="KV configuration" value={`MLA -- kvLoraRank ${m.kvLoraRank}, qkRopeHeadDim ${m.qkRopeHeadDim}, ${m.layers} layers`} /> : <AuditRow label="KV configuration" value={m.kvHeads != null ? `${m.layers} layers, ${m.kvHeads} KV heads, ${m.headDim} head dim` : "not applicable to training sizing"} />}
+                {mode === "Inference" && m.sequenceStateType ? <AuditRow label="Inference state contract" value={result.sequenceStateMemory.stateType} sub={result.sequenceStateMemory.basis} /> : m.attentionType === "MLA" ? <AuditRow label="KV configuration" value={`MLA -- kvLoraRank ${m.kvLoraRank}, qkRopeHeadDim ${m.qkRopeHeadDim}, ${m.layers} layers`} /> : <AuditRow label="KV configuration" value={m.kvHeads != null ? `${m.layers} layers, ${m.kvHeads} KV heads, ${m.headDim} head dim` : "not applicable to training sizing"} />}
                 <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Selected GPU -- {result.selectedClass}</div>
                 <AuditRow label="VRAM" value={`${selected.vram} GB`} />
                 {mode === "Inference" ? (
@@ -1243,7 +1249,7 @@ function GPUSizingCalculatorInner() {
                 <SampleOutputPreview tokPerSec={targetTokPerUser} />
                 <Field label="Environment" tipKey="environment"><Select value={environment} onChange={setEnvironment} options={["Production", "Dev/Test/POC"]} /></Field>
                 <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
-                {pathLevel === "advanced" && <div className="mt-4 pt-4 border-t border-gray-200"><Field label="Avg input tokens" tipKey="avgInputTokens"><NumberInput value={avgInputTokens} onChange={setAvgInputTokens} /></Field><Field label="Avg output tokens" tipKey="avgOutputTokens"><NumberInput value={avgOutputTokens} onChange={setAvgOutputTokens} /></Field><Field label="KV cache precision (bytes/element)" tipKey="kvBytesPerElement"><NumberInput value={kvBytesPerElement} onChange={setKvBytesPerElement} step={1} /></Field><Field label="Runtime/activation overhead %"><NumberInput value={overheadPct} onChange={setOverheadPct} step={0.01} /></Field></div>}
+                {pathLevel === "advanced" && <div className="mt-4 pt-4 border-t border-gray-200"><Field label="Avg input tokens" tipKey="avgInputTokens"><NumberInput value={avgInputTokens} onChange={setAvgInputTokens} /></Field><Field label="Avg output tokens" tipKey="avgOutputTokens"><NumberInput value={avgOutputTokens} onChange={setAvgOutputTokens} /></Field><Field label="Attention/KV cache precision (bytes/element)" tipKey="kvBytesPerElement"><NumberInput value={kvBytesPerElement} onChange={setKvBytesPerElement} step={1} /></Field><Field label="Runtime/activation overhead %"><NumberInput value={overheadPct} onChange={setOverheadPct} step={0.01} /></Field></div>}
               </>
             ) : (
               <>
@@ -1269,7 +1275,7 @@ function GPUSizingCalculatorInner() {
               <BudgetPanel budget={result.budget} />
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
-              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + KV cache + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).</div>
+              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).</div>
               <TcoHandoff selectedClass={result.selectedClass} recommended={result.recommended} mode={mode} workingDayHours={workingDayHours} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
               <PodSizingHandoff />
               <button onClick={requestReport} className="mt-3 w-full text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
