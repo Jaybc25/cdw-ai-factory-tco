@@ -1,0 +1,142 @@
+name: Temporary growth-selection patch
+on:
+  push:
+    branches: [gpu-sizing-growth-selection]
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpu-sizing-growth-selection
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply focused source patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/GpuSizingCalculator.jsx')
+          s = p.read_text()
+
+          old = '''function TcoHandoff({ selectedClass, recommended, mode, workingDayHours, model, modelParamsB, quant }) {
+  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
+  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass });'''
+          new = '''function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", mode, workingDayHours, model, modelParamsB, quant }) {
+  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
+  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''          Compare the cost of owning this recommended GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator.'''
+          new = '''          Compare the cost of owning this {sizingBasis === "higher-growth" ? "user-selected higher-growth" : "recommended"} GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator.'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          marker = '''function getIncomingParams() {'''
+          component = '''function TcoConfigurationSelector({ result, selection, onSelectionChange }) {
+  const hasHigherGrowth = !!result?.higherGrowth?.class && !!result?.higherGrowth?.recommended;
+  const choices = [
+    { key: "recommended", label: "Recommended", detail: `${result.recommended} GPUs · ${result.selectedClass}` },
+    ...(hasHigherGrowth ? [{ key: "higher-growth", label: "Higher-growth", detail: `${result.higherGrowth.recommended} GPUs · ${result.higherGrowth.class}` }] : []),
+  ];
+  return (
+    <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-white">
+      <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Configuration to carry into TCO</div>
+      <p className="text-xs text-gray-500 mb-3">Recommended is the default. Choose Higher-growth only when you intentionally want more capacity/headroom for future demand.</p>
+      <div className="flex flex-wrap gap-2">
+        {choices.map((choice) => {
+          const selected = selection === choice.key;
+          return (
+            <button key={choice.key} type="button" onClick={() => onSelectionChange(choice.key)}
+              aria-pressed={selected}
+              className="text-left rounded-lg px-3 py-2 border min-w-[180px]"
+              style={{ borderColor: selected ? RED : "#D1D5DB", background: selected ? "#FFF5F5" : "#F9FAFB" }}>
+              <div className="text-xs font-bold" style={{ color: selected ? RED : CHARCOAL }}>{choice.label}{selected ? " · Selected for TCO" : ""}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{choice.detail}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+'''
+          assert marker in s
+          s = s.replace(marker, component + marker, 1)
+
+          old = '''  const result = mode === "Inference" ? inferenceResult : trainingResult;
+  const errors = mode === "Inference" ? infErrors : trainErrors;
+  const modelLabel = mode === "Inference" ? infModel.label : trainModel.label;'''
+          new = '''  const result = mode === "Inference" ? inferenceResult : trainingResult;
+  const errors = mode === "Inference" ? infErrors : trainErrors;
+  const [tcoSelection, setTcoSelection] = useState("recommended");
+  const effectiveTcoSelection = tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
+  const tcoSelectedClass = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
+  const tcoSelectedCount = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
+  const modelLabel = mode === "Inference" ? infModel.label : trainModel.label;'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''              <TcoHandoff selectedClass={result.selectedClass} recommended={result.recommended} mode={mode} workingDayHours={workingDayHours} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />'''
+          new = '''              <TcoConfigurationSelector result={result} selection={effectiveTcoSelection} onSelectionChange={setTcoSelection} />
+              <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+
+          p = Path('src/TcoCalculator.jsx')
+          s = p.read_text()
+          old = '''function getInitialGpuCount() {
+  const params = getIncomingParams();
+  const raw = params?.get("gpuCount");
+  const n = raw ? parseInt(raw, 10) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}'''
+          new = old + '''
+
+function getInitialSizingBasis() {
+  const raw = getIncomingParams()?.get("sizingBasis");
+  return raw === "higher-growth" ? "higher-growth" : "recommended";
+}'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''  const [gpuSizingCount] = useState(() => getInitialGpuCount() ?? saved?.gpuSizingCount ?? null);
+  const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);'''
+          new = '''  const [gpuSizingCount] = useState(() => getInitialGpuCount() ?? saved?.gpuSizingCount ?? null);
+  const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);
+  const [gpuSizingBasis] = useState(() => arrivedFromGpuSizing ? getInitialSizingBasis() : saved?.gpuSizingBasis ?? "recommended");'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''      gpuSizingCount, sourceClass, workingDayHours,
+    });'''
+          new = '''      gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis,
+    });'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours]);'''
+          new = '''      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis]);'''
+          assert old in s
+          s = s.replace(old, new, 1)
+
+          old = '''                <Row label="Technical workload requirement" value={`${r.sysAdj} × ${ownSys}`} sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- fleet size is duty-cycle-independent`} />'''
+          new = '''                <Row label="Technical workload requirement" value={`${r.sysAdj} × ${ownSys}`} sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- ${gpuSizingBasis === "higher-growth" ? "user-selected higher-growth alternative" : "GPU Sizing recommended configuration"}; fleet size is duty-cycle-independent`} />'''
+          assert old in s
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit patch
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/GpuSizingCalculator.jsx src/TcoCalculator.jsx
+          git commit -m "Add selectable higher-growth TCO handoff"
+          git push origin HEAD:gpu-sizing-growth-selection
