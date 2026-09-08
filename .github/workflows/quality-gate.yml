@@ -25,6 +25,7 @@ on:
       - "scripts/validate_model_advisor_evidence_confidence.mjs"
       - "scripts/validate_model_advisor_recommendation_explanations.mjs"
       - "scripts/validate_gpu_higher_growth_capacity.mjs"
+      - "scripts/validate_gpu_selected_budget_and_phase2_cleanup.mjs"
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
@@ -56,6 +57,7 @@ on:
       - "scripts/validate_model_advisor_evidence_confidence.mjs"
       - "scripts/validate_model_advisor_recommendation_explanations.mjs"
       - "scripts/validate_gpu_higher_growth_capacity.mjs"
+      - "scripts/validate_gpu_selected_budget_and_phase2_cleanup.mjs"
       - "scripts/validate_tco_handoff.mjs"
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
@@ -128,6 +130,9 @@ jobs:
 
       - name: Validate GPU higher-growth capacity
         run: node scripts/validate_gpu_higher_growth_capacity.mjs
+
+      - name: Validate GPU selected-budget and Phase 2 cleanup
+        run: node scripts/validate_gpu_selected_budget_and_phase2_cleanup.mjs
 
       - name: Validate TCO GPU Sizing handoff defaults
         run: node scripts/validate_tco_handoff.mjs
