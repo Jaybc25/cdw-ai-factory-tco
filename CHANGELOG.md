@@ -1,5 +1,13 @@
 # Changelog
 
+## September 8, 2026 - Model Advisor benchmark-evidence confidence disclosure
+
+- Added a benchmark-evidence confidence layer that is explicitly separate from technical-spec confidence.
+- Current evidence states distinguish exact benchmark coverage, exact-but-limited coverage, limited comparative evidence, and mappings requiring verification.
+- Model Advisor cards and reports now disclose both spec confidence and recommendation-evidence quality.
+- Evidence-confidence metadata is disclosure-only and does not change eligibility, ranking margins, recommendation slots, GPU Sizing, or TCO economics.
+
+
 This file records meaningful project milestones for the CDW AI Factory tool suite. It is intentionally higher level than individual Git commits and more chronological than `AiFactoryProjectBrief.md`.
 
 Use this file to answer questions such as:

@@ -9,21 +9,45 @@ import activatedModelSpecsData from "../data/model_specs_activation.json" with {
 import capabilityData from "../data/model_capability_db.json" with { type: "json" };
 import governanceData from "../data/model_governance.json" with { type: "json" };
 import catalogPolicyData from "../data/model_catalog_policy.json" with { type: "json" };
+import canonicalModelsData from "../data/canonical_models.json" with { type: "json" };
+
+export const BENCHMARK_EVIDENCE = Object.freeze({
+  EXACT: Object.freeze({ level: "exact", label: "Exact benchmark evidence", detail: "Exact model/release with source-returned intelligence, coding, and agentic metrics." }),
+  EXACT_LIMITED: Object.freeze({ level: "exact-limited", label: "Exact but limited evidence", detail: "Exact model/release is mapped, but only some recommendation metrics are available." }),
+  COMPARATIVE_LIMITED: Object.freeze({ level: "comparative-limited", label: "Comparative evidence limited", detail: "Technical specifications are qualified, but no approved exact benchmark row is currently available for comparison." }),
+  VERIFICATION_REQUIRED: Object.freeze({ level: "verification-required", label: "Benchmark mapping requires verification", detail: "A benchmark alias or source record exists but is not currently safe to treat as approved recommendation evidence." }),
+});
+
+function benchmarkEvidenceFor(cap, canonicalEntry) {
+  const metricCount = [cap.intelligence_index, cap.coding_index, cap.agentic_index].filter(Number.isFinite).length;
+  if (cap.needs_alias_mapping === true || (cap.confidence && cap.confidence !== "HIGH")) {
+    return { ...BENCHMARK_EVIDENCE.VERIFICATION_REQUIRED, metricCount };
+  }
+  if (metricCount === 3) return { ...BENCHMARK_EVIDENCE.EXACT, metricCount };
+  if (metricCount > 0) return { ...BENCHMARK_EVIDENCE.EXACT_LIMITED, metricCount };
+  if (canonicalEntry?.aliases?.artificial_analysis_slug) {
+    return { ...BENCHMARK_EVIDENCE.VERIFICATION_REQUIRED, metricCount };
+  }
+  return { ...BENCHMARK_EVIDENCE.COMPARATIVE_LIMITED, metricCount };
+}
 
 export function getCatalog() {
   const specs = [...modelSpecsData.data.models, ...activatedModelSpecsData.data.models];
   const capability = capabilityData.data.models;
   const governance = governanceData.entries;
   const policy = catalogPolicyData.models;
+  const canonical = canonicalModelsData.models;
 
   const capByCanonical = Object.fromEntries(capability.map((c) => [c.canonical_model_id, c]));
   const govByCanonical = Object.fromEntries(governance.map((g) => [g.canonical_model_id, g]));
   const policyByCanonical = Object.fromEntries(policy.map((p) => [p.canonical_model_id, p]));
+  const canonicalById = Object.fromEntries(canonical.map((c) => [c.canonical_model_id, c]));
 
   return specs.map((spec) => {
     const cap = capByCanonical[spec.canonical_model_id] || {};
     const gov = govByCanonical[spec.canonical_model_id] || {};
     const catalogPolicy = policyByCanonical[spec.canonical_model_id] || {};
+    const benchmarkEvidence = benchmarkEvidenceFor(cap, canonicalById[spec.canonical_model_id]);
     return {
       canonical_model_id: spec.canonical_model_id,
       license: spec.license ? spec.license.value : null,
@@ -36,6 +60,10 @@ export function getCatalog() {
       intelligence_index: cap.intelligence_index ?? null,
       coding_index: cap.coding_index ?? null,
       agentic_index: cap.agentic_index ?? null,
+      benchmark_evidence_level: benchmarkEvidence.level,
+      benchmark_evidence_label: benchmarkEvidence.label,
+      benchmark_evidence_detail: benchmarkEvidence.detail,
+      benchmark_evidence_metric_count: benchmarkEvidence.metricCount,
       developer_country: gov.developer_country ?? null,
     };
   });
