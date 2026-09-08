@@ -1255,6 +1255,17 @@ function AppInner() {
           </div>
         </div>
 
+        {view === "calc" && r.isWorkloadMode && (
+          <div style={{ background: gpuSizingBasis === "higher-growth" ? "#FFF5F5" : C.panel, border: `1px solid ${gpuSizingBasis === "higher-growth" ? "#E6A3A3" : C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: gpuSizingBasis === "higher-growth" ? C.red : C.sub, marginBottom: 3 }}>SIZING BASIS</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>
+              {gpuSizingBasis === "higher-growth" ? "Higher-growth alternative selected in GPU Sizing" : "Recommended configuration from GPU Sizing"}
+            </div>
+            {gpuSizingBasis === "higher-growth" && (
+              <div style={{ fontSize: 12, color: C.sub, marginTop: 3 }}>This configuration intentionally includes additional capacity/headroom beyond the primary recommendation.</div>
+            )}
+          </div>
+        )}
 
         {view === "gate" && (
           <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, marginBottom: 14 }}>
