@@ -40,6 +40,29 @@ async function openCapacityAndUnitEconomics(page) {
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
 }
 
+test("GPU Sizing handoff preserves explicit higher-growth selection provenance", async ({ page }) => {
+  await seedTcoSession(page, { mode: "spend" });
+  await page.goto(
+    "/tco?ownSys=DGX%20B300&gpuCount=16&sourceClass=B300&sizingBasis=higher-growth&workingDayHours=10&model=muse-glimmer-30b&modelParamsB=29.6&quant=FP8",
+    { waitUntil: "domcontentloaded" },
+  );
+  const saved = await waitForTcoSession(page, {
+    ownSys: "DGX B300", gpuSizingCount: 16, sourceClass: "B300", gpuSizingBasis: "higher-growth",
+  });
+  expect(saved.gpuSizingBasis).toBe("higher-growth");
+  await expect(page.getByText(/user-selected higher-growth alternative/)).toBeVisible();
+});
+
+test("GPU Sizing handoff defaults sizing provenance to recommended", async ({ page }) => {
+  await seedTcoSession(page, { mode: "spend" });
+  await page.goto(
+    "/tco?ownSys=DGX%20B200&gpuCount=8&sourceClass=B200&workingDayHours=10&model=muse-glimmer-30b&modelParamsB=29.6&quant=FP8",
+    { waitUntil: "domcontentloaded" },
+  );
+  const saved = await waitForTcoSession(page, { gpuSizingBasis: "recommended" });
+  expect(saved.gpuSizingBasis).toBe("recommended");
+});
+
 test("fresh GPU Sizing handoff replaces upstream technical facts but preserves TCO-owned assumptions", async ({ page }) => {
   await seedTcoSession(page, {
     ownSys: "DGX H200",

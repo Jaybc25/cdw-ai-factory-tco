@@ -661,9 +661,9 @@ const TCO_OWN_SYS_FOR_CLASS = {
   B300: "DGX B300",
 };
 
-function TcoHandoff({ selectedClass, recommended, mode, workingDayHours, model, modelParamsB, quant }) {
+function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", mode, workingDayHours, model, modelParamsB, quant }) {
   const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
-  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass });
+  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });
   if (model?.id) params.set("model", model.id);
   if (Number.isFinite(Number(modelParamsB)) && Number(modelParamsB) > 0) params.set("modelParamsB", String(modelParamsB));
   if (mode === "Inference" && quant) params.set("quant", quant);
@@ -674,7 +674,7 @@ function TcoHandoff({ selectedClass, recommended, mode, workingDayHours, model, 
       <div>
         <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Next: Cost comparison</div>
         <div className="text-xs text-gray-500">
-          Compare the cost of owning this recommended GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator.
+          Compare the cost of owning this {sizingBasis === "higher-growth" ? "user-selected higher-growth" : "recommended"} GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator.
         </div>
       </div>
       <a
@@ -684,6 +684,33 @@ function TcoHandoff({ selectedClass, recommended, mode, workingDayHours, model, 
       >
         Compare TCO
       </a>
+    </div>
+  );
+}
+
+function TcoConfigurationSelector({ result, selection, onSelectionChange }) {
+  const hasHigherGrowth = !!result?.higherGrowth?.class && !!result?.higherGrowth?.recommended;
+  const choices = [
+    { key: "recommended", label: "Recommended", detail: `${result.recommended} GPUs · ${result.selectedClass}` },
+    ...(hasHigherGrowth ? [{ key: "higher-growth", label: "Higher-growth", detail: `${result.higherGrowth.recommended} GPUs · ${result.higherGrowth.class}` }] : []),
+  ];
+  return (
+    <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-white">
+      <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Configuration to carry into TCO</div>
+      <p className="text-xs text-gray-500 mb-3">Recommended is the default. Choose Higher-growth only when you intentionally want more capacity/headroom for future demand.</p>
+      <div className="flex flex-wrap gap-2">
+        {choices.map((choice) => {
+          const selected = selection === choice.key;
+          return (
+            <button key={choice.key} type="button" onClick={() => onSelectionChange(choice.key)} aria-pressed={selected}
+              className="text-left rounded-lg px-3 py-2 border min-w-[180px]"
+              style={{ borderColor: selected ? RED : "#D1D5DB", background: selected ? "#FFF5F5" : "#F9FAFB" }}>
+              <div className="text-xs font-bold" style={{ color: selected ? RED : CHARCOAL }}>{choice.label}{selected ? " · Selected for TCO" : ""}</div>
+              <div className="text-xs text-gray-500 mt-0.5">{choice.detail}</div>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -897,6 +924,10 @@ function GPUSizingCalculatorInner() {
 
   const result = mode === "Inference" ? inferenceResult : trainingResult;
   const errors = mode === "Inference" ? infErrors : trainErrors;
+  const [tcoSelection, setTcoSelection] = useState("recommended");
+  const effectiveTcoSelection = tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
+  const tcoSelectedClass = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
+  const tcoSelectedCount = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
   const modelLabel = mode === "Inference" ? infModel.label : trainModel.label;
 
   useAutosaveSnapshot(
@@ -1276,7 +1307,8 @@ function GPUSizingCalculatorInner() {
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
               <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).</div>
-              <TcoHandoff selectedClass={result.selectedClass} recommended={result.recommended} mode={mode} workingDayHours={workingDayHours} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
+              <TcoConfigurationSelector result={result} selection={effectiveTcoSelection} onSelectionChange={setTcoSelection} />
+              <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
               <PodSizingHandoff />
               <button onClick={requestReport} className="mt-3 w-full text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
             </>

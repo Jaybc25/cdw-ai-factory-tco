@@ -13,6 +13,11 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+### September 7, 2026 - GPU Sizing higher-growth TCO selection
+- Kept the node-rounded GPU Sizing recommendation as the default production design while allowing an explicit Higher-growth alternative to be selected for TCO analysis.
+- The selected class/count is passed unchanged to TCO with sizing-basis provenance; TCO remains the economic layer and does not re-size the technical design.
+- No GPU sizing formulas, hardware performance anchors, or TCO economics changed.
+
 ### September 4-5, 2026 - Post-2026.09.1 integration, GPUaaS, authentication, and workspace hardening
 
 #### Combined Summary / My Summary - PRs #15 and #16
