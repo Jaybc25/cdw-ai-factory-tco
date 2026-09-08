@@ -8,6 +8,7 @@ import { CLOUD_GPU_RATES as RATES, ONPREM_SYSTEMS as SYSTEMS } from "./pricingRe
 import { TCO_MODEL_OPTIONS, getDefaultModel, getModelById, formatModelContext } from "./modelRegistry.js";
 import BestValueGpuAasPanel from "./BestValueGpuAasPanel.jsx";
 import { GPUAAS_CONFIDENCE, rankSameClassGpuAas, topGpuAasValues } from "./bestValueGpuaas.js";
+import { trendCloudGpuCompute } from "./cloudUnitPriceTrend.js";
 
 const OWN_TARGETS = Object.keys(SYSTEMS);
 /* Per-GPU capability indices (B200 = 1.0). Established classes derived from MLPerf pairs;
@@ -282,8 +283,8 @@ function run(inp, RC) {
     flrT = adjT;
     const adjCloud = hardwareEquivalentCloudCost(technicalGpuHrsForCloud, genPF, blended);
     const flrCloud = hardwareEquivalentCloudCost(technicalGpuHrsForCloud, 1, blended);
-    cloudYears = [0, 1, 2, 3, 4].map((y) => 12 * (adjCloud.monthlyCompute * Math.pow(1 + inp.growth, y) + cloudStorage * Math.pow(1 + RC.opsGrowth, y)));
-    cloudYearsFloor = [0, 1, 2, 3, 4].map((y) => 12 * (flrCloud.monthlyCompute * Math.pow(1 + inp.growth, y) + cloudStorage * Math.pow(1 + RC.opsGrowth, y)));
+    cloudYears = [0, 1, 2, 3, 4].map((y) => 12 * (trendCloudGpuCompute(adjCloud.monthlyCompute, inp.growth, inp.cloudUnitPriceTrend, y) + cloudStorage * Math.pow(1 + RC.opsGrowth, y)));
+    cloudYearsFloor = [0, 1, 2, 3, 4].map((y) => 12 * (trendCloudGpuCompute(flrCloud.monthlyCompute, inp.growth, inp.cloudUnitPriceTrend, y) + cloudStorage * Math.pow(1 + RC.opsGrowth, y)));
     monthlyCloudBaseline = adjCloud.monthlyCompute + cloudStorage; // the actual comparable figure in this mode, not the entered bill
   } else {
     // Bake-off mode: unchanged from v2.8 -- spend backward-derives gpuHrs, cloud cost is the
@@ -295,7 +296,7 @@ function run(inp, RC) {
     adjT = buildTrajectory((y) => (gpuHrs * Math.pow(1 + inp.growth, y)) / npf, perSysHrs, S, RC, nPlus, storCapex, storSup, totPB, isEquinix, inp.powerRate, null);
     flrT = buildTrajectory((y) => (gpuHrs * Math.pow(1 + inp.growth, y)) / 1, perSysHrs, S, RC, nPlus, storCapex, storSup, totPB, isEquinix, inp.powerRate, null);
     cloudYears = [0, 1, 2, 3, 4].map((y) =>
-      12 * (inp.bill * inp.computeShare * Math.pow(1 + inp.growth, y) + inp.bill * (1 - inp.computeShare) * Math.pow(1 + RC.opsGrowth, y))
+      12 * (trendCloudGpuCompute(inp.bill * inp.computeShare, inp.growth, inp.cloudUnitPriceTrend, y) + inp.bill * (1 - inp.computeShare) * Math.pow(1 + RC.opsGrowth, y))
     );
     cloudYearsFloor = cloudYears;
     monthlyCloudBaseline = inp.bill;
@@ -941,8 +942,7 @@ function AppInner() {
   const [egressPct, setEgressPct] = useState(saved?.egressPct ?? 0.05);
   const [computeShare, setComputeShare] = useState(saved?.computeShare ?? 0.5);
   const [growth, setGrowth] = useState(saved?.growth ?? 0.25);
-  // Workstream #3 preview only: intentionally local UI state. It is not persisted, autosaved, passed into run(), or included in reports.
-  const [cloudUnitPriceTrendPreview, setCloudUnitPriceTrendPreview] = useState(0);
+  const [cloudUnitPriceTrend, setCloudUnitPriceTrend] = useState(saved?.cloudUnitPriceTrend ?? 0);
   const [facility, setFacility] = useState(saved?.facility ?? "Self-hosted (AI-ready)");
   const [powerRate, setPowerRate] = useState(saved?.powerRate ?? 300);
   const [util, setUtil] = useState(saved?.util ?? 0.85);
@@ -989,7 +989,7 @@ function AppInner() {
   useEffect(() => {
     saveSessionState("tco", {
       ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
-      fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
+      fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
       residPct, modelId, modelParamsB, quant,
       // Fix (Bug Group 1a): these three previously weren't persisted at all,
@@ -1055,10 +1055,10 @@ function AppInner() {
   const bulkPB = effectiveStorageAuto ? Math.round(autoPB * 0.75 * 100) / 100 : bulkPBm;
   const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (effectiveStorageAuto) setBulkPBm(bulkPB); };
   const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (effectiveStorageAuto) setFastPBm(fastPB); };
-  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours };
+  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours };
   const r = useMemo(
     () => run(inputsObj, rc),
-    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
+    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
   );
   const t = r.tot(horizon);
 
@@ -1146,7 +1146,7 @@ function AppInner() {
       if (rr.tot(horizon).saveAdj > 0) return Math.round(b / 5000) * 5000;
     }
     return null;
-  }, [gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, retrofit, migration, dualRun, redundancy, residPct, computeShare, odShare, provider, ov, horizon, mode]);
+  }, [gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, retrofit, migration, dualRun, redundancy, residPct, computeShare, odShare, provider, ov, horizon, mode, cloudUnitPriceTrend]);
   const tier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
   const maxBar = Math.max(t.cloud, t.cloudFloor, t.onAdj, t.onFlr, 1);
   const isSelf = facility !== "Equinix";
@@ -1269,40 +1269,6 @@ function AppInner() {
           </div>
         )}
 
-        {view === "calc" && (
-          <div style={{ background: "#F7F7F7", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: C.sub, marginBottom: 3 }}>CLOUD PRICING ASSUMPTION</div>
-            <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.45 }}>
-              Current cloud GPU rates are held constant across the analysis horizon. Annual growth reflects increased workload consumption, not assumed provider price inflation or deflation.
-            </div>
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.line}` }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
-                <label htmlFor="cloud-unit-price-trend-preview" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>Cloud GPU unit-price trend</label>
-                <span style={{ ...mono, fontSize: 12, fontWeight: 700, color: cloudUnitPriceTrendPreview === 0 ? C.sub : C.ink }}>
-                  {cloudUnitPriceTrendPreview > 0 ? "+" : ""}{cloudUnitPriceTrendPreview}%/yr
-                </span>
-              </div>
-              <input
-                id="cloud-unit-price-trend-preview"
-                aria-label="Cloud GPU unit-price trend preview"
-                type="range"
-                min="-20"
-                max="20"
-                step="5"
-                value={cloudUnitPriceTrendPreview}
-                onChange={(e) => setCloudUnitPriceTrendPreview(Number(e.target.value))}
-                style={{ width: "100%" }}
-              />
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.sub, marginTop: -1 }}>
-                <span>-20%</span><span>0%</span><span>+20%</span>
-              </div>
-              <div style={{ fontSize: 11, color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 6, padding: "7px 8px", marginTop: 7, lineHeight: 1.4 }}>
-                <b>Preview only — does not affect results yet.</b> This control is being evaluated as a future sensitivity input. Workload growth remains separate, and the production calculation continues to use a 0%/yr cloud unit-price trend.
-              </div>
-            </div>
-          </div>
-        )}
-
         {view === "gate" && (
           <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, marginBottom: 14 }}>
             <div style={{ ...disp, fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Get the full TCO report</div>
@@ -1360,7 +1326,7 @@ function AppInner() {
             )}
             <Row label="Planning basis" value={r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend"} sub={r.isWorkloadMode ? "both sides costed from the GPU Sizing technical requirement" : "on-prem sized from your reported cloud spend"} />
             <Row label={`Recommended build`} value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`} sub={r.isWorkloadMode ? `fixed to the workload's technical requirement · ${facility}` : `${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
-            <Row label="Cloud unit-price assumption" value="Current rates held constant" sub="annual growth reflects increased workload consumption, not assumed provider price inflation or deflation" />
+            <Row label="Cloud GPU unit-price trend" value={`${cloudUnitPriceTrend > 0 ? "+" : ""}${cloudUnitPriceTrend}%/yr`} sub="applies to modeled cloud GPU compute rates only; workload growth remains separate" />
             <Row label="Total capex + one-time transition" value={fmtM(r.adj.capex + r.oneTime)} sub={`incl. ${fmtM(r.oneTime)} migration, dual-run, and exit costs`} />
             <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
             <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub={r.isWorkloadMode ? "capex + one-time vs. estimated workload-equivalent cloud cost" : "capex + one-time vs. current monthly cloud bill"} />
@@ -1611,7 +1577,7 @@ function AppInner() {
             )}
 
             <div style={{ fontSize: 11, color: C.sub, marginBottom: 10, background: "#F7F7F7", borderRadius: 6, padding: "8px 10px" }}>
-              <b>Cloud unit-price assumption:</b> current cloud GPU rates are held constant across the analysis horizon. The annual growth assumption changes workload consumption, not the provider $/GPU-hr rate itself.
+              <b>Cloud GPU unit-price trend:</b> {cloudUnitPriceTrend > 0 ? "+" : ""}{cloudUnitPriceTrend}%/yr applied to modeled cloud GPU compute rates only. Workload growth remains a separate consumption assumption.
             </div>
 
             {/* SECTION 3: ON-PREM CALCULATION */}
@@ -1951,6 +1917,19 @@ function AppInner() {
             </div>
           )}
         </Section>
+
+        {view === "calc" && (
+          <div style={{ background: "#F7F7F7", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: C.sub, marginBottom: 3 }}>CLOUD GPU PRICE SENSITIVITY</div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
+              <label htmlFor="cloud-unit-price-trend" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>Cloud GPU unit-price trend</label>
+              <span style={{ ...mono, fontSize: 12, fontWeight: 700, color: cloudUnitPriceTrend === 0 ? C.sub : C.ink }}>{cloudUnitPriceTrend > 0 ? "+" : ""}{cloudUnitPriceTrend}%/yr</span>
+            </div>
+            <input id="cloud-unit-price-trend" aria-label="Cloud GPU unit-price trend" type="range" min="-20" max="20" step="5" value={cloudUnitPriceTrend} onChange={(e) => setCloudUnitPriceTrend(Number(e.target.value))} style={{ width: "100%" }} />
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.sub, marginTop: -1 }}><span>-20%</span><span>0%</span><span>+20%</span></div>
+            <div style={{ fontSize: 11, color: C.sub, marginTop: 7, lineHeight: 1.4 }}>Applies an annual change to modeled cloud GPU compute rates only. Workload growth remains a separate consumption assumption.</div>
+          </div>
+        )}
 
         {/* TIER 2 */}
         <Section title="Refine when known" badge="TIER 2" defaultOpen={false}>
