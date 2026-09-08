@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-09-06T03:40:19.006909+00:00",
+  "generated_at": "2026-09-08T12:02:59.988313+00:00",
   "note": "Models Artificial Analysis reports that aren't in canonical_models.json yet. Informational only \u2014 review and add deliberately, never auto-imported into the production registry. (Includes proprietary models too, since the free tier has no openness flag to pre-filter on \u2014 canonical registry membership is what actually restricts production data to open-weight models.)",
   "unresolved_aa_slugs": [
     "glm-4-5v",
@@ -258,6 +258,7 @@
     "tri-21b-think-preview",
     "nova-2-0-lite-reasoning",
     "gemini-2-5-pro-03-25",
+    "minicpm5-2b",
     "grok-4-20-non-reasoning",
     "qwen3-5-4b",
     "magistral-medium",
@@ -288,7 +289,6 @@
     "glm-4-7",
     "nova-2-0-lite-reasoning-low",
     "magistral-small-2509",
-    "gemma-4-26b-a4b-non-reasoning",
     "claude-opus-5-high",
     "ministral-3-14b",
     "k-exaone",
@@ -441,7 +441,6 @@
     "deepseek-v3-2-reasoning-0925",
     "molmo-7b-d",
     "qwen3-32b-instruct-reasoning",
-    "qwen3-8-27b",
     "motif-3",
     "qwen3-4b-2507-instruct",
     "gemma-4-e2b",
