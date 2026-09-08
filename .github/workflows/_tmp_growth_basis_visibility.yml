@@ -1,0 +1,24 @@
+name: Temporary growth basis visibility
+on:
+  push:
+    branches:
+      - gpu-sizing-growth-selection
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpu-sizing-growth-selection
+      - name: Apply visibility patch
+        run: python .github/scripts/apply_growth_basis_visibility.py
+      - name: Commit visibility fix
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/TcoCalculator.jsx
+          git commit -m "Show GPU sizing basis in TCO"
+          git push origin HEAD:gpu-sizing-growth-selection
