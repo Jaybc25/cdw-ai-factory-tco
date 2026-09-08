@@ -23,31 +23,31 @@ function ToolRoutes() {
       <Route
         path="/tco"
         element={(
-          <ModelCatalogVisibilityRoute tool="tco">
-            <SharedToolShell
-              title="Cloud vs On-Prem TCO Calculator"
-              backHref="/gpu-sizing"
-              backLabel="GPU Sizing"
-              toolKey="tco"
-            >
+          <SharedToolShell
+            title="Cloud vs On-Prem TCO Calculator"
+            backHref="/gpu-sizing"
+            backLabel="GPU Sizing"
+            toolKey="tco"
+          >
+            <ModelCatalogVisibilityRoute tool="tco">
               <TcoCalculator />
-            </SharedToolShell>
-          </ModelCatalogVisibilityRoute>
+            </ModelCatalogVisibilityRoute>
+          </SharedToolShell>
         )}
       />
       <Route
         path="/gpu-sizing"
         element={(
-          <ModelCatalogVisibilityRoute tool="gpu-sizing">
-            <SharedToolShell
-              title="GPU Sizing Tool"
-              backHref="/model-advisor"
-              backLabel="Model Advisor"
-              toolKey="gpu-sizing"
-            >
+          <SharedToolShell
+            title="GPU Sizing Tool"
+            backHref="/model-advisor"
+            backLabel="Model Advisor"
+            toolKey="gpu-sizing"
+          >
+            <ModelCatalogVisibilityRoute tool="gpu-sizing">
               <GpuSizingCalculator />
-            </SharedToolShell>
-          </ModelCatalogVisibilityRoute>
+            </ModelCatalogVisibilityRoute>
+          </SharedToolShell>
         )}
       />
       <Route
