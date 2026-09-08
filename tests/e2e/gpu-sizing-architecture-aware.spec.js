@@ -87,11 +87,11 @@ test("higher-growth production design is opt-in for TCO and resets after re-sizi
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await chooseInferenceModel(page, "muse-glimmer-30b");
 
-  const recommendedChoice = page.getByRole("button", { name: /Recommended · Selected for TCO/i });
+  const recommendedChoice = page.getByRole("button", { name: /Recommended.*Selected for TCO/i });
   await expect(recommendedChoice).toBeVisible();
   await expect(recommendedChoice).toHaveAttribute("aria-pressed", "true");
 
-  const higherGrowthChoice = page.getByRole("button", { name: /Higher-growth/i });
+  const higherGrowthChoice = page.getByRole("button", { name: /Higher-growth alternative/i });
   await expect(higherGrowthChoice).toBeVisible();
   await higherGrowthChoice.click();
   await expect(higherGrowthChoice).toHaveAttribute("aria-pressed", "true");
@@ -101,7 +101,7 @@ test("higher-growth production design is opt-in for TCO and resets after re-sizi
   expect(selectedHref).toContain("sizingBasis=higher-growth");
 
   await chooseInferenceModel(page, "llama-4-scout");
-  await expect(page.getByRole("button", { name: /Recommended · Selected for TCO/i })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("button", { name: /Recommended.*Selected for TCO/i })).toHaveAttribute("aria-pressed", "true");
   const resetHref = await tcoLink.getAttribute("href");
   expect(resetHref).toContain("sizingBasis=recommended");
 });
