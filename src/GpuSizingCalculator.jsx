@@ -928,6 +928,9 @@ function GPUSizingCalculatorInner() {
   const effectiveTcoSelection = tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
   const tcoSelectedClass = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
   const tcoSelectedCount = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
+  useEffect(() => {
+    setTcoSelection("recommended");
+  }, [mode, result?.selectedClass, result?.recommended, result?.higherGrowth?.class, result?.higherGrowth?.recommended]);
   const modelLabel = mode === "Inference" ? infModel.label : trainModel.label;
 
   useAutosaveSnapshot(
