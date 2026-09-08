@@ -1,0 +1,32 @@
+name: Apply TCO cloud price trend production patch
+
+on:
+  push:
+    branches: [tco-cloud-unit-price-trend-production]
+    paths:
+      - ".github/workflows/apply-tco-cloud-price-trend.yml"
+      - ".github/scripts/apply_tco_cloud_price_trend.py"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: tco-cloud-unit-price-trend-production
+      - name: Apply production sensitivity patch
+        run: python3 .github/scripts/apply_tco_cloud_price_trend.py
+      - name: Commit patch and clean scaffolding
+        run: |
+          rm .github/scripts/apply_tco_cloud_price_trend.py
+          rm .github/workflows/apply-tco-cloud-price-trend.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/TcoCalculator.jsx src/cloudUnitPriceTrend.js scripts/validate_tco_cloud_unit_price_trend.mjs CHANGELOG.md .github/scripts/apply_tco_cloud_price_trend.py .github/workflows/apply-tco-cloud-price-trend.yml
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: activate TCO cloud GPU unit-price trend"
+          git push
