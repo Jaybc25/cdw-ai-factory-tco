@@ -11,6 +11,7 @@ import CombinedSummary from "./CombinedSummary.jsx";
 import LoginFrontDoor from "./LoginFrontDoor.jsx";
 import ModelCatalogVisibilityRoute from "./ModelCatalogVisibilityRoute.jsx";
 import HybridSequenceStateTestRoute from "./HybridSequenceStateTestRoute.jsx";
+import SharedToolShell from "./SharedToolShell.jsx";
 import "./print-overrides.css";
 
 const E2E_AUTH_BYPASS = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";
@@ -35,10 +36,46 @@ function ToolRoutes() {
           </ModelCatalogVisibilityRoute>
         )}
       />
-      <Route path="/model-advisor" element={<ModelAdvisor />} />
-      <Route path="/use-cases" element={<UseCaseExplorer />} />
+      <Route
+        path="/model-advisor"
+        element={(
+          <SharedToolShell
+            title="Open-Weight Model Advisor"
+            backHref="/use-cases"
+            backLabel="AI Use Case Explorer"
+            toolKey="model-advisor"
+          >
+            <ModelAdvisor />
+          </SharedToolShell>
+        )}
+      />
+      <Route
+        path="/use-cases"
+        element={(
+          <SharedToolShell
+            title="AI Use Case Explorer"
+            backHref="/"
+            backLabel="All tools"
+            toolKey="use-cases"
+          >
+            <UseCaseExplorer />
+          </SharedToolShell>
+        )}
+      />
       <Route path="/roi" element={<RoiCalculator />} />
-      <Route path="/readiness" element={<AiReadinessChecklists />} />
+      <Route
+        path="/readiness"
+        element={(
+          <SharedToolShell
+            title="AI Readiness Checklists"
+            backHref="/"
+            backLabel="All tools"
+            toolKey="readiness"
+          >
+            <AiReadinessChecklists />
+          </SharedToolShell>
+        )}
+      />
       <Route path="/summary" element={<CombinedSummary />} />
       {E2E_AUTH_BYPASS && <Route path="/__e2e/hybrid-sequence-state" element={<HybridSequenceStateTestRoute />} />}
       <Route path="*" element={<Navigate to="/" replace />} />
