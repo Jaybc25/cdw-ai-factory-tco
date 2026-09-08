@@ -22,6 +22,7 @@ import fs from "node:fs";
 import vm from "node:vm";
 import { CLOUD_GPU_RATES, ONPREM_SYSTEMS } from "../src/pricingRegistry.js";
 import { getDefaultModel } from "../src/modelRegistry.js";
+import { trendCloudGpuCompute } from "../src/cloudUnitPriceTrend.js";
 
 const SOURCE_PATH = "src/TcoCalculator.jsx";
 const SNAPSHOT_PATH = "tests/tco-parity/workbook_snapshot.json";
@@ -63,9 +64,6 @@ function numericPass(actual, expected) {
   return { pass: Math.abs(actual - expected) <= tolerance, tolerance };
 }
 
-// Extract a JS declaration/function from the production JSX without parsing
-// any UI JSX. The scanner understands strings, template literals, and comments
-// well enough to find the closing semicolon/brace of these known declarations.
 function scanBalanced(source, start, mode) {
   let quote = null;
   let escaped = false;
@@ -130,8 +128,6 @@ function extractFunction(source, name) {
 const snapshot = JSON.parse(fs.readFileSync(SNAPSHOT_PATH, "utf8"));
 const regression = sheetByName(snapshot, "EngineRegression");
 
-// Canonical fixture values come from the workbook itself, not duplicated
-// expected inputs in this script.
 const transition = parseSlashNumbers(value(regression, "B19"), 5);
 const factors = parseSlashNumbers(value(regression, "B18"), 3);
 const totalStorage = Number(value(regression, "B10"));
@@ -150,6 +146,7 @@ const fixture = {
   fastPB: totalStorage * fastShare,
   bulkPB: totalStorage * (1 - fastShare),
   growth: Number(value(regression, "B12")),
+  cloudUnitPriceTrend: 0,
   facility: mapWorkbookFacility(value(regression, "B13")),
   powerRate: Number(value(regression, "B14")),
   util: Number(value(regression, "B15")),
@@ -187,7 +184,14 @@ const productionEngine = [
   ...functions.map((name) => extractFunction(source, name)),
 ].join("\n\n");
 
-const sandbox = { console, RATES: CLOUD_GPU_RATES, SYSTEMS: ONPREM_SYSTEMS, __fixture: fixture, __result: null };
+const sandbox = {
+  console,
+  RATES: CLOUD_GPU_RATES,
+  SYSTEMS: ONPREM_SYSTEMS,
+  trendCloudGpuCompute,
+  __fixture: fixture,
+  __result: null,
+};
 const execute = `${productionEngine}\n
 const __rc = defaultsFor("AWS", __fixture.gpuClass, __fixture.ownSys);
 const __r = run(__fixture, __rc);

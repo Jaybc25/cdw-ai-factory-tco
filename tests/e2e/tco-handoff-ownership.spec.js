@@ -40,32 +40,34 @@ async function openCapacityAndUnitEconomics(page) {
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
 }
 
-test("TCO discloses constant cloud unit-price assumption separately from workload growth", async ({ page }) => {
-  await seedTcoSession(page, { mode: "spend" });
+test("TCO exposes cloud GPU price sensitivity separately from workload growth", async ({ page }) => {
+  await seedTcoSession(page, { mode: "spend", cloudUnitPriceTrend: 0 });
   await page.reload({ waitUntil: "domcontentloaded" });
-  await expect(page.getByText("CLOUD PRICING ASSUMPTION", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Current cloud GPU rates are held constant across the analysis horizon/)).toBeVisible();
-  await expect(page.getByText(/Annual growth reflects increased workload consumption, not assumed provider price inflation or deflation/)).toBeVisible();
+  await expect(page.getByText("CLOUD GPU PRICE SENSITIVITY", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Applies an annual change to modeled cloud GPU compute rates only/)).toBeVisible();
+  await expect(page.getByText(/Workload growth remains a separate consumption assumption/)).toBeVisible();
 });
 
-test("cloud unit-price trend preview is interactive but does not enter TCO state or economics", async ({ page }) => {
-  await seedTcoSession(page, { mode: "spend", growth: 0.25, horizon: 3 });
+test("cloud unit-price trend is a persisted production sensitivity input", async ({ page }) => {
+  await seedTcoSession(page, { mode: "spend", growth: 0.25, horizon: 3, cloudUnitPriceTrend: 0 });
   await page.reload({ waitUntil: "domcontentloaded" });
 
-  const slider = page.getByLabel("Cloud GPU unit-price trend preview");
+  const slider = page.getByLabel("Cloud GPU unit-price trend");
   await expect(slider).toBeVisible();
   await expect(slider).toHaveValue("0");
-  await expect(page.getByText(/Preview only .* does not affect results yet/i)).toBeVisible();
 
-  const before = await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), KEY);
   await slider.fill("20");
   await expect(slider).toHaveValue("20");
   await expect(page.getByText("+20%/yr", { exact: true })).toBeVisible();
 
-  const after = await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), KEY);
-  expect(after.growth).toBe(before.growth);
-  expect(after.horizon).toBe(before.horizon);
-  expect(after.cloudUnitPriceTrendPreview).toBeUndefined();
+  // Regression guard: changing the sensitivity must trigger the TCO persistence effect.
+  const saved = await waitForTcoSession(page, { cloudUnitPriceTrend: 20, growth: 0.25, horizon: 3 });
+  expect(saved.cloudUnitPriceTrend).toBe(20);
+  expect(saved.growth).toBe(0.25);
+  expect(saved.horizon).toBe(3);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByLabel("Cloud GPU unit-price trend")).toHaveValue("20");
 });
 
 test("GPU Sizing handoff preserves explicit higher-growth selection provenance", async ({ page }) => {
@@ -103,6 +105,7 @@ test("fresh GPU Sizing handoff replaces upstream technical facts but preserves T
     cloudGpuClassOverridden: false,
     facility: "Equinix",
     growth: 0.5,
+    cloudUnitPriceTrend: -10,
     horizon: 5,
     redundancy: true,
     migration: 175000,
@@ -140,6 +143,7 @@ test("fresh GPU Sizing handoff replaces upstream technical facts but preserves T
   expect(saved.cloudGpuClassOverridden).toBe(false);
   expect(saved.facility).toBe("Equinix");
   expect(saved.growth).toBe(0.5);
+  expect(saved.cloudUnitPriceTrend).toBe(-10);
   expect(saved.horizon).toBe(5);
   expect(saved.redundancy).toBe(true);
   expect(saved.migration).toBe(175000);
@@ -264,8 +268,6 @@ test("Back and Forward do not replay consumed model handoff params or erase pers
   await waitForTcoSession(page, { modelId: "muse-glimmer-30b", sourceClass: "B200" });
   expect(new URL(page.url()).search).toBe("");
 
-  // Gemma 3 is now an existing-deployment option. An intentional edit from a
-  // current model to Gemma therefore explicitly opts into the older catalog.
   const legacyToggle = page.getByLabel("Include models for existing deployments");
   await legacyToggle.check();
   await openCapacityAndUnitEconomics(page);

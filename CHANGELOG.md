@@ -1,5 +1,13 @@
 # Changelog
 
+## September 8, 2026 - TCO cloud GPU unit-price trend production sensitivity
+
+- Activated the cloud GPU unit-price trend sensitivity with a default of 0%/yr, preserving prior results unless changed.
+- The trend applies only to modeled cloud GPU compute rates; workload growth remains a separate consumption assumption and non-compute cloud costs retain their existing escalation basis.
+- Moved the control into the calculator flow between Tier 1 and Tier 2 refinement and removed the preview-only warning.
+- Persisted the selected assumption and exposed it in TCO reporting/audit language.
+
+
 ## September 8, 2026 - GPU Sizing selected-budget cleanup
 
 - Estimated Budget now follows the configuration explicitly selected for TCO, so selecting a Higher-Growth Alternative updates the visible budget to that configuration's existing pricing basis.
