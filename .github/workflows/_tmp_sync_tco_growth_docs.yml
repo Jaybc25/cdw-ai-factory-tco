@@ -1,0 +1,26 @@
+name: Temporary TCO growth docs sync
+on:
+  push:
+    branches:
+      - tco-cloud-unit-price-preview
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: tco-cloud-unit-price-preview
+      - name: Apply documentation updates
+        run: python .github/scripts/sync_tco_growth_docs.py
+      - name: Remove temporary helper files
+        run: rm .github/scripts/sync_tco_growth_docs.py .github/workflows/_tmp_sync_tco_growth_docs.yml
+      - name: Commit documentation catch-up
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Document TCO growth and cloud pricing contract"
+          git push origin HEAD:tco-cloud-unit-price-preview
