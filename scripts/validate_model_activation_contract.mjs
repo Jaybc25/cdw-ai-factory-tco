@@ -11,7 +11,8 @@ const governance = JSON.parse(fs.readFileSync(new URL("../data/model_governance.
 const canonical = JSON.parse(fs.readFileSync(new URL("../data/canonical_models.json", import.meta.url), "utf8"));
 
 const ACTIVE = new Set(manifest.models.map((m) => m.canonical_model_id));
-const SCORELESS = new Set(["gemma-4-26b-a4b-it", "qwen3.8-27b", "deepseek-v4-flash-0731", "deepseek-v4-pro-0813"]);
+const SCORELESS = new Set(["deepseek-v4-flash-0731", "deepseek-v4-pro-0813"]);
+const RESOLVED_CAPABILITY = new Set(["gemma-4-26b-a4b-it", "qwen3.8-27b"]);
 const HYBRID_SOURCE = new Set(["qwen3.8-27b", "deepseek-v4-flash-0731", "deepseek-v4-pro-0813", "nemotron-3-super-120b-a12b"]);
 function assert(c, m) { if (!c) throw new Error(m); }
 
@@ -34,9 +35,15 @@ for (const id of ACTIVE) {
   assert(canonicalById.has(id) && govById.has(id), `${id} lacks canonical/governance evidence.`);
   assert(getInferenceSequenceStateMemory(runtimeById.get(id), 8192, 2).bytesPerSequence > 0, `${id} sequence-state contract is not computable.`);
   if (SCORELESS.has(id)) {
-    assert(!capById.has(id), `${id} unexpectedly acquired capability data; exact variant must be verified before scoring.`);
+    assert(!capById.has(id), `${id} unexpectedly acquired capability data; exact default-semantics variant must be verified before scoring.`);
     const advisor = advisorById.get(id);
-    assert(advisor.intelligence_index == null && advisor.coding_index == null && advisor.agentic_index == null, `${id} must remain scoreless until exact capability mapping exists.`);
+    assert(advisor.intelligence_index == null && advisor.coding_index == null && advisor.agentic_index == null, `${id} must remain scoreless until an approved exact capability mapping exists.`);
+  }
+  if (RESOLVED_CAPABILITY.has(id)) {
+    const cap = capById.get(id);
+    const advisor = advisorById.get(id);
+    assert(cap?.confidence === "HIGH", `${id} must retain HIGH-confidence Artificial Analysis evidence.`);
+    assert(Number.isFinite(advisor?.intelligence_index), `${id} must expose its approved intelligence evidence in Advisor.`);
   }
   if (HYBRID_SOURCE.has(id)) {
     const source = sourceById.get(id);
@@ -56,4 +63,4 @@ const expectedMargins = {
 };
 for (const [metric, priorities] of Object.entries(expectedMargins)) for (const [priority, value] of Object.entries(priorities)) assert(MARGINS[metric]?.[priority] === value, `Unexpected Advisor margin ${metric}/${priority}.`);
 
-console.log("Model activation contract PASS: all ten tranche models are production-active/recommended, four exact variants remain intentionally scoreless without fabricated AA data, Nemotron passes explicit NVIDIA commercial-license handling, hybrid runtime records reconcile to source-qualified methodology, and Advisor margins remain locked.");
+console.log("Model activation contract PASS: all ten tranche models are production-active/recommended; Gemma 4 and Qwen3.8 retain approved AA evidence, DeepSeek V4 Flash/Pro remain deliberately scoreless, Nemotron passes explicit NVIDIA commercial-license handling, hybrid runtime records reconcile to source-qualified methodology, and Advisor margins remain locked.");
