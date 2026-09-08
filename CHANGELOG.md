@@ -13,6 +13,11 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+### September 7, 2026 - TCO cloud unit-price assumption disclosure
+- Made the existing cloud-pricing treatment explicit in the TCO UI and report: current cloud GPU unit rates are held constant across the selected analysis horizon.
+- Clarified that annual growth changes modeled workload consumption, not assumed provider price inflation or deflation.
+- No TCO formulas, pricing values, growth defaults, or provider-selection behavior changed.
+
 ### September 7, 2026 - GPU Sizing higher-growth TCO selection
 - Kept the node-rounded GPU Sizing recommendation as the default production design while allowing an explicit Higher-growth alternative to be selected for TCO analysis.
 - The selected class/count is passed unchanged to TCO with sizing-basis provenance; TCO remains the economic layer and does not re-size the technical design.

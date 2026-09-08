@@ -40,6 +40,14 @@ async function openCapacityAndUnitEconomics(page) {
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
 }
 
+test("TCO discloses constant cloud unit-price assumption separately from workload growth", async ({ page }) => {
+  await seedTcoSession(page, { mode: "spend" });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByText("CLOUD PRICING ASSUMPTION", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Current cloud GPU rates are held constant across the analysis horizon/)).toBeVisible();
+  await expect(page.getByText(/Annual growth reflects increased workload consumption, not assumed provider price inflation or deflation/)).toBeVisible();
+});
+
 test("GPU Sizing handoff preserves explicit higher-growth selection provenance", async ({ page }) => {
   await seedTcoSession(page, { mode: "spend" });
   await page.goto(
