@@ -1,5 +1,13 @@
 # Changelog
 
+## September 8, 2026 - GPU Sizing higher-growth capacity semantics
+
+- Redefined the Higher-Growth Alternative as the next valid deployable capacity/headroom step, rather than requiring a faster GPU class.
+- Top-of-catalog recommendations can now grow within the same class by one additional deployment quantum (for example, 8x B300 to 16x B300).
+- The selector remains hardware-agnostic so future GB300, Vera Rubin, and other supported production classes can participate without changing card semantics.
+- GPU Sizing -> TCO selection behavior is unchanged: users may explicitly select the higher-growth configuration and the exact class/count is handed downstream.
+
+
 ## September 8, 2026 - Model Advisor recommendation explanation UX
 
 - Expanded recommendation cards into an advisory pattern with Why it fits, Primary tradeoff, Also consider, and the existing benchmark-evidence disclosure.
