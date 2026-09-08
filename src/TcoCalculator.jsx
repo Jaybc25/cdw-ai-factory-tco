@@ -1267,6 +1267,15 @@ function AppInner() {
           </div>
         )}
 
+        {view === "calc" && (
+          <div style={{ background: "#F7F7F7", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: C.sub, marginBottom: 3 }}>CLOUD PRICING ASSUMPTION</div>
+            <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.45 }}>
+              Current cloud GPU rates are held constant across the analysis horizon. Annual growth reflects increased workload consumption, not assumed provider price inflation or deflation.
+            </div>
+          </div>
+        )}
+
         {view === "gate" && (
           <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, marginBottom: 14 }}>
             <div style={{ ...disp, fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Get the full TCO report</div>
@@ -1324,6 +1333,7 @@ function AppInner() {
             )}
             <Row label="Planning basis" value={r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend"} sub={r.isWorkloadMode ? "both sides costed from the GPU Sizing technical requirement" : "on-prem sized from your reported cloud spend"} />
             <Row label={`Recommended build`} value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`} sub={r.isWorkloadMode ? `fixed to the workload's technical requirement · ${facility}` : `${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
+            <Row label="Cloud unit-price assumption" value="Current rates held constant" sub="annual growth reflects increased workload consumption, not assumed provider price inflation or deflation" />
             <Row label="Total capex + one-time transition" value={fmtM(r.adj.capex + r.oneTime)} sub={`incl. ${fmtM(r.oneTime)} migration, dual-run, and exit costs`} />
             <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
             <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub={r.isWorkloadMode ? "capex + one-time vs. estimated workload-equivalent cloud cost" : "capex + one-time vs. current monthly cloud bill"} />
@@ -1572,6 +1582,10 @@ function AppInner() {
             ) : (
               <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>Year 1 cloud total = your reported bill = <b style={{ color: C.ink }}>{fmt(bill)}/mo</b>. The compute-share portion grows {Math.round(growth * 100)}%/yr; the non-compute-share portion grows {Math.round(rc.opsGrowth * 100)}%/yr -- these are different rates, not a single blended escalation.</div>
             )}
+
+            <div style={{ fontSize: 11, color: C.sub, marginBottom: 10, background: "#F7F7F7", borderRadius: 6, padding: "8px 10px" }}>
+              <b>Cloud unit-price assumption:</b> current cloud GPU rates are held constant across the analysis horizon. The annual growth assumption changes workload consumption, not the provider $/GPU-hr rate itself.
+            </div>
 
             {/* SECTION 3: ON-PREM CALCULATION */}
             <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>3. HOW THE ON-PREM FLEET AND COST WAS CALCULATED</div>
