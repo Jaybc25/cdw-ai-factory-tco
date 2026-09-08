@@ -24,7 +24,14 @@ function ToolRoutes() {
         path="/tco"
         element={(
           <ModelCatalogVisibilityRoute tool="tco">
-            <TcoCalculator />
+            <SharedToolShell
+              title="Cloud vs On-Prem TCO Calculator"
+              backHref="/gpu-sizing"
+              backLabel="GPU Sizing"
+              toolKey="tco"
+            >
+              <TcoCalculator />
+            </SharedToolShell>
           </ModelCatalogVisibilityRoute>
         )}
       />
@@ -32,7 +39,14 @@ function ToolRoutes() {
         path="/gpu-sizing"
         element={(
           <ModelCatalogVisibilityRoute tool="gpu-sizing">
-            <GpuSizingCalculator />
+            <SharedToolShell
+              title="GPU Sizing Tool"
+              backHref="/model-advisor"
+              backLabel="Model Advisor"
+              toolKey="gpu-sizing"
+            >
+              <GpuSizingCalculator />
+            </SharedToolShell>
           </ModelCatalogVisibilityRoute>
         )}
       />
@@ -62,7 +76,19 @@ function ToolRoutes() {
           </SharedToolShell>
         )}
       />
-      <Route path="/roi" element={<RoiCalculator />} />
+      <Route
+        path="/roi"
+        element={(
+          <SharedToolShell
+            title="AI Use Case ROI Calculator"
+            backHref="/tco"
+            backLabel="TCO Calculator"
+            toolKey="roi"
+          >
+            <RoiCalculator />
+          </SharedToolShell>
+        )}
+      />
       <Route
         path="/readiness"
         element={(
@@ -76,7 +102,19 @@ function ToolRoutes() {
           </SharedToolShell>
         )}
       />
-      <Route path="/summary" element={<CombinedSummary />} />
+      <Route
+        path="/summary"
+        element={(
+          <SharedToolShell
+            title="My Summary"
+            backHref="/"
+            backLabel="All tools"
+            toolKey="summary"
+          >
+            <CombinedSummary />
+          </SharedToolShell>
+        )}
+      />
       {E2E_AUTH_BYPASS && <Route path="/__e2e/hybrid-sequence-state" element={<HybridSequenceStateTestRoute />} />}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
