@@ -1,0 +1,45 @@
+name: Temporary PR47 persistence fix
+
+on:
+  push:
+    branches:
+      - tco-cloud-unit-price-trend-production
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: tco-cloud-unit-price-trend-production
+      - name: Add cloudUnitPriceTrend to TCO persistence dependencies
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/TcoCalculator.jsx')
+          s = p.read_text()
+          old = '      fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,\n'
+          new = '      fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,\n'
+          if new in s:
+              print('Dependency already fixed; no change needed.')
+          else:
+              if old not in s:
+                  raise SystemExit('Expected persistence dependency line not found')
+              s = s.replace(old, new, 1)
+              p.write_text(s)
+          PY
+      - name: Commit fix if changed
+        run: |
+          if git diff --quiet; then
+            echo 'No changes to commit.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/TcoCalculator.jsx
+          git commit -m 'fix: persist cloud GPU unit-price trend changes'
+          git push origin HEAD:tco-cloud-unit-price-trend-production
