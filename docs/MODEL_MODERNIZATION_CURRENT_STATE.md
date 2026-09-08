@@ -1,6 +1,6 @@
 # Model Modernization Current State
 
-_Last updated: 2026-09-07 after PR #32_
+_Last updated: 2026-09-07 through PR #37 preview work_
 
 This document is the durable current-state summary for the CDW AI Factory Tools model modernization program. It should be updated whenever model catalog policy, architecture-aware sizing methodology, capability evidence, or Model Advisor -> GPU Sizing -> TCO handoff semantics change materially.
 
@@ -154,6 +154,20 @@ The handoff preserves the upstream technical GPU class/count and relevant worklo
 A fresh GPU Sizing handoff should start the TCO comparison like-for-like with the incoming technical GPU class unless the user has explicitly overridden the TCO cloud-comparison class.
 
 This ownership model prevents model-selection logic, technical sizing, and economic comparison from competing with one another.
+
+## TCO growth and cloud unit-price assumptions
+
+The post-model-modernization TCO workstream keeps three separate concepts explicit:
+
+1. **Technical production design selection:** GPU Sizing owns the technical class/count. The node-rounded Recommended design remains the default; an existing Higher-growth alternative can be explicitly selected and is passed unchanged to TCO with `sizingBasis` provenance. TCO does not independently choose or re-size the technical design.
+2. **Workload/consumption growth:** the existing TCO annual growth input represents increased workload consumption over time. It is not a cloud provider price-escalation assumption.
+3. **Cloud GPU unit-price trend:** current production economics use a 0%/year unit-price trend, meaning the current cloud GPU $/GPU-hr rate is held constant across the selected analysis horizon while workload consumption may grow separately.
+
+PR #36 made the constant-unit-price assumption explicit in the calculator, report, and audit trail without changing TCO formulas, rates, defaults, or provider behavior.
+
+PR #37 is a preview-only sensitivity experiment for a possible future cloud GPU unit-price trend input. The preview control defaults to 0%/year and spans -20% to +20% per year in 5 percentage-point steps. The preview value is deliberately isolated from persistence, autosave, `run()` inputs, My Summary snapshots, and report economics. Moving the preview control must not change production TCO results.
+
+Do not wire the preview into economics until a separate methodology decision defines exactly which cloud cost components are affected, how annual compounding is applied, how the trend interacts with workload growth, whether spend-basis and workload-basis modes should behave identically, and what new parity/regression coverage is required. Capacity-ramp modeling remains a separate deferred concept and must not be conflated with unit-price trend sensitivity.
 
 ## Source-of-truth files
 

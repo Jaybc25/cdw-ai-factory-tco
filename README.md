@@ -16,7 +16,7 @@ Versioning is an internal engineering, audit, maintenance, and recovery mechanis
 
 **Current validated releases:** `v2026.09` remains the immutable September 1 baseline, followed by `AI Factory Suite 2026.09.1` released September 4, 2026. Existing release tags/releases are immutable.
 
-**Current unreleased code checkpoint before this documentation catch-up:** `main` at `4f74f97dd2bb06f762fb09e0b845f772a0435c63` on September 7, 2026. Post-2026.09.1 work includes curated My Summary consistency handling, Best-Value GPUaaS, Global Reset, home account/My Summary access, the Phase 1 authenticated front door, auth-aware regression architecture, provider commercial-eligibility gating, GPU Sizing print/PDF hierarchy refinement, and the completed first model-modernization tranche through PR #32. These changes remain `Unreleased` until a new validated tag is created.
+**Current unreleased production checkpoint before this documentation catch-up:** `main` at `05111bbedf4a9176d2ef3ae72ec495be282de894` on September 7, 2026, the merge of PR #36. Post-2026.09.1 work includes curated My Summary consistency handling, Best-Value GPUaaS, Global Reset, home account/My Summary access, the Phase 1 authenticated front door, auth-aware regression architecture, provider commercial-eligibility gating, GPU Sizing print/PDF hierarchy refinement, the completed model-modernization tranche through PR #32, direct Recommended/Higher-growth production-design selection through PR #35, and explicit TCO cloud unit-price assumption disclosure through PR #36. Draft PR #37 is a preview-only cloud GPU unit-price trend sensitivity UI and does not change production economics. These changes remain `Unreleased` until a new validated tag is created.
 
 The suite uses calendar versioning for validated releases:
 
@@ -44,6 +44,12 @@ Routes in the current application:
 The tools are designed as one connected journey, with state and provenance handoffs where appropriate.
 
 The core model-to-infrastructure-to-economics ownership chain is **Model Advisor -> GPU Sizing -> TCO**: Model Advisor owns recommendation/selection context, GPU Sizing owns the technical infrastructure requirement, and TCO consumes that technical result while owning economics and planning assumptions. TCO does not independently re-run Model Advisor or silently re-size the workload from model parameters.
+
+## Current TCO growth/pricing contract
+
+GPU Sizing's node-rounded Recommended production design remains the default, with an explicit Higher-growth alternative selectable for TCO when available. TCO receives the exact selected class/count plus sizing-basis provenance and remains the economics layer rather than re-sizing the workload.
+
+Current TCO production economics treat **workload growth** and **cloud GPU unit price** separately: workload growth may increase consumption over time, while the current cloud GPU $/GPU-hr rate is held constant at **0% annual unit-price trend** across the analysis horizon. Draft PR #37 exposes a -20% to +20% preview control only for UX/methodology evaluation; moving it does not alter persisted state, autosave, reports, or TCO results.
 
 ## Current model-catalog state
 
