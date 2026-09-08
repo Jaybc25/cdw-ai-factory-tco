@@ -50,7 +50,7 @@ test("GPU Sizing handoff preserves explicit higher-growth selection provenance",
     ownSys: "DGX B300", gpuSizingCount: 16, sourceClass: "B300", gpuSizingBasis: "higher-growth",
   });
   expect(saved.gpuSizingBasis).toBe("higher-growth");
-  await expect(page.getByText(/user-selected higher-growth alternative/)).toBeVisible();
+  await expect(page.getByText("Higher-growth alternative selected in GPU Sizing", { exact: true })).toBeVisible();
 });
 
 test("GPU Sizing handoff defaults sizing provenance to recommended", async ({ page }) => {
