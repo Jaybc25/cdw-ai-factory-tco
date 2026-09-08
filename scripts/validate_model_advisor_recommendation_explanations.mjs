@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { getCatalog, buildRecommendations } from "../src/modelAdvisorEngine.js";
 
 function assert(condition, message) { if (!condition) throw new Error(message); }
@@ -29,5 +30,14 @@ for (const inputs of scenarios) {
     }
   }
 }
+
+const advisorSource = readFileSync(new URL("../src/ModelAdvisor.jsx", import.meta.url), "utf8");
+assert(advisorSource.includes("Why these recommendations?"), "Customer-facing methodology entry point was not simplified.");
+assert(!advisorSource.includes("Informational only in V1"), "Production UI still contains V1 placeholder language.");
+assert(advisorSource.includes("function modelLabel(modelOrId)"), "Friendly model-label helper is missing.");
+assert(advisorSource.includes("3. How the Ranking Was Decided"), "Decision trace ranking section did not receive customer-facing terminology.");
+assert(advisorSource.includes("Models with direct {METRIC_LABELS[result.metric]} evidence"), "Decision trace still exposes Tier 1 engineering terminology.");
+assert(!advisorSource.includes("Efficiency qualifying threshold"), "Decision trace still exposes the old efficiency-threshold label.");
+assert(!advisorSource.includes("Balanced qualifying threshold"), "Decision trace still exposes the old balanced-threshold label.");
 
 console.log("Model Advisor recommendation explanations PASS: advisory sections are present and alternates are derived only from existing ranking/eligible outputs.");

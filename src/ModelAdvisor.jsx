@@ -243,6 +243,11 @@ function labelFor(options, value) {
   return options.find((o) => o.value === value)?.label || value;
 }
 
+function modelLabel(modelOrId) {
+  const id = typeof modelOrId === "string" ? modelOrId : modelOrId?.canonical_model_id;
+  return getModelById(id)?.label || id || "Unknown model";
+}
+
 function RecommendationCard({ card, ranking, inputs }) {
   const model = card.model;
   const sharedModel = getModelById(model.canonical_model_id);
@@ -360,7 +365,7 @@ function ScoreCompare({ model, metric, score, threshold, qualified, note }) {
   return (
     <div className="rounded-lg border p-3 mb-2" style={{ borderColor: pass ? "#1E7A3D" : "#D1D5DB", background: pass ? "#EAF6EE" : "#F9FAFB" }}>
       <div className="flex justify-between text-xs font-semibold mb-1" style={{ color: CHARCOAL }}>
-        <span>{model}</span><span>{score != null ? score : "—"}</span>
+        <span>{modelLabel(model)}</span><span>{score != null ? score : "—"}</span>
       </div>
       <div className="text-[11px] text-gray-500">{note}</div>
     </div>
@@ -586,7 +591,7 @@ function ModelAdvisorInner() {
               Print / Save as PDF
             </button>
             <button onClick={() => setView("audit")} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300" style={{ color: CHARCOAL }}>
-              Recommendation Methodology &amp; Decision Trace
+              Why these recommendations?
             </button>
             <button onClick={() => setView("calc")} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">
               Back to advisor
@@ -634,7 +639,7 @@ function ModelAdvisorInner() {
           </div>
 
           <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Recommended model(s) &amp; ranking rationale</div>
-          <div className="text-[11px] text-gray-500 mb-3">Recommendation evidence describes benchmark coverage separately from technical-spec confidence and does not independently change rank order.</div>
+          <div className="text-[11px] text-gray-500 mb-3">Benchmark evidence coverage is shown separately from technical-spec confidence; it does not independently change rank order.</div>
           {result.cards.length === 0 ? (
             <div className="rounded-xl border border-dashed border-gray-300 p-4 mb-6 text-sm text-gray-500">
               No models met the stated requirements at the time this report was generated. Relax the license, governance, or context window filters and re-run.
@@ -656,7 +661,7 @@ function ModelAdvisorInner() {
                     const conf = CONFIDENCE_BADGE[m.confidence] || CONFIDENCE_BADGE.MEDIUM;
                     return (
                       <div key={m.canonical_model_id} className="flex justify-between gap-3">
-                        <span className="font-semibold">{m.canonical_model_id}</span>
+                        <span className="font-semibold">{modelLabel(m)}</span>
                         <span className="text-gray-500 text-xs">
                           {m.param_count_billion != null ? `${m.param_count_billion}B` : "unverified"} &middot;{" "}
                           <span style={{ color: conf.color }}>Spec: {conf.label}</span> &middot; {m.benchmark_evidence_label} &middot; {m.license || "license unverified"}
@@ -675,7 +680,7 @@ function ModelAdvisorInner() {
               <div className="mb-6">
                 {result.verificationCandidates.map((m) => (
                   <div key={m.canonical_model_id} className="rounded-xl border border-amber-300 bg-amber-50 p-4 mb-2 text-sm">
-                    <div className="font-bold mb-1" style={{ color: CHARCOAL }}>{m.canonical_model_id}</div>
+                    <div className="font-bold mb-1" style={{ color: CHARCOAL }}>{modelLabel(m)}</div>
                     <div className="text-gray-600">{explainVerificationCandidate(m)}</div>
                     <div className="text-xs mt-1"><EvidenceBadge model={m} /></div>
                   </div>
@@ -699,7 +704,7 @@ function ModelAdvisorInner() {
               className="no-print inline-flex items-center gap-1.5 text-sm font-bold justify-center py-2.5 px-5 rounded-lg mb-6"
               style={{ background: CHARCOAL, color: "white" }}
             >
-              Next: size infrastructure for {result.cards[0].model.canonical_model_id} <ArrowRight className="w-3.5 h-3.5" />
+              Next: size infrastructure for {modelLabel(result.cards[0].model)} <ArrowRight className="w-3.5 h-3.5" />
             </a>
           )}
 
@@ -740,7 +745,7 @@ function ModelAdvisorInner() {
           <div className="text-xs uppercase tracking-wide mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>1. Your Requirements</div>
           <DecisionRow label="Workloads selected" value={checkedWorkloads.map((w) => labelFor(WORKLOAD_OPTIONS, w)).join(", ")} />
           <DecisionRow label="Primary workload (drives ranking)" value={labelFor(WORKLOAD_OPTIONS, primaryWorkload)} sub="Ranking uses only this workload's metric, since a model strong at one task isn't necessarily strong at every task checked" />
-          <DecisionRow label="Ranking dimension" value={METRIC_LABELS[result.metric]} sub={`Selected from primary workload: ${primaryWorkload} -> ${result.metric}`} />
+          <DecisionRow label="Ranking dimension" value={METRIC_LABELS[result.metric]} sub={`Chosen from the primary workload: ${labelFor(WORKLOAD_OPTIONS, primaryWorkload)}`} />
           <DecisionRow label="Quality priority" value={labelFor(QUALITY_OPTIONS, qualityPriority)} />
           <DecisionRow label="Optimization priority" value={labelFor(OPTIMIZATION_OPTIONS, optimizationPriority)} sub="Determines which slot fills 'Best Overall Fit'" />
           <DecisionRow label="Context window" value={labelFor(CONTEXT_OPTIONS, contextWindow)} />
@@ -789,7 +794,7 @@ function ModelAdvisorInner() {
                 )}
                 {topModel && topDetails && (
                   <div className="text-xs text-gray-500 mb-4">
-                    <b style={{ color: CHARCOAL }}>{topModel.canonical_model_id}</b> cleared every check: license {topDetails.licenseState}, governance {topDetails.govState}, context window {topDetails.contextState}, modality {topDetails.modalityState}.
+                    <b style={{ color: CHARCOAL }}>{modelLabel(topModel)}</b> cleared every check: license {topDetails.licenseState}, governance {topDetails.govState}, context window {topDetails.contextState}, modality {topDetails.modalityState}.
                   </div>
                 )}
               </>
@@ -797,21 +802,21 @@ function ModelAdvisorInner() {
           })()}
 
           {/* SECTION 3: RANKING DECISION */}
-          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. Ranking Decision</div>
+          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. How the Ranking Was Decided</div>
           <div className="text-xs text-gray-500 mb-2">
-            Ranked by <b style={{ color: CHARCOAL }}>{METRIC_LABELS[result.metric]}</b> ({result.metric}), a capability index from the tracked capability registry (synced {new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()}) -- not an externally standardized benchmark score; see Section 6 for what it does and doesn't represent.
+            The primary workload is compared using <b style={{ color: CHARCOAL }}>{METRIC_LABELS[result.metric]}</b>, a capability index from the tracked capability registry (synced {new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()}). It is directional rather than an externally standardized benchmark score; Section 6 explains the evidence and limitations.
           </div>
           {result.ranking.bestPerformanceIsFallback && (
             <div className="text-xs rounded-lg p-2 mb-2" style={{ background: "#FFF8E6", border: "1px solid #E8CE8A", color: CHARCOAL }}>
-              No eligible model has a {METRIC_LABELS[result.metric]} score. Best Performance fell back to ranking by overall capability (intelligence_index) instead.
+              No eligible model has a direct {METRIC_LABELS[result.metric]} score, so the capability leader is selected using the overall capability index instead.
             </div>
           )}
           {result.ranking.restarted && (
             <div className="text-xs rounded-lg p-2 mb-2" style={{ background: "#FFF8E6", border: "1px solid #E8CE8A", color: CHARCOAL }}>
-              No eligible model has a {METRIC_LABELS[result.metric]} score, so the Efficiency and Balanced size decisions restarted using overall capability (intelligence_index) and its own margins, not the {METRIC_LABELS[result.metric]} margins below.
+              Because no eligible model has a direct {METRIC_LABELS[result.metric]} score, the smaller-model and balanced comparisons use overall capability and its matching tolerance.
             </div>
           )}
-          <div className="text-xs font-semibold mb-1" style={{ color: CHARCOAL }}>Tier 1 -- models with a {METRIC_LABELS[result.metric]} score, ranked</div>
+          <div className="text-xs font-semibold mb-1" style={{ color: CHARCOAL }}>Models with direct {METRIC_LABELS[result.metric]} evidence</div>
           <div className="overflow-x-auto mb-3">
             <table className="w-full text-xs" style={{ color: CHARCOAL }}>
               <thead>
@@ -825,7 +830,7 @@ function ModelAdvisorInner() {
               <tbody>
                 {result.ranking.tier1.map((m) => (
                   <tr key={m.canonical_model_id} className={m.canonical_model_id === result.ranking.bestPerformance?.canonical_model_id ? "font-bold" : ""} style={{ color: m.canonical_model_id === result.ranking.bestPerformance?.canonical_model_id ? RED : CHARCOAL }}>
-                    <td className="py-1 pr-2">{m.canonical_model_id}</td>
+                    <td className="py-1 pr-2">{modelLabel(m)}</td>
                     <td className="text-right py-1 pr-2">{m[result.metric]}</td>
                     <td className="text-right py-1 pr-2">{m.param_count_billion ?? "unverified"}</td>
                     <td className="text-right py-1">{m.confidence}</td>
@@ -834,24 +839,24 @@ function ModelAdvisorInner() {
               </tbody>
             </table>
           </div>
-          <DecisionRow label={`Quality margin (${qualityPriority})`} value={`${result.ranking.sizeSlotFullMargin} points`} sub={result.ranking.restarted ? "intelligence_index margin (restarted decision)" : `${METRIC_LABELS[result.metric]} margin`} />
-          <DecisionRow label="Efficiency qualifying threshold" value={result.ranking.sizeSlotTopScore != null ? `>= ${(result.ranking.sizeSlotTopScore - result.ranking.sizeSlotFullMargin).toFixed(1)}` : "n/a"} sub="Top score minus the full margin above" />
-          <DecisionRow label="Balanced qualifying threshold" value={result.ranking.sizeSlotTopScore != null ? `>= ${(result.ranking.sizeSlotTopScore - result.ranking.sizeSlotHalfMargin).toFixed(1)}` : "n/a"} sub="Top score minus half the margin -- a tighter bar than Efficiency" />
+          <DecisionRow label={`Allowed capability tradeoff (${qualityPriority})`} value={`${result.ranking.sizeSlotFullMargin} points`} sub={result.ranking.restarted ? "Overall-capability tolerance used for this comparison" : `${METRIC_LABELS[result.metric]} tolerance`} />
+          <DecisionRow label="Smaller-model qualifying floor" value={result.ranking.sizeSlotTopScore != null ? `>= ${(result.ranking.sizeSlotTopScore - result.ranking.sizeSlotFullMargin).toFixed(1)}` : "n/a"} sub="Minimum capability needed to remain eligible for the efficiency-oriented choice" />
+          <DecisionRow label="Balanced qualifying floor" value={result.ranking.sizeSlotTopScore != null ? `>= ${(result.ranking.sizeSlotTopScore - result.ranking.sizeSlotHalfMargin).toFixed(1)}` : "n/a"} sub="A tighter capability floor used for the balanced choice" />
 
           {/* SECTION 4: WHY THESE RECOMMENDATIONS */}
-          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>4. Why These Recommendations</div>
-          <div className="text-xs text-gray-500 mb-3">Each badge below is traced to its own decision -- a model that lost Best Performance can still be the correct Efficiency or Balanced pick, and vice versa.</div>
+          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>4. Why These Models Were Selected</div>
+          <div className="text-xs text-gray-500 mb-3">Each recommendation role is evaluated separately: the capability leader, the smallest model that stays within the allowed tradeoff, and the balanced option can legitimately be different models.</div>
           {result.cards.map((card) => (
             <div key={card.model.canonical_model_id} className="mb-4">
-              <div className="text-sm font-bold mb-1" style={{ color: CHARCOAL }}>{card.model.canonical_model_id}</div>
+              <div className="text-sm font-bold mb-1" style={{ color: CHARCOAL }}>{modelLabel(card.model)}</div>
               {card.badges.map((badge) => {
                 if (badge === "Best Performance") {
                   if (result.ranking.bestPerformanceIsFallback) {
                     const runnerUp = result.ranking.bestPerformanceFallbackPool[1];
                     return (
                       <div key={badge} className="text-xs text-gray-500 mb-2">
-                        <b style={{ color: CHARCOAL }}>Best Performance (fallback):</b> no eligible model had a {METRIC_LABELS[result.metric]} score, so this slot was decided by overall capability instead. {card.model.intelligence_index} {METRIC_LABELS.intelligence_index}
-                        {runnerUp ? <>, ahead of the next-highest eligible model ({runnerUp.canonical_model_id}, {runnerUp.intelligence_index}) by {(card.model.intelligence_index - runnerUp.intelligence_index).toFixed(1)} points.</> : ", the only eligible model with any capability score."}
+                        <b style={{ color: CHARCOAL }}>Best Performance (overall-capability fallback):</b> no eligible model had a {METRIC_LABELS[result.metric]} score, so this slot was decided by overall capability instead. {card.model.intelligence_index} {METRIC_LABELS.intelligence_index}
+                        {runnerUp ? <>, ahead of the next-highest eligible model ({modelLabel(runnerUp)}, {runnerUp.intelligence_index}) by {(card.model.intelligence_index - runnerUp.intelligence_index).toFixed(1)} points.</> : ", the only eligible model with any capability score."}
                       </div>
                     );
                   }
@@ -1000,11 +1005,11 @@ function ModelAdvisorInner() {
               <Select value={multimodal} onChange={setMultimodal} options={MULTIMODAL_OPTIONS} />
             </Field>
 
-            <Field label="Reasoning intensity" tipKey="reasoningIntensity" hint="Informational only in V1 -- does not affect ranking.">
+            <Field label="Reasoning intensity" tipKey="reasoningIntensity" hint="Informational only — does not currently affect ranking.">
               <Select value={reasoningIntensity} onChange={setReasoningIntensity} options={REASONING_OPTIONS} />
             </Field>
 
-            <Field label="Fine-tuning intent" tipKey="fineTuning" hint="Informational only in V1 -- does not affect ranking.">
+            <Field label="Fine-tuning intent" tipKey="fineTuning" hint="Informational only — does not currently affect ranking.">
               <Select value={fineTuning} onChange={setFineTuning} options={FINETUNE_OPTIONS} />
             </Field>
 
@@ -1067,7 +1072,7 @@ function ModelAdvisorInner() {
                 <div className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "#8A5A00" }}>Potential match requiring verification</div>
                 {result.verificationCandidates.map((m) => (
                   <div key={m.canonical_model_id} className="rounded-xl border border-amber-300 bg-amber-50 p-4 mb-2 text-sm">
-                    <div className="font-bold mb-1" style={{ color: CHARCOAL }}>{m.canonical_model_id}</div>
+                    <div className="font-bold mb-1" style={{ color: CHARCOAL }}>{modelLabel(m)}</div>
                     <div className="text-gray-600">{explainVerificationCandidate(m)}</div>
                   </div>
                 ))}
