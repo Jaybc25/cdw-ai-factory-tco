@@ -257,3 +257,7 @@ This metadata is disclosure-only. It is not a ranking input and does not alter h
 ## Model Advisor recommendation explanation UX
 
 Recommendation cards now surface a more advisory explanation without changing the ranking engine: **Why it fits**, **Primary tradeoff**, and **Also consider**, alongside the separate benchmark-evidence confidence disclosure. The alternate is chosen only from the recommendation slots already computed by the engine (Best Performance, Most Efficient Qualifying Model, Balanced) or, when those collapse to the same model, from the existing eligible-model list. No second ranking pass or hidden weighted score is introduced.
+
+## GPU Sizing higher-growth capacity semantics
+
+The **Higher-Growth Alternative** now means a valid deployable configuration with materially more production capacity/headroom than the recommendation. It no longer requires a faster GPU class. When the selected class is already at the top of the applicable catalog, GPU Sizing can advance by one additional deployment quantum of the same class (for example, 8x B300 to 16x B300). Future supported classes such as GB300 or Vera Rubin can enter the same candidate framework without changing this semantic contract.

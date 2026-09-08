@@ -8,6 +8,7 @@ import { ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pric
 import { GPU_SIZING_PRICE_USD as GPU_PRICE_USD } from "./pricingRegistry.js";
 import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelParamsB } from "./modelRegistry.js";
 import { getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
+import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -204,10 +205,7 @@ function computeInference(inputs) {
   const lowerCost = cheapestOther && selectedPriced.deployedCost != null && cheapestOther.deployedCost < selectedPriced.deployedCost
     ? cheapestOther : null;
 
-  const mostCapableOther = nonRecommended.length
-    ? nonRecommended.reduce((best, c) => (c.anchor > best.anchor ? c : best))
-    : null;
-  const higherGrowth = mostCapableOther && mostCapableOther.anchor > selected.anchor ? mostCapableOther : null;
+  const higherGrowth = selectHigherGrowthConfiguration(selectedPriced, priced, "effectiveAnchor");
 
   const confidence =
     model.status !== "VERIFIED"
@@ -259,7 +257,7 @@ function computeInference(inputs) {
     minTechnical: selected.gpusWorkload,
     recommended: recommendedCount,
     lowerCost: lowerCost ? { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount } : { class: null, workload: null, recommended: null },
-    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount } : { class: null, workload: null, recommended: null },
+    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount, growthBasis: higherGrowth.growthBasis } : { class: null, workload: null, recommended: null, growthBasis: null },
     confidence,
     rtxAlt,
     budget,
@@ -319,10 +317,7 @@ function computeTraining(inputs) {
   const lowerCost = cheapestOther && selectedPriced.deployedCost != null && cheapestOther.deployedCost < selectedPriced.deployedCost
     ? cheapestOther : null;
 
-  const mostCapableOther = nonRecommended.length
-    ? nonRecommended.reduce((best, c) => (c.peakTFLOPS > best.peakTFLOPS ? c : best))
-    : null;
-  const higherGrowth = mostCapableOther && mostCapableOther.peakTFLOPS > selected.peakTFLOPS ? mostCapableOther : null;
+  const higherGrowth = selectHigherGrowthConfiguration(selectedPriced, priced, "peakTFLOPS");
 
   const confidence =
     model.status !== "VERIFIED"
@@ -347,7 +342,7 @@ function computeTraining(inputs) {
     minTechnical: selected.gpusWorkload,
     recommended: recommendedCount,
     lowerCost: lowerCost ? { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount } : { class: null, workload: null, recommended: null },
-    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount } : { class: null, workload: null, recommended: null },
+    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount, growthBasis: higherGrowth.growthBasis } : { class: null, workload: null, recommended: null, growthBasis: null },
     confidence,
     budget,
     trainingSemantics,
@@ -626,8 +621,8 @@ function UtilizationPanel({ result, workingDayHours, onWorkingDayHoursChange }) 
       <UtilizationBar label="Lower-cost alt" gpuClass={result.lowerCost.class} pct={u.lowerCost} />
       <UtilizationBar label="Higher-growth alt" gpuClass={result.higherGrowth.class} pct={u.higherGrowth} />
       <p className="text-xs text-gray-500 mt-2 mb-4">
-        Same estimated workload, different classes -- a lower utilization % at a higher-growth class isn't
-        waste, it's headroom bought on purpose. A right-sized class runs closer to full.
+        Same estimated workload, different deployable configurations -- a lower utilization % in the higher-growth option isn't
+        waste, it's headroom bought on purpose. The higher-growth option may use a different class or the next deployment quantum of the same class.
       </p>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold" style={{ color: CHARCOAL }}>Length of working day</span>
@@ -1076,7 +1071,7 @@ function GPUSizingCalculatorInner() {
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Alternatives considered</div>
             <div className="flex flex-wrap gap-3 mb-6">
               <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />
-              <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." />
+              <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog."  subtitle={result.higherGrowth.growthBasis === "next-deployment-quantum" ? "Next deployment quantum for additional headroom" : "Higher deployable capacity for additional headroom"}/>
             </div>
             {mode === "Inference" && environment === "Dev/Test/POC" && result.rtxAlt.eligible && (
               <div className="mb-6 rounded-xl p-4 bg-blue-50 border border-blue-200">
