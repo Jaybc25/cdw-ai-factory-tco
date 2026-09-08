@@ -83,6 +83,8 @@ test("training sizing uses total parameters for resident state and active parame
   await expect(resultCard(page, "Recommended")).toContainText("56 GPUs");
 });
 
+// The production cards themselves are the TCO-selection controls; there is no
+// duplicate selector lower on the page.
 test("higher-growth production design is opt-in for TCO and resets after re-sizing", async ({ page }) => {
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await chooseInferenceModel(page, "muse-glimmer-30b");
@@ -105,4 +107,3 @@ test("higher-growth production design is opt-in for TCO and resets after re-sizi
   const resetHref = await tcoLink.getAttribute("href");
   expect(resetHref).toContain("sizingBasis=recommended");
 });
-
