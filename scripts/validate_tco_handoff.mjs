@@ -1,3 +1,4 @@
+import "./validate_tco_cloud_unit_price_trend.mjs";
 import fs from "node:fs";
 
 const source = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
