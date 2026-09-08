@@ -8,13 +8,15 @@ For architecture, history, validation findings, conventions, and durable project
 
 For a human-readable history of meaningful milestones and current open items, read `CHANGELOG.md`.
 
+For the current model catalog, architecture-aware sizing state, capability-evidence rules, and Model Advisor -> GPU Sizing -> TCO ownership contract, read `docs/MODEL_MODERNIZATION_CURRENT_STATE.md`.
+
 ## Internal release and version record
 
 Versioning is an internal engineering, audit, maintenance, and recovery mechanism. It is not intended to be displayed prominently in the customer-facing application unless a business reason is established later.
 
 **Current validated releases:** `v2026.09` remains the immutable September 1 baseline, followed by `AI Factory Suite 2026.09.1` released September 4, 2026. Existing release tags/releases are immutable.
 
-**Current unreleased code checkpoint before this documentation catch-up:** `main` at `696c4c87122b7dfab25ac5eec59c2c0db8dcef78` on September 5, 2026. Post-2026.09.1 work includes curated My Summary consistency handling, Best-Value GPUaaS, Global Reset, home account/My Summary access, the Phase 1 authenticated front door, auth-aware regression architecture, provider commercial-eligibility gating, and the GPU Sizing print/PDF hierarchy refinement. These changes remain `Unreleased` until a new validated tag is created.
+**Current unreleased code checkpoint before this documentation catch-up:** `main` at `4f74f97dd2bb06f762fb09e0b845f772a0435c63` on September 7, 2026. Post-2026.09.1 work includes curated My Summary consistency handling, Best-Value GPUaaS, Global Reset, home account/My Summary access, the Phase 1 authenticated front door, auth-aware regression architecture, provider commercial-eligibility gating, GPU Sizing print/PDF hierarchy refinement, and the completed first model-modernization tranche through PR #32. These changes remain `Unreleased` until a new validated tag is created.
 
 The suite uses calendar versioning for validated releases:
 
@@ -40,6 +42,20 @@ Routes in the current application:
 - `/summary` - Combined Summary for signed-in users
 
 The tools are designed as one connected journey, with state and provenance handoffs where appropriate.
+
+The core model-to-infrastructure-to-economics ownership chain is **Model Advisor -> GPU Sizing -> TCO**: Model Advisor owns recommendation/selection context, GPU Sizing owns the technical infrastructure requirement, and TCO consumes that technical result while owning economics and planning assumptions. TCO does not independently re-run Model Advisor or silently re-size the workload from model parameters.
+
+## Current model-catalog state
+
+The named production catalog currently contains 21 models:
+
+- 13 current/recommended models shown by default.
+- 8 existing-deployment models hidden by default behind `Include models for existing deployments`.
+- `Custom` remains a separate user-defined sizing option.
+
+The first ten-model modernization tranche is fully activated. The current architecture-aware sizing methodology supports dense, MoE, MLA, DeltaNet/full-attention hybrid, DeepSeek compressed-attention, and Mamba/attention hybrid sequence-state contracts. Exact capability scores are never fabricated merely to fill missing data.
+
+See `docs/MODEL_MODERNIZATION_CURRENT_STATE.md` and `ModelCatalogTranche1.md` for the durable current state and activation history.
 
 ## Current platform architecture
 
@@ -132,16 +148,17 @@ The current pricing provenance dates remain in `src/pricingProvenance.js`. The c
 
 ## Known assurance and maintenance priorities
 
-The permanent GitHub quality gate, TCO Excel-to-JavaScript parity suite, PR-local handoff regression suite, live Vercel regression suite, and first formal known-good release are now in place. The gate now validates the shared pricing registry, shared model registry, GPU Sizing -> TCO handoff ownership rules, SafeImageInput resource bounds, the checked-in TCO workbook structure, and Excel-to-JavaScript parity in addition to browser regressions. The main remaining technical maintenance priorities are:
+The permanent GitHub quality gate, TCO Excel-to-JavaScript parity suite, PR-local handoff regression suite, live Vercel regression suite, and first formal known-good release are now in place. The gate now validates the shared pricing registry, shared model registry, architecture-aware model sizing and activation contracts, GPU Sizing -> TCO handoff ownership rules, SafeImageInput resource bounds, the checked-in TCO workbook structure, and Excel-to-JavaScript parity in addition to browser regressions. The main remaining technical maintenance priorities are:
 
 1. Complete the final pre-release human/adversarial cross-tool pass and run credentialed/manual checks where the release scope requires auth, report, download-event, Slack notification, or PDF verification.
 2. Maintain the shared pricing registry and continue provider-by-provider refreshes with explicit `LISTED`, `NODE-NORM`, `EST`, and `QUOTE` confidence.
 3. Keep NIM compatibility manual until the NVIDIA endpoint is production-validated.
-4. For the next validated release, preserve the same release discipline: release record, package metadata, merged-tree gate, deployed-scope verification, and exact immutable tag/commit identity.
-5. Keep post-2026.09.1 My Summary, Best-Value GPUaaS, Global Reset, authentication, provider-eligibility, and print refinements under `Unreleased` until an explicit next validated tag is created.
-6. Execute controlled Vite/esbuild and React Router upgrades separately with regression testing; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo mitigation.
+4. Maintain the current model-modernization baseline as model policy, source evidence, sizing methodology, or handoff semantics evolve. New models must clear source qualification, architecture/methodology review, Advisor calibration, visibility/handoff checks, and the exact-head permanent quality gate before customer-facing activation.
+5. For the next validated release, preserve the same release discipline: release record, package metadata, merged-tree gate, deployed-scope verification, and exact immutable tag/commit identity.
+6. Keep post-2026.09.1 My Summary, Best-Value GPUaaS, Global Reset, authentication, provider-eligibility, print refinements, and model modernization under `Unreleased` until an explicit next validated tag is created.
+7. Execute controlled Vite/esbuild and React Router upgrades separately with regression testing; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo mitigation.
 
-See `AiFactoryProjectBrief.md` for the detailed defect history, current source-level remediation status, prior validation record, and current validated baseline.
+See `AiFactoryProjectBrief.md` for the detailed defect history, current source-level remediation status, prior validation record, and current validated baseline. See `docs/MODEL_MODERNIZATION_CURRENT_STATE.md` for the current model-catalog and architecture-aware sizing baseline.
 
 ## Publication and branding status
 
@@ -157,3 +174,4 @@ The `cdwaifactory.com` domain has been acquired and is managed through Cloudflar
 - Treat `main` as the current code/data source of truth.
 - Update `AiFactoryProjectBrief.md` after durable architecture, validation, data-source, or roadmap changes.
 - Update `CHANGELOG.md` for meaningful release-level changes, not every small commit.
+- Update `docs/MODEL_MODERNIZATION_CURRENT_STATE.md` whenever model catalog policy, architecture-aware sizing methodology, capability evidence, or Model Advisor -> GPU Sizing -> TCO ownership semantics change materially.
