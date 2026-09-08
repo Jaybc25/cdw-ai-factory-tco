@@ -1,5 +1,13 @@
 # Changelog
 
+## September 8, 2026 - Model Advisor explanation polish
+
+- Simplified customer-facing recommendation and decision-trace language without changing ranking, filters, margins, tie-breaking, or model eligibility.
+- Replaced developer-oriented model IDs with friendly model names in report and trace presentation while preserving canonical IDs for routing and logic.
+- Renamed the methodology entry point to “Why these recommendations?”, removed production “V1” wording, and reduced repeated evidence-language overhead.
+- Kept the full formal methodology and decision trace available for auditability, with clearer labels for direct evidence, capability tradeoffs, and qualifying floors.
+
+
 ## September 8, 2026 - TCO cloud GPU unit-price trend production sensitivity
 
 - Activated the cloud GPU unit-price trend sensitivity with a default of 0%/yr, preserving prior results unless changed.
