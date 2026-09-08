@@ -1,6 +1,7 @@
 name: Temporary growth selection patch
 on:
-  workflow_dispatch:
+  push:
+    branches: [gpu-sizing-growth-selection]
 permissions:
   contents: write
 jobs:
