@@ -1,5 +1,12 @@
 # Changelog
 
+## September 8, 2026 - GPU Sizing selected-budget cleanup
+
+- Estimated Budget now follows the configuration explicitly selected for TCO, so selecting a Higher-Growth Alternative updates the visible budget to that configuration's existing pricing basis.
+- Removed the Pod Sizing `Coming soon` placeholder from the current production GPU Sizing journey; deployment-buildout/pod experience remains deferred to Phase 2.
+- No sizing methodology, pricing data, TCO economics, or hardware recommendation logic changed.
+
+
 ## September 8, 2026 - GPU Sizing higher-growth capacity semantics
 
 - Redefined the Higher-Growth Alternative as the next valid deployable capacity/headroom step, rather than requiring a faster GPU class.
