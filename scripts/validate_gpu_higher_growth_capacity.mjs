@@ -13,18 +13,21 @@ const topCatalogGrowth = selectHigherGrowthConfiguration(b300, [h200, b200, gb20
 assert(topCatalogGrowth?.id === "B300", "Top-of-catalog B300 should grow within the same class.");
 assert(topCatalogGrowth.deployedCount === 16, "8x B300 should step to 16x B300, not return no alternative.");
 assert(topCatalogGrowth.growthBasis === "next-deployment-quantum", "B300 same-class growth must identify the next deployment quantum.");
+assert(topCatalogGrowth.deployedCapacity > topCatalogGrowth.baselineCapacity, "B300 higher-growth throughput capacity must exceed baseline.");
 
 const multiNodeSelected = { ...h200, deployedCount: 16 };
 const multiNodeGrowth = selectHigherGrowthConfiguration(multiNodeSelected, [multiNodeSelected, b200, b300], "effectiveAnchor");
-assert(multiNodeGrowth?.deployedCount > 16, "Higher-growth capacity must exceed the selected deployment capacity.");
-assert(multiNodeGrowth.deployedCapacity > multiNodeGrowth.baselineCapacity, "Higher-growth throughput capacity must be strictly higher than baseline.");
+assert(multiNodeGrowth != null, "A higher-growth configuration should be found when a higher-capacity deployment exists.");
+assert(multiNodeGrowth.deployedCapacity > multiNodeGrowth.baselineCapacity, "Higher-growth throughput capacity must be strictly higher than baseline even when a more capable class uses fewer GPUs.");
 
 const rackSelected = { ...gb200, deployedCount: 72 };
 const rackGrowth = selectHigherGrowthConfiguration(rackSelected, [rackSelected, b300], "effectiveAnchor");
 assert(rackGrowth?.id === "GB200 NVL72", "A rack-scale top-capacity recommendation must be allowed to grow within the same class.");
 assert(rackGrowth.deployedCount === 144, "One additional NVL72 deployment quantum should produce 144 GPUs.");
+assert(rackGrowth.deployedCapacity > rackGrowth.baselineCapacity, "Rack-scale higher-growth capacity must exceed baseline.");
 
 const trainGrowth = selectHigherGrowthConfiguration(b300, [h200, b200, b300], "peakTFLOPS");
 assert(trainGrowth?.id === "B300" && trainGrowth.deployedCount === 16, "Training should use the same deployable-capacity semantics.");
+assert(trainGrowth.deployedCapacity > trainGrowth.baselineCapacity, "Training higher-growth capacity must exceed baseline.");
 
 console.log("GPU higher-growth capacity PASS: growth means the next valid deployable capacity step, including same-class expansion at the top of the catalog.");
