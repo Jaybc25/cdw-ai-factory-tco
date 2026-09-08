@@ -221,3 +221,9 @@ With the first model-catalog modernization tranche complete, the next broad revi
 - overall cross-tool UX and customer-facing application cohesion.
 
 The appropriate pattern remains: inspect current state, classify current/aging/missing assumptions, write the plan, then change code/data deliberately.
+
+## GPU Sizing production-design selection
+
+GPU Sizing keeps its node-rounded **Recommended** configuration as the default technical design. When the engine produces a qualifying **Higher-growth alternative**, the user may explicitly select that production design for downstream TCO analysis. The choice changes only which already-calculated technical class/count is carried forward; it does not change the sizing formulas.
+
+TCO receives the exact selected class/count and a `sizingBasis` provenance value (`recommended` or `higher-growth`). TCO remains the economic/planning layer and must not independently choose between those technical designs or re-size them from model parameters. Dev/Test/POC workstation alternatives remain separate from this production-design choice.

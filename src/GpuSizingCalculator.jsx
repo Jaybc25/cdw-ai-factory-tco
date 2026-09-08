@@ -470,7 +470,7 @@ function ConfidenceBadge({ level }) {
   );
 }
 
-function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent, emptyMessage }) {
+function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent, emptyMessage, selectable = false, selected = false, onSelect }) {
   if (gpuClass == null) {
     return (
       <div
@@ -485,20 +485,37 @@ function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent, empty
       </div>
     );
   }
-  return (
-    <div
-      className="rounded-xl p-5 flex-1 min-w-[220px]"
-      style={{ background: accent ? CHARCOAL : "#F7F7F7", color: accent ? "white" : CHARCOAL }}
-    >
+  const cardStyle = {
+    background: accent ? CHARCOAL : "#F7F7F7",
+    color: accent ? "white" : CHARCOAL,
+    border: selectable ? `2px solid ${selected ? RED : "transparent"}` : undefined,
+    boxShadow: selectable && selected ? "0 0 0 2px rgba(204,0,0,0.14)" : undefined,
+    cursor: selectable ? "pointer" : undefined,
+  };
+  const content = (
+    <>
       <div className="flex items-center gap-2 mb-2">
         <Icon className="w-4 h-4" style={{ color: RED }} />
         <span className="text-xs font-bold uppercase tracking-wide" style={{ opacity: 0.8 }}>{title}</span>
       </div>
+      {selectable && (
+        <div className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: selected ? RED : (accent ? "#D1D5DB" : "#707070") }}>
+          {selected ? "Selected for TCO" : "Tap to select for TCO"}
+        </div>
+      )}
       <div className="text-3xl font-bold mb-1">{gpus} <span className="text-base font-normal">GPUs</span></div>
       <div className="text-sm font-semibold" style={{ color: accent ? "white" : CHARCOAL }}>{gpuClass}</div>
       {subtitle && <div className="text-xs mt-1" style={{ opacity: 0.7 }}>{subtitle}</div>}
-    </div>
+    </>
   );
+  if (selectable) {
+    return (
+      <button type="button" onClick={onSelect} aria-pressed={selected} className="rounded-xl p-5 flex-1 min-w-[220px] text-left" style={cardStyle}>
+        {content}
+      </button>
+    );
+  }
+  return <div className="rounded-xl p-5 flex-1 min-w-[220px]" style={cardStyle}>{content}</div>;
 }
 
 function fmtUsd(n) {
@@ -661,9 +678,9 @@ const TCO_OWN_SYS_FOR_CLASS = {
   B300: "DGX B300",
 };
 
-function TcoHandoff({ selectedClass, recommended, mode, workingDayHours, model, modelParamsB, quant }) {
+function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", mode, workingDayHours, model, modelParamsB, quant }) {
   const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
-  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass });
+  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });
   if (model?.id) params.set("model", model.id);
   if (Number.isFinite(Number(modelParamsB)) && Number(modelParamsB) > 0) params.set("modelParamsB", String(modelParamsB));
   if (mode === "Inference" && quant) params.set("quant", quant);
@@ -674,7 +691,7 @@ function TcoHandoff({ selectedClass, recommended, mode, workingDayHours, model, 
       <div>
         <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Next: Cost comparison</div>
         <div className="text-xs text-gray-500">
-          Compare the cost of owning this recommended GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator.
+          Compare the cost of owning this {sizingBasis === "higher-growth" ? "user-selected higher-growth" : "recommended"} GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator.
         </div>
       </div>
       <a
@@ -897,6 +914,13 @@ function GPUSizingCalculatorInner() {
 
   const result = mode === "Inference" ? inferenceResult : trainingResult;
   const errors = mode === "Inference" ? infErrors : trainErrors;
+  const [tcoSelection, setTcoSelection] = useState("recommended");
+  const effectiveTcoSelection = tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
+  const tcoSelectedClass = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
+  const tcoSelectedCount = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
+  useEffect(() => {
+    setTcoSelection("recommended");
+  }, [mode, result?.selectedClass, result?.recommended, result?.higherGrowth?.class, result?.higherGrowth?.recommended]);
   const modelLabel = mode === "Inference" ? infModel.label : trainModel.label;
 
   useAutosaveSnapshot(
@@ -1270,13 +1294,13 @@ function GPUSizingCalculatorInner() {
             ) : (
             <>
               <div className="mb-4"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2 flex items-start gap-1"><Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{result.confidence.note}</p></div>
-              <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" /><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent /></div>
-              <div className="flex flex-wrap gap-3 mb-6"><ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." /><ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." /></div>
+              <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" /><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent selectable selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
+              <div className="flex flex-wrap gap-3 mb-6"><ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." /><ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." selectable={!!result.higherGrowth.class} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
               <BudgetPanel budget={result.budget} />
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
               <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).</div>
-              <TcoHandoff selectedClass={result.selectedClass} recommended={result.recommended} mode={mode} workingDayHours={workingDayHours} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
+              <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
               <PodSizingHandoff />
               <button onClick={requestReport} className="mt-3 w-full text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
             </>

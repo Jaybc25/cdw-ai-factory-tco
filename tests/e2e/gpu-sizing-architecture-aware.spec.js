@@ -82,3 +82,28 @@ test("training sizing uses total parameters for resident state and active parame
   await expect(resultCard(page, "Minimum technical")).toContainText("B300");
   await expect(resultCard(page, "Recommended")).toContainText("56 GPUs");
 });
+
+// The production cards themselves are the TCO-selection controls; there is no
+// duplicate selector lower on the page.
+test("higher-growth production design is opt-in for TCO and resets after re-sizing", async ({ page }) => {
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+  await chooseInferenceModel(page, "muse-glimmer-30b");
+
+  const recommendedChoice = page.getByRole("button", { name: /Recommended.*Selected for TCO/i });
+  await expect(recommendedChoice).toBeVisible();
+  await expect(recommendedChoice).toHaveAttribute("aria-pressed", "true");
+
+  const higherGrowthChoice = page.getByRole("button", { name: /Higher-growth alternative/i });
+  await expect(higherGrowthChoice).toBeVisible();
+  await higherGrowthChoice.click();
+  await expect(higherGrowthChoice).toHaveAttribute("aria-pressed", "true");
+
+  const tcoLink = page.getByRole("link", { name: "Compare TCO" });
+  const selectedHref = await tcoLink.getAttribute("href");
+  expect(selectedHref).toContain("sizingBasis=higher-growth");
+
+  await chooseInferenceModel(page, "llama-4-scout");
+  await expect(page.getByRole("button", { name: /Recommended.*Selected for TCO/i })).toHaveAttribute("aria-pressed", "true");
+  const resetHref = await tcoLink.getAttribute("href");
+  expect(resetHref).toContain("sizingBasis=recommended");
+});

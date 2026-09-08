@@ -718,6 +718,11 @@ function getInitialGpuCount() {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function getInitialSizingBasis() {
+  const raw = getIncomingParams()?.get("sizingBasis");
+  return raw === "higher-growth" ? "higher-growth" : "recommended";
+}
+
 // The GPU class the handoff's count was actually computed at (GPU Sizing's
 // naming, e.g. "H100", "B200", "GB200 NVL72"). Needed because ownSys's
 // underlying class isn't always the same class the count was sized for --
@@ -847,6 +852,7 @@ function AppInner() {
   // while `mode` looked fine in isolation.
   const [gpuSizingCount] = useState(() => getInitialGpuCount() ?? saved?.gpuSizingCount ?? null);
   const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);
+  const [gpuSizingBasis] = useState(() => arrivedFromGpuSizing ? getInitialSizingBasis() : saved?.gpuSizingBasis ?? "recommended");
   const matchedCloudGpuClass = sourceClass ? normalizeSourceClass(sourceClass) : null;
   const [workingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);
   const [incomingModelContext] = useState(getInitialModelContext);
@@ -988,12 +994,12 @@ function AppInner() {
       // which is the actual root cause of the workload-anchor loss -- see
       // the comment above their useState calls near the top of this
       // component for the full explanation.
-      gpuSizingCount, sourceClass, workingDayHours,
+      gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis,
     });
   }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
       fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
-      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours]);
+      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis]);
 
   async function submitLead() {
     if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
@@ -1249,6 +1255,17 @@ function AppInner() {
           </div>
         </div>
 
+        {view === "calc" && r.isWorkloadMode && (
+          <div style={{ background: gpuSizingBasis === "higher-growth" ? "#FFF5F5" : C.panel, border: `1px solid ${gpuSizingBasis === "higher-growth" ? "#E6A3A3" : C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: gpuSizingBasis === "higher-growth" ? C.red : C.sub, marginBottom: 3 }}>SIZING BASIS</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>
+              {gpuSizingBasis === "higher-growth" ? "Higher-growth alternative selected in GPU Sizing" : "Recommended configuration from GPU Sizing"}
+            </div>
+            {gpuSizingBasis === "higher-growth" && (
+              <div style={{ fontSize: 12, color: C.sub, marginTop: 3 }}>This configuration intentionally includes additional capacity/headroom beyond the primary recommendation.</div>
+            )}
+          </div>
+        )}
 
         {view === "gate" && (
           <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, marginBottom: 14 }}>
@@ -1314,7 +1331,7 @@ function AppInner() {
             {r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`} sub={`${modelDisplay} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
             {r.isWorkloadMode ? (
               <>
-                <Row label="Technical workload requirement" value={`${r.sysAdj} × ${ownSys}`} sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- fleet size is duty-cycle-independent`} />
+                <Row label="Technical workload requirement" value={`${r.sysAdj} × ${ownSys}`} sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- ${gpuSizingBasis === "higher-growth" ? "user-selected higher-growth alternative" : "GPU Sizing recommended configuration"}; fleet size is duty-cycle-independent`} />
                 <Row label="Cloud-pricing basis" value={`${Math.round(r.gpuHrsCloud).toLocaleString()} GPU-hrs/mo`} sub={workingDayHours ? `${workingDayHours} hrs/day duty cycle from GPU Sizing (not 24/7)` : `no duty-cycle data from GPU Sizing -- assumes ${Math.round(util * 100)}% of all hours, likely an overstatement`} />
               </>
             ) : (
