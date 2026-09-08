@@ -19,11 +19,22 @@ const expectedMargins = {
 };
 for (const [metric, priorities] of Object.entries(expectedMargins)) for (const [priority, expected] of Object.entries(priorities)) if (MARGINS[metric]?.[priority] !== expected) throw new Error(`Advisor margin drift for ${metric}/${priority}.`);
 
+const qwen = recommended.find((m) => m.canonical_model_id === "qwen3.8-27b");
+if (!qwen || qwen.intelligence_index !== 41.4 || qwen.coding_index !== 68.1 || qwen.agentic_index !== 46.8) throw new Error("Qwen3.8 sourced AA capability mapping drifted.");
+const gemma = recommended.find((m) => m.canonical_model_id === "gemma-4-26b-a4b-it");
+if (!gemma || gemma.intelligence_index !== 13.9 || gemma.coding_index != null || gemma.agentic_index != null) throw new Error("Gemma 4 default-semantics AA capability mapping drifted.");
+for (const id of ["deepseek-v4-flash-0731", "deepseek-v4-pro-0813"]) {
+  const model = recommended.find((m) => m.canonical_model_id === id);
+  if (!model || model.intelligence_index != null || model.coding_index != null || model.agentic_index != null) throw new Error(`${id} must remain recommendation-eligible but scoreless until an approved default-semantics capability mapping exists.`);
+}
+const nemotron = recommended.find((m) => m.canonical_model_id === "nemotron-3-super-120b-a12b");
+if (!nemotron || nemotron.intelligence_index !== 18.6 || nemotron.coding_index !== 37.7 || nemotron.agentic_index !== 4.2) throw new Error("Nemotron sourced capability mapping drifted.");
+
 const workloads = ["chat", "coding", "agentic"];
 const qualities = ["frontier-like", "strong", "economical"];
 const optimizations = ["best-capability", "balanced", "infrastructure-efficiency"];
-function inputs(primaryWorkload, qualityPriority, optimizationPriority) {
-  return { primaryWorkload, qualityPriority, optimizationPriority, contextWindow: "none", multimodal: "none", license: "need-to-check", governance: "none" };
+function inputs(primaryWorkload, qualityPriority, optimizationPriority, governance = "none") {
+  return { primaryWorkload, qualityPriority, optimizationPriority, contextWindow: "none", multimodal: "none", license: "need-to-check", governance };
 }
 
 for (const workload of workloads) {
@@ -33,11 +44,9 @@ for (const workload of workloads) {
       if (!result.cards.length) throw new Error(`Advisor returned no cards for ${workload}/${quality}/${optimization}.`);
       for (const card of result.cards) if (!recommendedIds.has(card.model.canonical_model_id)) throw new Error(`Advisor leaked non-recommended ${card.model.canonical_model_id}.`);
       const best = result.cards.find((c) => c.badges.includes("Best Performance"))?.model.canonical_model_id;
-      if (best !== "muse-glimmer-30b") throw new Error(`${workload}/${quality}/${optimization}: expected Muse Best Performance; found ${best}.`);
+      if (best !== "qwen3.8-27b") throw new Error(`${workload}/${quality}/${optimization}: expected evidence-leading Qwen3.8 Best Performance; found ${best}.`);
       const overall = result.cards.find((c) => c.badges.includes("Best Overall Fit"))?.model.canonical_model_id;
-      if (optimization === "infrastructure-efficiency" && quality === "economical") {
-        if (overall !== "gpt-oss-20b") throw new Error(`${workload}/${quality}: expected gpt-oss-20b infrastructure-efficiency overall fit; found ${overall}.`);
-      } else if (overall !== "muse-glimmer-30b") throw new Error(`${workload}/${quality}/${optimization}: expected Muse overall fit; found ${overall}.`);
+      if (overall !== "qwen3.8-27b") throw new Error(`${workload}/${quality}/${optimization}: expected Qwen3.8 Best Overall Fit under current v4.3 evidence; found ${overall}.`);
       const metric = selectMetric(workload);
       const tier1 = result.ranking.tier1;
       for (let i = 1; i < tier1.length; i++) if ((tier1[i - 1][metric] ?? -Infinity) < (tier1[i][metric] ?? -Infinity)) throw new Error(`Metric ordering broken for ${workload}.`);
@@ -45,11 +54,12 @@ for (const workload of workloads) {
   }
 }
 
-for (const id of ["gemma-4-26b-a4b-it", "qwen3.8-27b", "deepseek-v4-flash-0731", "deepseek-v4-pro-0813"]) {
-  const model = recommended.find((m) => m.canonical_model_id === id);
-  if (!model || model.intelligence_index != null || model.coding_index != null || model.agentic_index != null) throw new Error(`${id} must remain recommendation-eligible but scoreless until exact capability mapping exists.`);
+for (const workload of workloads) {
+  const result = buildRecommendations(catalog, inputs(workload, "economical", "infrastructure-efficiency", "us-only"));
+  const best = result.cards.find((c) => c.badges.includes("Best Performance"))?.model.canonical_model_id;
+  if (best !== "muse-glimmer-30b") throw new Error(`${workload}/us-only: expected Muse Best Performance after governance filter; found ${best}.`);
+  const overall = result.cards.find((c) => c.badges.includes("Best Overall Fit"))?.model.canonical_model_id;
+  if (overall !== "gpt-oss-20b") throw new Error(`${workload}/us-only/economical/infrastructure-efficiency: expected gpt-oss-20b; found ${overall}.`);
 }
-const nemotron = recommended.find((m) => m.canonical_model_id === "nemotron-3-super-120b-a12b");
-if (!nemotron || nemotron.intelligence_index !== 18.6 || nemotron.coding_index !== 37.7 || nemotron.agentic_index !== 4.2) throw new Error("Nemotron sourced capability mapping drifted.");
 
-console.log("Model Advisor semantic calibration PASS: thirteen current models are active; Muse remains evidence-backed performance/balanced leader; gpt-oss-20b remains the economical infrastructure-efficiency pick; exact unmapped variants stay scoreless; Nemotron retains sourced AA evidence.");
+console.log("Model Advisor semantic calibration PASS: thirteen current models are active; Qwen3.8 is the current unconstrained v4.3 evidence leader across intelligence/coding/agentic; Gemma 4 carries intelligence-only default-semantics evidence; DeepSeek V4 Flash/Pro remain deliberately scoreless; U.S.-only governance restores the expected Muse performance and gpt-oss-20b economical efficiency pattern.");

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-09-06",
-  "note": "Manually maintained. Aliases are explicit mappings, never resolved by fuzzy name matching at sync time. New models are added here deliberately, not auto-discovered. Every alias_notes field records how confident that alias actually is. PR4 adds the ten source-qualified staged models from data/model_catalog_tranche_1_qualification.json; only six receive Artificial Analysis aliases because those six have unambiguous discovery-snapshot matches. The remaining four stay null rather than guessing across reasoning, dated-release, or instruction-tuning variants.",
+  "updated_at": "2026-09-08",
+  "note": "Manually maintained. Aliases are explicit mappings, never resolved by fuzzy name matching at sync time. New models are added here deliberately, not auto-discovered. Every alias_notes field records how confident that alias actually is. The Model Advisor evidence-resolution pass on 2026-09-08 resolved the default-semantics Artificial Analysis aliases for Qwen3.8 27B and Gemma 4 26B-A4B IT; DeepSeek V4 Flash 0731 and V4 Pro 0813 remain deliberately unmapped until a default/representative AA variant is available.",
   "models": [
     {
       "canonical_model_id": "llama-3.1-8b",
@@ -120,8 +120,8 @@
       "model_variant": "27b",
       "developer": "Qwen / Alibaba Cloud",
       "lifecycle_status": "active",
-      "aliases": { "huggingface": "Qwen/Qwen3.8-27B", "artificial_analysis_slug": null, "artificial_analysis_id": null, "nvidia_nim": null },
-      "alias_notes": "Staged PR4 identity. AA discovery contains qwen3-8-27b plus reasoning-effort variants, but no mapping is asserted until the exact canonical variant is verified."
+      "aliases": { "huggingface": "Qwen/Qwen3.8-27B", "artificial_analysis_slug": "qwen3-8-27b", "artificial_analysis_id": null, "nvidia_nim": null },
+      "alias_notes": "Resolved 2026-09-08. Qwen documents xhigh as the default reasoning effort; AA's qwen3-8-27b variant represents that vendor-default behavior. Confirm against the authenticated AA API on the next sync before treating the resulting score as production evidence."
     },
     {
       "canonical_model_id": "deepseek-v4-flash-0731",
@@ -131,7 +131,7 @@
       "developer": "DeepSeek AI",
       "lifecycle_status": "active",
       "aliases": { "huggingface": "deepseek-ai/DeepSeek-V4-Flash-0731", "artificial_analysis_slug": null, "artificial_analysis_id": null, "nvidia_nim": "deepseek-ai/deepseek-v4-flash-0731" },
-      "alias_notes": "Staged PR4 identity. No exact AA discovery match for the dated 0731 release has been verified; do not map nearby V4 Flash variants."
+      "alias_notes": "Evidence resolution 2026-09-08: keep AA alias null. The verified exact 0731 AA public result is Reasoning, Max Effort, while the vendor supports chat plus low/high/max thinking and low is the default thinking effort. Do not use a max-effort proxy for generic/default canonical behavior."
     },
     {
       "canonical_model_id": "deepseek-v4-pro-0813",
@@ -141,7 +141,7 @@
       "developer": "DeepSeek AI",
       "lifecycle_status": "active",
       "aliases": { "huggingface": "deepseek-ai/DeepSeek-V4-Pro-0813", "artificial_analysis_slug": null, "artificial_analysis_id": null, "nvidia_nim": "deepseek-ai/deepseek-v4-pro-0813" },
-      "alias_notes": "Staged PR4 identity. AA discovery includes a different dated V4 Pro release; do not cross-map release variants."
+      "alias_notes": "Evidence resolution 2026-09-08: keep AA alias null. The verified exact 0813 AA public result is Reasoning, Max Effort, while the vendor supports chat plus low/high/max thinking and low is the default thinking effort. Do not use a max-effort proxy for generic/default canonical behavior."
     },
     {
       "canonical_model_id": "gemma-4-26b-a4b-it",
@@ -150,8 +150,8 @@
       "model_variant": "26b-a4b-it",
       "developer": "Google DeepMind",
       "lifecycle_status": "active",
-      "aliases": { "huggingface": "google/gemma-4-26B-A4B-it", "artificial_analysis_slug": null, "artificial_analysis_id": null, "nvidia_nim": null },
-      "alias_notes": "Staged PR4 identity. AA discovery contains gemma-4-26b-a4b and non-reasoning variants; the exact IT equivalence is not assumed."
+      "aliases": { "huggingface": "google/gemma-4-26B-A4B-it", "artificial_analysis_slug": "gemma-4-26b-a4b-non-reasoning", "artificial_analysis_id": null, "nvidia_nim": null },
+      "alias_notes": "Resolved 2026-09-08. The official Gemma 4 inference path defaults to non-reasoning unless thinking is explicitly enabled, so AA's non-reasoning variant best represents generic/default canonical behavior. Confirm against the authenticated AA API on the next sync before treating the resulting score as production evidence."
     },
     {
       "canonical_model_id": "mistral-small-4",
