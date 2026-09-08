@@ -16,7 +16,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: tco-cloud-unit-price-trend-production
-      - name: Add cloudUnitPriceTrend to TCO persistence dependencies
+      - name: Patch TCO persistence dependency and remove temporary workflow
         run: |
           python - <<'PY'
           from pathlib import Path
@@ -24,20 +24,15 @@ jobs:
           s = p.read_text()
           old = '      fastPBm, bulkPBm, egressPct, computeShare, growth, facility, powerRate, util,\n'
           new = '      fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,\n'
-          if new in s:
-              print('Dependency already fixed; no change needed.')
-          else:
-              if old not in s:
-                  raise SystemExit('Expected persistence dependency line not found')
+          if old in s:
               s = s.replace(old, new, 1)
               p.write_text(s)
+          elif new not in s:
+              raise SystemExit('Expected TCO persistence dependency line not found')
           PY
-      - name: Commit fix if changed
+          git rm .github/workflows/temp-fix-pr47.yml
+      - name: Commit source fix and cleanup
         run: |
-          if git diff --quiet; then
-            echo 'No changes to commit.'
-            exit 0
-          fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add src/TcoCalculator.jsx
