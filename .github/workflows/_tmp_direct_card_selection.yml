@@ -1,0 +1,26 @@
+name: Temporary direct card selection update
+on:
+  push:
+    branches:
+      - gpu-sizing-growth-selection
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpu-sizing-growth-selection
+      - name: Apply source and regression updates
+        run: python .github/scripts/apply_direct_card_selection.py
+      - name: Remove temporary helper files
+        run: rm .github/scripts/apply_direct_card_selection.py .github/workflows/_tmp_direct_card_selection.yml
+      - name: Commit direct-card selection UX
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Make sizing recommendation cards directly selectable"
+          git push origin HEAD:gpu-sizing-growth-selection
