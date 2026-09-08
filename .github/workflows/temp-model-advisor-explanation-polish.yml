@@ -1,0 +1,99 @@
+name: Temporary Model Advisor explanation polish
+
+on:
+  push:
+    branches:
+      - model-advisor-explanation-polish
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: model-advisor-explanation-polish
+      - name: Apply explanation polish
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('src/ModelAdvisor.jsx')
+          s = p.read_text()
+
+          def rep(old, new, count=None):
+              global s
+              found = s.count(old)
+              if found == 0:
+                  raise SystemExit(f'Expected text not found: {old[:120]!r}')
+              if count is not None and found != count:
+                  raise SystemExit(f'Expected {count} occurrence(s), found {found}: {old[:120]!r}')
+              s = s.replace(old, new)
+
+          rep('function labelFor(options, value) {\n  return options.find((o) => o.value === value)?.label || value;\n}\n', '''function labelFor(options, value) {\n  return options.find((o) => o.value === value)?.label || value;\n}\n\nfunction modelLabel(modelOrId) {\n  const id = typeof modelOrId === "string" ? modelOrId : modelOrId?.canonical_model_id;\n  return getModelById(id)?.label || id || "Unknown model";\n}\n''', 1)
+
+          rep('Recommendation Methodology &amp; Decision Trace', 'Why these recommendations?', 1)
+          rep('Informational only in V1 -- does not affect ranking.', 'Informational only — does not currently affect ranking.', 2)
+          rep('Recommendation evidence describes benchmark coverage separately from technical-spec confidence and does not independently change rank order.', 'Benchmark evidence coverage is shown separately from technical-spec confidence; it does not independently change rank order.', 1)
+
+          rep('<span className="font-semibold">{m.canonical_model_id}</span>', '<span className="font-semibold">{modelLabel(m)}</span>', 1)
+          rep('<div className="font-bold mb-1" style={{ color: CHARCOAL }}>{m.canonical_model_id}</div>', '<div className="font-bold mb-1" style={{ color: CHARCOAL }}>{modelLabel(m)}</div>', 2)
+          rep('Next: size infrastructure for {result.cards[0].model.canonical_model_id}', 'Next: size infrastructure for {modelLabel(result.cards[0].model)}', 1)
+          rep('<b style={{ color: CHARCOAL }}>{topModel.canonical_model_id}</b> cleared every check:', '<b style={{ color: CHARCOAL }}>{modelLabel(topModel)}</b> cleared every check:', 1)
+          rep('<td className="py-1 pr-2">{m.canonical_model_id}</td>', '<td className="py-1 pr-2">{modelLabel(m)}</td>', 1)
+          rep('<div className="text-sm font-bold mb-1" style={{ color: CHARCOAL }}>{card.model.canonical_model_id}</div>', '<div className="text-sm font-bold mb-1" style={{ color: CHARCOAL }}>{modelLabel(card.model)}</div>', 1)
+          rep('({runnerUp.canonical_model_id}, {runnerUp.intelligence_index})', '({modelLabel(runnerUp)}, {runnerUp.intelligence_index})', 1)
+          rep('<span>{model}</span><span>{score != null ? score : "—"}</span>', '<span>{modelLabel(model)}</span><span>{score != null ? score : "—"}</span>', 1)
+
+          rep('sub={`Selected from primary workload: ${primaryWorkload} -> ${result.metric}`}', 'sub={`Chosen from the primary workload: ${labelFor(WORKLOAD_OPTIONS, primaryWorkload)}`}', 1)
+          rep('3. Ranking Decision', '3. How the Ranking Was Decided', 1)
+          rep('Ranked by <b style={{ color: CHARCOAL }}>{METRIC_LABELS[result.metric]}</b> ({result.metric}), a capability index from the tracked capability registry (synced {new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()}) -- not an externally standardized benchmark score; see Section 6 for what it does and doesn\'t represent.', 'The primary workload is compared using <b style={{ color: CHARCOAL }}>{METRIC_LABELS[result.metric]}</b>, a capability index from the tracked capability registry (synced {new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()}). It is directional rather than an externally standardized benchmark score; Section 6 explains the evidence and limitations.', 1)
+          rep('No eligible model has a {METRIC_LABELS[result.metric]} score. Best Performance fell back to ranking by overall capability (intelligence_index) instead.', 'No eligible model has a direct {METRIC_LABELS[result.metric]} score, so the capability leader is selected using the overall capability index instead.', 1)
+          rep('No eligible model has a {METRIC_LABELS[result.metric]} score, so the Efficiency and Balanced size decisions restarted using overall capability (intelligence_index) and its own margins, not the {METRIC_LABELS[result.metric]} margins below.', 'Because no eligible model has a direct {METRIC_LABELS[result.metric]} score, the smaller-model and balanced comparisons use overall capability and its matching tolerance.', 1)
+          rep('Tier 1 -- models with a {METRIC_LABELS[result.metric]} score, ranked', 'Models with direct {METRIC_LABELS[result.metric]} evidence', 1)
+          rep('label={`Quality margin (${qualityPriority})`}', 'label={`Allowed capability tradeoff (${qualityPriority})`}', 1)
+          rep('sub={result.ranking.restarted ? "intelligence_index margin (restarted decision)" : `${METRIC_LABELS[result.metric]} margin`}', 'sub={result.ranking.restarted ? "Overall-capability tolerance used for this comparison" : `${METRIC_LABELS[result.metric]} tolerance`}', 1)
+          rep('label="Efficiency qualifying threshold"', 'label="Smaller-model qualifying floor"', 1)
+          rep('sub="Top score minus the full margin above"', 'sub="Minimum capability needed to remain eligible for the efficiency-oriented choice"', 1)
+          rep('label="Balanced qualifying threshold"', 'label="Balanced qualifying floor"', 1)
+          rep('sub="Top score minus half the margin -- a tighter bar than Efficiency"', 'sub="A tighter capability floor used for the balanced choice"', 1)
+          rep('4. Why These Recommendations', '4. Why These Models Were Selected', 1)
+          rep('Each badge below is traced to its own decision -- a model that lost Best Performance can still be the correct Efficiency or Balanced pick, and vice versa.', 'Each recommendation role is evaluated separately: the capability leader, the smallest model that stays within the allowed tradeoff, and the balanced option can legitimately be different models.', 1)
+          rep('<b style={{ color: CHARCOAL }}>Best Performance (fallback):</b>', '<b style={{ color: CHARCOAL }}>Best Performance (overall-capability fallback):</b>', 1)
+
+          p.write_text(s)
+
+          v = Path('scripts/validate_model_advisor_recommendation_explanations.mjs')
+          vs = v.read_text()
+          if 'readFileSync' not in vs:
+              vs = 'import { readFileSync } from "node:fs";\n' + vs
+          marker = 'console.log("Model Advisor recommendation explanations PASS: advisory sections are present and alternates are derived only from existing ranking/eligible outputs.");'
+          guard = '''const advisorSource = readFileSync(new URL("../src/ModelAdvisor.jsx", import.meta.url), "utf8");\nassert(advisorSource.includes("Why these recommendations?"), "Customer-facing methodology entry point was not simplified.");\nassert(!advisorSource.includes("Informational only in V1"), "Production UI still contains V1 placeholder language.");\nassert(advisorSource.includes("function modelLabel(modelOrId)"), "Friendly model-label helper is missing.");\nassert(advisorSource.includes("3. How the Ranking Was Decided"), "Decision trace ranking section did not receive customer-facing terminology.");\nassert(advisorSource.includes("Models with direct {METRIC_LABELS[result.metric]} evidence"), "Decision trace still exposes Tier 1 engineering terminology.");\nassert(!advisorSource.includes("Efficiency qualifying threshold"), "Decision trace still exposes the old efficiency-threshold label.");\nassert(!advisorSource.includes("Balanced qualifying threshold"), "Decision trace still exposes the old balanced-threshold label.");\n\n''' + marker
+          if marker not in vs:
+              raise SystemExit('Validator marker not found')
+          vs = vs.replace(marker, guard, 1)
+          v.write_text(vs)
+
+          c = Path('CHANGELOG.md')
+          cs = c.read_text()
+          entry = '''## September 8, 2026 - Model Advisor explanation polish\n\n- Simplified customer-facing recommendation and decision-trace language without changing ranking, filters, margins, tie-breaking, or model eligibility.\n- Replaced developer-oriented model IDs with friendly model names in report and trace presentation while preserving canonical IDs for routing and logic.\n- Renamed the methodology entry point to “Why these recommendations?”, removed production “V1” wording, and reduced repeated evidence-language overhead.\n- Kept the full formal methodology and decision trace available for auditability, with clearer labels for direct evidence, capability tradeoffs, and qualifying floors.\n\n\n'''
+          if '## September 8, 2026 - Model Advisor explanation polish' not in cs:
+              cs = cs.replace('# Changelog\n\n', '# Changelog\n\n' + entry, 1)
+              c.write_text(cs)
+          PY
+      - name: Validate source and build
+        run: |
+          npm ci
+          node scripts/validate_model_advisor_recommendation_explanations.mjs
+          npm run build
+      - name: Commit polish and remove temporary workflow
+        run: |
+          rm .github/workflows/temp-model-advisor-explanation-polish.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add src/ModelAdvisor.jsx scripts/validate_model_advisor_recommendation_explanations.mjs CHANGELOG.md .github/workflows/temp-model-advisor-explanation-polish.yml
+          git commit -m 'polish Model Advisor recommendation explanations'
+          git push origin HEAD:model-advisor-explanation-polish
