@@ -5,6 +5,39 @@
 ---
 
 
+## September 7, 2026 TCO Growth and Cloud Pricing Addendum
+
+This addendum records the TCO/GPU Sizing modernization work tracked in issue #34 and supersedes older ambiguity around growth versus cloud unit-price movement.
+
+### GPU Sizing production-design selection
+
+- PR #35 keeps the node-rounded Recommended configuration as the default production design and allows an explicit Higher-growth alternative to be selected for downstream TCO analysis.
+- The Recommended and Higher-growth result cards themselves are the selection controls. The selected card is visibly marked `Selected for TCO`; Minimum Technical and Lower-Cost remain informational.
+- GPU Sizing remains the technical authority. TCO receives the exact selected GPU class/count plus `sizingBasis=recommended|higher-growth` provenance and does not independently choose or re-size the design.
+- Changing the sizing result resets the downstream choice to Recommended so a prior growth preference cannot silently carry into a materially different workload.
+- PR #35 merged as `465c77938a811dec6f08e353664ba87897c540ec` after the exact-head permanent quality gate passed. The direct-card selection interaction was subsequently confirmed working in production.
+
+### Cloud pricing assumption transparency
+
+- PR #36 made the existing cloud-pricing treatment explicit: current cloud GPU unit rates are held constant across the selected analysis horizon.
+- The annual TCO growth input represents increased workload/consumption, not provider price inflation or deflation.
+- The disclosure appears in the calculator, generated report, and calculation/audit trail. No TCO formulas, provider rates, growth defaults, provider-selection logic, GPU Sizing handoff semantics, or on-prem economics changed.
+- PR #36 merged as `05111bbedf4a9176d2ef3ae72ec495be282de894` after the exact-head permanent quality gate passed.
+
+### Cloud GPU unit-price trend preview
+
+- PR #37 is intentionally preview-only and remains subject to review before merge. It adds an interactive Cloud GPU unit-price trend control with default 0%/year, range -20% to +20% per year, and 5 percentage-point steps.
+- The preview value is deliberately not persisted, autosaved, passed into the TCO engine, included in My Summary state, or reflected in report economics. Production math therefore remains the same 0%/year unit-price treatment documented by PR #36.
+- Workload growth remains a separate production variable. Capacity-ramp modeling remains a separate deferred concept.
+- Any future wiring of cloud unit-price trend into economics requires a separate methodology approval defining affected cost components, compounding, interaction with workload growth, treatment by planning mode, and new parity/regression expectations.
+
+### Documentation and assurance discipline
+
+- `CHANGELOG.md` records all three workstreams chronologically.
+- `docs/MODEL_MODERNIZATION_CURRENT_STATE.md` now records the durable ownership and growth/unit-price contract because it governs the Model Advisor -> GPU Sizing -> TCO chain.
+- `MaintenanceRunbook.md` now contains the operating rule for reviewing any future cloud unit-price trend methodology.
+- The README checkpoint is refreshed so the repository landing page does not stop at PR #32.
+
 ## September 5, 2026 Current-State Addendum
 
 This addendum supersedes stale current-state statements in earlier dated sections while preserving the historical record. The Project Brief is intentionally cumulative institutional memory: dated addenda record what was true at each checkpoint, while the newest addendum is the primary current-state orientation. GitHub `main`, immutable release tags, and current source files remain authoritative for exact implementation details.

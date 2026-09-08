@@ -941,6 +941,8 @@ function AppInner() {
   const [egressPct, setEgressPct] = useState(saved?.egressPct ?? 0.05);
   const [computeShare, setComputeShare] = useState(saved?.computeShare ?? 0.5);
   const [growth, setGrowth] = useState(saved?.growth ?? 0.25);
+  // Workstream #3 preview only: intentionally local UI state. It is not persisted, autosaved, passed into run(), or included in reports.
+  const [cloudUnitPriceTrendPreview, setCloudUnitPriceTrendPreview] = useState(0);
   const [facility, setFacility] = useState(saved?.facility ?? "Self-hosted (AI-ready)");
   const [powerRate, setPowerRate] = useState(saved?.powerRate ?? 300);
   const [util, setUtil] = useState(saved?.util ?? 0.85);
@@ -1272,6 +1274,31 @@ function AppInner() {
             <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: C.sub, marginBottom: 3 }}>CLOUD PRICING ASSUMPTION</div>
             <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.45 }}>
               Current cloud GPU rates are held constant across the analysis horizon. Annual growth reflects increased workload consumption, not assumed provider price inflation or deflation.
+            </div>
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.line}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
+                <label htmlFor="cloud-unit-price-trend-preview" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>Cloud GPU unit-price trend</label>
+                <span style={{ ...mono, fontSize: 12, fontWeight: 700, color: cloudUnitPriceTrendPreview === 0 ? C.sub : C.ink }}>
+                  {cloudUnitPriceTrendPreview > 0 ? "+" : ""}{cloudUnitPriceTrendPreview}%/yr
+                </span>
+              </div>
+              <input
+                id="cloud-unit-price-trend-preview"
+                aria-label="Cloud GPU unit-price trend preview"
+                type="range"
+                min="-20"
+                max="20"
+                step="5"
+                value={cloudUnitPriceTrendPreview}
+                onChange={(e) => setCloudUnitPriceTrendPreview(Number(e.target.value))}
+                style={{ width: "100%" }}
+              />
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.sub, marginTop: -1 }}>
+                <span>-20%</span><span>0%</span><span>+20%</span>
+              </div>
+              <div style={{ fontSize: 11, color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 6, padding: "7px 8px", marginTop: 7, lineHeight: 1.4 }}>
+                <b>Preview only — does not affect results yet.</b> This control is being evaluated as a future sensitivity input. Workload growth remains separate, and the production calculation continues to use a 0%/yr cloud unit-price trend.
+              </div>
             </div>
           </div>
         )}

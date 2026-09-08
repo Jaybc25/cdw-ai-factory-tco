@@ -48,6 +48,26 @@ test("TCO discloses constant cloud unit-price assumption separately from workloa
   await expect(page.getByText(/Annual growth reflects increased workload consumption, not assumed provider price inflation or deflation/)).toBeVisible();
 });
 
+test("cloud unit-price trend preview is interactive but does not enter TCO state or economics", async ({ page }) => {
+  await seedTcoSession(page, { mode: "spend", growth: 0.25, horizon: 3 });
+  await page.reload({ waitUntil: "domcontentloaded" });
+
+  const slider = page.getByLabel("Cloud GPU unit-price trend preview");
+  await expect(slider).toBeVisible();
+  await expect(slider).toHaveValue("0");
+  await expect(page.getByText(/Preview only .* does not affect results yet/i)).toBeVisible();
+
+  const before = await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), KEY);
+  await slider.fill("20");
+  await expect(slider).toHaveValue("20");
+  await expect(page.getByText("+20%/yr", { exact: true })).toBeVisible();
+
+  const after = await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), KEY);
+  expect(after.growth).toBe(before.growth);
+  expect(after.horizon).toBe(before.horizon);
+  expect(after.cloudUnitPriceTrendPreview).toBeUndefined();
+});
+
 test("GPU Sizing handoff preserves explicit higher-growth selection provenance", async ({ page }) => {
   await seedTcoSession(page, { mode: "spend" });
   await page.goto(

@@ -203,6 +203,28 @@ Provider pricing/model presence and customer-facing commercial eligibility are s
 6. Add future neoclouds such as Nebius through the provider configuration/registry architecture, with pricing-source review, confidence/provenance classification, commercial eligibility confirmation, and regression validation before customer exposure.
 7. Customer-facing copy should use `Google Cloud` and `Oracle Cloud`; legacy GCP/OCI aliases may remain internally for backward compatibility.
 
+### 4.5 TCO workload growth vs. cloud unit-price trend governance
+
+Keep these variables conceptually and operationally separate:
+
+- **Workload growth** is the production TCO assumption for increased consumption over time.
+- **Cloud GPU unit-price trend** is currently 0%/year in production economics, so the current cloud $/GPU-hr reference rate is held constant across the horizon.
+- The PR #37 slider is preview-only. Its UI value must not be persisted, autosaved, passed to the TCO engine, included in report economics, or treated as an approved methodology input.
+
+Before any future unit-price trend is wired into production economics:
+
+1. Define which cloud cost components the trend applies to: GPU compute only, software uplift, storage, egress, or another explicitly scoped subset.
+2. Define annual compounding and the exact relationship to the separate workload-growth assumption.
+3. Decide whether Existing Cloud Spend and Workload Requirement modes use the same unit-price treatment or require mode-specific rules.
+4. Decide whether user-entered/custom cloud rates trend from the entered Year-1 rate or remain fixed unless explicitly opted in.
+5. Decide how Best-Value GPUaaS provider ranking should use the trend, if at all.
+6. Update the companion workbook/reference implementation if the production TCO engine changes in a way covered by Excel-to-JavaScript parity.
+7. Add source-level tests and browser regressions proving 0% reproduces the current baseline and positive/negative trends compound exactly as approved.
+8. Re-run the full permanent quality gate and perform representative live checks before calling the methodology production-ready.
+9. Update `CHANGELOG.md`, `AiFactoryProjectBrief.md`, the relevant current-state methodology document, and this runbook.
+
+Do not mix this work with future capacity-ramp modeling. Purchased future headroom versus current utilized workload is a separate modeling question.
+
 ## 5. Model-catalog refresh procedure
 
 When a meaningful new open-weight model is released:

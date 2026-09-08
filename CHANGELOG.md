@@ -13,6 +13,11 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+### September 7, 2026 - Cloud GPU unit-price trend sensitivity preview
+- Added an interactive preview-only cloud GPU unit-price trend control ranging from -20% to +20% per year in 5-point steps, defaulting to 0%/year.
+- The preview is explicitly non-functional: it is not persisted, autosaved, passed into the TCO engine, or reflected in report economics.
+- Workload growth remains a separate production input; current TCO economics still hold cloud GPU unit rates constant across the analysis horizon.
+
 ### September 7, 2026 - TCO cloud unit-price assumption disclosure
 - Made the existing cloud-pricing treatment explicit in the TCO UI and report: current cloud GPU unit rates are held constant across the selected analysis horizon.
 - Clarified that annual growth changes modeled workload consumption, not assumed provider price inflation or deflation.
