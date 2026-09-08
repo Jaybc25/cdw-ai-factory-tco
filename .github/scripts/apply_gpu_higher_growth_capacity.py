@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 
 def replace_once(path, old, new):
@@ -23,42 +24,38 @@ old_train = '''  const mostCapableOther = nonRecommended.length\n    ? nonRecomm
 new_train = '''  const higherGrowth = selectHigherGrowthConfiguration(selectedPriced, priced, "peakTFLOPS");\n'''
 replace_once("src/GpuSizingCalculator.jsx", old_train, new_train)
 
-replace_once(
-    "src/GpuSizingCalculator.jsx",
-    '  const higherGrowthCount = higherGrowth ? higherGrowth.deployedCount : null;\n',
-    '  const higherGrowthCount = higherGrowth ? higherGrowth.deployedCount : null;\n'
-)
-
-# Add growth basis to result payloads so UI/report/audit can explain why it is shown.
-replace_once(
-    "src/GpuSizingCalculator.jsx",
-    '    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount } : { class: null, workload: null, recommended: null },\n',
-    '    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount, growthBasis: higherGrowth.growthBasis } : { class: null, workload: null, recommended: null, growthBasis: null },\n'
-)
-replace_once(
-    "src/GpuSizingCalculator.jsx",
-    '    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount } : { class: null, workload: null, recommended: null },\n',
-    '    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount, growthBasis: higherGrowth.growthBasis } : { class: null, workload: null, recommended: null, growthBasis: null },\n'
-)
+# Add growth basis to both inference and training result payloads.
+old_payload = '    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount } : { class: null, workload: null, recommended: null },\n'
+new_payload = '    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount, growthBasis: higherGrowth.growthBasis } : { class: null, workload: null, recommended: null, growthBasis: null },\n'
+p = Path("src/GpuSizingCalculator.jsx")
+text = p.read_text()
+if text.count(old_payload) != 2:
+    raise SystemExit(f"Expected exactly 2 higherGrowth payloads, found {text.count(old_payload)}")
+text = text.replace(old_payload, new_payload)
 
 # Update utilization copy: same class is now a valid higher-growth path.
-replace_once(
-    "src/GpuSizingCalculator.jsx",
-    '        Same estimated workload, different classes -- a lower utilization % at a higher-growth class isn\'t\n        waste, it\'s headroom bought on purpose. A right-sized class runs closer to full.\n',
-    '        Same estimated workload, different deployable configurations -- a lower utilization % in the higher-growth option isn\'t\n        waste, it\'s headroom bought on purpose. The higher-growth option may use a different class or the next deployment quantum of the same class.\n'
-)
+old_util = '''        Same estimated workload, different classes -- a lower utilization % at a higher-growth class isn't\n        waste, it's headroom bought on purpose. A right-sized class runs closer to full.\n'''
+new_util = '''        Same estimated workload, different deployable configurations -- a lower utilization % in the higher-growth option isn't\n        waste, it's headroom bought on purpose. The higher-growth option may use a different class or the next deployment quantum of the same class.\n'''
+if old_util not in text:
+    raise SystemExit("Expected utilization explanation not found")
+text = text.replace(old_util, new_util, 1)
 
-# Add descriptive subtitle to higher-growth cards in calculator/report.
-replace_once(
-    "src/GpuSizingCalculator.jsx",
-    '<ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." />',
-    '<ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} subtitle={result.higherGrowth.growthBasis === "next-deployment-quantum" ? "Next deployment quantum for additional headroom" : "Higher deployable capacity for additional headroom"} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog." />'
-)
-replace_once(
-    "src/GpuSizingCalculator.jsx",
-    '<ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." />',
-    '<ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} subtitle={result.higherGrowth.growthBasis === "next-deployment-quantum" ? "Next deployment quantum for additional headroom" : "Higher deployable capacity for additional headroom"} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog." />'
-)
+# Add a descriptive subtitle to every higher-growth result card without depending
+# on exact prop ordering/spacing from earlier UI changes.
+pattern = re.compile(r'(<ResultCard\s+[^>]*title="Higher-growth alternative"[^>]*)(/>)')
+matches = list(pattern.finditer(text))
+if not matches:
+    raise SystemExit("No Higher-growth alternative ResultCard found")
+
+def enrich_card(match):
+    tag = match.group(1)
+    if 'subtitle=' not in tag:
+        tag += ' subtitle={result.higherGrowth.growthBasis === "next-deployment-quantum" ? "Next deployment quantum for additional headroom" : "Higher deployable capacity for additional headroom"}'
+    tag = tag.replace('emptyMessage="No qualifying higher-growth alternative in the current supported catalog."', 'emptyMessage="No qualifying higher-growth capacity step in the current supported catalog."')
+    return tag + match.group(2)
+
+text = pattern.sub(enrich_card, text)
+p.write_text(text)
 
 # Durable docs.
 changelog = Path("CHANGELOG.md")
