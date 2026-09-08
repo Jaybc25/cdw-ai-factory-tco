@@ -255,7 +255,25 @@ function RecommendationCard({ card, ranking, inputs }) {
         ))}
       </div>
       <div className="text-lg font-bold" style={{ color: CHARCOAL }}>{sharedModel?.label || model.canonical_model_id}</div>
-      <div className="text-sm text-gray-600">{explainCard(card, ranking, inputs)}</div>
+      <div className="grid gap-2 text-sm">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Why it fits</div>
+          <div className="text-gray-700">{card.advisory?.whyItFits || explainCard(card, ranking, inputs)}</div>
+        </div>
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Primary tradeoff</div>
+          <div className="text-gray-600">{card.advisory?.tradeoff}</div>
+        </div>
+        {card.advisory?.alternate && (() => {
+          const alternate = getModelById(card.advisory.alternate.canonical_model_id);
+          return (
+            <div className="rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Also consider</div>
+              <div className="text-gray-700"><span className="font-semibold">{alternate?.label || card.advisory.alternate.canonical_model_id}</span> {card.advisory.alternate.reason}.</div>
+            </div>
+          );
+        })()}
+      </div>
       <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-1">
         <span>{model.param_count_billion != null ? `${model.param_count_billion}B params` : "Param count unverified"}</span>
         <span style={{ color: conf.color }} className="font-semibold">Spec: {conf.label}</span>

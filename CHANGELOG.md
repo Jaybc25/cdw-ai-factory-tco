@@ -1,5 +1,12 @@
 # Changelog
 
+## September 8, 2026 - Model Advisor recommendation explanation UX
+
+- Expanded recommendation cards into an advisory pattern with Why it fits, Primary tradeoff, Also consider, and the existing benchmark-evidence disclosure.
+- Alternate suggestions are selected only from the already-computed recommendation slots or eligible-model list; the UI does not run a second ranking pass.
+- Ranking margins, hard filters, tie-breaking, recommendation-slot ownership, GPU Sizing, and TCO economics are unchanged.
+
+
 ## September 8, 2026 - Model Advisor benchmark-evidence confidence disclosure
 
 - Added a benchmark-evidence confidence layer that is explicitly separate from technical-spec confidence.

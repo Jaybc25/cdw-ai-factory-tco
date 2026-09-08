@@ -220,6 +220,75 @@ export function explainOtherEligible(model, ranking) {
   return `Meets your stated requirements. ${metricLabel} not available for this model.`;
 }
 
+function sameModel(a, b) {
+  return !!a && !!b && a.canonical_model_id === b.canonical_model_id;
+}
+
+function tradeoffFor(card, ranking, inputs) {
+  const model = card.model;
+  const best = ranking.bestPerformance;
+  const efficient = ranking.efficiency;
+  const balanced = ranking.balanced;
+  const metricLabel = METRIC_LABELS[ranking.sizeSlotMetric];
+
+  if (sameModel(model, best) && sameModel(model, efficient) && (!balanced || sameModel(model, balanced))) {
+    return `No material slot-level tradeoff under these inputs: this model also satisfies the performance and infrastructure-efficiency decisions.`;
+  }
+
+  if (card.badges.includes("Most Efficient Qualifying Model") && best && !sameModel(model, best)) {
+    const topScore = best[ranking.sizeSlotMetric];
+    const modelScore = model[ranking.sizeSlotMetric];
+    const scoreGap = Number.isFinite(topScore) && Number.isFinite(modelScore) ? (topScore - modelScore).toFixed(1) : null;
+    const sizeContext = Number.isFinite(best.param_count_billion) && Number.isFinite(model.param_count_billion)
+      ? ` (${model.param_count_billion}B vs ${best.param_count_billion}B parameters)`
+      : "";
+    return scoreGap != null
+      ? `Trades ${scoreGap} points of ${metricLabel} for a smaller qualifying model${sizeContext}, within your ${inputs.qualityPriority} tolerance.`
+      : `Prioritizes the smallest qualifying model${sizeContext} within your ${inputs.qualityPriority} tolerance rather than maximum benchmark performance.`;
+  }
+
+  if (card.badges.includes("Best Performance") && efficient && !sameModel(model, efficient)) {
+    const sizeContext = Number.isFinite(efficient.param_count_billion) && Number.isFinite(model.param_count_billion)
+      ? ` (${efficient.param_count_billion}B vs ${model.param_count_billion}B parameters)`
+      : "";
+    return `Prioritizes maximum ${METRIC_LABELS[ranking.metric]}; the efficiency-qualified alternative is smaller${sizeContext}.`;
+  }
+
+  if (card.badges.includes("Best Overall Fit") && best && efficient && !sameModel(best, efficient)) {
+    return `Balances capability and model size between the maximum-performance and infrastructure-efficiency choices.`;
+  }
+
+  return `Its recommendation is driven by the named slot rules shown above; no additional hidden score or preference was applied.`;
+}
+
+function alternateFor(card, ranking, otherEligible) {
+  const model = card.model;
+  const candidates = [
+    { model: ranking.bestPerformance, reason: `if maximum ${METRIC_LABELS[ranking.metric]} matters more than the current tradeoff` },
+    { model: ranking.efficiency, reason: "if reducing model size and downstream infrastructure footprint matters more" },
+    { model: ranking.balanced, reason: "if you want the middle ground between capability and model size" },
+  ];
+  for (const candidate of candidates) {
+    if (candidate.model && !sameModel(candidate.model, model)) return candidate;
+  }
+  const other = otherEligible.find((m) => !sameModel(m, model));
+  return other ? { model: other, reason: "as another eligible model meeting the same stated requirements" } : null;
+}
+
+export function addRecommendationAdvisory(cards, ranking, inputs, otherEligible) {
+  return cards.map((card) => {
+    const alternate = alternateFor(card, ranking, otherEligible);
+    return {
+      ...card,
+      advisory: {
+        whyItFits: explainCard(card, ranking, inputs),
+        tradeoff: tradeoffFor(card, ranking, inputs),
+        alternate: alternate ? { canonical_model_id: alternate.model.canonical_model_id, reason: alternate.reason } : null,
+      },
+    };
+  });
+}
+
 export function buildRecommendations(catalog, inputs) {
   const advisorCatalog = catalog.filter((model) => model.catalog_status === "recommended");
   const filtered = applyHardFilters(advisorCatalog, inputs);
@@ -251,9 +320,10 @@ export function buildRecommendations(catalog, inputs) {
     if (!cardsByModel[id]) { cardsByModel[id] = { model: s.model, badges: [] }; order.push(id); }
     cardsByModel[id].badges.push(s.label);
   });
-  const cards = order.map((id) => cardsByModel[id]);
+  const baseCards = order.map((id) => cardsByModel[id]);
   const featuredIds = new Set(order);
   const otherEligible = sortByMetricDesc(eligible.filter((m) => !featuredIds.has(m.canonical_model_id)), metric).slice(0, 3);
+  const cards = addRecommendationAdvisory(baseCards, ranking, inputs, otherEligible);
   const verificationCandidates = tieBreakSort(verificationPool.filter((m) => m[metric] != null)).sort((a, b) => (b[metric] ?? 0) - (a[metric] ?? 0)).slice(0, 2);
   return { cards, otherEligible, verificationCandidates, metric, ranking, eligibleCount: eligible.length, totalCount: advisorCatalog.length, verificationCount: verificationPool.length, eligibilityTrace: { allModels: filtered, excludedModels, exclusionCounts } };
 }
