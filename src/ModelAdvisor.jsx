@@ -218,6 +218,27 @@ const CONFIDENCE_BADGE = {
   MEDIUM: { label: "Size-class estimate", color: "#a66a00" },
 };
 
+const EVIDENCE_BADGE = {
+  exact: { color: "#1a7a3c" },
+  "exact-limited": { color: "#7a5a00" },
+  "comparative-limited": { color: "#6b7280" },
+  "verification-required": { color: "#a66a00" },
+};
+
+function EvidenceBadge({ model }) {
+  const style = EVIDENCE_BADGE[model.benchmark_evidence_level] || EVIDENCE_BADGE["verification-required"];
+  return (
+    <span
+      className="font-semibold"
+      style={{ color: style.color }}
+      title={model.benchmark_evidence_detail}
+      aria-label={`Recommendation evidence: ${model.benchmark_evidence_label}`}
+    >
+      Evidence: {model.benchmark_evidence_label}
+    </span>
+  );
+}
+
 function labelFor(options, value) {
   return options.find((o) => o.value === value)?.label || value;
 }
@@ -237,7 +258,8 @@ function RecommendationCard({ card, ranking, inputs }) {
       <div className="text-sm text-gray-600">{explainCard(card, ranking, inputs)}</div>
       <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-1">
         <span>{model.param_count_billion != null ? `${model.param_count_billion}B params` : "Param count unverified"}</span>
-        <span style={{ color: conf.color }} className="font-semibold">{conf.label}</span>
+        <span style={{ color: conf.color }} className="font-semibold">Spec: {conf.label}</span>
+        <EvidenceBadge model={model} />
         <span>{model.license || "License unverified"}</span>
       </div>
       <a
@@ -260,7 +282,8 @@ function OtherEligibleCard({ model, ranking }) {
       <div className="text-sm text-gray-600">{explainOtherEligible(model, ranking)}</div>
       <div className="flex flex-wrap gap-3 text-xs text-gray-500 mt-1">
         <span>{model.param_count_billion != null ? `${model.param_count_billion}B params` : "Param count unverified"}</span>
-        <span style={{ color: conf.color }} className="font-semibold">{conf.label}</span>
+        <span style={{ color: conf.color }} className="font-semibold">Spec: {conf.label}</span>
+        <EvidenceBadge model={model} />
         <span>{model.license || "License unverified"}</span>
       </div>
       <a
@@ -593,6 +616,7 @@ function ModelAdvisorInner() {
           </div>
 
           <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Recommended model(s) &amp; ranking rationale</div>
+          <div className="text-[11px] text-gray-500 mb-3">Recommendation evidence describes benchmark coverage separately from technical-spec confidence and does not independently change rank order.</div>
           {result.cards.length === 0 ? (
             <div className="rounded-xl border border-dashed border-gray-300 p-4 mb-6 text-sm text-gray-500">
               No models met the stated requirements at the time this report was generated. Relax the license, governance, or context window filters and re-run.
@@ -617,7 +641,7 @@ function ModelAdvisorInner() {
                         <span className="font-semibold">{m.canonical_model_id}</span>
                         <span className="text-gray-500 text-xs">
                           {m.param_count_billion != null ? `${m.param_count_billion}B` : "unverified"} &middot;{" "}
-                          <span style={{ color: conf.color }}>{conf.label}</span> &middot; {m.license || "license unverified"}
+                          <span style={{ color: conf.color }}>Spec: {conf.label}</span> &middot; {m.benchmark_evidence_label} &middot; {m.license || "license unverified"}
                         </span>
                       </div>
                     );
@@ -635,6 +659,7 @@ function ModelAdvisorInner() {
                   <div key={m.canonical_model_id} className="rounded-xl border border-amber-300 bg-amber-50 p-4 mb-2 text-sm">
                     <div className="font-bold mb-1" style={{ color: CHARCOAL }}>{m.canonical_model_id}</div>
                     <div className="text-gray-600">{explainVerificationCandidate(m)}</div>
+                    <div className="text-xs mt-1"><EvidenceBadge model={m} /></div>
                   </div>
                 ))}
               </div>

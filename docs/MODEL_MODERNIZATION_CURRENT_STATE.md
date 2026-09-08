@@ -241,3 +241,15 @@ The appropriate pattern remains: inspect current state, classify current/aging/m
 GPU Sizing keeps its node-rounded **Recommended** configuration as the default technical design. When the engine produces a qualifying **Higher-growth alternative**, the user may explicitly select that production design for downstream TCO analysis. The choice changes only which already-calculated technical class/count is carried forward; it does not change the sizing formulas.
 
 TCO receives the exact selected class/count and a `sizingBasis` provenance value (`recommended` or `higher-growth`). TCO remains the economic/planning layer and must not independently choose between those technical designs or re-size them from model parameters. Dev/Test/POC workstation alternatives remain separate from this production-design choice.
+
+## Model Advisor benchmark-evidence confidence
+
+The Advisor now keeps technical-spec confidence separate from recommendation-evidence confidence. Technical-spec confidence continues to describe model facts such as parameters, context, architecture, modality, and license. Benchmark-evidence confidence describes how directly the checked-in capability evidence supports cross-model recommendation.
+
+Current evidence labels are:
+- **Exact benchmark evidence**: exact model/release with intelligence, coding, and agentic metrics.
+- **Exact but limited evidence**: exact model/release mapping exists, but only some recommendation metrics are available.
+- **Comparative evidence limited**: technical specifications are qualified, but no approved exact benchmark row is currently available.
+- **Benchmark mapping requires verification**: an alias/source record exists but is not safe to treat as approved evidence.
+
+This metadata is disclosure-only. It is not a ranking input and does not alter hard filters, quality margins, tie-breaking, recommendation slots, GPU Sizing ownership, or TCO economics.
