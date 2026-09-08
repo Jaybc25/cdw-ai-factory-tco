@@ -1,0 +1,23 @@
+name: Temporary growth selection hardening
+on:
+  push:
+    branches:
+      - gpu-sizing-growth-selection
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpu-sizing-growth-selection
+      - name: Apply hardening patch
+        run: python .github/scripts/apply_growth_selection_hardening.py
+      - name: Commit hardening
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add src/GpuSizingCalculator.jsx tests/e2e/gpu-sizing-architecture-aware.spec.js
+          git commit -m "Harden higher-growth selection reset behavior"
+          git push origin HEAD:gpu-sizing-growth-selection
