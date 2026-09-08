@@ -17,6 +17,8 @@ jobs:
           ref: model-advisor-evidence-confidence
       - name: Apply patch
         run: python3 .github/scripts/sync_model_advisor_evidence_confidence.py
+      - name: Keep permanent quality gate unchanged in helper commit
+        run: git restore .github/workflows/quality-gate.yml
       - name: Remove temporary helper
         run: rm .github/scripts/sync_model_advisor_evidence_confidence.py .github/workflows/_tmp_model_advisor_evidence_confidence.yml
       - name: Commit changes
