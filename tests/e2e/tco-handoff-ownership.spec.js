@@ -60,6 +60,7 @@ test("cloud unit-price trend is a persisted production sensitivity input", async
   await expect(slider).toHaveValue("20");
   await expect(page.getByText("+20%/yr", { exact: true })).toBeVisible();
 
+  // Regression guard: changing the sensitivity must trigger the TCO persistence effect.
   const saved = await waitForTcoSession(page, { cloudUnitPriceTrend: 20, growth: 0.25, horizon: 3 });
   expect(saved.cloudUnitPriceTrend).toBe(20);
   expect(saved.growth).toBe(0.25);
