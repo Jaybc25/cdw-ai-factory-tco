@@ -87,7 +87,7 @@ jobs:
       - name: Validate shared model registry
         run: node scripts/validate_model_registry.mjs
 
-      - name: Validate staged modern model tranche
+      - name: Validate modern model tranche
         run: node scripts/validate_model_tranche_1.mjs
 
       - name: Validate architecture-aware model sizing methodology
@@ -102,16 +102,16 @@ jobs:
       - name: Validate Model Advisor semantic calibration
         run: node scripts/validate_model_advisor_semantics.mjs
 
-      - name: Validate staged model activation readiness
+      - name: Validate model activation readiness
         run: node scripts/validate_model_activation_readiness.mjs
 
-      - name: Validate staged runtime semantics
+      - name: Validate runtime semantics
         run: node scripts/validate_staged_model_runtime.mjs
 
       - name: Validate expanded Model Advisor shadow calibration
         run: node scripts/validate_model_advisor_shadow_calibration.mjs
 
-      - name: Validate six-model activation contract
+      - name: Validate full tranche activation contract
         run: node scripts/validate_model_activation_contract.mjs
 
       - name: Validate TCO GPU Sizing handoff defaults

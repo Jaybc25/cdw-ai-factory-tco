@@ -24,6 +24,7 @@
 // sum of routed + shared experts that execute for a token in an MoE layer.
 
 import catalogPolicyData from "../data/model_catalog_policy.json" with { type: "json" };
+import { STAGED_TECHNICAL_MODEL_REGISTRY } from "./stagedModelRegistry.js";
 
 export const MODEL_ARCHITECTURE_SCHEMA_VERSION = 2;
 export const MODEL_ARCHITECTURE_TYPES = Object.freeze(["dense", "moe", "hybrid"]);
@@ -179,7 +180,7 @@ const TECHNICAL_MODEL_REGISTRY = [
   },
 ];
 
-export const MODEL_REGISTRY = TECHNICAL_MODEL_REGISTRY.map((model) => ({
+export const MODEL_REGISTRY = [...TECHNICAL_MODEL_REGISTRY, ...STAGED_TECHNICAL_MODEL_REGISTRY].map((model) => ({
   ...model,
   schemaVersion: MODEL_ARCHITECTURE_SCHEMA_VERSION,
   contextLength: model.contextLength ?? null,

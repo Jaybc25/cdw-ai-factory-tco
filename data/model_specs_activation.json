@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
-  "source": "pr4-source-qualified-activation",
+  "source": "source-qualified-activation",
   "activated_at": "2026-09-07",
-  "record_count": 6,
+  "record_count": 10,
   "data": {
     "models": [
       {
@@ -74,6 +74,55 @@
         "modality": "multimodal",
         "confidence": "HIGH",
         "canonical_model_id": "mistral-large-3",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      },
+      {
+        "model_id": "Qwen/Qwen3.8-27B",
+        "license": { "value": "apache-2.0", "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "param_count_billion": { "value": 27, "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "context_length": 262144,
+        "architecture": "hybrid-deltanet-attention",
+        "modality": "multimodal",
+        "confidence": "HIGH",
+        "canonical_model_id": "qwen3.8-27b",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      },
+      {
+        "model_id": "deepseek-ai/DeepSeek-V4-Flash-0731",
+        "license": { "value": "mit", "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "param_count_billion": { "value": 304, "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "context_length": 1048576,
+        "architecture": "hybrid-csa-hca",
+        "modality": "text",
+        "confidence": "HIGH",
+        "canonical_model_id": "deepseek-v4-flash-0731",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      },
+      {
+        "model_id": "deepseek-ai/DeepSeek-V4-Pro-0813",
+        "license": { "value": "mit", "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "param_count_billion": { "value": 1650, "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "context_length": 1048576,
+        "architecture": "hybrid-csa-hca",
+        "modality": "text",
+        "confidence": "HIGH",
+        "canonical_model_id": "deepseek-v4-pro-0813",
+        "needs_alias_mapping": false,
+        "lifecycle_status": "active"
+      },
+      {
+        "model_id": "nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-FP8",
+        "license": { "value": "nvidia-open-model-license", "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "param_count_billion": { "value": 120, "source": "qualified tranche manifest", "verified_at": "2026-09-05", "verification_method": "manual" },
+        "context_length": 262144,
+        "extended_context_length": 1000000,
+        "architecture": "hybrid-mamba-transformer",
+        "modality": "text",
+        "confidence": "HIGH",
+        "canonical_model_id": "nemotron-3-super-120b-a12b",
         "needs_alias_mapping": false,
         "lifecycle_status": "active"
       }
