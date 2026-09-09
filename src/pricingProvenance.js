@@ -12,18 +12,18 @@
 // Rows without dependable public On-Demand pricing remain explicitly marked
 // as proxy/QUOTE in pricingRegistry.js rather than being presented as current
 // list prices.
+//
+// On-prem Pricing Refresh #2 completed 2026-09-08 using the NVIDIA NPN Public
+// Price List 202609. Current Blackwell DGX hardware-kit list prices were
+// reconciled to the existing loaded-system TCO planning basis. H200 remains on
+// the prior NVIDIA DGX TCO-tool basis because no current initial H200 hardware
+// kit was identified in this price-book pass.
 
 // ISO dates - update whenever the underlying rate card is actually
 // re-verified against current sources, not just whenever this file is
 // touched for an unrelated change.
-//
-// The on-prem date remains sourced to the Aug 2026 NVIDIA TCO tool capture.
-// Update it only after the NVIDIA loaded system economics have actually been
-// re-reviewed. The cloud date can advance after a complete provider-by-
-// provider review even when some rows remain QUOTE, provided those rows'
-// unavailable/quote status was itself re-verified and is disclosed.
 export const CLOUD_RATES_VERIFIED_AT = "2026-09-01"; // Full provider-by-provider review of shared cloud pricing registry; public list/proxy/QUOTE status re-verified
-export const ONPREM_PRICING_VERIFIED_AT = "2026-08-07"; // Shared NVIDIA/DGX on-prem system registry used by TCO and GPU Sizing
+export const ONPREM_PRICING_VERIFIED_AT = "2026-09-08"; // NVIDIA NPN Public Price List 202609 for current Blackwell DGX hardware; H200 retains prior TCO-tool basis
 
 // current: no warning needed, just show the date. review: gently note it's
 // aging. stale: a visible warning that this should be refreshed before
