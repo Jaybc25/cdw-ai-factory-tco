@@ -8,6 +8,8 @@ For architecture, history, validation findings, conventions, and durable project
 
 For a human-readable history of meaningful milestones and current open items, read `CHANGELOG.md`.
 
+For the latest September 9, 2026 source checkpoint covering the shared-shell, navigation, progressive-disclosure, report-control tranche, and the deliberate TCO deferral decision, read `docs/history/2026-09-09-current-state-checkpoint.md`.
+
 For the current model catalog, architecture-aware sizing state, capability-evidence rules, and Model Advisor -> GPU Sizing -> TCO ownership contract, read `docs/MODEL_MODERNIZATION_CURRENT_STATE.md`.
 
 ## Internal release and version record
@@ -16,7 +18,7 @@ Versioning is an internal engineering, audit, maintenance, and recovery mechanis
 
 **Current validated releases:** `v2026.09` remains the immutable September 1 baseline, followed by `AI Factory Suite 2026.09.1` released September 4, 2026. Existing release tags/releases are immutable.
 
-**Current unreleased production checkpoint before this documentation catch-up:** `main` at `05111bbedf4a9176d2ef3ae72ec495be282de894` on September 7, 2026, the merge of PR #36. Post-2026.09.1 work includes curated My Summary consistency handling, Best-Value GPUaaS, Global Reset, home account/My Summary access, the Phase 1 authenticated front door, auth-aware regression architecture, provider commercial-eligibility gating, GPU Sizing print/PDF hierarchy refinement, the completed model-modernization tranche through PR #32, direct Recommended/Higher-growth production-design selection through PR #35, and explicit TCO cloud unit-price assumption disclosure through PR #36. Draft PR #37 is a preview-only cloud GPU unit-price trend sensitivity UI and does not change production economics. These changes remain `Unreleased` until a new validated tag is created.
+**Current unreleased production checkpoint before this documentation catch-up:** `main` at `9ee83d6c71edd5807c683ee2503ae95bc14b8887` on September 9, 2026, the merge of PR #57. Post-2026.09.1 work includes curated My Summary consistency handling, Best-Value GPUaaS, Global Reset, home account/My Summary access, the Phase 1 authenticated front door, auth-aware regression architecture, provider commercial-eligibility gating, GPU Sizing print/PDF hierarchy refinement, the completed model-modernization tranche, higher-growth GPU Sizing/TCO selection, production cloud GPU unit-price trend sensitivity, Model Advisor explanation/evidence improvements, the shared tool shell, direct methodology/audit access, route/internal-view scroll fixes, Model Advisor and GPU Sizing progressive-disclosure cleanup, and ROI/Readiness report-control consistency. These changes remain `Unreleased` until a new validated tag is created.
 
 The suite uses calendar versioning for validated releases:
 
@@ -39,17 +41,17 @@ Routes in the current application:
 - `/tco` - Cloud vs On-Prem TCO Calculator
 - `/roi` - AI Use Case ROI Calculator
 - `/readiness` - AI Readiness Checklists
-- `/summary` - Combined Summary for signed-in users
+- `/summary` - My Summary for signed-in users
 
 The tools are designed as one connected journey, with state and provenance handoffs where appropriate.
 
-The core model-to-infrastructure-to-economics ownership chain is **Model Advisor -> GPU Sizing -> TCO**: Model Advisor owns recommendation/selection context, GPU Sizing owns the technical infrastructure requirement, and TCO consumes that technical result while owning economics and planning assumptions. TCO does not independently re-run Model Advisor or silently re-size the workload from model parameters.
+The core model-to-infrastructure-to-economics ownership chain is **Model Advisor -> GPU Sizing -> TCO -> ROI**: Model Advisor owns recommendation/selection context, GPU Sizing owns the technical infrastructure requirement, TCO consumes that technical result while owning economics and planning assumptions, and ROI consumes economic cost context where handed off while owning the capacity/value business-case layer. TCO does not independently re-run Model Advisor or silently re-size the workload from model parameters.
 
 ## Current TCO growth/pricing contract
 
 GPU Sizing's node-rounded Recommended production design remains the default, with an explicit Higher-growth alternative selectable for TCO when available. TCO receives the exact selected class/count plus sizing-basis provenance and remains the economics layer rather than re-sizing the workload.
 
-Current TCO production economics treat **workload growth** and **cloud GPU unit price** separately: workload growth may increase consumption over time, while the current cloud GPU $/GPU-hr rate is held constant at **0% annual unit-price trend** across the analysis horizon. Draft PR #37 exposes a -20% to +20% preview control only for UX/methodology evaluation; moving it does not alter persisted state, autosave, reports, or TCO results.
+Current TCO production economics treat **workload growth** and **cloud GPU unit price trend** separately. Workload growth changes modeled consumption over time. Cloud GPU unit-price trend changes modeled cloud GPU compute unit rates over time and is now a production sensitivity input, defaulting to **0%/year** so prior economics remain unchanged unless the user explicitly adjusts it. Non-compute cloud costs retain their established escalation treatment. The selected trend is persisted and represented in TCO report/audit language.
 
 ## Current model-catalog state
 
@@ -154,17 +156,22 @@ The current pricing provenance dates remain in `src/pricingProvenance.js`. The c
 
 ## Known assurance and maintenance priorities
 
-The permanent GitHub quality gate, TCO Excel-to-JavaScript parity suite, PR-local handoff regression suite, live Vercel regression suite, and first formal known-good release are now in place. The gate now validates the shared pricing registry, shared model registry, architecture-aware model sizing and activation contracts, GPU Sizing -> TCO handoff ownership rules, SafeImageInput resource bounds, the checked-in TCO workbook structure, and Excel-to-JavaScript parity in addition to browser regressions. The main remaining technical maintenance priorities are:
+The permanent GitHub quality gate, TCO Excel-to-JavaScript parity suite, PR-local handoff regression suite, live Vercel regression suite, and formal known-good release discipline are in place. The gate validates the shared pricing registry, shared model registry, architecture-aware model sizing and activation contracts, GPU Sizing -> TCO handoff ownership rules, SafeImageInput resource bounds, the checked-in TCO workbook structure, and Excel-to-JavaScript parity in addition to browser regressions.
 
-1. Complete the final pre-release human/adversarial cross-tool pass and run credentialed/manual checks where the release scope requires auth, report, download-event, Slack notification, or PDF verification.
-2. Maintain the shared pricing registry and continue provider-by-provider refreshes with explicit `LISTED`, `NODE-NORM`, `EST`, and `QUOTE` confidence.
-3. Keep NIM compatibility manual until the NVIDIA endpoint is production-validated.
-4. Maintain the current model-modernization baseline as model policy, source evidence, sizing methodology, or handoff semantics evolve. New models must clear source qualification, architecture/methodology review, Advisor calibration, visibility/handoff checks, and the exact-head permanent quality gate before customer-facing activation.
-5. For the next validated release, preserve the same release discipline: release record, package metadata, merged-tree gate, deployed-scope verification, and exact immutable tag/commit identity.
-6. Keep post-2026.09.1 My Summary, Best-Value GPUaaS, Global Reset, authentication, provider-eligibility, print refinements, and model modernization under `Unreleased` until an explicit next validated tag is created.
-7. Execute controlled Vite/esbuild and React Router upgrades separately with regression testing; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo mitigation.
+Current priorities are:
 
-See `AiFactoryProjectBrief.md` for the detailed defect history, current source-level remediation status, prior validation record, and current validated baseline. See `docs/MODEL_MODERNIZATION_CURRENT_STATE.md` for the current model-catalog and architecture-aware sizing baseline.
+1. Continue the current UX simplification only where it meaningfully improves enterprise presales usability without altering validated methodology.
+2. Review My Summary / workflow guidance next while preserving its latest-snapshot semantics and existing consistency warnings.
+3. Keep TCO progressive-disclosure restructuring intentionally deferred until its large monolithic presentation layer can be refactored and parity-validated safely before any hierarchy change.
+4. Maintain the shared pricing registry and continue provider-by-provider refreshes with explicit `LISTED`, `NODE-NORM`, `EST`, and `QUOTE` confidence.
+5. Refresh NVIDIA DGX/GPU hardware evidence before the deferred hardware/evidence modernization tranche proceeds.
+6. Keep NIM compatibility manual until the NVIDIA endpoint is production-validated.
+7. Maintain the current model-modernization baseline as model policy, source evidence, sizing methodology, or handoff semantics evolve. New models must clear source qualification, architecture/methodology review, Advisor calibration, visibility/handoff checks, and the exact-head permanent quality gate before customer-facing activation.
+8. For the next validated release, preserve the same release discipline: release record, package metadata, merged-tree gate, deployed-scope verification, and exact immutable tag/commit identity.
+9. Keep all post-2026.09.1 work under `Unreleased` until an explicit next validated tag is created.
+10. Execute controlled Vite/esbuild and React Router upgrades separately with regression testing; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo mitigation.
+
+See `AiFactoryProjectBrief.md` for the detailed defect history, architecture, prior validation record, and release history. See `docs/history/2026-09-09-current-state-checkpoint.md` for the latest source checkpoint and `docs/MODEL_MODERNIZATION_CURRENT_STATE.md` for the current model-catalog and architecture-aware sizing baseline.
 
 ## Publication and branding status
 
