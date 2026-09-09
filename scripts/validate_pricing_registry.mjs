@@ -26,6 +26,35 @@ if (CLOUD_GPU_RATES.AWS?.["B200-class"]?.res !== 8.545) {
   errors.push("AWS B200 reserved rate must preserve exact validated 8.545 per-GPU equivalent");
 }
 
+const sep2026Hardware = {
+  "DGX B200": { list: 485000, sku: "DGXB-G1440+P1CMI36", loaded: 744793 },
+  "DGX B300": { list: 615000, sku: "D0B3-G2304+P1CMI36", loaded: 874793 },
+  "DGX GB200 NVL-72": { list: 4600000, sku: "DGXG-0072F+P1CMI36", loaded: 7841432 },
+  "DGX GB300 NVL-72": { list: 6500000, sku: "DGB3-0072F+P1CMI36", loaded: 9741432 },
+};
+
+for (const [systemName, expected] of Object.entries(sep2026Hardware)) {
+  const system = ONPREM_SYSTEMS[systemName];
+  if (!system) {
+    errors.push(`${systemName}: missing September 2026 on-prem system record`);
+    continue;
+  }
+  if (system.hardwareListPrice !== expected.list) errors.push(`${systemName}: hardware list price must be ${expected.list}`);
+  if (system.hardwareSku !== expected.sku) errors.push(`${systemName}: hardware SKU must be ${expected.sku}`);
+  if (system.perSys !== expected.loaded) errors.push(`${systemName}: loaded-system planning cost must be ${expected.loaded}`);
+  if (system.loadedAdders !== system.perSys - system.hardwareListPrice) {
+    errors.push(`${systemName}: loadedAdders must reconcile exactly to perSys - hardwareListPrice`);
+  }
+  if (system.hardwarePriceAsOf !== "2026-09-08") errors.push(`${systemName}: hardware price verification date must be 2026-09-08`);
+}
+
+if (ONPREM_SYSTEMS["DGX B200"].loadedAdders !== ONPREM_SYSTEMS["DGX B300"].loadedAdders) {
+  errors.push("B200 and B300 must preserve the same validated non-hardware loaded-system adders in this pricing-only refresh");
+}
+if (ONPREM_SYSTEMS["DGX GB200 NVL-72"].loadedAdders !== ONPREM_SYSTEMS["DGX GB300 NVL-72"].loadedAdders) {
+  errors.push("GB200 and GB300 must preserve the same validated non-hardware loaded-system adders in this pricing-only refresh");
+}
+
 for (const gpuClass of expectedSizingClasses) {
   const systemName = GPU_SIZING_SYSTEM_MAP[gpuClass];
   const system = ONPREM_SYSTEMS[systemName];
