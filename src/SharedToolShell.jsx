@@ -28,12 +28,20 @@ export default function SharedToolShell({
     const opensAudit =
       label === "Calculation Methodology & Audit Trail" ||
       label === "Why these recommendations?";
+    const opensReport =
+      label === "Get the full report (PDF)" ||
+      label === "Get the full sizing report" ||
+      label === "Get the full report" ||
+      label === "Get the full ROI report" ||
+      label === "Get my full readiness report" ||
+      label === "View my report" ||
+      label === "Show my summary";
 
-    if (!opensAudit || typeof window === "undefined") return;
+    if ((!opensAudit && !opensReport) || typeof window === "undefined") return;
 
-    // Audit views are internal state swaps rather than route changes, so the
-    // route-level scroll manager never runs. Wait until React has committed
-    // the new audit DOM, then start that full-page view at the top.
+    // Reports and audit views are internal state swaps rather than route
+    // changes, so the route-level scroll manager never runs. Wait until React
+    // has committed the new full-page view, then start it at the top.
     window.requestAnimationFrame(() => {
       window.requestAnimationFrame(() => {
         window.scrollTo({ top: 0, left: 0, behavior: "auto" });
