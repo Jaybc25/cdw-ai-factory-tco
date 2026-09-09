@@ -38,10 +38,12 @@ function jpegSize(input) {
       offset += 1;
       continue;
     }
+    if (offset + 1 >= buf.length) break; // end of buffer, incomplete marker
     const marker = buf[offset + 1];
     if (marker === 0xd9 || marker === 0xda) break; // EOI or SOS
+    if (offset + 3 >= buf.length) break; // segment header truncated
     const length = readUInt16BE(buf, offset + 2);
-    if (length < 2) break;
+    if (length < 2) break; // malformed/zero-length segment
     if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker)) {
       const height = readUInt16BE(buf, offset + 5);
       const width = readUInt16BE(buf, offset + 7);
