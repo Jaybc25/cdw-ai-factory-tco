@@ -20,6 +20,27 @@ export default function SharedToolShell({
   toolKey,
   children,
 }) {
+  function handleContentClickCapture(event) {
+    const button = event.target.closest?.("button");
+    if (!button) return;
+
+    const label = button.textContent?.trim();
+    const opensAudit =
+      label === "Calculation Methodology & Audit Trail" ||
+      label === "Why these recommendations?";
+
+    if (!opensAudit || typeof window === "undefined") return;
+
+    // Audit views are internal state swaps rather than route changes, so the
+    // route-level scroll manager never runs. Wait until React has committed
+    // the new audit DOM, then start that full-page view at the top.
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      });
+    });
+  }
+
   return (
     <div className={`shared-tool-shell shared-tool-shell--${toolKey || "default"}`}>
       <style>{`
@@ -88,7 +109,7 @@ export default function SharedToolShell({
         <AuthWidget />
       </div>
 
-      <div className="shared-tool-content">{children}</div>
+      <div className="shared-tool-content" onClickCapture={handleContentClickCapture}>{children}</div>
     </div>
   );
 }
