@@ -6,18 +6,36 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint src tests scripts *.config.mjs",
+    "lint:fix": "eslint src tests scripts *.config.mjs --fix",
+    "format": "prettier --write 'src/**/*.{js,jsx,mjs,cjs,json,md,css}' 'tests/**/*.{js,jsx,mjs,cjs,json,md}' 'scripts/**/*.{js,mjs,cjs,json,md}' '*.config.mjs' '*.json' '*.html' '*.md' '!*.ignore' '!*.gitignore'",
+    "format:check": "prettier --check 'src/**/*.{js,jsx,mjs,cjs,json,md,css}' 'tests/**/*.{js,jsx,mjs,cjs,json,md}' 'scripts/**/*.{js,mjs,cjs,json,md}' '*.config.mjs' '*.json' '*.html' '*.md' '!*.ignore' '!*.gitignore'"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
     "lucide-react": "^0.454.0",
     "pptxgenjs": "^4.0.1",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.23.0"
+    "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@babel/eslint-parser": "^7.27.1",
+    "@babel/plugin-syntax-import-attributes": "^7.26.0",
+    "@babel/plugin-syntax-jsx": "^7.27.1",
+    "@eslint/plugin-kit": "^0.3.5",
     "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.8"
+    "eslint": "^9.27.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.19",
+    "globals": "^17.12.0",
+    "prettier": "^3.5.3",
+    "react-router-dom": "^7.18.2",
+    "vite": "^6.4.3"
+  },
+  "overrides": {
+    "image-size": "file:./vendor/image-size-override"
   }
 }

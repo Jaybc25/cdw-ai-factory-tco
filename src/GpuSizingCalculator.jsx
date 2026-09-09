@@ -6,8 +6,18 @@ import AuthWidget from "./AuthWidget";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
 import { GPU_SIZING_PRICE_USD as GPU_PRICE_USD } from "./pricingRegistry.js";
-import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelParamsB } from "./modelRegistry.js";
-import { getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
+import {
+  GPU_SIZING_MODELS as MODELS,
+  getDefaultModel,
+  getModelById,
+  getModelParamsB,
+  getVisibleModelOptions,
+} from "./modelRegistry.js";
+import {
+  getInferenceSequenceStateMemory,
+  getInferenceThroughputScale,
+  getTrainingParameterSemantics,
+} from "./modelSizingMethodology.js";
 import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
 
 // ---------------------------------------------------------------------------
@@ -15,23 +25,39 @@ import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
 // default), what-it-is -> why/if-unsure, always resolves to an action.
 // ---------------------------------------------------------------------------
 const TIPS = {
-  infModel: "The model you plan to run. This list defaults to current choices; enable existing-deployment models only when sizing something you already run. If you're not sure which current model fits, start in Model Advisor.",
-  quant: "How compressed the model's weights are in memory. FP8 is the safe default for H200-class hardware and up; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300) and roughly halves memory again.",
-  concurrentUsers: "The maximum number of simultaneous active request streams during your busiest period. Include human users, AI agents, copilots, automations, and parallel sub-agents that may be generating model requests at the same time.",
-  targetTokPerUser: "How fast each user's response should stream in. 20-30 tokens/sec feels roughly like natural reading speed for a chat experience; lower it for batch/offline jobs where speed matters less.",
-  environment: "Whether this is a real production deployment or something lighter-weight. Dev/Test/POC unlocks a note about cheaper workstation-class GPUs, since production reliability requirements don't apply yet.",
-  infGpuOverride: "Leave this on Auto-recommend to let the tool pick the most efficient class for your workload. Only override it if you already own a specific GPU class and want to see how it performs.",
-  avgInputTokens: "The typical length of what a user sends in, in tokens (~4 characters per token). 2,000 is a reasonable default for a chat-style prompt with some context; raise it for document-heavy use cases.",
-  avgOutputTokens: "The typical length of the model's response, in tokens. 500 covers a solid paragraph-to-page answer; lower it for short-form chat, raise it for long-form generation.",
-  kvBytesPerElement: "Precision used for token-growing attention/KV cache state (separate from the model weights). 2 bytes (FP16) is the safe default; dropping to 1 (FP8) needs backend support, and source-defined recurrent/compression state may retain its own precision instead of following this control.",
-  overheadPct: "A safety margin added on top of weights and KV cache for runtime/activation memory. 15% is a conservative default -- lower it only if you know your serving stack is unusually memory-efficient.",
-  trainModel: "The model you're training or fine-tuning. This list defaults to current choices; enable existing-deployment models only when modeling an existing environment.",
-  taskType: "Full fine-tune updates every weight and needs the most memory; LoRA/PEFT trains a small adapter and needs far less. If you're unsure which you need, LoRA is the cheaper starting point for most use cases.",
-  precision: "The numeric precision used during training. BF16 is the safe, widely-supported default; FP8 roughly halves memory and speeds up training but needs a model/stack that supports it well.",
-  datasetTokensB: "The size of your training dataset, in billions of tokens. If you're not sure, 10-50B tokens is a common range for a domain-specific fine-tune; pretraining runs are far larger (trillions).",
-  targetDays: "How quickly the training run needs to finish. Shorter deadlines need more GPUs working in parallel -- if there's no hard deadline, a few weeks is a reasonable default to size against.",
+  infModel:
+    "The model you plan to run. This list defaults to current choices; enable existing-deployment models only when sizing something you already run. If you're not sure which current model fits, start in Model Advisor.",
+  quant:
+    "How compressed the model's weights are in memory. FP8 is the safe default for H200-class hardware and up; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300) and roughly halves memory again.",
+  concurrentUsers:
+    "The maximum number of simultaneous active request streams during your busiest period. Include human users, AI agents, copilots, automations, and parallel sub-agents that may be generating model requests at the same time.",
+  targetTokPerUser:
+    "How fast each user's response should stream in. 20-30 tokens/sec feels roughly like natural reading speed for a chat experience; lower it for batch/offline jobs where speed matters less.",
+  environment:
+    "Whether this is a real production deployment or something lighter-weight. Dev/Test/POC unlocks a note about cheaper workstation-class GPUs, since production reliability requirements don't apply yet.",
+  infGpuOverride:
+    "Leave this on Auto-recommend to let the tool pick the most efficient class for your workload. Only override it if you already own a specific GPU class and want to see how it performs.",
+  avgInputTokens:
+    "The typical length of what a user sends in, in tokens (~4 characters per token). 2,000 is a reasonable default for a chat-style prompt with some context; raise it for document-heavy use cases.",
+  avgOutputTokens:
+    "The typical length of the model's response, in tokens. 500 covers a solid paragraph-to-page answer; lower it for short-form chat, raise it for long-form generation.",
+  kvBytesPerElement:
+    "Precision used for token-growing attention/KV cache state (separate from the model weights). 2 bytes (FP16) is the safe default; dropping to 1 (FP8) needs backend support, and source-defined recurrent/compression state may retain its own precision instead of following this control.",
+  overheadPct:
+    "A safety margin added on top of weights and KV cache for runtime/activation memory. 15% is a conservative default -- lower it only if you know your serving stack is unusually memory-efficient.",
+  trainModel:
+    "The model you're training or fine-tuning. This list defaults to current choices; enable existing-deployment models only when modeling an existing environment.",
+  taskType:
+    "Full fine-tune updates every weight and needs the most memory; LoRA/PEFT trains a small adapter and needs far less. If you're unsure which you need, LoRA is the cheaper starting point for most use cases.",
+  precision:
+    "The numeric precision used during training. BF16 is the safe, widely-supported default; FP8 roughly halves memory and speeds up training but needs a model/stack that supports it well.",
+  datasetTokensB:
+    "The size of your training dataset, in billions of tokens. If you're not sure, 10-50B tokens is a common range for a domain-specific fine-tune; pretraining runs are far larger (trillions).",
+  targetDays:
+    "How quickly the training run needs to finish. Shorter deadlines need more GPUs working in parallel -- if there's no hard deadline, a few weeks is a reasonable default to size against.",
   mfu: "Model FLOPs Utilization -- how much of a GPU's theoretical peak speed your training run actually achieves. 40% is a well-supported real-world default (Meta's Llama 3 paper reports 38-43% at scale).",
-  workingDayHours: "How many hours a day this deployment actually sees business-hours load. Outside this window, demand is assumed to drop off -- capacity during those hours is either idle or available for other work.",
+  workingDayHours:
+    "How many hours a day this deployment actually sees business-hours load. Outside this window, demand is assumed to drop off -- capacity during those hours is either idle or available for other work.",
 };
 
 function TipDot({ tipKey }) {
@@ -79,7 +105,9 @@ function TipDot({ tipKey }) {
             style={{ border: `1.5px solid ${RED}`, color: CHARCOAL }}
           >
             <div className="flex justify-between items-center gap-3 mb-3">
-              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: RED }}>About this field</span>
+              <span className="text-xs font-bold uppercase tracking-wide" style={{ color: RED }}>
+                About this field
+              </span>
               <button
                 type="button"
                 onClick={() => setOpen(false)}
@@ -98,10 +126,52 @@ function TipDot({ tipKey }) {
 }
 
 const GPU_SPECS = [
-  { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8", nodeSize: 8 },
-  { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)", nodeSize: 8 },
-  { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified", nodeSize: 72 },
-  { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%", nodeSize: 8 },
+  {
+    id: "H200",
+    vram: 141,
+    bf16: 989,
+    fp8: 1979,
+    anchor: 4373,
+    anchorPrecision: "FP8",
+    confidence: "LISTED",
+    source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8",
+    nodeSize: 8,
+  },
+  {
+    id: "B200",
+    vram: 180,
+    bf16: 2250,
+    fp8: 4500,
+    anchor: 12357,
+    anchorPrecision: "FP4 (NVFP4)",
+    confidence: "LISTED",
+    source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)",
+    nodeSize: 8,
+  },
+  {
+    id: "GB200 NVL72",
+    vram: 186,
+    bf16: 2250,
+    fp8: 4500,
+    anchor: 12022,
+    anchorPrecision: "FP4 (NVFP4)",
+    confidence: "LISTED-derived",
+    source:
+      "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified",
+    nodeSize: 72,
+  },
+  {
+    id: "B300",
+    vram: 288,
+    bf16: 2250,
+    fp8: 5500,
+    anchor: 15200,
+    anchorPrecision: "FP4 (NVFP4)",
+    confidence: "LISTED-derived",
+    source:
+      "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%",
+    nodeSize: 8,
+  },
 ];
 
 const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
@@ -111,9 +181,14 @@ const RTX_SPEC = {
   vram: 96,
   anchor: 2095,
   anchorPrecision: "FP8",
-  source: "EST, derived from memory-bandwidth ratio vs H100 -- no MLPerf datacenter submission exists for workstation-class GPUs; community vLLM benchmarks (CloudRift, Oct 2025) confirm the same bandwidth-bound scaling pattern on smaller models",
+  source:
+    "EST, derived from memory-bandwidth ratio vs H100 -- no MLPerf datacenter submission exists for workstation-class GPUs; community vLLM benchmarks (CloudRift, Oct 2025) confirm the same bandwidth-bound scaling pattern on smaller models",
   maxWorkstationGPUs: 4,
-  price: { amount: 8500, confidence: "LISTED", source: "StorageReview.com RTX PRO 6000 Workstation review, listed retail price" },
+  price: {
+    amount: 8500,
+    confidence: "LISTED",
+    source: "StorageReview.com RTX PRO 6000 Workstation review, listed retail price",
+  },
 };
 
 function ceilDiv(a, b) {
@@ -133,11 +208,15 @@ function validateInference(inputs) {
   if (!(inputs.targetTokPerUser > 0)) errors.push("Target tokens/sec per user must be greater than 0.");
   if (!(inputs.avgInputTokens >= 0)) errors.push("Avg input tokens can't be negative.");
   if (!(inputs.avgOutputTokens >= 0)) errors.push("Avg output tokens can't be negative.");
-  if (inputs.avgInputTokens + inputs.avgOutputTokens <= 0) errors.push("Avg input + output tokens must add up to more than 0.");
-  if (!(inputs.kvBytesPerElement > 0)) errors.push("Attention/KV cache precision (bytes/element) must be greater than 0.");
+  if (inputs.avgInputTokens + inputs.avgOutputTokens <= 0)
+    errors.push("Avg input + output tokens must add up to more than 0.");
+  if (!(inputs.kvBytesPerElement > 0))
+    errors.push("Attention/KV cache precision (bytes/element) must be greater than 0.");
   if (!(inputs.overheadPct >= 0)) errors.push("Runtime/activation overhead % can't be negative.");
-  if (inputs.overheadPct > 2) errors.push("Runtime/activation overhead % over 200% is almost certainly a typo -- check the value.");
-  if (!(inputs.workingDayHours > 0) || inputs.workingDayHours > 24) errors.push("Length of working day must be between 0 and 24 hours.");
+  if (inputs.overheadPct > 2)
+    errors.push("Runtime/activation overhead % over 200% is almost certainly a typo -- check the value.");
+  if (!(inputs.workingDayHours > 0) || inputs.workingDayHours > 24)
+    errors.push("Length of working day must be between 0 and 24 hours.");
   return errors;
 }
 
@@ -153,9 +232,20 @@ function validateTraining(inputs) {
 }
 
 function computeInference(inputs) {
-  const model = inputs.model.id === "custom"
-    ? { id: "custom", totalParamsB: inputs.customParamsB, activeParamsB: inputs.customParamsB, architectureType: "dense", layers: inputs.customLayers, attentionType: "standard", kvHeads: inputs.customKvHeads, headDim: inputs.customHeadDim, status: "CUSTOM" }
-    : inputs.model;
+  const model =
+    inputs.model.id === "custom"
+      ? {
+          id: "custom",
+          totalParamsB: inputs.customParamsB,
+          activeParamsB: inputs.customParamsB,
+          architectureType: "dense",
+          layers: inputs.customLayers,
+          attentionType: "standard",
+          kvHeads: inputs.customKvHeads,
+          headDim: inputs.customHeadDim,
+          status: "CUSTOM",
+        }
+      : inputs.model;
 
   const quantBytes = QUANT_BYTES[inputs.quant];
   const weightMemoryGB = model.totalParamsB * quantBytes;
@@ -179,10 +269,14 @@ function computeInference(inputs) {
     return { ...gpu, effectiveAnchor, gpusMem, gpusPerf, gpusWorkload: Math.max(gpusMem, gpusPerf) };
   });
 
-  const autoRecommended = candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), candidates[0]);
-  const selected = inputs.gpuClassOverride === "Auto-recommend"
-    ? autoRecommended
-    : candidates.find((c) => c.id === inputs.gpuClassOverride);
+  const autoRecommended = candidates.reduce(
+    (best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best),
+    candidates[0]
+  );
+  const selected =
+    inputs.gpuClassOverride === "Auto-recommend"
+      ? autoRecommended
+      : candidates.find((c) => c.id === inputs.gpuClassOverride);
 
   function budgetFor(gpuId, deployedCount) {
     const price = GPU_PRICE_USD[gpuId];
@@ -202,15 +296,23 @@ function computeInference(inputs) {
   const cheapestOther = pricedOthers.length
     ? pricedOthers.reduce((best, c) => (c.deployedCost < best.deployedCost ? c : best))
     : null;
-  const lowerCost = cheapestOther && selectedPriced.deployedCost != null && cheapestOther.deployedCost < selectedPriced.deployedCost
-    ? cheapestOther : null;
+  const lowerCost =
+    cheapestOther && selectedPriced.deployedCost != null && cheapestOther.deployedCost < selectedPriced.deployedCost
+      ? cheapestOther
+      : null;
 
   const higherGrowth = selectHigherGrowthConfiguration(selectedPriced, priced, "effectiveAnchor");
 
   const confidence =
     model.status !== "VERIFIED"
-      ? { level: "LOW", note: "Model architecture not yet verified (custom entry); hardware reference anchors are not treated as model-specific throughput." }
-      : { level: "MEDIUM", note: `${throughputScale.basis} GPU anchors remain hardware benchmark references rather than universal model-specific throughput.` };
+      ? {
+          level: "LOW",
+          note: "Model architecture not yet verified (custom entry); hardware reference anchors are not treated as model-specific throughput.",
+        }
+      : {
+          level: "MEDIUM",
+          note: `${throughputScale.basis} GPU anchors remain hardware benchmark references rather than universal model-specific throughput.`,
+        };
 
   const rtxEffectiveAnchor = RTX_SPEC.anchor * throughputScale.factor;
   const rtxGpusMem = ceilDiv(totalMemoryGB, RTX_SPEC.vram);
@@ -256,8 +358,17 @@ function computeInference(inputs) {
     selectedNodeSize: selected.nodeSize,
     minTechnical: selected.gpusWorkload,
     recommended: recommendedCount,
-    lowerCost: lowerCost ? { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount } : { class: null, workload: null, recommended: null },
-    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount, growthBasis: higherGrowth.growthBasis } : { class: null, workload: null, recommended: null, growthBasis: null },
+    lowerCost: lowerCost
+      ? { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount }
+      : { class: null, workload: null, recommended: null },
+    higherGrowth: higherGrowth
+      ? {
+          class: higherGrowth.id,
+          workload: higherGrowth.gpusWorkload,
+          recommended: higherGrowthCount,
+          growthBasis: higherGrowth.growthBasis,
+        }
+      : { class: null, workload: null, recommended: null, growthBasis: null },
     confidence,
     rtxAlt,
     budget,
@@ -267,14 +378,28 @@ function computeInference(inputs) {
     idleGpuHoursAfterHours,
     headroomGpuHoursDuringDay,
     throughputScale,
-    model, quantBytes, weightMemoryGB, sequenceStateMemory, kvBytesPerToken, kvCacheGBPerSeq, kvCacheTotalGB, runtimeOverheadGB,
+    model,
+    quantBytes,
+    weightMemoryGB,
+    sequenceStateMemory,
+    kvBytesPerToken,
+    kvCacheGBPerSeq,
+    kvCacheTotalGB,
+    runtimeOverheadGB,
   };
 }
 
 function computeTraining(inputs) {
-  const model = inputs.model.id === "custom"
-    ? { id: "custom", totalParamsB: inputs.customParamsB, activeParamsB: inputs.customParamsB, architectureType: "dense", status: "CUSTOM" }
-    : inputs.model;
+  const model =
+    inputs.model.id === "custom"
+      ? {
+          id: "custom",
+          totalParamsB: inputs.customParamsB,
+          activeParamsB: inputs.customParamsB,
+          architectureType: "dense",
+          status: "CUSTOM",
+        }
+      : inputs.model;
 
   const precisionBytes = inputs.precision === "FP8" ? 1 : 2;
   const multiplier = inputs.memMultiplierOverride || (inputs.taskType === "LoRA/PEFT" ? 2.5 : 18);
@@ -291,10 +416,14 @@ function computeTraining(inputs) {
     return { ...gpu, peakTFLOPS, gpusFit, gpusTime, gpusWorkload: Math.max(gpusFit, gpusTime) };
   });
 
-  const autoRecommended = candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), candidates[0]);
-  const selected = inputs.gpuClassOverride === "Auto-recommend"
-    ? autoRecommended
-    : candidates.find((c) => c.id === inputs.gpuClassOverride);
+  const autoRecommended = candidates.reduce(
+    (best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best),
+    candidates[0]
+  );
+  const selected =
+    inputs.gpuClassOverride === "Auto-recommend"
+      ? autoRecommended
+      : candidates.find((c) => c.id === inputs.gpuClassOverride);
 
   function budgetFor(gpuId, deployedCount) {
     const price = GPU_PRICE_USD[gpuId];
@@ -314,15 +443,20 @@ function computeTraining(inputs) {
   const cheapestOther = pricedOthers.length
     ? pricedOthers.reduce((best, c) => (c.deployedCost < best.deployedCost ? c : best))
     : null;
-  const lowerCost = cheapestOther && selectedPriced.deployedCost != null && cheapestOther.deployedCost < selectedPriced.deployedCost
-    ? cheapestOther : null;
+  const lowerCost =
+    cheapestOther && selectedPriced.deployedCost != null && cheapestOther.deployedCost < selectedPriced.deployedCost
+      ? cheapestOther
+      : null;
 
   const higherGrowth = selectHigherGrowthConfiguration(selectedPriced, priced, "peakTFLOPS");
 
   const confidence =
     model.status !== "VERIFIED"
       ? { level: "LOW", note: "Model architecture not yet verified (custom entry)" }
-      : { level: "MEDIUM", note: `${trainingSemantics.basis} GPU FLOPs use NVIDIA published spec-sheet values; MFU remains an explicit user-adjustable assumption.` };
+      : {
+          level: "MEDIUM",
+          note: `${trainingSemantics.basis} GPU FLOPs use NVIDIA published spec-sheet values; MFU remains an explicit user-adjustable assumption.`,
+        };
 
   const recommendedCount = selectedPriced.deployedCount;
   const lowerCostCount = lowerCost ? lowerCost.deployedCount : null;
@@ -341,12 +475,24 @@ function computeTraining(inputs) {
     selectedNodeSize: selected.nodeSize,
     minTechnical: selected.gpusWorkload,
     recommended: recommendedCount,
-    lowerCost: lowerCost ? { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount } : { class: null, workload: null, recommended: null },
-    higherGrowth: higherGrowth ? { class: higherGrowth.id, workload: higherGrowth.gpusWorkload, recommended: higherGrowthCount, growthBasis: higherGrowth.growthBasis } : { class: null, workload: null, recommended: null, growthBasis: null },
+    lowerCost: lowerCost
+      ? { class: lowerCost.id, workload: lowerCost.gpusWorkload, recommended: lowerCostCount }
+      : { class: null, workload: null, recommended: null },
+    higherGrowth: higherGrowth
+      ? {
+          class: higherGrowth.id,
+          workload: higherGrowth.gpusWorkload,
+          recommended: higherGrowthCount,
+          growthBasis: higherGrowth.growthBasis,
+        }
+      : { class: null, workload: null, recommended: null, growthBasis: null },
     confidence,
     budget,
     trainingSemantics,
-    model, precisionBytes, multiplier, secondsTarget,
+    model,
+    precisionBytes,
+    multiplier,
+    secondsTarget,
   };
 }
 
@@ -376,7 +522,9 @@ function Select({ value, onChange, options }) {
         style={{ "--tw-ring-color": RED }}
       >
         {options.map((o) => (
-          <option key={o} value={o}>{o}</option>
+          <option key={o} value={o}>
+            {o}
+          </option>
         ))}
       </select>
       <ChevronDown className="w-4 h-4 absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
@@ -465,7 +613,18 @@ function ConfidenceBadge({ level }) {
   );
 }
 
-function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent, emptyMessage, selectable = false, selected = false, onSelect }) {
+function ResultCard({
+  icon: Icon,
+  title,
+  gpuClass,
+  gpus,
+  subtitle,
+  accent,
+  emptyMessage,
+  selectable = false,
+  selected = false,
+  onSelect,
+}) {
   if (gpuClass == null) {
     return (
       <div
@@ -474,9 +633,13 @@ function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent, empty
       >
         <div className="flex items-center gap-2 mb-2">
           <Icon className="w-4 h-4" style={{ color: RED }} />
-          <span className="text-xs font-bold uppercase tracking-wide" style={{ opacity: 0.8 }}>{title}</span>
+          <span className="text-xs font-bold uppercase tracking-wide" style={{ opacity: 0.8 }}>
+            {title}
+          </span>
         </div>
-        <div className="text-sm" style={{ opacity: 0.7 }}>{emptyMessage || `No qualifying ${title.toLowerCase()} in the current supported catalog.`}</div>
+        <div className="text-sm" style={{ opacity: 0.7 }}>
+          {emptyMessage || `No qualifying ${title.toLowerCase()} in the current supported catalog.`}
+        </div>
       </div>
     );
   }
@@ -491,26 +654,49 @@ function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent, empty
     <>
       <div className="flex items-center gap-2 mb-2">
         <Icon className="w-4 h-4" style={{ color: RED }} />
-        <span className="text-xs font-bold uppercase tracking-wide" style={{ opacity: 0.8 }}>{title}</span>
+        <span className="text-xs font-bold uppercase tracking-wide" style={{ opacity: 0.8 }}>
+          {title}
+        </span>
       </div>
       {selectable && (
-        <div className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: selected ? RED : (accent ? "#D1D5DB" : "#707070") }}>
+        <div
+          className="text-[10px] font-bold uppercase tracking-wide mb-2"
+          style={{ color: selected ? RED : accent ? "#D1D5DB" : "#707070" }}
+        >
           {selected ? "Selected for TCO" : "Tap to select for TCO"}
         </div>
       )}
-      <div className="text-3xl font-bold mb-1">{gpus} <span className="text-base font-normal">GPUs</span></div>
-      <div className="text-sm font-semibold" style={{ color: accent ? "white" : CHARCOAL }}>{gpuClass}</div>
-      {subtitle && <div className="text-xs mt-1" style={{ opacity: 0.7 }}>{subtitle}</div>}
+      <div className="text-3xl font-bold mb-1">
+        {gpus} <span className="text-base font-normal">GPUs</span>
+      </div>
+      <div className="text-sm font-semibold" style={{ color: accent ? "white" : CHARCOAL }}>
+        {gpuClass}
+      </div>
+      {subtitle && (
+        <div className="text-xs mt-1" style={{ opacity: 0.7 }}>
+          {subtitle}
+        </div>
+      )}
     </>
   );
   if (selectable) {
     return (
-      <button type="button" onClick={onSelect} aria-pressed={selected} className="rounded-xl p-5 flex-1 min-w-[220px] text-left" style={cardStyle}>
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        className="rounded-xl p-5 flex-1 min-w-[220px] text-left"
+        style={cardStyle}
+      >
         {content}
       </button>
     );
   }
-  return <div className="rounded-xl p-5 flex-1 min-w-[220px]" style={cardStyle}>{content}</div>;
+  return (
+    <div className="rounded-xl p-5 flex-1 min-w-[220px]" style={cardStyle}>
+      {content}
+    </div>
+  );
 }
 
 function fmtUsd(n) {
@@ -526,7 +712,9 @@ function BudgetPanel({ budget }) {
     <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-gray-50">
       <div className="flex items-center justify-between mb-1">
         <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Estimated budget</span>
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">{budget.recommended.confidence}</span>
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">
+          {budget.recommended.confidence}
+        </span>
       </div>
       <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>
         {fmtUsd(budget.recommended.amount)}
@@ -535,11 +723,28 @@ function BudgetPanel({ budget }) {
         {legacyClass
           ? "Rough estimate only -- this class isn't part of CDW's current DGX purchase line, so there's no matching TCO Calculator figure to anchor to."
           : "Same pricing basis as the Cloud vs On-Prem TCO Calculator (system + software suite + fabrics + professional services)."}{" "}
-        Excludes cluster management nodes, racks, power/cooling, and ongoing operations -- not a quote. See the
-        TCO Calculator for full lifecycle cost, or confirm with a CDW AI Factory specialist.
+        Excludes cluster management nodes, racks, power/cooling, and ongoing operations -- not a quote. See the TCO
+        Calculator for full lifecycle cost, or confirm with a CDW AI Factory specialist.
       </p>
-      <p className="text-xs" style={{ color: onpremBudgetStaleness.level === "stale" ? "#B91C1C" : onpremBudgetStaleness.level === "review" ? "#B45309" : "#6B7280", marginTop: 4 }}>
-        Pricing basis last verified {fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)} ({onpremBudgetStaleness.days} days ago){onpremBudgetStaleness.level === "stale" ? " -- refresh before client use" : onpremBudgetStaleness.level === "review" ? " -- review due soon" : "."}
+      <p
+        className="text-xs"
+        style={{
+          color:
+            onpremBudgetStaleness.level === "stale"
+              ? "#B91C1C"
+              : onpremBudgetStaleness.level === "review"
+                ? "#B45309"
+                : "#6B7280",
+          marginTop: 4,
+        }}
+      >
+        Pricing basis last verified {fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)} ({onpremBudgetStaleness.days} days
+        ago)
+        {onpremBudgetStaleness.level === "stale"
+          ? " -- refresh before client use"
+          : onpremBudgetStaleness.level === "review"
+            ? " -- review due soon"
+            : "."}
       </p>
     </div>
   );
@@ -552,8 +757,12 @@ function UtilizationBar({ label, gpuClass, pct }) {
   return (
     <div className="mb-2">
       <div className="flex justify-between text-xs mb-1">
-        <span className="font-semibold" style={{ color: CHARCOAL }}>{label} <span className="font-normal text-gray-500">({gpuClass})</span></span>
-        <span className="font-bold" style={{ color }}>{pctDisplay}%</span>
+        <span className="font-semibold" style={{ color: CHARCOAL }}>
+          {label} <span className="font-normal text-gray-500">({gpuClass})</span>
+        </span>
+        <span className="font-bold" style={{ color }}>
+          {pctDisplay}%
+        </span>
       </div>
       <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden">
         <div className="h-full rounded-full" style={{ width: `${Math.max(pctDisplay, 2)}%`, background: color }} />
@@ -621,11 +830,14 @@ function UtilizationPanel({ result, workingDayHours, onWorkingDayHoursChange }) 
       <UtilizationBar label="Lower-cost alt" gpuClass={result.lowerCost.class} pct={u.lowerCost} />
       <UtilizationBar label="Higher-growth alt" gpuClass={result.higherGrowth.class} pct={u.higherGrowth} />
       <p className="text-xs text-gray-500 mt-2 mb-4">
-        Same estimated workload, different deployable configurations -- a lower utilization % in the higher-growth option isn't
-        waste, it's headroom bought on purpose. The higher-growth option may use a different class or the next deployment quantum of the same class.
+        Same estimated workload, different deployable configurations -- a lower utilization % in the higher-growth
+        option isn't waste, it's headroom bought on purpose. The higher-growth option may use a different class or the
+        next deployment quantum of the same class.
       </p>
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-semibold" style={{ color: CHARCOAL }}>Length of working day</span>
+        <span className="text-xs font-semibold" style={{ color: CHARCOAL }}>
+          Length of working day
+        </span>
         <div className="flex items-center gap-1">
           <input
             type="number"
@@ -645,9 +857,9 @@ function UtilizationPanel({ result, workingDayHours, onWorkingDayHoursChange }) 
       </div>
       <DayCurve workingDayHours={result.workingDayHours} utilizationPct={u.recommended} />
       <p className="text-xs text-gray-500 mt-2">
-        Red = business hours at ~{Math.round(u.recommended * 100)}% utilization. Gray = after-hours, effectively
-        idle. At the recommended config that's <strong>{result.idleGpuHoursAfterHours.toFixed(0)} GPU-hours/day</strong>{" "}
-        of after-hours capacity, plus <strong>{result.headroomGpuHoursDuringDay.toFixed(0)} GPU-hours/day</strong> of
+        Red = business hours at ~{Math.round(u.recommended * 100)}% utilization. Gray = after-hours, effectively idle.
+        At the recommended config that's <strong>{result.idleGpuHoursAfterHours.toFixed(0)} GPU-hours/day</strong> of
+        after-hours capacity, plus <strong>{result.headroomGpuHoursDuringDay.toFixed(0)} GPU-hours/day</strong> of
         within-hours headroom -- time that could run batch jobs, accelerate other workloads, or be resold.
       </p>
     </div>
@@ -661,11 +873,26 @@ const TCO_OWN_SYS_FOR_CLASS = {
   B300: "DGX B300",
 };
 
-function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", mode, workingDayHours, model, modelParamsB, quant }) {
+function TcoHandoff({
+  selectedClass,
+  recommended,
+  sizingBasis = "recommended",
+  mode,
+  workingDayHours,
+  model,
+  modelParamsB,
+  quant,
+}) {
   const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
-  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });
+  const params = new URLSearchParams({
+    ownSys,
+    gpuCount: String(recommended),
+    sourceClass: selectedClass,
+    sizingBasis,
+  });
   if (model?.id) params.set("model", model.id);
-  if (Number.isFinite(Number(modelParamsB)) && Number(modelParamsB) > 0) params.set("modelParamsB", String(modelParamsB));
+  if (Number.isFinite(Number(modelParamsB)) && Number(modelParamsB) > 0)
+    params.set("modelParamsB", String(modelParamsB));
   if (mode === "Inference" && quant) params.set("quant", quant);
   if (mode === "Inference" && workingDayHours) params.set("workingDayHours", String(workingDayHours));
   const href = `/tco?${params.toString()}`;
@@ -674,7 +901,9 @@ function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", m
       <div>
         <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Next: Cost comparison</div>
         <div className="text-xs text-gray-500">
-          Compare the cost of owning this {sizingBasis === "higher-growth" ? "user-selected higher-growth" : "recommended"} GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator.
+          Compare the cost of owning this{" "}
+          {sizingBasis === "higher-growth" ? "user-selected higher-growth" : "recommended"} GPU capacity with renting
+          equivalent capability in the cloud, in the TCO Calculator.
         </div>
       </div>
       <a
@@ -727,10 +956,14 @@ function fmtUsdPrecise(n) {
 function AuditFormula({ label, formula, substituted, result }) {
   return (
     <div className="mb-3">
-      <div className="text-xs font-semibold mb-0.5" style={{ color: CHARCOAL }}>{label}</div>
+      <div className="text-xs font-semibold mb-0.5" style={{ color: CHARCOAL }}>
+        {label}
+      </div>
       <div className="text-xs text-gray-500">{formula}</div>
       <div className="text-xs text-gray-500">{substituted}</div>
-      <div className="text-sm font-bold mt-0.5" style={{ color: CHARCOAL }}>= {result}</div>
+      <div className="text-sm font-bold mt-0.5" style={{ color: CHARCOAL }}>
+        = {result}
+      </div>
     </div>
   );
 }
@@ -739,7 +972,9 @@ function ReconCheck({ label, parts, calculated, engineValue, format }) {
   if (engineValue == null || calculated == null) {
     return (
       <div className="rounded-lg border p-3 mb-2.5 bg-gray-50" style={{ borderColor: "#D1D5DB" }}>
-        <div className="text-xs font-bold mb-1" style={{ color: CHARCOAL }}>{label}</div>
+        <div className="text-xs font-bold mb-1" style={{ color: CHARCOAL }}>
+          {label}
+        </div>
         <div className="text-xs text-gray-500">Not applicable in this scenario.</div>
       </div>
     );
@@ -748,21 +983,33 @@ function ReconCheck({ label, parts, calculated, engineValue, format }) {
   const diff = Math.abs(calculated - engineValue);
   const pass = diff < 1;
   return (
-    <div className="rounded-lg border p-3 mb-2.5" style={{ borderColor: pass ? "#1E7A3D" : RED, background: pass ? "#EAF6EE" : "#FEF2F2" }}>
-      <div className="text-xs font-bold mb-1.5" style={{ color: CHARCOAL }}>{label}</div>
+    <div
+      className="rounded-lg border p-3 mb-2.5"
+      style={{ borderColor: pass ? "#1E7A3D" : RED, background: pass ? "#EAF6EE" : "#FEF2F2" }}
+    >
+      <div className="text-xs font-bold mb-1.5" style={{ color: CHARCOAL }}>
+        {label}
+      </div>
       {parts.map((p, i) => (
         <div key={i} className="flex justify-between text-xs text-gray-500 mb-0.5">
-          <span>{p.label}</span><span>{p.value}</span>
+          <span>{p.label}</span>
+          <span>{p.value}</span>
         </div>
       ))}
-      <div className="flex justify-between text-xs font-semibold mt-1 pt-1 border-t" style={{ color: CHARCOAL, borderColor: "#D1D5DB" }}>
-        <span>Reconstructed from parts above</span><span>{fmt(calculated)}</span>
+      <div
+        className="flex justify-between text-xs font-semibold mt-1 pt-1 border-t"
+        style={{ color: CHARCOAL, borderColor: "#D1D5DB" }}
+      >
+        <span>Reconstructed from parts above</span>
+        <span>{fmt(calculated)}</span>
       </div>
       <div className="flex justify-between text-xs text-gray-500">
-        <span>Engine's own value (separate code path)</span><span>{fmt(engineValue)}</span>
+        <span>Engine's own value (separate code path)</span>
+        <span>{fmt(engineValue)}</span>
       </div>
       <div className="flex justify-between text-xs font-bold mt-1" style={{ color: pass ? "#1E7A3D" : RED }}>
-        <span>Difference: {fmt(diff)}</span><span>{pass ? "RECONCILED" : "MISMATCH — FLAG THIS"}</span>
+        <span>Difference: {fmt(diff)}</span>
+        <span>{pass ? "RECONCILED" : "MISMATCH — FLAG THIS"}</span>
       </div>
     </div>
   );
@@ -771,13 +1018,18 @@ function ReconCheck({ label, parts, calculated, engineValue, format }) {
 function AuditRow({ label, value, sub }) {
   return (
     <div className="grid grid-cols-2 py-1 text-xs">
-      <div className="text-gray-500">{label}{sub && <div className="text-[10px] text-gray-400">{sub}</div>}</div>
-      <div className="text-right font-semibold" style={{ color: CHARCOAL }}>{value}</div>
+      <div className="text-gray-500">
+        {label}
+        {sub && <div className="text-[10px] text-gray-400">{sub}</div>}
+      </div>
+      <div className="text-right font-semibold" style={{ color: CHARCOAL }}>
+        {value}
+      </div>
     </div>
   );
 }
 
-function GPUSizingCalculatorInner() {
+function GPUSizingCalculatorInner({ visibleModelOptions }) {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const saved = loadSessionState("gpu-sizing");
   const [incomingModelId] = useState(() => getIncomingParams()?.get("model") || null);
@@ -795,8 +1047,11 @@ function GPUSizingCalculatorInner() {
   }, []);
 
   const [hasFreshSourceUseCase] = useState(() => !!getInitialSourceUseCase());
-  const [mode, setMode] = useState(() => ((hasFreshSourceUseCase || incomingWorkloadType) ? getInitialMode() : saved?.mode ?? getInitialMode()));
+  const [mode, setMode] = useState(() =>
+    hasFreshSourceUseCase || incomingWorkloadType ? getInitialMode() : (saved?.mode ?? getInitialMode())
+  );
   const [pathLevel, setPathLevel] = useState(saved?.pathLevel ?? "simple");
+  const modelOptions = visibleModelOptions ?? MODELS;
   const [modelHandoff] = useState(getInitialInfModel);
   const [modelAdvisorRecommendedId] = useState(() => {
     if (incomingModelId) return modelHandoff.matched ? modelHandoff.model.id : incomingModelId;
@@ -839,19 +1094,61 @@ function GPUSizingCalculatorInner() {
 
   useEffect(() => {
     saveSessionState("gpu-sizing", {
-      mode, pathLevel,
-      infModelId: infModel.id, quant, concurrentUsers, targetTokPerUser, environment,
-      avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,
-      customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
-      trainModelId: trainModel.id, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,
+      mode,
+      pathLevel,
+      infModelId: infModel.id,
+      quant,
+      concurrentUsers,
+      targetTokPerUser,
+      environment,
+      avgInputTokens,
+      avgOutputTokens,
+      kvBytesPerElement,
+      overheadPct,
+      infGpuOverride,
+      customParamsB,
+      customLayers,
+      customKvHeads,
+      customHeadDim,
+      workingDayHours,
+      trainModelId: trainModel.id,
+      taskType,
+      precision,
+      datasetTokensB,
+      targetDays,
+      mfu,
+      trainGpuOverride,
       sourceUseCase,
       modelAdvisorRecommendedId,
     });
-  }, [mode, pathLevel, infModel, quant, concurrentUsers, targetTokPerUser, environment,
-      avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,
-      customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
-      trainModel, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,
-      sourceUseCase, modelAdvisorRecommendedId]);
+  }, [
+    mode,
+    pathLevel,
+    infModel,
+    quant,
+    concurrentUsers,
+    targetTokPerUser,
+    environment,
+    avgInputTokens,
+    avgOutputTokens,
+    kvBytesPerElement,
+    overheadPct,
+    infGpuOverride,
+    customParamsB,
+    customLayers,
+    customKvHeads,
+    customHeadDim,
+    workingDayHours,
+    trainModel,
+    taskType,
+    precision,
+    datasetTokensB,
+    targetDays,
+    mfu,
+    trainGpuOverride,
+    sourceUseCase,
+    modelAdvisorRecommendedId,
+  ]);
 
   const infInputs = {
     model: infModel,
@@ -882,12 +1179,48 @@ function GPUSizingCalculatorInner() {
     customParamsB,
   };
 
-  const infErrors = useMemo(() => validateInference(infInputs), [infModel, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours]);
-  const trainErrors = useMemo(() => validateTraining(trainInputs), [trainModel, datasetTokensB, targetDays, mfu, customParamsB]);
+  const infErrors = useMemo(
+    () => validateInference(infInputs),
+    [
+      infModel,
+      concurrentUsers,
+      targetTokPerUser,
+      avgInputTokens,
+      avgOutputTokens,
+      kvBytesPerElement,
+      overheadPct,
+      customParamsB,
+      customLayers,
+      customKvHeads,
+      customHeadDim,
+      workingDayHours,
+    ]
+  );
+  const trainErrors = useMemo(
+    () => validateTraining(trainInputs),
+    [trainModel, datasetTokensB, targetDays, mfu, customParamsB]
+  );
 
   const inferenceResult = useMemo(
     () => (infErrors.length ? null : computeInference(infInputs)),
-    [infModel, quant, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride, environment, customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours, infErrors]
+    [
+      infModel,
+      quant,
+      concurrentUsers,
+      targetTokPerUser,
+      avgInputTokens,
+      avgOutputTokens,
+      kvBytesPerElement,
+      overheadPct,
+      infGpuOverride,
+      environment,
+      customParamsB,
+      customLayers,
+      customKvHeads,
+      customHeadDim,
+      workingDayHours,
+      infErrors,
+    ]
   );
 
   const trainingResult = useMemo(
@@ -898,13 +1231,23 @@ function GPUSizingCalculatorInner() {
   const result = mode === "Inference" ? inferenceResult : trainingResult;
   const errors = mode === "Inference" ? infErrors : trainErrors;
   const [tcoSelection, setTcoSelection] = useState("recommended");
-  const effectiveTcoSelection = tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
-  const tcoSelectedClass = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
-  const tcoSelectedCount = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
-  const selectedBudget = effectiveTcoSelection === "higher-growth" ? result?.budget?.higherGrowth : result?.budget?.recommended;
+  const effectiveTcoSelection =
+    tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
+  const tcoSelectedClass =
+    effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
+  const tcoSelectedCount =
+    effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
+  const selectedBudget =
+    effectiveTcoSelection === "higher-growth" ? result?.budget?.higherGrowth : result?.budget?.recommended;
   useEffect(() => {
     setTcoSelection("recommended");
-  }, [mode, result?.selectedClass, result?.recommended, result?.higherGrowth?.class, result?.higherGrowth?.recommended]);
+  }, [
+    mode,
+    result?.selectedClass,
+    result?.recommended,
+    result?.higherGrowth?.class,
+    result?.higherGrowth?.recommended,
+  ]);
   const modelLabel = mode === "Inference" ? infModel.label : trainModel.label;
 
   useAutosaveSnapshot(
@@ -923,7 +1266,7 @@ function GPUSizingCalculatorInner() {
           higherGrowthCount: result.higherGrowth.recommended,
           confidence: result.confidence.level,
           budget: result.budget?.recommended?.amount ?? null,
-          utilizationPct: mode === "Inference" ? result.utilization?.recommended ?? null : null,
+          utilizationPct: mode === "Inference" ? (result.utilization?.recommended ?? null) : null,
         }
       : null
   );
@@ -951,8 +1294,14 @@ function GPUSizingCalculatorInner() {
   }
 
   function submitLead() {
-    if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) { setLeadStatus("Please enter a valid email address."); return; }
+    if (!lead.name || !lead.email || !lead.company) {
+      setLeadStatus("Please fill in all three fields.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) {
+      setLeadStatus("Please enter a valid email address.");
+      return;
+    }
     setLeadStatus("");
     setView("report");
   }
@@ -976,22 +1325,32 @@ function GPUSizingCalculatorInner() {
           <img src={cdwLogo} alt="CDW" className="h-9 w-auto" />
         </a>
         <div>
-          <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>AI FACTORY TOOLS</div>
-          <h1 className="text-lg font-bold" style={{ color: CHARCOAL, margin: 0 }}>GPU Sizing Tool</h1>
+          <div className="text-xs font-bold tracking-wide" style={{ color: RED }}>
+            AI FACTORY TOOLS
+          </div>
+          <h1 className="text-lg font-bold" style={{ color: CHARCOAL, margin: 0 }}>
+            GPU Sizing Tool
+          </h1>
         </div>
       </div>
 
       <div className="no-print border-b border-gray-100 px-6 py-2 flex items-center justify-between gap-3">
         {modelAdvisorRecommendedId ? (
-          <a href="/model-advisor" style={{ fontSize: 12, fontWeight: 600, color: RED, textDecoration: "none" }}>&larr; Change model recommendation</a>
-        ) : <span />}
+          <a href="/model-advisor" style={{ fontSize: 12, fontWeight: 600, color: RED, textDecoration: "none" }}>
+            &larr; Change model recommendation
+          </a>
+        ) : (
+          <span />
+        )}
         <AuthWidget />
       </div>
 
       {view === "gate" && (
         <div className="max-w-lg mx-auto px-6 py-10">
           <div className="rounded-xl border border-gray-200 p-6">
-            <div className="text-lg font-bold mb-1" style={{ color: CHARCOAL }}>Get the full sizing report</div>
+            <div className="text-lg font-bold mb-1" style={{ color: CHARCOAL }}>
+              Get the full sizing report
+            </div>
             <div className="text-xs text-gray-500 mb-4">
               The report includes the recommended configuration, every assumption behind it, lower-cost and
               higher-growth alternatives, and the caveats to bring into a real sizing conversation.
@@ -1006,10 +1365,25 @@ function GPUSizingCalculatorInner() {
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm mb-2"
               />
             ))}
-            {leadStatus && <div className="text-xs mb-2" style={{ color: RED }}>{leadStatus}</div>}
+            {leadStatus && (
+              <div className="text-xs mb-2" style={{ color: RED }}>
+                {leadStatus}
+              </div>
+            )}
             <div className="flex gap-2 mt-2">
-              <button onClick={submitLead} className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>View my report</button>
-              <button onClick={() => setView("calc")} className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">Back</button>
+              <button
+                onClick={submitLead}
+                className="flex-1 text-sm font-bold py-2.5 rounded-lg text-white"
+                style={{ background: RED }}
+              >
+                View my report
+              </button>
+              <button
+                onClick={() => setView("calc")}
+                className="text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600"
+              >
+                Back
+              </button>
             </div>
           </div>
         </div>
@@ -1018,74 +1392,176 @@ function GPUSizingCalculatorInner() {
       {view === "report" && result && (
         <div className="gpu-print-report max-w-3xl mx-auto px-6 py-10">
           <div className="no-print flex flex-col sm:flex-row gap-2 mb-6">
-            <button onClick={() => window.print()} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>Print / Save as PDF</button>
-            <button onClick={() => setView("audit")} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300" style={{ color: CHARCOAL }}>Calculation Methodology &amp; Audit Trail</button>
-            <button onClick={() => setView("calc")} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">Back to calculator</button>
+            <button
+              onClick={() => window.print()}
+              className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white"
+              style={{ background: CHARCOAL }}
+            >
+              Print / Save as PDF
+            </button>
+            <button
+              onClick={() => setView("audit")}
+              className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300"
+              style={{ color: CHARCOAL }}
+            >
+              Calculation Methodology &amp; Audit Trail
+            </button>
+            <button
+              onClick={() => setView("calc")}
+              className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600"
+            >
+              Back to calculator
+            </button>
           </div>
           <div className="flex items-center gap-3 mb-2">
             <img src={cdwLogo} alt="CDW" className="h-8 w-auto" />
-            <div className="text-xs font-bold tracking-widest text-gray-500 uppercase">AI Factory &middot; GPU Sizing Report</div>
+            <div className="text-xs font-bold tracking-widest text-gray-500 uppercase">
+              AI Factory &middot; GPU Sizing Report
+            </div>
           </div>
-          <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}</div>
-          <div className="text-xs text-gray-500 mb-6">{new Date().toLocaleDateString()} &middot; {mode} sizing &middot; {modelLabel}</div>
-          <div className="mb-6"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2">{result.confidence.note}</p></div>
+          <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>
+            Prepared for {lead.name || "you"}
+            {lead.company ? `, ${lead.company}` : ""}
+          </div>
+          <div className="text-xs text-gray-500 mb-6">
+            {new Date().toLocaleDateString()} &middot; {mode} sizing &middot; {modelLabel}
+          </div>
+          <div className="mb-6">
+            <ConfidenceBadge level={result.confidence.level} />
+            <p className="text-xs text-gray-500 mt-2">{result.confidence.note}</p>
+          </div>
           <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Recommended configuration</div>
           <div className="flex flex-wrap gap-3 mb-6">
-            <ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" />
-            <ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent />
+            <ResultCard
+              icon={Cpu}
+              title="Minimum technical"
+              gpuClass={result.selectedClass}
+              gpus={result.minTechnical}
+              subtitle="Unrounded workload requirement"
+            />
+            <ResultCard
+              icon={Zap}
+              title="Recommended"
+              gpuClass={result.selectedClass}
+              gpus={result.recommended}
+              subtitle="Node-rounded for production"
+              accent
+            />
           </div>
           <BudgetPanel budget={result.budget} />
-          {mode === "Inference" && <div className="gpu-report-utilization"><UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} /></div>}
+          {mode === "Inference" && (
+            <div className="gpu-report-utilization">
+              <UtilizationPanel
+                result={result}
+                workingDayHours={workingDayHours}
+                onWorkingDayHoursChange={setWorkingDayHours}
+              />
+            </div>
+          )}
           <div className="gpu-report-page2">
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2 mt-6">Assumptions used</div>
             <div className="rounded-xl border border-gray-200 p-4 mb-6 text-sm" style={{ color: CHARCOAL }}>
               <div className="grid grid-cols-2 gap-y-1.5 gap-x-4">
-                <div className="text-gray-500">Model</div><div>{modelLabel}</div>
+                <div className="text-gray-500">Model</div>
+                <div>{modelLabel}</div>
                 {mode === "Inference" ? (
                   <>
-                    <div className="text-gray-500">Quantization</div><div>{quant}</div>
-                    <div className="text-gray-500">Peak concurrent users</div><div>{concurrentUsers.toLocaleString()}</div>
-                    <div className="text-gray-500">Target tokens/sec per user</div><div>{targetTokPerUser}</div>
-                    <div className="text-gray-500">Environment</div><div>{environment}</div>
-                    <div className="text-gray-500">Avg input / output tokens</div><div>{avgInputTokens.toLocaleString()} / {avgOutputTokens.toLocaleString()}</div>
-                    <div className="text-gray-500">Attention/KV cache precision</div><div>{kvBytesPerElement} bytes/element</div>
-                    <div className="text-gray-500">Runtime/activation overhead</div><div>{Math.round(overheadPct * 100)}%</div>
-                    <div className="text-gray-500">GPU class</div><div>{infGpuOverride}</div>
+                    <div className="text-gray-500">Quantization</div>
+                    <div>{quant}</div>
+                    <div className="text-gray-500">Peak concurrent users</div>
+                    <div>{concurrentUsers.toLocaleString()}</div>
+                    <div className="text-gray-500">Target tokens/sec per user</div>
+                    <div>{targetTokPerUser}</div>
+                    <div className="text-gray-500">Environment</div>
+                    <div>{environment}</div>
+                    <div className="text-gray-500">Avg input / output tokens</div>
+                    <div>
+                      {avgInputTokens.toLocaleString()} / {avgOutputTokens.toLocaleString()}
+                    </div>
+                    <div className="text-gray-500">Attention/KV cache precision</div>
+                    <div>{kvBytesPerElement} bytes/element</div>
+                    <div className="text-gray-500">Runtime/activation overhead</div>
+                    <div>{Math.round(overheadPct * 100)}%</div>
+                    <div className="text-gray-500">GPU class</div>
+                    <div>{infGpuOverride}</div>
                   </>
                 ) : (
                   <>
-                    <div className="text-gray-500">Task type</div><div>{taskType}</div>
-                    <div className="text-gray-500">Precision</div><div>{precision}</div>
-                    <div className="text-gray-500">Dataset size</div><div>{datasetTokensB}B tokens</div>
-                    <div className="text-gray-500">Target time to train</div><div>{targetDays} days</div>
-                    <div className="text-gray-500">MFU</div><div>{Math.round(mfu * 100)}%</div>
-                    <div className="text-gray-500">GPU class</div><div>{trainGpuOverride}</div>
+                    <div className="text-gray-500">Task type</div>
+                    <div>{taskType}</div>
+                    <div className="text-gray-500">Precision</div>
+                    <div>{precision}</div>
+                    <div className="text-gray-500">Dataset size</div>
+                    <div>{datasetTokensB}B tokens</div>
+                    <div className="text-gray-500">Target time to train</div>
+                    <div>{targetDays} days</div>
+                    <div className="text-gray-500">MFU</div>
+                    <div>{Math.round(mfu * 100)}%</div>
+                    <div className="text-gray-500">GPU class</div>
+                    <div>{trainGpuOverride}</div>
                   </>
                 )}
               </div>
             </div>
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Alternatives considered</div>
             <div className="flex flex-wrap gap-3 mb-6">
-              <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />
-              <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog."  subtitle={result.higherGrowth.growthBasis === "next-deployment-quantum" ? "Next deployment quantum for additional headroom" : "Higher deployable capacity for additional headroom"}/>
+              <ResultCard
+                icon={TrendingDown}
+                title="Lower-cost alternative"
+                gpuClass={result.lowerCost.class}
+                gpus={result.lowerCost.recommended}
+                emptyMessage="No qualifying lower-cost alternative in the current supported catalog."
+              />
+              <ResultCard
+                icon={TrendingUp}
+                title="Higher-growth alternative"
+                gpuClass={result.higherGrowth.class}
+                gpus={result.higherGrowth.recommended}
+                emptyMessage="No qualifying higher-growth capacity step in the current supported catalog."
+                subtitle={
+                  result.higherGrowth.growthBasis === "next-deployment-quantum"
+                    ? "Next deployment quantum for additional headroom"
+                    : "Higher deployable capacity for additional headroom"
+                }
+              />
             </div>
             {mode === "Inference" && environment === "Dev/Test/POC" && result.rtxAlt.eligible && (
               <div className="mb-6 rounded-xl p-4 bg-blue-50 border border-blue-200">
-                <div className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-1">Workstation alternative</div>
-                <div className="text-lg font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} &times; {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</div>
-                <p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Estimate only -- no MLPerf datacenter submission exists for this class.</p>
+                <div className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-1">
+                  Workstation alternative
+                </div>
+                <div className="text-lg font-bold text-blue-900 mb-1">
+                  {result.rtxAlt.gpus} &times; {result.rtxAlt.class} ({result.rtxAlt.vram}GB)
+                </div>
+                <p className="text-xs text-blue-800">
+                  Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Estimate only
+                  -- no MLPerf datacenter submission exists for this class.
+                </p>
               </div>
             )}
-            <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Caveats &amp; methodology</div>
+            <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">
+              Caveats &amp; methodology
+            </div>
             <div className="text-xs text-gray-500 p-4 bg-gray-50 rounded-lg mb-6 leading-relaxed">
               {mode === "Inference"
                 ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
-                : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}
-              {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes. This is a directional sizing estimate, not a final bill of materials -- confirm with a CDW AI Factory specialist before purchasing.
+                : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}
+              A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are
+              deployed as whole nodes. This is a directional sizing estimate, not a final bill of materials -- confirm
+              with a CDW AI Factory specialist before purchasing.
             </div>
             <div className="border-t-2 pt-4 flex justify-between" style={{ borderColor: CHARCOAL }}>
-              <div><div className="text-sm font-bold" style={{ color: CHARCOAL }}>Jay B. Carlile</div><div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div></div>
-              <div className="text-xs text-gray-500 text-right">Next step: bring your actual<br />workload data for a validated sizing</div>
+              <div>
+                <div className="text-sm font-bold" style={{ color: CHARCOAL }}>
+                  Jay B. Carlile
+                </div>
+                <div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div>
+              </div>
+              <div className="text-xs text-gray-500 text-right">
+                Next step: bring your actual
+                <br />
+                workload data for a validated sizing
+              </div>
             </div>
           </div>
         </div>
@@ -1094,14 +1570,45 @@ function GPUSizingCalculatorInner() {
       {view === "audit" && result && (
         <div className="max-w-3xl mx-auto px-6 py-10">
           <div className="no-print flex flex-col sm:flex-row gap-2 mb-6">
-            <button onClick={() => window.print()} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: CHARCOAL }}>Print / Save as PDF</button>
-            <button onClick={() => setView("report")} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600">Back to report</button>
+            <button
+              onClick={() => window.print()}
+              className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white"
+              style={{ background: CHARCOAL }}
+            >
+              Print / Save as PDF
+            </button>
+            <button
+              onClick={() => setView("report")}
+              className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 text-gray-600"
+            >
+              Back to report
+            </button>
           </div>
-          <div className="flex items-center gap-3 mb-2"><img src={cdwLogo} alt="CDW" className="h-8 w-auto" /><div className="text-xs font-bold tracking-widest text-gray-500 uppercase">AI Factory &middot; Calculation Methodology &amp; Audit Trail</div></div>
-          <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}</div>
-          <div className="text-xs text-gray-500 mb-1">{new Date().toLocaleDateString()} &middot; Reproducible derivation of the material calculations supporting the {mode} sizing result shown in the main report</div>
-          <div className="text-xs text-gray-500 mb-6 italic">This document formats and explains the same calculation the main report already ran -- it does not run a separate or independent calculation. Every result below traces to the same inputs, catalog values, and engine outputs used by the main sizing calculation.</div>
-          <div className="text-xs uppercase tracking-wide mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>1. Scenario Overview</div>
+          <div className="flex items-center gap-3 mb-2">
+            <img src={cdwLogo} alt="CDW" className="h-8 w-auto" />
+            <div className="text-xs font-bold tracking-widest text-gray-500 uppercase">
+              AI Factory &middot; Calculation Methodology &amp; Audit Trail
+            </div>
+          </div>
+          <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>
+            Prepared for {lead.name || "you"}
+            {lead.company ? `, ${lead.company}` : ""}
+          </div>
+          <div className="text-xs text-gray-500 mb-1">
+            {new Date().toLocaleDateString()} &middot; Reproducible derivation of the material calculations supporting
+            the {mode} sizing result shown in the main report
+          </div>
+          <div className="text-xs text-gray-500 mb-6 italic">
+            This document formats and explains the same calculation the main report already ran -- it does not run a
+            separate or independent calculation. Every result below traces to the same inputs, catalog values, and
+            engine outputs used by the main sizing calculation.
+          </div>
+          <div
+            className="text-xs uppercase tracking-wide mb-2 pb-1 border-b-2"
+            style={{ color: CHARCOAL, borderColor: CHARCOAL }}
+          >
+            1. Scenario Overview
+          </div>
           <AuditRow label="Model" value={modelLabel} />
           <AuditRow label="Mode" value={mode} />
           {mode === "Inference" ? (
@@ -1110,7 +1617,10 @@ function GPUSizingCalculatorInner() {
               <AuditRow label="Peak concurrent users" value={concurrentUsers.toLocaleString()} />
               <AuditRow label="Target tokens/sec per user" value={targetTokPerUser} />
               <AuditRow label="Environment" value={environment} />
-              <AuditRow label="Avg input / output tokens" value={`${avgInputTokens.toLocaleString()} / ${avgOutputTokens.toLocaleString()}`} />
+              <AuditRow
+                label="Avg input / output tokens"
+                value={`${avgInputTokens.toLocaleString()} / ${avgOutputTokens.toLocaleString()}`}
+              />
               <AuditRow label="Attention/KV cache precision" value={`${kvBytesPerElement} bytes/element`} />
               <AuditRow label="Runtime/activation overhead" value={`${Math.round(overheadPct * 100)}%`} />
               <AuditRow label="GPU class" value={infGpuOverride} />
@@ -1125,85 +1635,324 @@ function GPUSizingCalculatorInner() {
               <AuditRow label="GPU class" value={trainGpuOverride} />
             </>
           )}
-          <div className="text-xs mt-3 mb-4 rounded-lg p-3 bg-gray-50" style={{ color: CHARCOAL }}><b>Key assumptions worth stress-testing:</b> {mode === "Inference" ? "peak concurrent users, target tokens/sec per user, and average token lengths, since all three directly drive the memory and throughput requirement below" : "dataset size, target time to train, and MFU, since a small MFU change moves the achievable FLOPs/sec directly"}.</div>
+          <div className="text-xs mt-3 mb-4 rounded-lg p-3 bg-gray-50" style={{ color: CHARCOAL }}>
+            <b>Key assumptions worth stress-testing:</b>{" "}
+            {mode === "Inference"
+              ? "peak concurrent users, target tokens/sec per user, and average token lengths, since all three directly drive the memory and throughput requirement below"
+              : "dataset size, target time to train, and MFU, since a small MFU change moves the achievable FLOPs/sec directly"}
+            .
+          </div>
 
-          {mode === "Inference" ? (() => {
-            const selected = result.candidates.find((c) => c.id === result.selectedClass);
-            const boundBy = selected.gpusMem >= selected.gpusPerf ? "memory" : "throughput";
-            const m = result.model;
-            const state = result.sequenceStateMemory;
-            const isMLA = state.stateType === "mla";
-            const isStandardKv = state.stateType === "standard-kv";
-            const avgTokens = avgInputTokens + avgOutputTokens;
-            return (
-              <>
-                <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>2. How the Technical Requirement Was Calculated</div>
-                <AuditFormula label={`Model weight memory (${modelLabel}, ${m.totalParamsB}B params)`} formula="weightMemoryGB = totalParamsB × bytesPerParam(quant)" substituted={`= ${m.totalParamsB}B × ${result.quantBytes} byte/param (${quant})`} result={`${result.weightMemoryGB.toFixed(1)} GB`} />
-                {isMLA ? (
-                  <AuditFormula label="KV cache bytes/token (MLA attention)" formula="kvBytesPerToken = layers × (kvLoraRank + qkRopeHeadDim) × bytesPerElement" substituted={`= ${m.layers} × (${m.kvLoraRank} + ${m.qkRopeHeadDim}) × ${kvBytesPerElement}`} result={`${result.kvBytesPerToken.toLocaleString()} bytes/token`} />
-                ) : isStandardKv ? (
-                  <AuditFormula label="KV cache bytes/token (standard attention)" formula="kvBytesPerToken = 2 × layers × kvHeads × headDim × bytesPerElement" substituted={`= 2 × ${m.layers} × ${m.kvHeads} × ${m.headDim} × ${kvBytesPerElement}`} result={`${result.kvBytesPerToken.toLocaleString()} bytes/token`} />
-                ) : (
-                  <AuditFormula label={`Inference sequence state (${state.stateType})`} formula="sequenceStateGBPerSeq = sum(source-qualified persistent state components) ÷ 1e9" substituted={state.components.map((component) => `${component.name}: ${(component.bytes / 1e9).toFixed(4)} GB`).join(" + ")} result={`${state.totalGBPerSequence.toFixed(4)} GB/sequence`} />
-                )}
-                {(isMLA || isStandardKv) && (
-                  <AuditFormula label="KV cache per sequence" formula="kvCacheGBPerSeq = (kvBytesPerToken × avgTokens) ÷ 1e9" substituted={`= (${result.kvBytesPerToken.toLocaleString()} × ${avgTokens.toLocaleString()}) ÷ 1e9`} result={`${result.kvCacheGBPerSeq.toFixed(4)} GB`} />
-                )}
-                <AuditFormula label={isMLA || isStandardKv ? "Total KV cache" : "Total inference sequence state"} formula="sequenceStateTotalGB = stateGBPerSeq × concurrentUsers" substituted={`= ${result.kvCacheGBPerSeq.toFixed(4)} × ${concurrentUsers.toLocaleString()}`} result={`${result.kvCacheTotalGB.toFixed(1)} GB`} />
-                <AuditFormula label="Runtime/activation overhead" formula="runtimeOverheadGB = (weightMemoryGB + kvCacheTotalGB) × overhead%" substituted={`= (${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)}) × ${Math.round(overheadPct * 100)}%`} result={`${result.runtimeOverheadGB.toFixed(1)} GB`} />
-                <AuditFormula label="Total memory required" formula="totalMemoryGB = weightMemoryGB + kvCacheTotalGB + runtimeOverheadGB" substituted={`= ${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)} + ${result.runtimeOverheadGB.toFixed(1)}`} result={`${result.totalMemoryGB.toFixed(1)} GB`} />
-                <AuditFormula label="Total throughput required" formula="totalThroughputNeeded = concurrentUsers × targetTokPerUser" substituted={`= ${concurrentUsers.toLocaleString()} × ${targetTokPerUser}`} result={`${result.totalThroughputNeeded.toLocaleString()} tok/s`} />
-                <AuditFormula label="Model-aware throughput adjustment" formula="effectiveAnchor = hardwareAnchor × min(1, 70B ÷ activeComputeParamsB)" substituted={`= hardware anchor × ${result.throughputScale.factor.toFixed(3)} (${result.throughputScale.activeParamsB ?? "unknown"}B active params)`} result={result.throughputScale.factor < 1 ? "Conservative throughput penalty applied" : "No inferred speedup applied"} />
-                <div className="overflow-x-auto mb-3">
-                  <table className="w-full text-xs" style={{ color: CHARCOAL }}>
-                    <thead><tr className="text-gray-500 border-b" style={{ borderColor: "#D1D5DB" }}><th className="text-left py-1 pr-2">GPU</th><th className="text-right py-1 pr-2">Memory-bound</th><th className="text-right py-1 pr-2">Perf-bound</th><th className="text-right py-1 pr-2">Technical GPUs</th><th className="text-right py-1">Node-rounded</th></tr></thead>
-                    <tbody>{result.candidates.map((c) => (<tr key={c.id} className={c.id === result.selectedClass ? "font-bold" : ""} style={{ color: c.id === result.selectedClass ? RED : CHARCOAL }}><td className="py-1 pr-2">{c.id}{c.id === result.selectedClass ? " (selected)" : ""}</td><td className="text-right py-1 pr-2">{c.gpusMem.toLocaleString()}</td><td className="text-right py-1 pr-2">{c.gpusPerf.toLocaleString()}</td><td className="text-right py-1 pr-2">{c.gpusWorkload.toLocaleString()}</td><td className="text-right py-1">{(Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize).toLocaleString()}</td></tr>))}</tbody>
-                  </table>
-                </div>
-                <div className="text-xs text-gray-500 mb-4">Minimum technical requirement = MAX(memory-bound, performance-bound) = <b style={{ color: CHARCOAL }}>{result.minTechnical} GPUs</b>, {boundBy === "memory" ? "bound by memory" : "bound by throughput"} at this scale.</div>
-              </>
-            );
-          })() : (() => {
-            const selected = result.candidates.find((c) => c.id === result.selectedClass);
-            const boundBy = selected.gpusFit >= selected.gpusTime ? "fitting the model in memory" : "hitting the time target";
-            const m = result.model;
-            return (
-              <>
-                <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>2. How the Technical Requirement Was Calculated</div>
-                <AuditFormula label={`Training memory required (${modelLabel}, ${m.totalParamsB}B resident params)`} formula="trainingMemoryGB = residentParamsB × bytesPerParam(precision) × multiplier" substituted={`= ${result.trainingSemantics.residencyParamsB}B × ${result.precisionBytes} byte/param (${precision}) × ${result.multiplier} (${taskType})`} result={`${result.trainingMemoryGB.toFixed(1)} GB`} />
-                <AuditFormula label="Total training compute required" formula="flopsRequired = 6 × activeComputeParamsB × datasetTokensB × 1e18" substituted={`= 6 × ${result.trainingSemantics.activeComputeParamsB}B active params × ${datasetTokensB}B tokens × 1e18`} result={`${result.flopsRequired.toExponential(2)} FLOPs`} />
-                <AuditFormula label={`GPUs needed to fit the model (${result.selectedClass}, ${selected.vram} GB VRAM)`} formula="gpusFit = CEILING(trainingMemoryGB ÷ vramPerGPU)" substituted={`= CEILING(${result.trainingMemoryGB.toFixed(1)} ÷ ${selected.vram} GB/GPU)`} result={`${selected.gpusFit} GPUs`} />
-                <AuditFormula label={`GPUs needed to hit the time target (${result.selectedClass}, ${selected.peakTFLOPS.toLocaleString()} ${precision} TFLOPS/GPU)`} formula="gpusTime = CEILING(flopsRequired ÷ (peakTFLOPS × 1e12 × MFU × targetSeconds))" substituted={`= CEILING(${result.flopsRequired.toExponential(2)} ÷ (${selected.peakTFLOPS.toLocaleString()}e12 × ${Math.round(mfu * 100)}% × ${result.secondsTarget.toLocaleString()}s))`} result={`${selected.gpusTime} GPUs`} />
-                <div className="overflow-x-auto mb-3"><table className="w-full text-xs" style={{ color: CHARCOAL }}><thead><tr className="text-gray-500 border-b" style={{ borderColor: "#D1D5DB" }}><th className="text-left py-1 pr-2">GPU</th><th className="text-right py-1 pr-2">Fit-bound</th><th className="text-right py-1 pr-2">Time-bound</th><th className="text-right py-1 pr-2">Technical GPUs</th><th className="text-right py-1">Node-rounded</th></tr></thead><tbody>{result.candidates.map((c) => (<tr key={c.id} className={c.id === result.selectedClass ? "font-bold" : ""} style={{ color: c.id === result.selectedClass ? RED : CHARCOAL }}><td className="py-1 pr-2">{c.id}{c.id === result.selectedClass ? " (selected)" : ""}</td><td className="text-right py-1 pr-2">{c.gpusFit.toLocaleString()}</td><td className="text-right py-1 pr-2">{c.gpusTime.toLocaleString()}</td><td className="text-right py-1 pr-2">{c.gpusWorkload.toLocaleString()}</td><td className="text-right py-1">{(Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize).toLocaleString()}</td></tr>))}</tbody></table></div>
-                <div className="text-xs text-gray-500 mb-4">Minimum technical requirement = MAX(fit, time) = <b style={{ color: CHARCOAL }}>{result.minTechnical} GPUs</b>, bound by {boundBy} at this scale.</div>
-              </>
-            );
-          })()}
+          {mode === "Inference"
+            ? (() => {
+                const selected = result.candidates.find((c) => c.id === result.selectedClass);
+                const boundBy = selected.gpusMem >= selected.gpusPerf ? "memory" : "throughput";
+                const m = result.model;
+                const state = result.sequenceStateMemory;
+                const isMLA = state.stateType === "mla";
+                const isStandardKv = state.stateType === "standard-kv";
+                const avgTokens = avgInputTokens + avgOutputTokens;
+                return (
+                  <>
+                    <div
+                      className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2"
+                      style={{ color: CHARCOAL, borderColor: CHARCOAL }}
+                    >
+                      2. How the Technical Requirement Was Calculated
+                    </div>
+                    <AuditFormula
+                      label={`Model weight memory (${modelLabel}, ${m.totalParamsB}B params)`}
+                      formula="weightMemoryGB = totalParamsB × bytesPerParam(quant)"
+                      substituted={`= ${m.totalParamsB}B × ${result.quantBytes} byte/param (${quant})`}
+                      result={`${result.weightMemoryGB.toFixed(1)} GB`}
+                    />
+                    {isMLA ? (
+                      <AuditFormula
+                        label="KV cache bytes/token (MLA attention)"
+                        formula="kvBytesPerToken = layers × (kvLoraRank + qkRopeHeadDim) × bytesPerElement"
+                        substituted={`= ${m.layers} × (${m.kvLoraRank} + ${m.qkRopeHeadDim}) × ${kvBytesPerElement}`}
+                        result={`${result.kvBytesPerToken.toLocaleString()} bytes/token`}
+                      />
+                    ) : isStandardKv ? (
+                      <AuditFormula
+                        label="KV cache bytes/token (standard attention)"
+                        formula="kvBytesPerToken = 2 × layers × kvHeads × headDim × bytesPerElement"
+                        substituted={`= 2 × ${m.layers} × ${m.kvHeads} × ${m.headDim} × ${kvBytesPerElement}`}
+                        result={`${result.kvBytesPerToken.toLocaleString()} bytes/token`}
+                      />
+                    ) : (
+                      <AuditFormula
+                        label={`Inference sequence state (${state.stateType})`}
+                        formula="sequenceStateGBPerSeq = sum(source-qualified persistent state components) ÷ 1e9"
+                        substituted={state.components
+                          .map((component) => `${component.name}: ${(component.bytes / 1e9).toFixed(4)} GB`)
+                          .join(" + ")}
+                        result={`${state.totalGBPerSequence.toFixed(4)} GB/sequence`}
+                      />
+                    )}
+                    {(isMLA || isStandardKv) && (
+                      <AuditFormula
+                        label="KV cache per sequence"
+                        formula="kvCacheGBPerSeq = (kvBytesPerToken × avgTokens) ÷ 1e9"
+                        substituted={`= (${result.kvBytesPerToken.toLocaleString()} × ${avgTokens.toLocaleString()}) ÷ 1e9`}
+                        result={`${result.kvCacheGBPerSeq.toFixed(4)} GB`}
+                      />
+                    )}
+                    <AuditFormula
+                      label={isMLA || isStandardKv ? "Total KV cache" : "Total inference sequence state"}
+                      formula="sequenceStateTotalGB = stateGBPerSeq × concurrentUsers"
+                      substituted={`= ${result.kvCacheGBPerSeq.toFixed(4)} × ${concurrentUsers.toLocaleString()}`}
+                      result={`${result.kvCacheTotalGB.toFixed(1)} GB`}
+                    />
+                    <AuditFormula
+                      label="Runtime/activation overhead"
+                      formula="runtimeOverheadGB = (weightMemoryGB + kvCacheTotalGB) × overhead%"
+                      substituted={`= (${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)}) × ${Math.round(overheadPct * 100)}%`}
+                      result={`${result.runtimeOverheadGB.toFixed(1)} GB`}
+                    />
+                    <AuditFormula
+                      label="Total memory required"
+                      formula="totalMemoryGB = weightMemoryGB + kvCacheTotalGB + runtimeOverheadGB"
+                      substituted={`= ${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)} + ${result.runtimeOverheadGB.toFixed(1)}`}
+                      result={`${result.totalMemoryGB.toFixed(1)} GB`}
+                    />
+                    <AuditFormula
+                      label="Total throughput required"
+                      formula="totalThroughputNeeded = concurrentUsers × targetTokPerUser"
+                      substituted={`= ${concurrentUsers.toLocaleString()} × ${targetTokPerUser}`}
+                      result={`${result.totalThroughputNeeded.toLocaleString()} tok/s`}
+                    />
+                    <AuditFormula
+                      label="Model-aware throughput adjustment"
+                      formula="effectiveAnchor = hardwareAnchor × min(1, 70B ÷ activeComputeParamsB)"
+                      substituted={`= hardware anchor × ${result.throughputScale.factor.toFixed(3)} (${result.throughputScale.activeParamsB ?? "unknown"}B active params)`}
+                      result={
+                        result.throughputScale.factor < 1
+                          ? "Conservative throughput penalty applied"
+                          : "No inferred speedup applied"
+                      }
+                    />
+                    <div className="overflow-x-auto mb-3">
+                      <table className="w-full text-xs" style={{ color: CHARCOAL }}>
+                        <thead>
+                          <tr className="text-gray-500 border-b" style={{ borderColor: "#D1D5DB" }}>
+                            <th className="text-left py-1 pr-2">GPU</th>
+                            <th className="text-right py-1 pr-2">Memory-bound</th>
+                            <th className="text-right py-1 pr-2">Perf-bound</th>
+                            <th className="text-right py-1 pr-2">Technical GPUs</th>
+                            <th className="text-right py-1">Node-rounded</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {result.candidates.map((c) => (
+                            <tr
+                              key={c.id}
+                              className={c.id === result.selectedClass ? "font-bold" : ""}
+                              style={{ color: c.id === result.selectedClass ? RED : CHARCOAL }}
+                            >
+                              <td className="py-1 pr-2">
+                                {c.id}
+                                {c.id === result.selectedClass ? " (selected)" : ""}
+                              </td>
+                              <td className="text-right py-1 pr-2">{c.gpusMem.toLocaleString()}</td>
+                              <td className="text-right py-1 pr-2">{c.gpusPerf.toLocaleString()}</td>
+                              <td className="text-right py-1 pr-2">{c.gpusWorkload.toLocaleString()}</td>
+                              <td className="text-right py-1">
+                                {(Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize).toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="text-xs text-gray-500 mb-4">
+                      Minimum technical requirement = MAX(memory-bound, performance-bound) ={" "}
+                      <b style={{ color: CHARCOAL }}>{result.minTechnical} GPUs</b>,{" "}
+                      {boundBy === "memory" ? "bound by memory" : "bound by throughput"} at this scale.
+                    </div>
+                  </>
+                );
+              })()
+            : (() => {
+                const selected = result.candidates.find((c) => c.id === result.selectedClass);
+                const boundBy =
+                  selected.gpusFit >= selected.gpusTime ? "fitting the model in memory" : "hitting the time target";
+                const m = result.model;
+                return (
+                  <>
+                    <div
+                      className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2"
+                      style={{ color: CHARCOAL, borderColor: CHARCOAL }}
+                    >
+                      2. How the Technical Requirement Was Calculated
+                    </div>
+                    <AuditFormula
+                      label={`Training memory required (${modelLabel}, ${m.totalParamsB}B resident params)`}
+                      formula="trainingMemoryGB = residentParamsB × bytesPerParam(precision) × multiplier"
+                      substituted={`= ${result.trainingSemantics.residencyParamsB}B × ${result.precisionBytes} byte/param (${precision}) × ${result.multiplier} (${taskType})`}
+                      result={`${result.trainingMemoryGB.toFixed(1)} GB`}
+                    />
+                    <AuditFormula
+                      label="Total training compute required"
+                      formula="flopsRequired = 6 × activeComputeParamsB × datasetTokensB × 1e18"
+                      substituted={`= 6 × ${result.trainingSemantics.activeComputeParamsB}B active params × ${datasetTokensB}B tokens × 1e18`}
+                      result={`${result.flopsRequired.toExponential(2)} FLOPs`}
+                    />
+                    <AuditFormula
+                      label={`GPUs needed to fit the model (${result.selectedClass}, ${selected.vram} GB VRAM)`}
+                      formula="gpusFit = CEILING(trainingMemoryGB ÷ vramPerGPU)"
+                      substituted={`= CEILING(${result.trainingMemoryGB.toFixed(1)} ÷ ${selected.vram} GB/GPU)`}
+                      result={`${selected.gpusFit} GPUs`}
+                    />
+                    <AuditFormula
+                      label={`GPUs needed to hit the time target (${result.selectedClass}, ${selected.peakTFLOPS.toLocaleString()} ${precision} TFLOPS/GPU)`}
+                      formula="gpusTime = CEILING(flopsRequired ÷ (peakTFLOPS × 1e12 × MFU × targetSeconds))"
+                      substituted={`= CEILING(${result.flopsRequired.toExponential(2)} ÷ (${selected.peakTFLOPS.toLocaleString()}e12 × ${Math.round(mfu * 100)}% × ${result.secondsTarget.toLocaleString()}s))`}
+                      result={`${selected.gpusTime} GPUs`}
+                    />
+                    <div className="overflow-x-auto mb-3">
+                      <table className="w-full text-xs" style={{ color: CHARCOAL }}>
+                        <thead>
+                          <tr className="text-gray-500 border-b" style={{ borderColor: "#D1D5DB" }}>
+                            <th className="text-left py-1 pr-2">GPU</th>
+                            <th className="text-right py-1 pr-2">Fit-bound</th>
+                            <th className="text-right py-1 pr-2">Time-bound</th>
+                            <th className="text-right py-1 pr-2">Technical GPUs</th>
+                            <th className="text-right py-1">Node-rounded</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {result.candidates.map((c) => (
+                            <tr
+                              key={c.id}
+                              className={c.id === result.selectedClass ? "font-bold" : ""}
+                              style={{ color: c.id === result.selectedClass ? RED : CHARCOAL }}
+                            >
+                              <td className="py-1 pr-2">
+                                {c.id}
+                                {c.id === result.selectedClass ? " (selected)" : ""}
+                              </td>
+                              <td className="text-right py-1 pr-2">{c.gpusFit.toLocaleString()}</td>
+                              <td className="text-right py-1 pr-2">{c.gpusTime.toLocaleString()}</td>
+                              <td className="text-right py-1 pr-2">{c.gpusWorkload.toLocaleString()}</td>
+                              <td className="text-right py-1">
+                                {(Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize).toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="text-xs text-gray-500 mb-4">
+                      Minimum technical requirement = MAX(fit, time) ={" "}
+                      <b style={{ color: CHARCOAL }}>{result.minTechnical} GPUs</b>, bound by {boundBy} at this scale.
+                    </div>
+                  </>
+                );
+              })()}
 
-          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. Node Rounding, Budget &amp; Alternatives</div>
-          <AuditFormula label="Recommended (node-rounded) configuration" formula="recommended = CEILING(minTechnical ÷ nodeSize) × nodeSize" substituted={`= CEILING(${result.minTechnical} ÷ ${result.selectedNodeSize}) × ${result.selectedNodeSize}`} result={`${result.recommended} × ${result.selectedClass}`} />
-          <AuditFormula label="Estimated budget" formula="budget = recommended × loadedCostPerGPU" substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`} result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : "—"} />
-          <div className="text-xs text-gray-500 mb-2 mt-2"><b>Lower-cost alternative:</b> {result.lowerCost.class ? `${result.lowerCost.class}, the cheapest other class in the catalog that is genuinely cheaper as a deployed (node-rounded) solution than the recommendation.` : "none -- the recommendation is already the cheapest deployed option in the current catalog."}</div>
-          <div className="text-xs text-gray-500 mb-4"><b>Higher-growth alternative:</b> {result.higherGrowth.class ? `${result.higherGrowth.class}, the other class with genuinely more real capability (${mode === "Inference" ? "throughput anchor" : "training FLOPS at your selected precision"}) than the recommendation.` : "none -- the recommendation is already the most capable class in the current catalog for this metric."}</div>
+          <div
+            className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2"
+            style={{ color: CHARCOAL, borderColor: CHARCOAL }}
+          >
+            3. Node Rounding, Budget &amp; Alternatives
+          </div>
+          <AuditFormula
+            label="Recommended (node-rounded) configuration"
+            formula="recommended = CEILING(minTechnical ÷ nodeSize) × nodeSize"
+            substituted={`= CEILING(${result.minTechnical} ÷ ${result.selectedNodeSize}) × ${result.selectedNodeSize}`}
+            result={`${result.recommended} × ${result.selectedClass}`}
+          />
+          <AuditFormula
+            label="Estimated budget"
+            formula="budget = recommended × loadedCostPerGPU"
+            substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`}
+            result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : "—"}
+          />
+          <div className="text-xs text-gray-500 mb-2 mt-2">
+            <b>Lower-cost alternative:</b>{" "}
+            {result.lowerCost.class
+              ? `${result.lowerCost.class}, the cheapest other class in the catalog that is genuinely cheaper as a deployed (node-rounded) solution than the recommendation.`
+              : "none -- the recommendation is already the cheapest deployed option in the current catalog."}
+          </div>
+          <div className="text-xs text-gray-500 mb-4">
+            <b>Higher-growth alternative:</b>{" "}
+            {result.higherGrowth.class
+              ? `${result.higherGrowth.class}, the other class with genuinely more real capability (${mode === "Inference" ? "throughput anchor" : "training FLOPS at your selected precision"}) than the recommendation.`
+              : "none -- the recommendation is already the most capable class in the current catalog for this metric."}
+          </div>
 
-          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>4. Reconciliation</div>
-          <div className="text-xs text-gray-500 mb-3">Each check below redoes the arithmetic from already-shown intermediate values and compares the result to the engine's own field for that formula -- not the same number read twice.</div>
+          <div
+            className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2"
+            style={{ color: CHARCOAL, borderColor: CHARCOAL }}
+          >
+            4. Reconciliation
+          </div>
+          <div className="text-xs text-gray-500 mb-3">
+            Each check below redoes the arithmetic from already-shown intermediate values and compares the result to the
+            engine's own field for that formula -- not the same number read twice.
+          </div>
           {(() => {
             const selected = result.candidates.find((c) => c.id === result.selectedClass);
-            const minTechCalc = mode === "Inference" ? Math.max(selected.gpusMem, selected.gpusPerf) : Math.max(selected.gpusFit, selected.gpusTime);
+            const minTechCalc =
+              mode === "Inference"
+                ? Math.max(selected.gpusMem, selected.gpusPerf)
+                : Math.max(selected.gpusFit, selected.gpusTime);
             const recommendedCalc = Math.ceil(result.minTechnical / result.selectedNodeSize) * result.selectedNodeSize;
             const unitPrice = GPU_PRICE_USD[result.selectedClass]?.amount ?? null;
             const budgetCalc = unitPrice != null ? result.recommended * unitPrice : null;
             return (
               <>
-                <ReconCheck label="Minimum technical requirement" parts={mode === "Inference" ? [{ label: "Memory-bound GPUs", value: selected.gpusMem.toLocaleString() }, { label: "Performance-bound GPUs", value: selected.gpusPerf.toLocaleString() }] : [{ label: "GPUs to fit the model", value: selected.gpusFit.toLocaleString() }, { label: "GPUs to hit the time target", value: selected.gpusTime.toLocaleString() }]} calculated={minTechCalc} engineValue={result.minTechnical} format="count" />
-                <ReconCheck label="Recommended (node-rounded) count" parts={[{ label: "Minimum technical requirement", value: result.minTechnical.toLocaleString() }, { label: `Node size (${result.selectedClass})`, value: result.selectedNodeSize.toLocaleString() }]} calculated={recommendedCalc} engineValue={result.recommended} format="count" />
-                <ReconCheck label="Estimated budget" parts={[{ label: "Recommended GPU count", value: result.recommended.toLocaleString() }, { label: `Catalog price per GPU (${result.selectedClass})`, value: unitPrice != null ? fmtUsdPrecise(unitPrice) : "—" }]} calculated={budgetCalc} engineValue={result.budget.recommended ? result.budget.recommended.amount : null} format="currency" />
+                <ReconCheck
+                  label="Minimum technical requirement"
+                  parts={
+                    mode === "Inference"
+                      ? [
+                          { label: "Memory-bound GPUs", value: selected.gpusMem.toLocaleString() },
+                          { label: "Performance-bound GPUs", value: selected.gpusPerf.toLocaleString() },
+                        ]
+                      : [
+                          { label: "GPUs to fit the model", value: selected.gpusFit.toLocaleString() },
+                          { label: "GPUs to hit the time target", value: selected.gpusTime.toLocaleString() },
+                        ]
+                  }
+                  calculated={minTechCalc}
+                  engineValue={result.minTechnical}
+                  format="count"
+                />
+                <ReconCheck
+                  label="Recommended (node-rounded) count"
+                  parts={[
+                    { label: "Minimum technical requirement", value: result.minTechnical.toLocaleString() },
+                    { label: `Node size (${result.selectedClass})`, value: result.selectedNodeSize.toLocaleString() },
+                  ]}
+                  calculated={recommendedCalc}
+                  engineValue={result.recommended}
+                  format="count"
+                />
+                <ReconCheck
+                  label="Estimated budget"
+                  parts={[
+                    { label: "Recommended GPU count", value: result.recommended.toLocaleString() },
+                    {
+                      label: `Catalog price per GPU (${result.selectedClass})`,
+                      value: unitPrice != null ? fmtUsdPrecise(unitPrice) : "—",
+                    },
+                  ]}
+                  calculated={budgetCalc}
+                  engineValue={result.budget.recommended ? result.budget.recommended.amount : null}
+                  format="currency"
+                />
               </>
             );
           })()}
 
-          <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>5. Sources, Confidence &amp; Technical Caveats</div>
+          <div
+            className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2"
+            style={{ color: CHARCOAL, borderColor: CHARCOAL }}
+          >
+            5. Sources, Confidence &amp; Technical Caveats
+          </div>
           {(() => {
             const selected = result.candidates.find((c) => c.id === result.selectedClass);
             const m = result.model;
@@ -1211,149 +1960,553 @@ function GPUSizingCalculatorInner() {
             const onpremStaleness = stalenessOf(ONPREM_PRICING_VERIFIED_AT);
             return (
               <>
-                <div className="text-xs font-semibold mb-1" style={{ color: CHARCOAL }}>Selected model -- {modelLabel}</div>
-                <AuditRow label="Architecture status" value={m.status === "VERIFIED" ? "VERIFIED" : "CUSTOM (unverified entry)"} />
+                <div className="text-xs font-semibold mb-1" style={{ color: CHARCOAL }}>
+                  Selected model -- {modelLabel}
+                </div>
+                <AuditRow
+                  label="Architecture status"
+                  value={m.status === "VERIFIED" ? "VERIFIED" : "CUSTOM (unverified entry)"}
+                />
                 <AuditRow label="Resident / total parameters" value={`${m.totalParamsB}B`} />
-                {m.activeParamsB != null && <AuditRow label="Active compute parameters" value={`${m.activeParamsB}B`} sub="Used as a per-token compute concept for sparse models; it does not replace resident model size." />}
-                {mode === "Inference" && m.sequenceStateType ? <AuditRow label="Inference state contract" value={result.sequenceStateMemory.stateType} sub={result.sequenceStateMemory.basis} /> : m.attentionType === "MLA" ? <AuditRow label="KV configuration" value={`MLA -- kvLoraRank ${m.kvLoraRank}, qkRopeHeadDim ${m.qkRopeHeadDim}, ${m.layers} layers`} /> : <AuditRow label="KV configuration" value={m.kvHeads != null ? `${m.layers} layers, ${m.kvHeads} KV heads, ${m.headDim} head dim` : "not applicable to training sizing"} />}
-                <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Selected GPU -- {result.selectedClass}</div>
+                {m.activeParamsB != null && (
+                  <AuditRow
+                    label="Active compute parameters"
+                    value={`${m.activeParamsB}B`}
+                    sub="Used as a per-token compute concept for sparse models; it does not replace resident model size."
+                  />
+                )}
+                {mode === "Inference" && m.sequenceStateType ? (
+                  <AuditRow
+                    label="Inference state contract"
+                    value={result.sequenceStateMemory.stateType}
+                    sub={result.sequenceStateMemory.basis}
+                  />
+                ) : m.attentionType === "MLA" ? (
+                  <AuditRow
+                    label="KV configuration"
+                    value={`MLA -- kvLoraRank ${m.kvLoraRank}, qkRopeHeadDim ${m.qkRopeHeadDim}, ${m.layers} layers`}
+                  />
+                ) : (
+                  <AuditRow
+                    label="KV configuration"
+                    value={
+                      m.kvHeads != null
+                        ? `${m.layers} layers, ${m.kvHeads} KV heads, ${m.headDim} head dim`
+                        : "not applicable to training sizing"
+                    }
+                  />
+                )}
+                <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>
+                  Selected GPU -- {result.selectedClass}
+                </div>
                 <AuditRow label="VRAM" value={`${selected.vram} GB`} />
                 {mode === "Inference" ? (
                   <>
-                    <AuditRow label="Hardware throughput anchor" value={`${selected.anchor.toLocaleString()} tok/s (${selected.anchorPrecision})`} sub={`Confidence: ${selected.confidence} -- ${selected.source}`} />
-                    <AuditRow label="Model-adjusted effective anchor" value={`${Math.round(selected.effectiveAnchor).toLocaleString()} tok/s`} sub={result.throughputScale.basis} />
+                    <AuditRow
+                      label="Hardware throughput anchor"
+                      value={`${selected.anchor.toLocaleString()} tok/s (${selected.anchorPrecision})`}
+                      sub={`Confidence: ${selected.confidence} -- ${selected.source}`}
+                    />
+                    <AuditRow
+                      label="Model-adjusted effective anchor"
+                      value={`${Math.round(selected.effectiveAnchor).toLocaleString()} tok/s`}
+                      sub={result.throughputScale.basis}
+                    />
                   </>
-                ) : <AuditRow label={`Peak TFLOPS (${precision})`} value={selected.peakTFLOPS.toLocaleString()} sub={`Confidence: ${result.confidence.level} -- NVIDIA published spec-sheet values`} />}
-                <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Pricing</div>
-                <AuditRow label={`Loaded cost per ${result.selectedClass} GPU`} value={priceInfo ? fmtUsdPrecise(priceInfo.amount) : "—"} sub={priceInfo ? `Confidence: ${priceInfo.confidence} -- ${priceInfo.source}` : undefined} />
-                <AuditRow label="Pricing last verified" value={fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)} sub={`${onpremStaleness.days} days ago${onpremStaleness.level === "stale" ? " -- refresh before client use" : onpremStaleness.level === "review" ? " -- review due soon" : ""}`} />
-                {mode === "Training" && <><div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Training-specific assumption</div><AuditRow label="MFU (model FLOPs utilization)" value={`${Math.round(mfu * 100)}%`} sub={mfu === 0.4 ? "default value, sourced from Meta's Llama 3 paper" : `adjusted from the 40% default to ${Math.round(mfu * 100)}%`} /></>}
+                ) : (
+                  <AuditRow
+                    label={`Peak TFLOPS (${precision})`}
+                    value={selected.peakTFLOPS.toLocaleString()}
+                    sub={`Confidence: ${result.confidence.level} -- NVIDIA published spec-sheet values`}
+                  />
+                )}
+                <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>
+                  Pricing
+                </div>
+                <AuditRow
+                  label={`Loaded cost per ${result.selectedClass} GPU`}
+                  value={priceInfo ? fmtUsdPrecise(priceInfo.amount) : "—"}
+                  sub={priceInfo ? `Confidence: ${priceInfo.confidence} -- ${priceInfo.source}` : undefined}
+                />
+                <AuditRow
+                  label="Pricing last verified"
+                  value={fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)}
+                  sub={`${onpremStaleness.days} days ago${onpremStaleness.level === "stale" ? " -- refresh before client use" : onpremStaleness.level === "review" ? " -- review due soon" : ""}`}
+                />
+                {mode === "Training" && (
+                  <>
+                    <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>
+                      Training-specific assumption
+                    </div>
+                    <AuditRow
+                      label="MFU (model FLOPs utilization)"
+                      value={`${Math.round(mfu * 100)}%`}
+                      sub={
+                        mfu === 0.4
+                          ? "default value, sourced from Meta's Llama 3 paper"
+                          : `adjusted from the 40% default to ${Math.round(mfu * 100)}%`
+                      }
+                    />
+                  </>
+                )}
               </>
             );
           })()}
-          <div className="text-[11px] text-gray-500 mt-4 leading-relaxed">All figures on this page are directional planning estimates derived from the inputs shown above, using the same calculation the main report already ran. This is a directional sizing estimate, not a final bill of materials -- confirm with a CDW AI Factory specialist before purchasing.</div>
-          <div className="border-t-2 pt-4 mt-4 flex justify-between" style={{ borderColor: CHARCOAL }}><div><div className="text-sm font-bold" style={{ color: CHARCOAL }}>Jay B. Carlile</div><div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div></div><div className="text-xs text-gray-500 text-right">Questions about this derivation?<br />Bring your actual workload data for a validated pass</div></div>
+          <div className="text-[11px] text-gray-500 mt-4 leading-relaxed">
+            All figures on this page are directional planning estimates derived from the inputs shown above, using the
+            same calculation the main report already ran. This is a directional sizing estimate, not a final bill of
+            materials -- confirm with a CDW AI Factory specialist before purchasing.
+          </div>
+          <div className="border-t-2 pt-4 mt-4 flex justify-between" style={{ borderColor: CHARCOAL }}>
+            <div>
+              <div className="text-sm font-bold" style={{ color: CHARCOAL }}>
+                Jay B. Carlile
+              </div>
+              <div className="text-xs text-gray-500">AI Solutions Executive &middot; CDW AI Factory</div>
+            </div>
+            <div className="text-xs text-gray-500 text-right">
+              Questions about this derivation?
+              <br />
+              Bring your actual workload data for a validated pass
+            </div>
+          </div>
         </div>
       )}
 
       {view === "calc" && (
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        {(sourceUseCase || modelAdvisorRecommendedId) && (
-          <div className="mb-6 text-sm rounded-lg px-4 py-3" style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}>
-            {modelAdvisorRecommendedId && !sourceUseCase && (() => {
-              const recommendedModel = getModelById(modelAdvisorRecommendedId);
-              const activeModel = mode === "Inference" ? infModel : trainModel;
-              if (!recommendedModel) return <>Model Advisor recommended <strong>{modelAdvisorRecommendedId}</strong>, but this calculator doesn't have a sizing profile for that model yet. Showing current settings ({activeModel.label}) instead -- pick the right model below rather than relying on this pre-fill.</>;
-              if (activeModel.id === recommendedModel.id) return <>Model pre-set to <strong>{recommendedModel.label}</strong>, carried over from Model Advisor. Adjust anything below to refine the estimate.</>;
-              return <>Model Advisor recommended <strong>{recommendedModel.label}</strong>; you're currently sizing <strong>{activeModel.label}</strong> after an adjustment in GPU Sizing.</>;
-            })()}
-            {sourceUseCase && <>Arrived from Use Case Explorer ({sourceUseCase}).{" "}{incomingWorkloadType && /simulation|molecular|genomics|geospatial|vision|avatar|analytics-acceleration|scanning|pipeline|optimization|mlops|serving|governance|rendering/.test(incomingWorkloadType) ? <>This workload type ({incomingWorkloadType}) isn't fully represented in this calculator yet -- it's scoped for LLM inference and training today. Use the numbers below as a rough compute-scale reference, and confirm with a CDW AI Factory specialist for this workload.</> : <>Mode pre-set to <strong>{mode}</strong> based on that use case. Adjust anything below to refine the estimate.</>}</>}
+        <div className="max-w-5xl mx-auto px-6 py-8">
+          {(sourceUseCase || modelAdvisorRecommendedId) && (
+            <div
+              className="mb-6 text-sm rounded-lg px-4 py-3"
+              style={{ background: "#F5F5F5", border: "1px solid #ddd", color: "#444" }}
+            >
+              {modelAdvisorRecommendedId &&
+                !sourceUseCase &&
+                (() => {
+                  const recommendedModel = getModelById(modelAdvisorRecommendedId);
+                  const activeModel = mode === "Inference" ? infModel : trainModel;
+                  if (!recommendedModel)
+                    return (
+                      <>
+                        Model Advisor recommended <strong>{modelAdvisorRecommendedId}</strong>, but this calculator
+                        doesn't have a sizing profile for that model yet. Showing current settings ({activeModel.label})
+                        instead -- pick the right model below rather than relying on this pre-fill.
+                      </>
+                    );
+                  if (activeModel.id === recommendedModel.id)
+                    return (
+                      <>
+                        Model pre-set to <strong>{recommendedModel.label}</strong>, carried over from Model Advisor.
+                        Adjust anything below to refine the estimate.
+                      </>
+                    );
+                  return (
+                    <>
+                      Model Advisor recommended <strong>{recommendedModel.label}</strong>; you're currently sizing{" "}
+                      <strong>{activeModel.label}</strong> after an adjustment in GPU Sizing.
+                    </>
+                  );
+                })()}
+              {sourceUseCase && (
+                <>
+                  Arrived from Use Case Explorer ({sourceUseCase}).{" "}
+                  {incomingWorkloadType &&
+                  /simulation|molecular|genomics|geospatial|vision|avatar|analytics-acceleration|scanning|pipeline|optimization|mlops|serving|governance|rendering/.test(
+                    incomingWorkloadType
+                  ) ? (
+                    <>
+                      This workload type ({incomingWorkloadType}) isn't fully represented in this calculator yet -- it's
+                      scoped for LLM inference and training today. Use the numbers below as a rough compute-scale
+                      reference, and confirm with a CDW AI Factory specialist for this workload.
+                    </>
+                  ) : (
+                    <>
+                      Mode pre-set to <strong>{mode}</strong> based on that use case. Adjust anything below to refine
+                      the estimate.
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          <div className="flex gap-2 mb-6">
+            {["Inference", "Training"].map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className="px-5 py-2 rounded-lg text-sm font-bold transition-colors"
+                style={mode === m ? { background: RED, color: "white" } : { background: "#F2F2F2", color: CHARCOAL }}
+              >
+                {m === "Inference" ? "Inference sizing" : "Training / fine-tuning sizing"}
+              </button>
+            ))}
           </div>
-        )}
-        <div className="flex gap-2 mb-6">{["Inference", "Training"].map((m) => (<button key={m} onClick={() => setMode(m)} className="px-5 py-2 rounded-lg text-sm font-bold transition-colors" style={mode === m ? { background: RED, color: "white" } : { background: "#F2F2F2", color: CHARCOAL }}>{m === "Inference" ? "Inference sizing" : "Training / fine-tuning sizing"}</button>))}</div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: RED }}>Workload requirements</div>
-            <div className="text-xs text-gray-500 mb-4">Start with what the workload needs. Common deployment defaults and expert assumptions remain available below.</div>
-            {mode === "Inference" ? (
-              <>
-                <Field label="Model" tipKey="infModel"><Select value={infModel.id} onChange={(id) => setInfModel(MODELS.find((m) => m.id === id))} options={MODELS.map((m) => m.id)} /><div className="text-xs text-gray-500 mt-1">{infModel.label}</div></Field>
-                {infModel.id === "custom" && <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200"><Field label="Params (B)"><NumberInput value={customParamsB} onChange={setCustomParamsB} /></Field><Field label="Layers"><NumberInput value={customLayers} onChange={setCustomLayers} /></Field><Field label="KV heads"><NumberInput value={customKvHeads} onChange={setCustomKvHeads} /></Field><Field label="Head dim"><NumberInput value={customHeadDim} onChange={setCustomHeadDim} /></Field></div>}
-                <Field label="Peak concurrent users" tipKey="concurrentUsers" hint="Concurrent generating sessions, not total licensed users"><NumberInput value={concurrentUsers} onChange={setConcurrentUsers} ariaLabel="Peak concurrent users" /></Field>
-                <Field label="Target response speed (tokens/sec per user)" tipKey="targetTokPerUser"><NumberInput value={targetTokPerUser} onChange={setTargetTokPerUser} ariaLabel="Target tokens/sec per user" /></Field>
-                <SampleOutputPreview tokPerSec={targetTokPerUser} />
-                <Field label="Environment" tipKey="environment"><Select value={environment} onChange={setEnvironment} options={["Production", "Dev/Test/POC"]} /></Field>
-                <details className="rounded-xl border border-gray-200 bg-white mb-4">
-                  <summary className="cursor-pointer px-4 py-3 list-none">
-                    <div className="flex items-start justify-between gap-3">
-                      <div><div className="text-sm font-bold" style={{ color: CHARCOAL }}>Deployment assumptions</div><div className="text-xs text-gray-500 mt-1">{quant} · {infGpuOverride}</div></div>
-                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>Adjust</span>
-                    </div>
-                  </summary>
-                  <div className="border-t border-gray-100 px-4 pt-4 pb-1">
-                    <Field label="Quantization" tipKey="quant"><Select value={quant} onChange={setQuant} options={["FP16", "FP8", "FP4"]} /></Field>
-                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
-                  </div>
-                </details>
-                <details open={pathLevel === "advanced"} onToggle={(e) => setPathLevel(e.currentTarget.open ? "advanced" : "simple")} className="rounded-xl border border-gray-200 bg-white">
-                  <summary className="cursor-pointer px-4 py-3 list-none">
-                    <div className="flex items-start justify-between gap-3">
-                      <div><div className="text-sm font-bold" style={{ color: CHARCOAL }}>Advanced sizing assumptions</div><div className="text-xs text-gray-500 mt-1">{avgInputTokens.toLocaleString()} / {avgOutputTokens.toLocaleString()} tokens · {Math.round(overheadPct * 100)}% overhead</div></div>
-                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>Optional</span>
-                    </div>
-                  </summary>
-                  <div className="border-t border-gray-100 px-4 pt-4 pb-1">
-                    <Field label="Avg input tokens" tipKey="avgInputTokens"><NumberInput value={avgInputTokens} onChange={setAvgInputTokens} /></Field>
-                    <Field label="Avg output tokens" tipKey="avgOutputTokens"><NumberInput value={avgOutputTokens} onChange={setAvgOutputTokens} /></Field>
-                    <Field label="Attention/KV cache precision (bytes/element)" tipKey="kvBytesPerElement"><NumberInput value={kvBytesPerElement} onChange={setKvBytesPerElement} step={1} /></Field>
-                    <Field label="Runtime/activation overhead %"><NumberInput value={overheadPct} onChange={setOverheadPct} step={0.01} /></Field>
-                  </div>
-                </details>
-              </>
-            ) : (
-              <>
-                <Field label="Model" tipKey="trainModel"><Select value={trainModel.id} onChange={(id) => setTrainModel(MODELS.find((m) => m.id === id))} options={MODELS.map((m) => m.id)} /><div className="text-xs text-gray-500 mt-1">{trainModel.label}</div></Field>
-                {trainModel.id === "custom" && <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200"><Field label="Params (B)"><NumberInput value={customParamsB} onChange={setCustomParamsB} /></Field></div>}
-                <Field label="Task type" tipKey="taskType"><Select value={taskType} onChange={setTaskType} options={["Pretraining", "Full fine-tune", "LoRA/PEFT"]} /></Field>
-                <Field label="Dataset size (billions of tokens)" tipKey="datasetTokensB"><NumberInput value={datasetTokensB} onChange={setDatasetTokensB} /></Field>
-                <Field label="Target time to train (days)" tipKey="targetDays"><NumberInput value={targetDays} onChange={setTargetDays} /></Field>
-                <details className="rounded-xl border border-gray-200 bg-white mb-4">
-                  <summary className="cursor-pointer px-4 py-3 list-none">
-                    <div className="flex items-start justify-between gap-3">
-                      <div><div className="text-sm font-bold" style={{ color: CHARCOAL }}>Deployment assumptions</div><div className="text-xs text-gray-500 mt-1">{precision} · {trainGpuOverride}</div></div>
-                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>Adjust</span>
-                    </div>
-                  </summary>
-                  <div className="border-t border-gray-100 px-4 pt-4 pb-1">
-                    <Field label="Precision" tipKey="precision"><Select value={precision} onChange={setPrecision} options={["BF16", "FP8"]} /></Field>
-                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={trainGpuOverride} onChange={setTrainGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
-                  </div>
-                </details>
-                <details open={pathLevel === "advanced"} onToggle={(e) => setPathLevel(e.currentTarget.open ? "advanced" : "simple")} className="rounded-xl border border-gray-200 bg-white">
-                  <summary className="cursor-pointer px-4 py-3 list-none">
-                    <div className="flex items-start justify-between gap-3">
-                      <div><div className="text-sm font-bold" style={{ color: CHARCOAL }}>Advanced sizing assumptions</div><div className="text-xs text-gray-500 mt-1">MFU {Math.round(mfu * 100)}%</div></div>
-                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>Optional</span>
-                    </div>
-                  </summary>
-                  <div className="border-t border-gray-100 px-4 pt-4 pb-1">
-                    <Field label="MFU (achieved % of peak FLOPs)" tipKey="mfu" hint="Sourced default: Meta's Llama 3 paper reports 38-43% BF16 MFU at 16K-GPU scale"><NumberInput value={mfu} onChange={setMfu} step={0.01} /></Field>
-                  </div>
-                </details>
-              </>
-            )}
-          </div>
-          <div>
-            {errors.length > 0 ? (
-              <div className="rounded-xl p-5 bg-red-50 border border-red-200"><div className="text-xs font-bold uppercase tracking-wide text-red-800 mb-2">Fix these before sizing</div><ul className="text-sm text-red-900 space-y-1.5 list-disc list-inside">{errors.map((e, i) => (<li key={i}>{e}</li>))}</ul></div>
-            ) : (
-            <>
-              <div className="mb-4"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2 flex items-start gap-1"><Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{result.confidence.note}</p></div>
-              <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" /><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent selectable selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
-              <div className="flex flex-wrap gap-3 mb-6"><ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." /><ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." selectable={!!result.higherGrowth.class} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
-              <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
-              {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
-              {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
-              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).</div>
-              <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
-              <div className="mt-3 flex flex-col sm:flex-row gap-2">
-                <button onClick={requestReport} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
-                <button onClick={openAudit} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 bg-white" style={{ color: CHARCOAL }}>Calculation Methodology &amp; Audit Trail</button>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: RED }}>
+                Workload requirements
               </div>
-            </>
-            )}
+              <div className="text-xs text-gray-500 mb-4">
+                Start with what the workload needs. Common deployment defaults and expert assumptions remain available
+                below.
+              </div>
+              {mode === "Inference" ? (
+                <>
+                  <Field label="Model" tipKey="infModel">
+                    <Select
+                      value={infModel.id}
+                      onChange={(id) => setInfModel(modelOptions.find((m) => m.id === id))}
+                      options={modelOptions.map((m) => m.id)}
+                    />
+                    <div className="text-xs text-gray-500 mt-1">{infModel.label}</div>
+                  </Field>
+                  {infModel.id === "custom" && (
+                    <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <Field label="Params (B)">
+                        <NumberInput value={customParamsB} onChange={setCustomParamsB} />
+                      </Field>
+                      <Field label="Layers">
+                        <NumberInput value={customLayers} onChange={setCustomLayers} />
+                      </Field>
+                      <Field label="KV heads">
+                        <NumberInput value={customKvHeads} onChange={setCustomKvHeads} />
+                      </Field>
+                      <Field label="Head dim">
+                        <NumberInput value={customHeadDim} onChange={setCustomHeadDim} />
+                      </Field>
+                    </div>
+                  )}
+                  <Field
+                    label="Peak concurrent users"
+                    tipKey="concurrentUsers"
+                    hint="Concurrent generating sessions, not total licensed users"
+                  >
+                    <NumberInput
+                      value={concurrentUsers}
+                      onChange={setConcurrentUsers}
+                      ariaLabel="Peak concurrent users"
+                    />
+                  </Field>
+                  <Field label="Target response speed (tokens/sec per user)" tipKey="targetTokPerUser">
+                    <NumberInput
+                      value={targetTokPerUser}
+                      onChange={setTargetTokPerUser}
+                      ariaLabel="Target tokens/sec per user"
+                    />
+                  </Field>
+                  <SampleOutputPreview tokPerSec={targetTokPerUser} />
+                  <Field label="Environment" tipKey="environment">
+                    <Select value={environment} onChange={setEnvironment} options={["Production", "Dev/Test/POC"]} />
+                  </Field>
+                  <details className="rounded-xl border border-gray-200 bg-white mb-4">
+                    <summary className="cursor-pointer px-4 py-3 list-none">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-bold" style={{ color: CHARCOAL }}>
+                            Deployment assumptions
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {quant} · {infGpuOverride}
+                          </div>
+                        </div>
+                        <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>
+                          Adjust
+                        </span>
+                      </div>
+                    </summary>
+                    <div className="border-t border-gray-100 px-4 pt-4 pb-1">
+                      <Field label="Quantization" tipKey="quant">
+                        <Select value={quant} onChange={setQuant} options={["FP16", "FP8", "FP4"]} />
+                      </Field>
+                      <Field label="GPU class" tipKey="infGpuOverride">
+                        <Select
+                          value={infGpuOverride}
+                          onChange={setInfGpuOverride}
+                          options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]}
+                        />
+                      </Field>
+                    </div>
+                  </details>
+                  <details
+                    open={pathLevel === "advanced"}
+                    onToggle={(e) => setPathLevel(e.currentTarget.open ? "advanced" : "simple")}
+                    className="rounded-xl border border-gray-200 bg-white"
+                  >
+                    <summary className="cursor-pointer px-4 py-3 list-none">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-bold" style={{ color: CHARCOAL }}>
+                            Advanced sizing assumptions
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {avgInputTokens.toLocaleString()} / {avgOutputTokens.toLocaleString()} tokens ·{" "}
+                            {Math.round(overheadPct * 100)}% overhead
+                          </div>
+                        </div>
+                        <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>
+                          Optional
+                        </span>
+                      </div>
+                    </summary>
+                    <div className="border-t border-gray-100 px-4 pt-4 pb-1">
+                      <Field label="Avg input tokens" tipKey="avgInputTokens">
+                        <NumberInput value={avgInputTokens} onChange={setAvgInputTokens} />
+                      </Field>
+                      <Field label="Avg output tokens" tipKey="avgOutputTokens">
+                        <NumberInput value={avgOutputTokens} onChange={setAvgOutputTokens} />
+                      </Field>
+                      <Field label="Attention/KV cache precision (bytes/element)" tipKey="kvBytesPerElement">
+                        <NumberInput value={kvBytesPerElement} onChange={setKvBytesPerElement} step={1} />
+                      </Field>
+                      <Field label="Runtime/activation overhead %">
+                        <NumberInput value={overheadPct} onChange={setOverheadPct} step={0.01} />
+                      </Field>
+                    </div>
+                  </details>
+                </>
+              ) : (
+                <>
+                  <Field label="Model" tipKey="trainModel">
+                    <Select
+                      value={trainModel.id}
+                      onChange={(id) => setTrainModel(modelOptions.find((m) => m.id === id))}
+                      options={modelOptions.map((m) => m.id)}
+                    />
+                    <div className="text-xs text-gray-500 mt-1">{trainModel.label}</div>
+                  </Field>
+                  {trainModel.id === "custom" && (
+                    <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                      <Field label="Params (B)">
+                        <NumberInput value={customParamsB} onChange={setCustomParamsB} />
+                      </Field>
+                    </div>
+                  )}
+                  <Field label="Task type" tipKey="taskType">
+                    <Select
+                      value={taskType}
+                      onChange={setTaskType}
+                      options={["Pretraining", "Full fine-tune", "LoRA/PEFT"]}
+                    />
+                  </Field>
+                  <Field label="Dataset size (billions of tokens)" tipKey="datasetTokensB">
+                    <NumberInput value={datasetTokensB} onChange={setDatasetTokensB} />
+                  </Field>
+                  <Field label="Target time to train (days)" tipKey="targetDays">
+                    <NumberInput value={targetDays} onChange={setTargetDays} />
+                  </Field>
+                  <details className="rounded-xl border border-gray-200 bg-white mb-4">
+                    <summary className="cursor-pointer px-4 py-3 list-none">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-bold" style={{ color: CHARCOAL }}>
+                            Deployment assumptions
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {precision} · {trainGpuOverride}
+                          </div>
+                        </div>
+                        <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>
+                          Adjust
+                        </span>
+                      </div>
+                    </summary>
+                    <div className="border-t border-gray-100 px-4 pt-4 pb-1">
+                      <Field label="Precision" tipKey="precision">
+                        <Select value={precision} onChange={setPrecision} options={["BF16", "FP8"]} />
+                      </Field>
+                      <Field label="GPU class" tipKey="infGpuOverride">
+                        <Select
+                          value={trainGpuOverride}
+                          onChange={setTrainGpuOverride}
+                          options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]}
+                        />
+                      </Field>
+                    </div>
+                  </details>
+                  <details
+                    open={pathLevel === "advanced"}
+                    onToggle={(e) => setPathLevel(e.currentTarget.open ? "advanced" : "simple")}
+                    className="rounded-xl border border-gray-200 bg-white"
+                  >
+                    <summary className="cursor-pointer px-4 py-3 list-none">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="text-sm font-bold" style={{ color: CHARCOAL }}>
+                            Advanced sizing assumptions
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">MFU {Math.round(mfu * 100)}%</div>
+                        </div>
+                        <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>
+                          Optional
+                        </span>
+                      </div>
+                    </summary>
+                    <div className="border-t border-gray-100 px-4 pt-4 pb-1">
+                      <Field
+                        label="MFU (achieved % of peak FLOPs)"
+                        tipKey="mfu"
+                        hint="Sourced default: Meta's Llama 3 paper reports 38-43% BF16 MFU at 16K-GPU scale"
+                      >
+                        <NumberInput value={mfu} onChange={setMfu} step={0.01} />
+                      </Field>
+                    </div>
+                  </details>
+                </>
+              )}
+            </div>
+            <div>
+              {errors.length > 0 ? (
+                <div className="rounded-xl p-5 bg-red-50 border border-red-200">
+                  <div className="text-xs font-bold uppercase tracking-wide text-red-800 mb-2">
+                    Fix these before sizing
+                  </div>
+                  <ul className="text-sm text-red-900 space-y-1.5 list-disc list-inside">
+                    {errors.map((e, i) => (
+                      <li key={i}>{e}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <>
+                  <div className="mb-4">
+                    <ConfidenceBadge level={result.confidence.level} />
+                    <p className="text-xs text-gray-500 mt-2 flex items-start gap-1">
+                      <Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                      {result.confidence.note}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    <ResultCard
+                      icon={Cpu}
+                      title="Minimum technical"
+                      gpuClass={result.selectedClass}
+                      gpus={result.minTechnical}
+                      subtitle="Unrounded workload requirement"
+                    />
+                    <ResultCard
+                      icon={Zap}
+                      title="Recommended"
+                      gpuClass={result.selectedClass}
+                      gpus={result.recommended}
+                      subtitle="Node-rounded for production"
+                      accent
+                      selectable
+                      selected={effectiveTcoSelection === "recommended"}
+                      onSelect={() => setTcoSelection("recommended")}
+                    />
+                  </div>
+                  <div className="flex flex-wrap gap-3 mb-6">
+                    <ResultCard
+                      icon={TrendingDown}
+                      title="Lower-cost alternative"
+                      gpuClass={result.lowerCost.class}
+                      gpus={result.lowerCost.recommended}
+                      emptyMessage="No qualifying lower-cost alternative in the current supported catalog."
+                    />
+                    <ResultCard
+                      icon={TrendingUp}
+                      title="Higher-growth alternative"
+                      gpuClass={result.higherGrowth.class}
+                      gpus={result.higherGrowth.recommended}
+                      emptyMessage="No qualifying higher-growth alternative in the current supported catalog."
+                      selectable={!!result.higherGrowth.class}
+                      selected={effectiveTcoSelection === "higher-growth"}
+                      onSelect={() => setTcoSelection("higher-growth")}
+                    />
+                  </div>
+                  <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
+                  {mode === "Inference" && (
+                    <UtilizationPanel
+                      result={result}
+                      workingDayHours={workingDayHours}
+                      onWorkingDayHoursChange={setWorkingDayHours}
+                    />
+                  )}
+                  {mode === "Inference" && environment === "Dev/Test/POC" && (
+                    <div className="mb-4">
+                      {result.rtxAlt.eligible ? (
+                        <div className="rounded-xl p-4 bg-blue-50 border border-blue-200">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Cpu className="w-4 h-4 text-blue-700" />
+                            <span className="text-xs font-bold uppercase tracking-wide text-blue-800">
+                              Workstation alternative
+                            </span>
+                          </div>
+                          <div className="text-2xl font-bold text-blue-900 mb-1">
+                            {result.rtxAlt.gpus}{" "}
+                            <span className="text-sm font-normal">
+                              x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)
+                            </span>
+                          </div>
+                          <p className="text-xs text-blue-800">
+                            Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards.
+                            Anchor is an estimate -- treat as directional.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">
+                          Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs}{" "}
+                          {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4">
+                    <strong>Methodology:</strong>{" "}
+                    {mode === "Inference"
+                      ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
+                      : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}
+                    A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems
+                    are deployed as whole nodes (
+                    {result.selectedNodeSize === 72
+                      ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller"
+                      : "8-GPU DGX nodes for this class"}
+                    ).
+                  </div>
+                  <TcoHandoff
+                    selectedClass={tcoSelectedClass}
+                    recommended={tcoSelectedCount}
+                    sizingBasis={effectiveTcoSelection}
+                    mode={mode}
+                    workingDayHours={workingDayHours}
+                    model={mode === "Inference" ? infModel : trainModel}
+                    modelParamsB={
+                      mode === "Inference"
+                        ? getModelParamsB(infModel, customParamsB)
+                        : getModelParamsB(trainModel, customParamsB)
+                    }
+                    quant={mode === "Inference" ? quant : null}
+                  />
+                  <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                    <button
+                      onClick={requestReport}
+                      className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white"
+                      style={{ background: RED }}
+                    >
+                      Get the full sizing report
+                    </button>
+                    <button
+                      onClick={openAudit}
+                      className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 bg-white"
+                      style={{ color: CHARCOAL }}
+                    >
+                      Calculation Methodology &amp; Audit Trail
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
-      </div>
       )}
     </main>
   );
 }
 
-export default function GPUSizingCalculator() {
+export default function GPUSizingCalculator({ visibleModelOptions }) {
   return (
     <AuthProvider>
-      <GPUSizingCalculatorInner />
+      <GPUSizingCalculatorInner visibleModelOptions={visibleModelOptions} />
     </AuthProvider>
   );
 }

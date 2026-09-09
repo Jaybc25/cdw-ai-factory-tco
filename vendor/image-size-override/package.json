@@ -1,0 +1,7 @@
+{
+  "name": "image-size-override",
+  "version": "1.2.1+patches.1",
+  "description": "patched override: removes ICNS, HEIF, JXL parsers; keeps PNG/JPEG only for pptxgenjs",
+  "main": "index.js",
+  "license": "MIT"
+}

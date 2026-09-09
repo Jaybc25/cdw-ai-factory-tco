@@ -58,10 +58,7 @@ if (unknown.confidence !== "LOW") throw new Error("Unknown active-compute semant
 
 // Wiring contract: the production GPU Sizing calculator must consume these
 // primitives rather than leaving them as disconnected documentation/tests.
-const gpuSizingSource = fs.readFileSync(
-  new URL("../src/GpuSizingCalculator.jsx", import.meta.url),
-  "utf8"
-);
+const gpuSizingSource = fs.readFileSync(new URL("../src/GpuSizingCalculator.jsx", import.meta.url), "utf8");
 const requiredSourceSnippets = [
   'from "./modelSizingMethodology.js"',
   "getInferenceThroughputScale(model, inputs.customParamsB)",
@@ -84,6 +81,6 @@ if (gpuSizingSource.includes("const gpusPerf = ceilDiv(totalThroughputNeeded, gp
 
 console.log(
   `Model sizing methodology PASS: ${INFERENCE_REFERENCE_MODEL.label} ${INFERENCE_REFERENCE_MODEL.activeParamsB}B reference; ` +
-  "one-sided inference scaling prevents unsupported speedups; training residency and active-compute semantics remain distinct; " +
-  "production GPU Sizing is wired to the guarded methodology."
+    "one-sided inference scaling prevents unsupported speedups; training residency and active-compute semantics remain distinct; " +
+    "production GPU Sizing is wired to the guarded methodology."
 );

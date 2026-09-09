@@ -34,6 +34,11 @@ on:
       - "package.json"
       - "package-lock.json"
       - "playwright.config.js"
+      - "index.html"
+      - "vercel.json"
+      - "eslint.config.mjs"
+      - ".prettierrc.json"
+      - ".prettierignore"
       - ".github/workflows/quality-gate.yml"
   pull_request:
     paths:
@@ -66,6 +71,11 @@ on:
       - "package.json"
       - "package-lock.json"
       - "playwright.config.js"
+      - "index.html"
+      - "vercel.json"
+      - "eslint.config.mjs"
+      - ".prettierrc.json"
+      - ".prettierignore"
       - ".github/workflows/quality-gate.yml"
 
 permissions:
@@ -85,6 +95,12 @@ jobs:
 
       - name: Install application dependencies
         run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
 
       - name: Production build
         run: npm run build

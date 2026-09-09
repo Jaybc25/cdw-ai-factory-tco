@@ -49,7 +49,8 @@ const sizingSource = fs.readFileSync(new URL("../src/GpuSizingCalculator.jsx", i
 
 if (/const\s+RATES\s*=/.test(tcoSource)) errors.push("TcoCalculator.jsx reintroduced a local RATES table");
 if (/const\s+SYSTEMS\s*=/.test(tcoSource)) errors.push("TcoCalculator.jsx reintroduced a local SYSTEMS table");
-if (/const\s+GPU_PRICE_USD\s*=/.test(sizingSource)) errors.push("GpuSizingCalculator.jsx reintroduced a local GPU_PRICE_USD table");
+if (/const\s+GPU_PRICE_USD\s*=/.test(sizingSource))
+  errors.push("GpuSizingCalculator.jsx reintroduced a local GPU_PRICE_USD table");
 if (!tcoSource.includes("CLOUD_GPU_RATES as RATES") || !tcoSource.includes("ONPREM_SYSTEMS as SYSTEMS")) {
   errors.push("TcoCalculator.jsx is not consuming the shared pricing registry");
 }

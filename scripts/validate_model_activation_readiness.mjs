@@ -3,14 +3,21 @@ import { MODEL_REGISTRY } from "../src/modelRegistry.js";
 import { STAGED_TECHNICAL_MODEL_REGISTRY } from "../src/stagedModelRegistry.js";
 import { getInferenceSequenceStateMemory } from "../src/modelSizingMethodology.js";
 
-const manifest = JSON.parse(fs.readFileSync(new URL("../data/model_catalog_tranche_1_qualification.json", import.meta.url), "utf8"));
+const manifest = JSON.parse(
+  fs.readFileSync(new URL("../data/model_catalog_tranche_1_qualification.json", import.meta.url), "utf8")
+);
 const policy = JSON.parse(fs.readFileSync(new URL("../data/model_catalog_policy.json", import.meta.url), "utf8"));
 const runtimeById = new Map(MODEL_REGISTRY.map((m) => [m.id, m]));
 const sourceById = new Map(STAGED_TECHNICAL_MODEL_REGISTRY.map((m) => [m.id, m]));
 const activePolicyById = new Map(policy.models.map((m) => [m.canonical_model_id, m]));
-function assert(c, m) { if (!c) throw new Error(m); }
+function assert(c, m) {
+  if (!c) throw new Error(m);
+}
 
-assert(manifest.activation_policy?.state === "fully-activated-10-active", "Manifest must record full tranche activation.");
+assert(
+  manifest.activation_policy?.state === "fully-activated-10-active",
+  "Manifest must record full tranche activation."
+);
 assert((policy.staged_models || []).length === 0, "No tranche model may remain staged in policy.");
 
 for (const entry of manifest.models) {
@@ -23,8 +30,13 @@ for (const entry of manifest.models) {
   if (sourceById.has(id)) {
     const source = sourceById.get(id);
     assert(source.sequenceStateType === runtime.sequenceStateType, `${id} runtime/source sequenceStateType drifted.`);
-    assert(source.totalParamsB === runtime.totalParamsB && source.activeParamsB === runtime.activeParamsB, `${id} runtime/source parameter semantics drifted.`);
+    assert(
+      source.totalParamsB === runtime.totalParamsB && source.activeParamsB === runtime.activeParamsB,
+      `${id} runtime/source parameter semantics drifted.`
+    );
   }
 }
 
-console.log("Model activation readiness PASS: all 10 tranche models are active/recommended with computable production sequence-state contracts; the four hybrid source records reconcile with their promoted runtime records.");
+console.log(
+  "Model activation readiness PASS: all 10 tranche models are active/recommended with computable production sequence-state contracts; the four hybrid source records reconcile with their promoted runtime records."
+);
