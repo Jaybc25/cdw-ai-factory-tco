@@ -713,7 +713,7 @@ function RoiCalculatorInner() {
       {view === "gate" && (
         <div style={{ maxWidth: 480, margin: "0 auto", padding: "24px 0" }}>
           <div style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 12, padding: 24 }}>
-            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4, color: CHARCOAL }}>Get the full ROI report</div>
+            <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 4, color: CHARCOAL }}>Get the full report (PDF)</div>
             <div style={{ fontSize: 12, color: GRAY_TEXT, marginBottom: 16 }}>
               The report includes the full scenario economics -- capacity created, its economic value, and the
               investment result -- as an executive-summary-ready artifact.
@@ -1238,7 +1238,7 @@ function RoiCalculatorInner() {
                     onClick={requestReport}
                     style={{ flex: 1, width: isMobile ? "100%" : "auto", fontWeight: 700, fontSize: 14, padding: "11px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: RED, color: "#fff" }}
                   >
-                    Get the full ROI report
+                    Get the full report (PDF)
                   </button>
                   <button
                     onClick={openAudit}
