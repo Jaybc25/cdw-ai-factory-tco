@@ -28,7 +28,7 @@ assert(
 );
 
 assert(
-  gpuSource.includes('const state = result.sequenceStateMemory;') &&
+  gpuSource.includes("const state = result.sequenceStateMemory;") &&
     gpuSource.includes('const isStandardKv = state.stateType === "standard-kv";'),
   "GPU Sizing audit must branch on the shared sequence-state contract rather than assuming every model is standard KV or MLA."
 );
@@ -55,4 +55,6 @@ assert(
   "Hybrid sequence-state browser harness route must remain conditional on E2E_AUTH_BYPASS."
 );
 
-console.log("GPU sequence-state integration PASS: GPU Sizing consumes the shared state-memory helper, preserves hybrid-aware audit/report semantics, the legacy inline standard/MLA-only formula is absent, and the staged browser harness remains E2E-only.");
+console.log(
+  "GPU sequence-state integration PASS: GPU Sizing consumes the shared state-memory helper, preserves hybrid-aware audit/report semantics, the legacy inline standard/MLA-only formula is absent, and the staged browser harness remains E2E-only."
+);

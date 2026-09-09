@@ -3,7 +3,12 @@ import cdwLogo from "./cdw-logo.png";
 import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
-import { CLOUD_RATES_VERIFIED_AT, ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
+import {
+  CLOUD_RATES_VERIFIED_AT,
+  ONPREM_PRICING_VERIFIED_AT,
+  stalenessOf,
+  fmtVerifiedDate,
+} from "./pricingProvenance.js";
 import { CLOUD_GPU_RATES as RATES, ONPREM_SYSTEMS as SYSTEMS } from "./pricingRegistry.js";
 import { TCO_MODEL_OPTIONS, getDefaultModel, getModelById, formatModelContext } from "./modelRegistry.js";
 import BestValueGpuAasPanel from "./BestValueGpuAasPanel.jsx";
@@ -15,46 +20,80 @@ const OWN_TARGETS = Object.keys(SYSTEMS);
    Blackwell-Ultra/NVL entries are provisional (EST) pending NVIDIA-sourced factors. */
 const IDX = {
   train: { A100: 0.227, H100: 0.455, H200: 0.667, "B200-class": 1.0, B300: 1.5, GB200: 1.4, GB300: 1.65 },
-  infer: { A100: 0.083, H100: 0.25,  H200: 0.345, "B200-class": 1.0, B300: 1.5, GB200: 1.4, GB300: 1.65 },
+  infer: { A100: 0.083, H100: 0.25, H200: 0.345, "B200-class": 1.0, B300: 1.5, GB200: 1.4, GB300: 1.65 },
 };
-const SYS_CLASS = { "DGX H200": "H200", "DGX B200": "B200-class", "DGX B300": "B300", "DGX GB200 NVL-72": "GB200", "DGX GB300 NVL-72": "GB300" };
+const SYS_CLASS = {
+  "DGX H200": "H200",
+  "DGX B200": "B200-class",
+  "DGX B300": "B300",
+  "DGX GB200 NVL-72": "GB200",
+  "DGX GB300 NVL-72": "GB300",
+};
 const EST_IDX = ["B300", "GB200", "GB300"];
 
-
 /* v1.9 capacity layer constants — rule-of-thumb serving math, all EST and disclosed in-app */
-const QUANT = { "FP16": { bytes: 2, mult: 1.0 }, "FP8": { bytes: 1, mult: 1.6 }, "FP4": { bytes: 0.5, mult: 2.4 } };
-const BASE_TOK = 300;         // tok/s per GPU, 70B @ FP16 on B200-class (EST anchor)
-const KV_OVERHEAD = 1.2;      // memory overhead for KV cache / activations (EST)
-const TOK_PER_USER = 10;      // sustained tok/s per concurrent interactive user (EST)
+const QUANT = { FP16: { bytes: 2, mult: 1.0 }, FP8: { bytes: 1, mult: 1.6 }, FP4: { bytes: 0.5, mult: 2.4 } };
+const BASE_TOK = 300; // tok/s per GPU, 70B @ FP16 on B200-class (EST anchor)
+const KV_OVERHEAD = 1.2; // memory overhead for KV cache / activations (EST)
+const TOK_PER_USER = 10; // sustained tok/s per concurrent interactive user (EST)
 
-const RES_MULT = 0.60; // 1-yr reserved = 40% off list (estimated for all; exact for AWS B200)
+const RES_MULT = 0.6; // 1-yr reserved = 40% off list (estimated for all; exact for AWS B200)
 const RATES_ASOF = fmtVerifiedDate(CLOUD_RATES_VERIFIED_AT); // human-readable, matches prior "Jul–Aug 2026" style display
 const ONPREM_ASOF = fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT);
 const cloudRatesStaleness = stalenessOf(CLOUD_RATES_VERIFIED_AT);
 const onpremStaleness = stalenessOf(ONPREM_PRICING_VERIFIED_AT);
 
 const BASE_RC = {
-  nvaieOD: 1.0, nvaieRes: 0.36,
-  fastGB: 0.14, bulkGB: 0.02, egressGB: 0.05, egressPct: 0.05,
-  cloudFTE: 189000, billingSW: 5000, cloudAdminFTE: 0.01, paasUplift: 0,
+  nvaieOD: 1.0,
+  nvaieRes: 0.36,
+  fastGB: 0.14,
+  bulkGB: 0.02,
+  egressGB: 0.05,
+  egressPct: 0.05,
+  cloudFTE: 189000,
+  billingSW: 5000,
+  cloudAdminFTE: 0.01,
+  paasUplift: 0,
   gpusPerInstance: 8,
-  sysCost: 485000, swSuite: 142800, fabricC: 54323, fabricS: 23443, fabricM: 14227,
-  cluster: 600000, profSvcs: 25000, rack: 15000, sysPerRack: 2, kwPerSys: 14.4,
-  fastPB: 1200000, fastSupPB: 100000, bulkPB: 500000, bulkSupPB: 33333,
-  kwPerPB: 10, racksPerPB: 1, netMo: 3000, setupRack: 2000,
-  adminRatio: 10, opFTE: 189000, equinixMo: 11387,
-  hrsMo: 730, opsGrowth: 0.04, gpusPerSystem: 8,
-  cloudTok: 8.00, // managed-API blended $/1M tokens (EST — editable)
+  sysCost: 485000,
+  swSuite: 142800,
+  fabricC: 54323,
+  fabricS: 23443,
+  fabricM: 14227,
+  cluster: 600000,
+  profSvcs: 25000,
+  rack: 15000,
+  sysPerRack: 2,
+  kwPerSys: 14.4,
+  fastPB: 1200000,
+  fastSupPB: 100000,
+  bulkPB: 500000,
+  bulkSupPB: 33333,
+  kwPerPB: 10,
+  racksPerPB: 1,
+  netMo: 3000,
+  setupRack: 2000,
+  adminRatio: 10,
+  opFTE: 189000,
+  equinixMo: 11387,
+  hrsMo: 730,
+  opsGrowth: 0.04,
+  gpusPerSystem: 8,
+  cloudTok: 8.0, // managed-API blended $/1M tokens (EST — editable)
 };
 function defaultsFor(provider, gpuClass, ownSys) {
   const r = RATES[provider][gpuClass];
   const S = SYSTEMS[ownSys];
-  return { ...BASE_RC, instOD: +r.od.toFixed(2), instRes: r.res ?? +(r.od * RES_MULT).toFixed(2),
-    perSysCost: S.perSys, sysKw: S.kW };
+  return {
+    ...BASE_RC,
+    instOD: +r.od.toFixed(2),
+    instRes: r.res ?? +(r.od * RES_MULT).toFixed(2),
+    perSysCost: S.perSys,
+    sysKw: S.kW,
+  };
 }
 const PROVIDERS = Object.keys(RATES);
 const FACILITIES = ["Self-hosted (AI-ready)", "Self-hosted (retrofit)", "Equinix"];
-
 
 /* ============ v1.6 TOOLTIP COPY — approved batches from website thread (verbatim, pending laptop nitpicks) ============ */
 const TIPS = {
@@ -89,16 +128,48 @@ const TIPS = {
 
 function TipDot({ open, onClick }) {
   return (
-    <button onClick={onClick} aria-label="What is this?"
-      style={{ width: 16, height: 16, boxSizing: "border-box", borderRadius: 8, border: "1.5px solid #CC0000", background: open ? "#CC0000" : "transparent",
-        color: open ? "#fff" : "#CC0000", fontSize: 10, fontWeight: 700, lineHeight: "13px", padding: 0, marginLeft: 6,
-        cursor: "pointer", flexShrink: 0, fontFamily: "'Inter', system-ui, sans-serif" }}>?</button>
+    <button
+      onClick={onClick}
+      aria-label="What is this?"
+      style={{
+        width: 16,
+        height: 16,
+        boxSizing: "border-box",
+        borderRadius: 8,
+        border: "1.5px solid #CC0000",
+        background: open ? "#CC0000" : "transparent",
+        color: open ? "#fff" : "#CC0000",
+        fontSize: 10,
+        fontWeight: 700,
+        lineHeight: "13px",
+        padding: 0,
+        marginLeft: 6,
+        cursor: "pointer",
+        flexShrink: 0,
+        fontFamily: "'Inter', system-ui, sans-serif",
+      }}
+    >
+      ?
+    </button>
   );
 }
 function TipBox({ text }) {
   return (
-    <div style={{ fontSize: 12, color: "#2D2D2D", background: "#FFF", border: "1px solid #DCDCDC", borderLeft: "3px solid #CC0000",
-      borderRadius: 6, padding: "8px 10px", margin: "6px 0 8px", lineHeight: 1.45 }}>{text}</div>
+    <div
+      style={{
+        fontSize: 12,
+        color: "#2D2D2D",
+        background: "#FFF",
+        border: "1px solid #DCDCDC",
+        borderLeft: "3px solid #CC0000",
+        borderRadius: 6,
+        padding: "8px 10px",
+        margin: "6px 0 8px",
+        lineHeight: 1.45,
+      }}
+    >
+      {text}
+    </div>
   );
 }
 function TipLabel({ text, tip, style }) {
@@ -106,21 +177,51 @@ function TipLabel({ text, tip, style }) {
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", ...(style || { fontSize: 13, marginTop: 6 }) }}>
-        <span>{text}</span>{tip && <TipDot open={open} onClick={() => setOpen(!open)} />}
+        <span>{text}</span>
+        {tip && <TipDot open={open} onClick={() => setOpen(!open)} />}
       </div>
       {open && tip && <TipBox text={tip} />}
     </div>
   );
 }
 
-
-/* Storage adapter: artifact storage API when present; localStorage fallback standalone. */
+/* Storage adapter: artifact storage API when present; localStorage fallback standalone.
+   Leads are best-effort and intentionally ephemeral. Bounds:
+   - write only a finite number of recent lead keys (old ones cleaned up)
+   - never let the keys/value set grow without limit. */
+const LEAD_PREFIX = "leads:";
+const LEAD_MAX_KEYS = 50;
 const store = {
+  _readLeadKeys() {
+    if (typeof window === "undefined") return [];
+    try {
+      const keys = [];
+      for (let i = 0; i < window.localStorage.length; i += 1) {
+        const k = window.localStorage.key(i);
+        if (k?.startsWith(LEAD_PREFIX)) keys.push(k);
+      }
+      return keys;
+    } catch {
+      return [];
+    }
+  },
+  _cleanupLeadKeys(limit = LEAD_MAX_KEYS) {
+    if (typeof window === "undefined") return;
+    try {
+      const keys = this._readLeadKeys();
+      keys.sort();
+      for (const k of keys.slice(0, keys.length - limit)) window.localStorage.removeItem(k);
+    } catch {
+      // no-op
+    }
+  },
   // set-only in the prototype: leads are written best-effort; there is no
   // read path in the UI (the demo-admin viewer was removed after external review)
   async set(key, value) {
     if (typeof window !== "undefined" && window.storage) return window.storage.set(key, value);
     localStorage.setItem(key, value);
+    // Clean up older lead keys after every write to cap localStorage growth.
+    if (key.startsWith(LEAD_PREFIX)) store._cleanupLeadKeys(LEAD_MAX_KEYS);
     return { key, value };
   },
 };
@@ -175,9 +276,22 @@ function hardwareEquivalentCloudCost(technicalGpuHrs, genPFUsed, blended) {
 // this is called, so this function itself is mode-agnostic). Fleet never
 // shrinks; technicalFloorSys (workload mode only) sets a hard floor so the
 // fleet is never sized below the known technical requirement.
-function buildTrajectory(baseHrsFn, perSysHrs, S, RC, nPlus, storCapex, storSup, totPB, isEquinix, powerRate, technicalFloorSys) {
+function buildTrajectory(
+  baseHrsFn,
+  perSysHrs,
+  S,
+  RC,
+  nPlus,
+  storCapex,
+  storSup,
+  totPB,
+  isEquinix,
+  powerRate,
+  technicalFloorSys
+) {
   const rows = [];
-  let prevSys = 0, prevRacks = 0;
+  let prevSys = 0,
+    prevRacks = 0;
   for (let y = 0; y < 5; y++) {
     const eff = baseHrsFn(y);
     let base = eff > 0 ? Math.max(1, Math.ceil(eff / perSysHrs)) + nPlus : 0;
@@ -191,17 +305,31 @@ function buildTrajectory(baseHrsFn, perSysHrs, S, RC, nPlus, storCapex, storSup,
     const powerCost = isEquinix ? 0 : (sys * RC.sysKw + totPB * RC.kwPerPB) * powerRate;
     const networkingCost = isEquinix ? 0 : RC.netMo;
     const rackAmortCost = isEquinix ? 0 : (RC.setupRack * (racks + totPB * RC.racksPerPB)) / 36;
-    const adminCost = isEquinix ? 0 : (sys / RC.adminRatio) * RC.opFTE / 12;
+    const adminCost = isEquinix ? 0 : ((sys / RC.adminRatio) * RC.opFTE) / 12;
     const equinixBundleCost = isEquinix ? sys * RC.equinixMo : 0;
-    const opexMo0 = isEquinix ? equinixBundleCost + storSup : powerCost + networkingCost + rackAmortCost + adminCost + storSup;
+    const opexMo0 = isEquinix
+      ? equinixBundleCost + storSup
+      : powerCost + networkingCost + rackAmortCost + adminCost + storSup;
     rows.push({
-      sys, racks, capexAdd, opexMo0, opexYr: 12 * opexMo0 * Math.pow(1 + RC.opsGrowth, y),
+      sys,
+      racks,
+      capexAdd,
+      opexMo0,
+      opexYr: 12 * opexMo0 * Math.pow(1 + RC.opsGrowth, y),
       capexBreakdown: { clusterAndStorage: clusterAndStorageCapex, systems: systemsCapex, racks: racksCapex },
       opexBreakdown: isEquinix
         ? { isEquinix: true, equinixBundle: equinixBundleCost, storageSupport: storSup }
-        : { isEquinix: false, power: powerCost, networking: networkingCost, rackAmortization: rackAmortCost, admin: adminCost, storageSupport: storSup },
+        : {
+            isEquinix: false,
+            power: powerCost,
+            networking: networkingCost,
+            rackAmortization: rackAmortCost,
+            admin: adminCost,
+            storageSupport: storSup,
+          },
     });
-    prevSys = sys; prevRacks = racks;
+    prevSys = sys;
+    prevRacks = racks;
   }
   return rows;
 }
@@ -211,9 +339,7 @@ function run(inp, RC) {
   const isWorkloadMode = inp.mode === "workload" && !!inp.gpuSizingCount;
 
   const blended =
-    (inp.odShare * (RC.instOD + RC.nvaieOD) +
-      (1 - inp.odShare) * (RC.instRes + RC.nvaieRes)) *
-    (1 + RC.paasUplift);
+    (inp.odShare * (RC.instOD + RC.nvaieOD) + (1 - inp.odShare) * (RC.instRes + RC.nvaieRes)) * (1 + RC.paasUplift);
 
   const genPF = computeGenPF(inp.ownSys, inp.gpuClass, inp.trainShare);
   // v2.0: harmonic (GPU-hour-correct) blend — workload shares are hour shares, so the slower
@@ -230,16 +356,22 @@ function run(inp, RC) {
   const fast = inp.fastPB;
   const bulk = inp.bulkPB;
   const totPB = fast + bulk;
-  const cloudStorage =
-    fast * 1e6 * RC.fastGB + bulk * 1e6 * RC.bulkGB +
-    totPB * 1e6 * inp.egressPct * RC.egressGB;
+  const cloudStorage = fast * 1e6 * RC.fastGB + bulk * 1e6 * RC.bulkGB + totPB * 1e6 * inp.egressPct * RC.egressGB;
 
   const perSys = RC.perSysCost;
   const storCapex = fast * RC.fastPB + bulk * RC.bulkPB;
   const storSup = (fast * RC.fastSupPB + bulk * RC.bulkSupPB) / 12;
   const exitEgress = totPB * 1e6 * RC.egressGB;
 
-  let gpuHrs, gpuHrsCloud, adjT, flrT, cloudYears, cloudYearsFloor, technicalSystems = null, monthlyCloudBaseline, sourceConversion = null;
+  let gpuHrs,
+    gpuHrsCloud,
+    adjT,
+    flrT,
+    cloudYears,
+    cloudYearsFloor,
+    technicalSystems = null,
+    monthlyCloudBaseline,
+    sourceConversion = null;
 
   if (isWorkloadMode) {
     // Workload mode: technical GPU requirement drives BOTH sides. Fleet size is fixed by the
@@ -279,12 +411,34 @@ function run(inp, RC) {
     gpuHrsCloud = technicalGpuHrsForCloud;
 
     technicalSystems = Math.max(1, Math.ceil(technicalGpuHrsForFleet / perSysHrs));
-    adjT = buildTrajectory((y) => technicalGpuHrsForFleet * Math.pow(1 + inp.growth, y), perSysHrs, S, RC, nPlus, storCapex, storSup, totPB, isEquinix, inp.powerRate, technicalSystems);
+    adjT = buildTrajectory(
+      (y) => technicalGpuHrsForFleet * Math.pow(1 + inp.growth, y),
+      perSysHrs,
+      S,
+      RC,
+      nPlus,
+      storCapex,
+      storSup,
+      totPB,
+      isEquinix,
+      inp.powerRate,
+      technicalSystems
+    );
     flrT = adjT;
     const adjCloud = hardwareEquivalentCloudCost(technicalGpuHrsForCloud, genPF, blended);
     const flrCloud = hardwareEquivalentCloudCost(technicalGpuHrsForCloud, 1, blended);
-    cloudYears = [0, 1, 2, 3, 4].map((y) => 12 * (trendCloudGpuCompute(adjCloud.monthlyCompute, inp.growth, inp.cloudUnitPriceTrend, y) + cloudStorage * Math.pow(1 + RC.opsGrowth, y)));
-    cloudYearsFloor = [0, 1, 2, 3, 4].map((y) => 12 * (trendCloudGpuCompute(flrCloud.monthlyCompute, inp.growth, inp.cloudUnitPriceTrend, y) + cloudStorage * Math.pow(1 + RC.opsGrowth, y)));
+    cloudYears = [0, 1, 2, 3, 4].map(
+      (y) =>
+        12 *
+        (trendCloudGpuCompute(adjCloud.monthlyCompute, inp.growth, inp.cloudUnitPriceTrend, y) +
+          cloudStorage * Math.pow(1 + RC.opsGrowth, y))
+    );
+    cloudYearsFloor = [0, 1, 2, 3, 4].map(
+      (y) =>
+        12 *
+        (trendCloudGpuCompute(flrCloud.monthlyCompute, inp.growth, inp.cloudUnitPriceTrend, y) +
+          cloudStorage * Math.pow(1 + RC.opsGrowth, y))
+    );
     monthlyCloudBaseline = adjCloud.monthlyCompute + cloudStorage; // the actual comparable figure in this mode, not the entered bill
   } else {
     // Bake-off mode: unchanged from v2.8 -- spend backward-derives gpuHrs, cloud cost is the
@@ -293,24 +447,54 @@ function run(inp, RC) {
     const computeSpend = inp.bill * inp.computeShare;
     const instHrs = blended > 0 ? computeSpend / blended : 0;
     gpuHrs = inp.tier3Hrs > 0 ? inp.tier3Hrs : instHrs;
-    adjT = buildTrajectory((y) => (gpuHrs * Math.pow(1 + inp.growth, y)) / npf, perSysHrs, S, RC, nPlus, storCapex, storSup, totPB, isEquinix, inp.powerRate, null);
-    flrT = buildTrajectory((y) => (gpuHrs * Math.pow(1 + inp.growth, y)) / 1, perSysHrs, S, RC, nPlus, storCapex, storSup, totPB, isEquinix, inp.powerRate, null);
-    cloudYears = [0, 1, 2, 3, 4].map((y) =>
-      12 * (trendCloudGpuCompute(inp.bill * inp.computeShare, inp.growth, inp.cloudUnitPriceTrend, y) + inp.bill * (1 - inp.computeShare) * Math.pow(1 + RC.opsGrowth, y))
+    adjT = buildTrajectory(
+      (y) => (gpuHrs * Math.pow(1 + inp.growth, y)) / npf,
+      perSysHrs,
+      S,
+      RC,
+      nPlus,
+      storCapex,
+      storSup,
+      totPB,
+      isEquinix,
+      inp.powerRate,
+      null
+    );
+    flrT = buildTrajectory(
+      (y) => (gpuHrs * Math.pow(1 + inp.growth, y)) / 1,
+      perSysHrs,
+      S,
+      RC,
+      nPlus,
+      storCapex,
+      storSup,
+      totPB,
+      isEquinix,
+      inp.powerRate,
+      null
+    );
+    cloudYears = [0, 1, 2, 3, 4].map(
+      (y) =>
+        12 *
+        (trendCloudGpuCompute(inp.bill * inp.computeShare, inp.growth, inp.cloudUnitPriceTrend, y) +
+          inp.bill * (1 - inp.computeShare) * Math.pow(1 + RC.opsGrowth, y))
     );
     cloudYearsFloor = cloudYears;
     monthlyCloudBaseline = inp.bill;
   }
 
-  const oneTime =
-    (isRetrofit ? inp.retrofit : 0) + inp.migration + inp.dualRun * monthlyCloudBaseline + exitEgress;
+  const oneTime = (isRetrofit ? inp.retrofit : 0) + inp.migration + inp.dualRun * monthlyCloudBaseline + exitEgress;
 
   const sysAdj = adjT[0].sys;
   const sysFloor = flrT[0].sys;
   const prodSys = Math.max(1, sysAdj - nPlus); // productive systems: the N+1 spare is failover, not growth capacity (audit round 4)
   const headroom = isWorkloadMode
-    ? (sysAdj > 0 ? 1 - gpuHrs / (prodSys * perSysHrs) : 0) // already target-class hours -- no capability conversion needed
-    : (sysAdj > 0 ? 1 - gpuHrs / npf / (prodSys * perSysHrs) : 0);
+    ? sysAdj > 0
+      ? 1 - gpuHrs / (prodSys * perSysHrs)
+      : 0 // already target-class hours -- no capability conversion needed
+    : sysAdj > 0
+      ? 1 - gpuHrs / npf / (prodSys * perSysHrs)
+      : 0;
 
   // residual basis excludes professional services (no resale value — audit finding) and cluster/racks/one-time
   const residAt = (T, n) => inp.residPct * (T[n - 1].sys * (perSys - S.prof - S.sw) + storCapex); // hardware only: prof svcs and SW subscriptions have no resale value
@@ -330,7 +514,8 @@ function run(inp, RC) {
   // start of the year it's incurred (incl. growth-driven fleet additions); residual excluded
   let crossoverMo = null;
   {
-    let cc = 0, oc = oneTime;
+    let cc = 0,
+      oc = oneTime;
     for (let m = 1; m <= 60 && !crossoverMo; m++) {
       const y = Math.floor((m - 1) / 12);
       if (m === y * 12 + 1) oc += adjT[y].capexAdd;
@@ -340,9 +525,7 @@ function run(inp, RC) {
     }
   }
   const exhaustYrs =
-    inp.growth > 0 && headroom > 0 && headroom < 1
-      ? Math.log(1 / (1 - headroom)) / Math.log(1 + inp.growth)
-      : null;
+    inp.growth > 0 && headroom > 0 && headroom < 1 ? Math.log(1 / (1 - headroom)) / Math.log(1 + inp.growth) : null;
 
   // v1.9 capacity & unit economics (rule-of-thumb, EST) — based on the year-0 fleet
   const q = QUANT[inp.quant];
@@ -355,13 +538,16 @@ function run(inp, RC) {
   const monthlyTokM = (fleetTokSec * 2628000) / 1e6;
   const onPremMonthly = (adj.capex + oneTime - adj.resid) / (inp.horizon * 12) + adj.opex;
   const cap = {
-    gpusPerReplica, replicas, fits: replicas > 0,
+    gpusPerReplica,
+    replicas,
+    fits: replicas > 0,
     users: Math.floor(fleetTokSec / TOK_PER_USER),
     monthlyTokM,
     perM: monthlyTokM > 0 ? onPremMonthly / monthlyTokM : null,
     perUserOn: fleetTokSec >= TOK_PER_USER ? onPremMonthly / Math.floor(fleetTokSec / TOK_PER_USER) : null,
     perUserCloud: ((TOK_PER_USER * 2628000) / 1e6) * RC.cloudTok,
-    cloudPerM: RC.cloudTok, onPremMonthly,
+    cloudPerM: RC.cloudTok,
+    onPremMonthly,
   };
   const storageBudget = inp.bill * (1 - inp.computeShare);
   const cloudYear1 = cloudYears[0]; // Year 1 cloud cost alone, for a Year-1 cost breakdown chart
@@ -377,7 +563,8 @@ function run(inp, RC) {
   // definition of "cumulative spend" instead of two different ones.
   const cumulativeByYear = (() => {
     const pts = [];
-    let cc = 0, oc = oneTime;
+    let cc = 0,
+      oc = oneTime;
     for (let y = 0; y < 5; y++) {
       oc += adjT[y].capexAdd;
       cc += cloudYears[y];
@@ -386,22 +573,56 @@ function run(inp, RC) {
     }
     return pts;
   })();
-  return { blended, gpuHrs, gpuHrsCloud, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, storageBudget, oneTime, exitEgress, tot, payback, crossoverMo, exhaustYrs, perSysHrs, cap,
-    isWorkloadMode, technicalSystems, monthlyCloudBaseline, sourceConversion, cloudYear1, cumulativeByYear,
-    fleetAdj: adjT.map((r2) => r2.sys), fleetFlr: flrT.map((r2) => r2.sys),
-    year0CapexBreakdown: adjT[0].capexBreakdown, year0OpexBreakdown: adjT[0].opexBreakdown };
+  return {
+    blended,
+    gpuHrs,
+    gpuHrsCloud,
+    genPF,
+    npf,
+    sysAdj,
+    sysFloor,
+    headroom,
+    adj,
+    flr,
+    cloudStorage,
+    storageBudget,
+    oneTime,
+    exitEgress,
+    tot,
+    payback,
+    crossoverMo,
+    exhaustYrs,
+    perSysHrs,
+    cap,
+    isWorkloadMode,
+    technicalSystems,
+    monthlyCloudBaseline,
+    sourceConversion,
+    cloudYear1,
+    cumulativeByYear,
+    fleetAdj: adjT.map((r2) => r2.sys),
+    fleetFlr: flrT.map((r2) => r2.sys),
+    year0CapexBreakdown: adjT[0].capexBreakdown,
+    year0OpexBreakdown: adjT[0].opexBreakdown,
+  };
 }
 
 /* ============ UI ============ */
-const fmtM = (v) =>
-  Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1000)}K`;
+const fmtM = (v) => (Math.abs(v) >= 1e6 ? `$${(v / 1e6).toFixed(2)}M` : `$${Math.round(v / 1000)}K`);
 const fmt = (v) => `$${Math.round(v).toLocaleString()}`;
 
 const C = {
   // CDW palette: red #CC0000 (digital core red), white, charcoal
-  bg: "#FFFFFF", ink: "#2D2D2D", sub: "#6B6B6B", line: "#E5E7EB",
-  panel: "#FFFFFF", green: "#CC0000", greenSoft: "#FBEAEA",
-  slate: "#7A7A7A", amber: "#5A5A5A", amberSoft: "#EFEFEF",
+  bg: "#FFFFFF",
+  ink: "#2D2D2D",
+  sub: "#6B6B6B",
+  line: "#E5E7EB",
+  panel: "#FFFFFF",
+  green: "#CC0000",
+  greenSoft: "#FBEAEA",
+  slate: "#7A7A7A",
+  amber: "#5A5A5A",
+  amberSoft: "#EFEFEF",
 };
 const mono = { fontFamily: "'Inter', system-ui, sans-serif", fontVariantNumeric: "tabular-nums", letterSpacing: 0.2 };
 const disp = { fontFamily: "'Inter', system-ui, sans-serif" };
@@ -418,15 +639,48 @@ function Section({ title, children, defaultOpen = true, badge, badgeColor }) {
   const panelId = useId();
   return (
     <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, marginBottom: 12 }}>
-      <button onClick={() => setOpen(!open)} aria-expanded={open} aria-controls={panelId}
-        style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: "12px 14px", background: "none", border: "none", cursor: "pointer" }}>
+      <button
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        aria-controls={panelId}
+        style={{
+          width: "100%",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "12px 14px",
+          background: "none",
+          border: "none",
+          cursor: "pointer",
+        }}
+      >
         <span style={{ ...disp, fontWeight: 600, fontSize: 14, color: C.ink, letterSpacing: 0.2, textAlign: "left" }}>
-          {title}{badge && <span style={{ ...mono, fontSize: 10, color: badgeColor || C.sub, marginLeft: 8, border: `1px solid ${badgeColor || C.line}`, borderRadius: 4, padding: "1px 5px" }}>{badge}</span>}
+          {title}
+          {badge && (
+            <span
+              style={{
+                ...mono,
+                fontSize: 10,
+                color: badgeColor || C.sub,
+                marginLeft: 8,
+                border: `1px solid ${badgeColor || C.line}`,
+                borderRadius: 4,
+                padding: "1px 5px",
+              }}
+            >
+              {badge}
+            </span>
+          )}
         </span>
-        <span style={{ color: C.sub, fontSize: 12 }} aria-hidden="true">{open ? "−" : "+"}</span>
+        <span style={{ color: C.sub, fontSize: 12 }} aria-hidden="true">
+          {open ? "−" : "+"}
+        </span>
       </button>
-      {open && <div id={panelId} style={{ padding: "2px 14px 14px" }}>{children}</div>}
+      {open && (
+        <div id={panelId} style={{ padding: "2px 14px 14px" }}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -435,17 +689,38 @@ function Row({ label, value, sub, flag, tip }) {
   const [open, setOpen] = useState(false);
   return (
     <div style={{ padding: "7px 0", borderTop: `1px solid ${C.line}` }}>
-    <div style={{ display: "flex", justifyContent: "space-between" }}>
-      <div>
-        <div style={{ fontSize: 13, color: C.ink }}>{label}{flag && <span style={{ ...mono, fontSize: 9, color: "#CC0000", marginLeft: 6, border: "1px solid #CC0000", borderRadius: 3, padding: "0 4px" }}>EDITED</span>}</div>
-        {sub && <div style={{ fontSize: 11, color: C.sub }}>{sub}</div>}
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <div>
+          <div style={{ fontSize: 13, color: C.ink }}>
+            {label}
+            {flag && (
+              <span
+                style={{
+                  ...mono,
+                  fontSize: 9,
+                  color: "#CC0000",
+                  marginLeft: 6,
+                  border: "1px solid #CC0000",
+                  borderRadius: 3,
+                  padding: "0 4px",
+                }}
+              >
+                EDITED
+              </span>
+            )}
+          </div>
+          {sub && <div style={{ fontSize: 11, color: C.sub }}>{sub}</div>}
+        </div>
+        <div style={{ display: "flex", alignItems: "flex-start" }}>
+          <div
+            style={{ ...mono, fontSize: 13, color: C.ink, textAlign: "right", whiteSpace: "nowrap", marginLeft: 10 }}
+          >
+            {value}
+          </div>
+          {tip && <TipDot open={open} onClick={() => setOpen(!open)} />}
+        </div>
       </div>
-      <div style={{ display: "flex", alignItems: "flex-start" }}>
-        <div style={{ ...mono, fontSize: 13, color: C.ink, textAlign: "right", whiteSpace: "nowrap", marginLeft: 10 }}>{value}</div>
-        {tip && <TipDot open={open} onClick={() => setOpen(!open)} />}
-      </div>
-    </div>
-    {open && tip && <TipBox text={tip} />}
+      {open && tip && <TipBox text={tip} />}
     </div>
   );
 }
@@ -455,13 +730,23 @@ function Slider({ label, value, min, max, step, onChange, display, hint, tip }) 
   return (
     <div style={{ margin: "10px 0" }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-        <span style={{ fontSize: 13, color: C.ink, display: "flex", alignItems: "center" }}>{label}{tip && <TipDot open={open} onClick={() => setOpen(!open)} />}</span>
+        <span style={{ fontSize: 13, color: C.ink, display: "flex", alignItems: "center" }}>
+          {label}
+          {tip && <TipDot open={open} onClick={() => setOpen(!open)} />}
+        </span>
         <span style={{ ...mono, fontSize: 13, color: C.green, fontWeight: 600 }}>{display}</span>
       </div>
       {open && tip && <TipBox text={tip} />}
-      <input type="range" min={min} max={max} step={step} value={value}
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        style={{ width: "100%", accentColor: C.green }} aria-label={label} />
+        style={{ width: "100%", accentColor: C.green }}
+        aria-label={label}
+      />
       {hint && <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>{hint}</div>}
     </div>
   );
@@ -471,12 +756,22 @@ function Seg({ options, value, onChange }) {
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0" }}>
       {options.map((o) => (
-        <button key={o} onClick={() => onChange(o)}
-          style={{ ...disp, fontSize: 13, padding: "9px 14px", borderRadius: 10, cursor: "pointer",
+        <button
+          key={o}
+          onClick={() => onChange(o)}
+          style={{
+            ...disp,
+            fontSize: 13,
+            padding: "9px 14px",
+            borderRadius: 10,
+            cursor: "pointer",
             border: "none",
             background: value === o ? C.green : "#F3F4F6",
-            color: value === o ? "#FFFFFF" : C.ink, fontWeight: 600,
-            transition: "background .15s" }}>
+            color: value === o ? "#FFFFFF" : C.ink,
+            fontWeight: 600,
+            transition: "background .15s",
+          }}
+        >
           {o}
         </button>
       ))}
@@ -516,14 +811,53 @@ function YearOneBreakdown({ cloudYear1, capital, operating }) {
           <span style={{ color: "#B5B5B5" }}>On-Prem (Year 1, upfront + operating)</span>
           <span style={{ ...mono, color: "#FFFFFF", fontWeight: 600 }}>{fmtM(onPremTotal)}</span>
         </div>
-        <div style={{ height: 14, background: "#151515", borderRadius: 4, overflow: "hidden", width: `${onPremPct}%`, display: "flex" }}>
-          <div style={{ width: `${capPct}%`, height: "100%", background: "#CC0000" }} title={`Upfront capital + transition: ${fmtM(capital)}`} />
-          <div style={{ width: `${opPct}%`, height: "100%", background: "#5A87A8" }} title={`Year 1 operating: ${fmtM(operating)}`} />
+        <div
+          style={{
+            height: 14,
+            background: "#151515",
+            borderRadius: 4,
+            overflow: "hidden",
+            width: `${onPremPct}%`,
+            display: "flex",
+          }}
+        >
+          <div
+            style={{ width: `${capPct}%`, height: "100%", background: "#CC0000" }}
+            title={`Upfront capital + transition: ${fmtM(capital)}`}
+          />
+          <div
+            style={{ width: `${opPct}%`, height: "100%", background: "#5A87A8" }}
+            title={`Year 1 operating: ${fmtM(operating)}`}
+          />
         </div>
       </div>
       <div style={{ display: "flex", gap: 14, fontSize: 10, color: "#ABABAB", marginTop: 2 }}>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#CC0000", borderRadius: 2, marginRight: 4 }} />Upfront capital + transition</span>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#5A87A8", borderRadius: 2, marginRight: 4 }} />Year 1 operating</span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              background: "#CC0000",
+              borderRadius: 2,
+              marginRight: 4,
+            }}
+          />
+          Upfront capital + transition
+        </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              background: "#5A87A8",
+              borderRadius: 2,
+              marginRight: 4,
+            }}
+          />
+          Year 1 operating
+        </span>
       </div>
       {/* Fix (accessibility, axe-core color-contrast finding): #8A8A8A on
           this panel's #151515-adjacent dark background measured 3.99:1 at
@@ -531,7 +865,8 @@ function YearOneBreakdown({ cloudYear1, capital, operating }) {
           5.14:1. (The report-view counterpart of this caption below uses
           C.sub, a separate light-theme token, and is unaffected.) */}
       <div style={{ fontSize: 10, color: "#9E9E9E", marginTop: 6, fontStyle: "italic" }}>
-        Upfront costs occur primarily at deployment; operating costs recur every year. Year 1 cash outlay only -- later years reflect growth assumptions, not this run rate.
+        Upfront costs occur primarily at deployment; operating costs recur every year. Year 1 cash outlay only -- later
+        years reflect growth assumptions, not this run rate.
       </div>
     </div>
   );
@@ -544,8 +879,14 @@ function YearOneBreakdown({ cloudYear1, capital, operating }) {
 // horizon) marked as a dashed vertical line.
 function CrossoverChart({ points, horizon, crossoverMo }) {
   const shown = points.slice(0, Math.max(2, horizon));
-  const W = 600, H = 210, padL = 55, padR = 15, padT = 26, padB = 26;
-  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const W = 600,
+    H = 210,
+    padL = 55,
+    padR = 15,
+    padT = 26,
+    padB = 26;
+  const plotW = W - padL - padR,
+    plotH = H - padT - padB;
   const maxVal = Math.max(1, ...shown.map((p) => Math.max(p.cloud, p.onPrem)));
   const n = shown.length;
   const xFor = (i) => padL + (n > 1 ? (i / (n - 1)) * plotW : 0);
@@ -553,8 +894,10 @@ function CrossoverChart({ points, horizon, crossoverMo }) {
   const cloudPts = shown.map((p, i) => `${xFor(i)},${yFor(p.cloud)}`).join(" ");
   const onPremPts = shown.map((p, i) => `${xFor(i)},${yFor(p.onPrem)}`).join(" ");
   const crossoverYear = crossoverMo ? crossoverMo / 12 : null;
-  const crossoverX = crossoverYear != null && crossoverYear >= 1 && crossoverYear <= n
-    ? padL + ((crossoverYear - 1) / (n - 1 || 1)) * plotW : null;
+  const crossoverX =
+    crossoverYear != null && crossoverYear >= 1 && crossoverYear <= n
+      ? padL + ((crossoverYear - 1) / (n - 1 || 1)) * plotW
+      : null;
 
   return (
     <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display: "block", overflow: "visible" }}>
@@ -562,7 +905,16 @@ function CrossoverChart({ points, horizon, crossoverMo }) {
         <line key={"g" + i} x1={xFor(i)} y1={padT} x2={xFor(i)} y2={padT + plotH} stroke="#2A2A2A" strokeWidth="1" />
       ))}
       {crossoverX != null && (
-        <line x1={crossoverX} y1={padT} x2={crossoverX} y2={padT + plotH} stroke="#FFFFFF" strokeWidth="1" strokeDasharray="4,3" opacity="0.45" />
+        <line
+          x1={crossoverX}
+          y1={padT}
+          x2={crossoverX}
+          y2={padT + plotH}
+          stroke="#FFFFFF"
+          strokeWidth="1"
+          strokeDasharray="4,3"
+          opacity="0.45"
+        />
       )}
       <polyline points={cloudPts} fill="none" stroke="#8A8A8A" strokeWidth="2.5" />
       <polyline points={onPremPts} fill="none" stroke="#CC0000" strokeWidth="2.5" />
@@ -573,13 +925,24 @@ function CrossoverChart({ points, horizon, crossoverMo }) {
         <circle key={"oc" + i} cx={xFor(i)} cy={yFor(p.onPrem)} r="3" fill="#CC0000" />
       ))}
       {shown.map((p, i) => (
-        <text key={"cl" + i} x={xFor(i)} y={yFor(p.cloud) - 8} textAnchor="middle" fontSize="10" fill="#DDDDDD">{fmtM(p.cloud)}</text>
+        <text key={"cl" + i} x={xFor(i)} y={yFor(p.cloud) - 8} textAnchor="middle" fontSize="10" fill="#DDDDDD">
+          {fmtM(p.cloud)}
+        </text>
       ))}
       {shown.map((p, i) => (
-        <text key={"ol" + i} x={xFor(i)} y={yFor(p.onPrem) + 16} textAnchor="middle" fontSize="10" fill="#FF9999">{fmtM(p.onPrem)}</text>
+        <text key={"ol" + i} x={xFor(i)} y={yFor(p.onPrem) + 16} textAnchor="middle" fontSize="10" fill="#FF9999">
+          {fmtM(p.onPrem)}
+        </text>
       ))}
       {shown.map((p, i) => (
-        <text key={"yl" + i} x={xFor(i)} y={H - 6} textAnchor="middle" fontSize="10" fill="#ABABAB">{`Yr ${i + 1}`}</text>
+        <text
+          key={"yl" + i}
+          x={xFor(i)}
+          y={H - 6}
+          textAnchor="middle"
+          fontSize="10"
+          fill="#ABABAB"
+        >{`Yr ${i + 1}`}</text>
       ))}
     </svg>
   );
@@ -603,7 +966,14 @@ function YearOneBreakdownReport({ cloudYear1, capital, operating }) {
           <span style={{ ...mono, color: C.ink, fontWeight: 600 }}>{fmtM(cloudYear1)}</span>
         </div>
         <div style={{ height: 12, background: "#EFEFEF", borderRadius: 4, overflow: "hidden" }}>
-          <div style={{ width: `${Math.max(2, (cloudYear1 / max) * 100)}%`, height: "100%", background: "#9A9A9A", borderRadius: 4 }} />
+          <div
+            style={{
+              width: `${Math.max(2, (cloudYear1 / max) * 100)}%`,
+              height: "100%",
+              background: "#9A9A9A",
+              borderRadius: 4,
+            }}
+          />
         </div>
       </div>
       <div style={{ margin: "6px 0" }}>
@@ -611,17 +981,57 @@ function YearOneBreakdownReport({ cloudYear1, capital, operating }) {
           <span style={{ color: C.sub }}>On-Prem (Year 1, upfront + operating)</span>
           <span style={{ ...mono, color: C.ink, fontWeight: 600 }}>{fmtM(onPremTotal)}</span>
         </div>
-        <div style={{ height: 12, background: "#EFEFEF", borderRadius: 4, overflow: "hidden", width: `${onPremPct}%`, display: "flex" }}>
-          <div style={{ width: `${capPct}%`, height: "100%", background: C.green }} title={`Upfront capital + transition: ${fmtM(capital)}`} />
-          <div style={{ width: `${opPct}%`, height: "100%", background: "#5A87A8" }} title={`Year 1 operating: ${fmtM(operating)}`} />
+        <div
+          style={{
+            height: 12,
+            background: "#EFEFEF",
+            borderRadius: 4,
+            overflow: "hidden",
+            width: `${onPremPct}%`,
+            display: "flex",
+          }}
+        >
+          <div
+            style={{ width: `${capPct}%`, height: "100%", background: C.green }}
+            title={`Upfront capital + transition: ${fmtM(capital)}`}
+          />
+          <div
+            style={{ width: `${opPct}%`, height: "100%", background: "#5A87A8" }}
+            title={`Year 1 operating: ${fmtM(operating)}`}
+          />
         </div>
       </div>
       <div style={{ display: "flex", gap: 14, fontSize: 10, color: C.sub, marginTop: 4 }}>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, background: C.green, borderRadius: 2, marginRight: 4 }} />Upfront capital + transition</span>
-        <span><span style={{ display: "inline-block", width: 8, height: 8, background: "#5A87A8", borderRadius: 2, marginRight: 4 }} />Year 1 operating</span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              background: C.green,
+              borderRadius: 2,
+              marginRight: 4,
+            }}
+          />
+          Upfront capital + transition
+        </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 8,
+              height: 8,
+              background: "#5A87A8",
+              borderRadius: 2,
+              marginRight: 4,
+            }}
+          />
+          Year 1 operating
+        </span>
       </div>
       <div style={{ fontSize: 10, color: C.sub, marginTop: 6, fontStyle: "italic" }}>
-        Upfront costs occur primarily at deployment; operating costs recur every year. Year 1 cash outlay only -- later years reflect growth assumptions, not this run rate.
+        Upfront costs occur primarily at deployment; operating costs recur every year. Year 1 cash outlay only -- later
+        years reflect growth assumptions, not this run rate.
       </div>
     </div>
   );
@@ -629,8 +1039,14 @@ function YearOneBreakdownReport({ cloudYear1, capital, operating }) {
 
 function CrossoverChartReport({ points, horizon, crossoverMo }) {
   const shown = points.slice(0, Math.max(2, horizon));
-  const W = 600, H = 205, padL = 55, padR = 15, padT = 28, padB = 26;
-  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const W = 600,
+    H = 205,
+    padL = 55,
+    padR = 15,
+    padT = 28,
+    padB = 26;
+  const plotW = W - padL - padR,
+    plotH = H - padT - padB;
   const maxVal = Math.max(1, ...shown.map((p) => Math.max(p.cloud, p.onPrem)));
   const n = shown.length;
   const xFor = (i) => padL + (n > 1 ? (i / (n - 1)) * plotW : 0);
@@ -638,8 +1054,10 @@ function CrossoverChartReport({ points, horizon, crossoverMo }) {
   const cloudPts = shown.map((p, i) => `${xFor(i)},${yFor(p.cloud)}`).join(" ");
   const onPremPts = shown.map((p, i) => `${xFor(i)},${yFor(p.onPrem)}`).join(" ");
   const crossoverYear = crossoverMo ? crossoverMo / 12 : null;
-  const crossoverX = crossoverYear != null && crossoverYear >= 1 && crossoverYear <= n
-    ? padL + ((crossoverYear - 1) / (n - 1 || 1)) * plotW : null;
+  const crossoverX =
+    crossoverYear != null && crossoverYear >= 1 && crossoverYear <= n
+      ? padL + ((crossoverYear - 1) / (n - 1 || 1)) * plotW
+      : null;
 
   return (
     <div>
@@ -648,20 +1066,76 @@ function CrossoverChartReport({ points, horizon, crossoverMo }) {
           <line key={"g" + i} x1={xFor(i)} y1={padT} x2={xFor(i)} y2={padT + plotH} stroke={C.line} strokeWidth="1" />
         ))}
         {crossoverX != null && (
-          <line x1={crossoverX} y1={padT} x2={crossoverX} y2={padT + plotH} stroke={C.ink} strokeWidth="1" strokeDasharray="4,3" opacity="0.35" />
+          <line
+            x1={crossoverX}
+            y1={padT}
+            x2={crossoverX}
+            y2={padT + plotH}
+            stroke={C.ink}
+            strokeWidth="1"
+            strokeDasharray="4,3"
+            opacity="0.35"
+          />
         )}
         <polyline points={cloudPts} fill="none" stroke="#9A9A9A" strokeWidth="2.5" />
         <polyline points={onPremPts} fill="none" stroke={C.green} strokeWidth="2.5" />
-        {shown.map((p, i) => <circle key={"cc" + i} cx={xFor(i)} cy={yFor(p.cloud)} r="3" fill="#9A9A9A" />)}
-        {shown.map((p, i) => <circle key={"oc" + i} cx={xFor(i)} cy={yFor(p.onPrem)} r="3" fill={C.green} />)}
-        {shown.map((p, i) => <text key={"cl" + i} x={xFor(i)} y={yFor(p.cloud) - 8} textAnchor="middle" fontSize="10" fill={C.sub}>{fmtM(p.cloud)}</text>)}
-        {shown.map((p, i) => <text key={"ol" + i} x={xFor(i)} y={yFor(p.onPrem) + 16} textAnchor="middle" fontSize="10" fill={C.green}>{fmtM(p.onPrem)}</text>)}
-        {shown.map((p, i) => <text key={"yl" + i} x={xFor(i)} y={H - 6} textAnchor="middle" fontSize="10" fill={C.sub}>{`Yr ${i + 1}`}</text>)}
+        {shown.map((p, i) => (
+          <circle key={"cc" + i} cx={xFor(i)} cy={yFor(p.cloud)} r="3" fill="#9A9A9A" />
+        ))}
+        {shown.map((p, i) => (
+          <circle key={"oc" + i} cx={xFor(i)} cy={yFor(p.onPrem)} r="3" fill={C.green} />
+        ))}
+        {shown.map((p, i) => (
+          <text key={"cl" + i} x={xFor(i)} y={yFor(p.cloud) - 8} textAnchor="middle" fontSize="10" fill={C.sub}>
+            {fmtM(p.cloud)}
+          </text>
+        ))}
+        {shown.map((p, i) => (
+          <text key={"ol" + i} x={xFor(i)} y={yFor(p.onPrem) + 16} textAnchor="middle" fontSize="10" fill={C.green}>
+            {fmtM(p.onPrem)}
+          </text>
+        ))}
+        {shown.map((p, i) => (
+          <text
+            key={"yl" + i}
+            x={xFor(i)}
+            y={H - 6}
+            textAnchor="middle"
+            fontSize="10"
+            fill={C.sub}
+          >{`Yr ${i + 1}`}</text>
+        ))}
       </svg>
       <div style={{ display: "flex", gap: 14, fontSize: 10, color: C.sub, marginTop: 4 }}>
-        <span><span style={{ display: "inline-block", width: 10, height: 2, background: "#9A9A9A", marginRight: 4, verticalAlign: "middle" }} />Stay in cloud (cumulative)</span>
-        <span><span style={{ display: "inline-block", width: 10, height: 2, background: C.green, marginRight: 4, verticalAlign: "middle" }} />Own it (cumulative)</span>
-        {crossoverMo && crossoverMo <= horizon * 12 && <span style={{ color: C.ink }}>Crosses over month {crossoverMo}</span>}
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 10,
+              height: 2,
+              background: "#9A9A9A",
+              marginRight: 4,
+              verticalAlign: "middle",
+            }}
+          />
+          Stay in cloud (cumulative)
+        </span>
+        <span>
+          <span
+            style={{
+              display: "inline-block",
+              width: 10,
+              height: 2,
+              background: C.green,
+              marginRight: 4,
+              verticalAlign: "middle",
+            }}
+          />
+          Own it (cumulative)
+        </span>
+        {crossoverMo && crossoverMo <= horizon * 12 && (
+          <span style={{ color: C.ink }}>Crosses over month {crossoverMo}</span>
+        )}
       </div>
     </div>
   );
@@ -672,26 +1146,92 @@ function RateField({ k, label, eff, defaults, ov, setOv, fmt: f, step }) {
   const ratio = defaults[k] > 0 ? eff[k] / defaults[k] : 1;
   const unusual = ratio > 10 || (eff[k] > 0 && ratio < 0.1);
   return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 0", borderTop: `1px solid ${C.line}` }}>
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "6px 0",
+        borderTop: `1px solid ${C.line}`,
+      }}
+    >
       <div style={{ fontSize: 12, color: C.ink, paddingRight: 8 }}>
         {label}
-        {edited && <span style={{ ...mono, fontSize: 9, color: "#CC0000", marginLeft: 5, border: "1px solid #CC0000", borderRadius: 3, padding: "0 4px" }}>EDITED</span>}
-        {unusual && <span style={{ ...mono, fontSize: 9, color: "#B4530A", marginLeft: 5, border: "1px solid #B4530A", borderRadius: 3, padding: "0 4px" }}>CHECK VALUE</span>}
         {edited && (
-          <button onClick={() => { const n = { ...ov }; delete n[k]; setOv(n); }}
-            style={{ ...mono, fontSize: 9, marginLeft: 5, color: C.sub, background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+          <span
+            style={{
+              ...mono,
+              fontSize: 9,
+              color: "#CC0000",
+              marginLeft: 5,
+              border: "1px solid #CC0000",
+              borderRadius: 3,
+              padding: "0 4px",
+            }}
+          >
+            EDITED
+          </span>
+        )}
+        {unusual && (
+          <span
+            style={{
+              ...mono,
+              fontSize: 9,
+              color: "#B4530A",
+              marginLeft: 5,
+              border: "1px solid #B4530A",
+              borderRadius: 3,
+              padding: "0 4px",
+            }}
+          >
+            CHECK VALUE
+          </span>
+        )}
+        {edited && (
+          <button
+            onClick={() => {
+              const n = { ...ov };
+              delete n[k];
+              setOv(n);
+            }}
+            style={{
+              ...mono,
+              fontSize: 9,
+              marginLeft: 5,
+              color: C.sub,
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              textDecoration: "underline",
+            }}
+          >
             reset ({f ? f(defaults[k]) : defaults[k]})
           </button>
         )}
       </div>
-      <input type="number" value={eff[k]} step={step || 1} inputMode="decimal"
+      <input
+        type="number"
+        value={eff[k]}
+        step={step || 1}
+        inputMode="decimal"
         onChange={(e) => {
           const v = parseFloat(e.target.value);
           if (!Number.isNaN(v) && v >= 0) setOv({ ...ov, [k]: v });
         }}
-        style={{ ...mono, fontSize: 12, width: 96, boxSizing: "border-box", padding: "6px 8px", borderRadius: 8, textAlign: "right",
-          border: `1px solid ${edited ? "#CC0000" : "#D1D5DB"}`, background: edited ? "#FBEAEA" : "#FFFFFF", color: C.ink }}
-        aria-label={label} />
+        style={{
+          ...mono,
+          fontSize: 12,
+          width: 96,
+          boxSizing: "border-box",
+          padding: "6px 8px",
+          borderRadius: 8,
+          textAlign: "right",
+          border: `1px solid ${edited ? "#CC0000" : "#D1D5DB"}`,
+          background: edited ? "#FBEAEA" : "#FFFFFF",
+          color: C.ink,
+        }}
+        aria-label={label}
+      />
     </div>
   );
 }
@@ -771,7 +1311,7 @@ function migrateLegacyModelState(saved) {
 
 // Normalizes GPU Sizing's class naming to TCO's IDX/rate-table naming, where
 // they differ (B200 -> B200-class, GB200 NVL72 -> GB200). Identity otherwise.
-const GPU_SIZING_CLASS_TO_TCO_CLASS = { "B200": "B200-class", "GB200 NVL72": "GB200" };
+const GPU_SIZING_CLASS_TO_TCO_CLASS = { B200: "B200-class", "GB200 NVL72": "GB200" };
 function normalizeSourceClass(sourceClass) {
   return GPU_SIZING_CLASS_TO_TCO_CLASS[sourceClass] || sourceClass;
 }
@@ -796,21 +1336,56 @@ function ReconCheck({ label, parts, calculated, engineValue }) {
   const diff = Math.abs(calculated - engineValue);
   const pass = diff < 1; // sub-dollar tolerance for floating point only
   return (
-    <div style={{ border: `1px solid ${pass ? C.green : "#CC0000"}`, borderRadius: 8, padding: "12px 14px", marginBottom: 10, background: pass ? C.greenSoft : "#FEF2F2" }}>
+    <div
+      style={{
+        border: `1px solid ${pass ? C.green : "#CC0000"}`,
+        borderRadius: 8,
+        padding: "12px 14px",
+        marginBottom: 10,
+        background: pass ? C.greenSoft : "#FEF2F2",
+      }}
+    >
       <div style={{ fontSize: 12, fontWeight: 700, color: C.ink, marginBottom: 6 }}>{label}</div>
       {parts.map((p, i) => (
-        <div key={i} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.sub, marginBottom: 2 }}>
-          <span>{p.label}</span><span style={mono}>{p.value}</span>
+        <div
+          key={i}
+          style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.sub, marginBottom: 2 }}
+        >
+          <span>{p.label}</span>
+          <span style={mono}>{p.value}</span>
         </div>
       ))}
-      <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 4, paddingTop: 4, display: "flex", justifyContent: "space-between", fontSize: 11.5, fontWeight: 600, color: C.ink }}>
-        <span>Reconstructed from constituent parts above</span><span style={mono}>{fmt(calculated)}</span>
+      <div
+        style={{
+          borderTop: `1px solid ${C.line}`,
+          marginTop: 4,
+          paddingTop: 4,
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 11.5,
+          fontWeight: 600,
+          color: C.ink,
+        }}
+      >
+        <span>Reconstructed from constituent parts above</span>
+        <span style={mono}>{fmt(calculated)}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11.5, color: C.sub }}>
-        <span>Engine's own total (separate code path)</span><span style={mono}>{fmt(engineValue)}</span>
+        <span>Engine's own total (separate code path)</span>
+        <span style={mono}>{fmt(engineValue)}</span>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, fontWeight: 700, marginTop: 4, color: pass ? C.green : "#CC0000" }}>
-        <span>Difference: {fmt(diff)}</span><span>{pass ? "RECONCILED" : "MISMATCH — FLAG THIS"}</span>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          fontSize: 12.5,
+          fontWeight: 700,
+          marginTop: 4,
+          color: pass ? C.green : "#CC0000",
+        }}
+      >
+        <span>Difference: {fmt(diff)}</span>
+        <span>{pass ? "RECONCILED" : "MISMATCH — FLAG THIS"}</span>
       </div>
     </div>
   );
@@ -820,17 +1395,23 @@ function AuditSourceRow({ label, value, source, basis, confidence, verified, est
   return (
     <div style={{ borderBottom: `1px solid ${C.line}`, padding: "7px 0" }}>
       <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <span style={{ fontSize: 11.5, color: C.ink }}>{label}{est && <span style={{ color: "#B45309", fontWeight: 700, marginLeft: 5 }}>EST</span>}</span>
+        <span style={{ fontSize: 11.5, color: C.ink }}>
+          {label}
+          {est && <span style={{ color: "#B45309", fontWeight: 700, marginLeft: 5 }}>EST</span>}
+        </span>
         <span style={{ ...mono, fontSize: 11.5, fontWeight: 600 }}>{value}</span>
       </div>
       <div style={{ fontSize: 10, color: C.sub, marginTop: 1 }}>
-        Source: {source}{basis ? ` · ${basis}` : ""}{confidence ? ` · Confidence: ${confidence}` : ""}{verified ? ` · Verified: ${verified}` : ""}
+        Source: {source}
+        {basis ? ` · ${basis}` : ""}
+        {confidence ? ` · Confidence: ${confidence}` : ""}
+        {verified ? ` · Verified: ${verified}` : ""}
       </div>
     </div>
   );
 }
 
-function AppInner() {
+function AppInner({ visibleModelOptions }) {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const [arrivedFromGpuSizing] = useState(() => !!getIncomingParams()?.get("ownSys"));
 
@@ -853,7 +1434,9 @@ function AppInner() {
   // while `mode` looked fine in isolation.
   const [gpuSizingCount] = useState(() => getInitialGpuCount() ?? saved?.gpuSizingCount ?? null);
   const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);
-  const [gpuSizingBasis] = useState(() => arrivedFromGpuSizing ? getInitialSizingBasis() : saved?.gpuSizingBasis ?? "recommended");
+  const [gpuSizingBasis] = useState(() =>
+    arrivedFromGpuSizing ? getInitialSizingBasis() : (saved?.gpuSizingBasis ?? "recommended")
+  );
   const matchedCloudGpuClass = sourceClass ? normalizeSourceClass(sourceClass) : null;
   const [workingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);
   const [incomingModelContext] = useState(getInitialModelContext);
@@ -880,7 +1463,9 @@ function AppInner() {
   // hardcoded defaults just because an unrelated handoff arrived.
   // (`saved` itself is loaded earlier now, above gpuSizingCount.)
 
-  const [ownSys, setOwnSys] = useState(() => (arrivedFromGpuSizing ? getInitialOwnSys() : saved?.ownSys ?? getInitialOwnSys()));
+  const [ownSys, setOwnSys] = useState(() =>
+    arrivedFromGpuSizing ? getInitialOwnSys() : (saved?.ownSys ?? getInitialOwnSys())
+  );
   const [bill, setBill] = useState(saved?.bill ?? 105000);
   const [provider, setProvider] = useState(saved?.provider ?? "AWS");
   const [cloudGpuClassOverridden, setCloudGpuClassOverridden] = useState(() => saved?.cloudGpuClassOverridden === true);
@@ -889,7 +1474,8 @@ function AppInner() {
     // made an explicit TCO cloud-comparison override. Historical saved values
     // without override provenance are treated as stale and do not win.
     if (arrivedFromGpuSizing) {
-      if (saved?.cloudGpuClassOverridden === true && saved?.gpuClass && RATES[provider]?.[saved.gpuClass]) return saved.gpuClass;
+      if (saved?.cloudGpuClassOverridden === true && saved?.gpuClass && RATES[provider]?.[saved.gpuClass])
+        return saved.gpuClass;
       if (matchedCloudGpuClass && RATES[provider]?.[matchedCloudGpuClass]) return matchedCloudGpuClass;
     }
     return saved?.gpuClass ?? "H100";
@@ -902,7 +1488,11 @@ function AppInner() {
     const legacy = saved?.ov ?? {};
     if ((legacy.instOD != null || legacy.instRes != null) && saved?.provider && saved?.gpuClass) {
       const key = `${saved.provider}::${saved.gpuClass}`;
-      profiles[key] = { ...(profiles[key] ?? {}), ...(legacy.instOD != null ? { instOD: legacy.instOD } : {}), ...(legacy.instRes != null ? { instRes: legacy.instRes } : {}) };
+      profiles[key] = {
+        ...(profiles[key] ?? {}),
+        ...(legacy.instOD != null ? { instOD: legacy.instOD } : {}),
+        ...(legacy.instRes != null ? { instRes: legacy.instRes } : {}),
+      };
     }
     return profiles;
   });
@@ -933,7 +1523,13 @@ function AppInner() {
     delete next.equinixMo;
     return next;
   });
-  const [mode, setMode] = useState(() => (arrivedFromGpuSizing ? (gpuSizingCount ? "workload" : "spend") : saved?.mode ?? (gpuSizingCount ? "workload" : "spend"))); // v2.9: bake-off (spend-derived) vs workload (technical-requirement-driven)
+  const [mode, setMode] = useState(() =>
+    arrivedFromGpuSizing
+      ? gpuSizingCount
+        ? "workload"
+        : "spend"
+      : (saved?.mode ?? (gpuSizingCount ? "workload" : "spend"))
+  ); // v2.9: bake-off (spend-derived) vs workload (technical-requirement-driven)
   const [trainShare, setTrainShare] = useState(saved?.trainShare ?? 0.5);
   const [odShare, setOdShare] = useState(saved?.odShare ?? 0);
   const [storageAuto, setStorageAuto] = useState(saved?.storageAuto ?? true); // v2.3: Tier 1 derives storage from the bill; manual entry = Tier 2/3
@@ -964,18 +1560,23 @@ function AppInner() {
   });
   const [modelParamsB, setModelParamsB] = useState(() => {
     if (arrivedFromGpuSizing && incomingModelContext.modelParamsB) return incomingModelContext.modelParamsB;
-    if (Number.isFinite(Number(saved?.modelParamsB)) && Number(saved.modelParamsB) > 0) return Number(saved.modelParamsB);
+    if (Number.isFinite(Number(saved?.modelParamsB)) && Number(saved.modelParamsB) > 0)
+      return Number(saved.modelParamsB);
     const migrated = migrateLegacyModelState(saved);
     if (migrated) return migrated;
     return getModelById(modelId)?.totalParamsB || getDefaultModel().totalParamsB;
   });
-  const [quant, setQuant] = useState(() => (arrivedFromGpuSizing && incomingQuant) ? incomingQuant : saved?.quant ?? "FP8");
+  const [quant, setQuant] = useState(() =>
+    arrivedFromGpuSizing && incomingQuant ? incomingQuant : (saved?.quant ?? "FP8")
+  );
   const selectedModel = getModelById(modelId);
   const modelDisplay = formatModelContext(selectedModel, modelParamsB);
+  const modelOptions = visibleModelOptions ?? TCO_MODEL_OPTIONS;
   const setSelectedModelId = (nextId) => {
     setModelId(nextId);
     const next = getModelById(nextId);
-    if (next && next.id !== "custom" && Number.isFinite(Number(next.totalParamsB))) setModelParamsB(Number(next.totalParamsB));
+    if (next && next.id !== "custom" && Number.isFinite(Number(next.totalParamsB)))
+      setModelParamsB(Number(next.totalParamsB));
   };
   const [view, setView] = useState("calc"); // calc | gate | report | audit
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
@@ -988,29 +1589,109 @@ function AppInner() {
   // tab left off, instead of resetting to defaults on every full page load.
   useEffect(() => {
     saveSessionState("tco", {
-      ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
-      fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
-      fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
-      residPct, modelId, modelParamsB, quant,
+      ov,
+      cloudRateOverrides,
+      onPremRateOverrides,
+      cloudGpuClassOverridden,
+      bill,
+      provider,
+      gpuClass,
+      ownSys,
+      mode,
+      trainShare,
+      odShare,
+      storageAuto,
+      fastPBm,
+      bulkPBm,
+      egressPct,
+      computeShare,
+      growth,
+      cloudUnitPriceTrend,
+      facility,
+      powerRate,
+      util,
+      fNet,
+      fSw,
+      fNvaie,
+      tier3Hrs,
+      horizon,
+      retrofit,
+      migration,
+      dualRun,
+      redundancy,
+      residPct,
+      modelId,
+      modelParamsB,
+      quant,
       // Fix (Bug Group 1a): these three previously weren't persisted at all,
       // which is the actual root cause of the workload-anchor loss -- see
       // the comment above their useState calls near the top of this
       // component for the full explanation.
-      gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis,
+      gpuSizingCount,
+      sourceClass,
+      workingDayHours,
+      gpuSizingBasis,
     });
-  }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
-      fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
-      fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
-      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis]);
+  }, [
+    ov,
+    cloudRateOverrides,
+    onPremRateOverrides,
+    cloudGpuClassOverridden,
+    bill,
+    provider,
+    gpuClass,
+    ownSys,
+    mode,
+    trainShare,
+    odShare,
+    storageAuto,
+    fastPBm,
+    bulkPBm,
+    egressPct,
+    computeShare,
+    growth,
+    cloudUnitPriceTrend,
+    facility,
+    powerRate,
+    util,
+    fNet,
+    fSw,
+    fNvaie,
+    tier3Hrs,
+    horizon,
+    retrofit,
+    migration,
+    dualRun,
+    redundancy,
+    residPct,
+    modelId,
+    modelParamsB,
+    quant,
+    gpuSizingCount,
+    sourceClass,
+    workingDayHours,
+    gpuSizingBasis,
+  ]);
 
   async function submitLead() {
-    if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) { setLeadStatus("Please enter a valid email address."); return; }
+    if (!lead.name || !lead.email || !lead.company) {
+      setLeadStatus("Please fill in all three fields.");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(lead.email)) {
+      setLeadStatus("Please enter a valid email address.");
+      return;
+    }
     setLeadStatus("");
     try {
       const key = "leads:" + Date.now();
-      await store.set(key, JSON.stringify({ ...lead, at: new Date().toISOString(), bill, provider, gpuClass, horizon }));
-    } catch (e) { /* storage is best-effort in the prototype */ }
+      await store.set(
+        key,
+        JSON.stringify({ ...lead, at: new Date().toISOString(), bill, provider, gpuClass, horizon })
+      );
+    } catch (e) {
+      /* storage is best-effort in the prototype */
+    }
     logDownloadEvent("tco", { bill, provider, gpuClass, horizon });
     setView("report");
   }
@@ -1039,13 +1720,24 @@ function AppInner() {
   const activeCloudRateOverride = cloudRateOverrides[cloudRateProfileKey] ?? {};
   const activeOnPremRateOverride = onPremRateOverrides[onPremRateProfileKey] ?? {};
   const rc = { ...defaults, ...ov, ...activeCloudRateOverride, ...activeOnPremRateOverride };
-  const editedCount = Object.keys(ov).length + Object.keys(activeCloudRateOverride).length + Object.keys(activeOnPremRateOverride).length;
-  const setActiveCloudRateOverride = (next) => setCloudRateOverrides((profiles) => ({ ...profiles, [cloudRateProfileKey]: next }));
-  const setActiveOnPremRateOverride = (next) => setOnPremRateOverrides((profiles) => ({ ...profiles, [onPremRateProfileKey]: next }));
+  const editedCount =
+    Object.keys(ov).length + Object.keys(activeCloudRateOverride).length + Object.keys(activeOnPremRateOverride).length;
+  const setActiveCloudRateOverride = (next) =>
+    setCloudRateOverrides((profiles) => ({ ...profiles, [cloudRateProfileKey]: next }));
+  const setActiveOnPremRateOverride = (next) =>
+    setOnPremRateOverrides((profiles) => ({ ...profiles, [onPremRateProfileKey]: next }));
   const resetActiveRateEdits = () => {
     setOv({});
-    setCloudRateOverrides((profiles) => { const next = { ...profiles }; delete next[cloudRateProfileKey]; return next; });
-    setOnPremRateOverrides((profiles) => { const next = { ...profiles }; delete next[onPremRateProfileKey]; return next; });
+    setCloudRateOverrides((profiles) => {
+      const next = { ...profiles };
+      delete next[cloudRateProfileKey];
+      return next;
+    });
+    setOnPremRateOverrides((profiles) => {
+      const next = { ...profiles };
+      delete next[onPremRateProfileKey];
+      return next;
+    });
   };
   const setCloudGpuClass = (next) => {
     setGpuClass(next);
@@ -1060,70 +1752,148 @@ function AppInner() {
   const autoPB = perPBCost > 0 ? Math.max(0, (bill * (1 - computeShare)) / perPBCost) : 0;
   const fastPB = effectiveStorageAuto ? Math.round(autoPB * 0.25 * 100) / 100 : fastPBm;
   const bulkPB = effectiveStorageAuto ? Math.round(autoPB * 0.75 * 100) / 100 : bulkPBm;
-  const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (effectiveStorageAuto) setBulkPBm(bulkPB); };
-  const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (effectiveStorageAuto) setFastPBm(fastPB); };
-  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours };
+  const setFastPB = (v) => {
+    setStorageAuto(false);
+    setFastPBm(v);
+    if (effectiveStorageAuto) setBulkPBm(bulkPB);
+  };
+  const setBulkPB = (v) => {
+    setStorageAuto(false);
+    setBulkPBm(v);
+    if (effectiveStorageAuto) setFastPBm(fastPB);
+  };
+  const inputsObj = {
+    bill,
+    computeShare,
+    odShare,
+    gpuClass,
+    ownSys,
+    trainShare,
+    util,
+    fastPB,
+    bulkPB,
+    egressPct,
+    growth,
+    cloudUnitPriceTrend,
+    facility,
+    powerRate,
+    fNet,
+    fSw,
+    fNvaie,
+    tier3Hrs,
+    retrofit,
+    migration,
+    dualRun,
+    redundancy,
+    residPct,
+    modelId,
+    modelParamsB,
+    quant,
+    horizon,
+    mode,
+    gpuSizingCount,
+    sourceClass,
+    workingDayHours,
+  };
   const r = useMemo(
     () => run(inputsObj, rc),
-    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
+    [
+      bill,
+      computeShare,
+      odShare,
+      gpuClass,
+      ownSys,
+      trainShare,
+      util,
+      fastPB,
+      bulkPB,
+      egressPct,
+      storageAuto,
+      growth,
+      cloudUnitPriceTrend,
+      facility,
+      powerRate,
+      fNet,
+      fSw,
+      fNvaie,
+      tier3Hrs,
+      retrofit,
+      migration,
+      dualRun,
+      redundancy,
+      residPct,
+      modelId,
+      modelParamsB,
+      quant,
+      horizon,
+      provider,
+      ov,
+      mode,
+      gpuSizingCount,
+      sourceClass,
+      workingDayHours,
+    ]
   );
   const t = r.tot(horizon);
-
 
   // Best-Value GPUaaS v1: Workload Requirement mode only. GPU Sizing owns
   // the technical requirement and rented GPU class; TCO only prices/ranks
   // providers for that exact class. Each candidate uses this same run()
   // engine plus its own provider/class override profile, so there is no
   // duplicate TCO calculation path and no cross-class substitution.
-  const bestValueRows = bestValueOpen && r.isWorkloadMode
-    ? topGpuAasValues(rankSameClassGpuAas({
-        gpuClass,
-        providers: PROVIDERS,
-        rateRegistry: RATES,
-        evaluateProvider: (candidateProvider, candidateRateInfo) => {
-          const candidateDefaults = defaultsFor(candidateProvider, gpuClass, ownSys);
-          const candidateProfileKey = `${candidateProvider}::${gpuClass}`;
-          const candidateCloudOverride = cloudRateOverrides[candidateProfileKey] ?? {};
-          const candidateRc = {
-            ...candidateDefaults,
-            ...ov,
-            ...candidateCloudOverride,
-            ...activeOnPremRateOverride,
-          };
-          const candidateRun = run(inputsObj, candidateRc);
-          const candidateTotal = candidateRun.tot(horizon);
+  const bestValueRows =
+    bestValueOpen && r.isWorkloadMode
+      ? topGpuAasValues(
+          rankSameClassGpuAas({
+            gpuClass,
+            providers: PROVIDERS,
+            rateRegistry: RATES,
+            evaluateProvider: (candidateProvider, candidateRateInfo) => {
+              const candidateDefaults = defaultsFor(candidateProvider, gpuClass, ownSys);
+              const candidateProfileKey = `${candidateProvider}::${gpuClass}`;
+              const candidateCloudOverride = cloudRateOverrides[candidateProfileKey] ?? {};
+              const candidateRc = {
+                ...candidateDefaults,
+                ...ov,
+                ...candidateCloudOverride,
+                ...activeOnPremRateOverride,
+              };
+              const candidateRun = run(inputsObj, candidateRc);
+              const candidateTotal = candidateRun.tot(horizon);
 
-          // Confidence follows the rates actually used in the current billing
-          // mix. A synthesized reserved rate is EST even when the provider's
-          // on-demand row is LISTED; a saved customer-entered relevant rate is
-          // surfaced as CUSTOM rather than inheriting registry provenance.
-          const usesOnDemand = odShare > 0;
-          const usesReserved = odShare < 1;
-          const usesCustomRate =
-            (usesOnDemand && candidateCloudOverride.instOD != null) ||
-            (usesReserved && candidateCloudOverride.instRes != null);
-          const usesDerivedReserved =
-            usesReserved && candidateRateInfo.res == null && candidateCloudOverride.instRes == null;
-          const confidence = usesCustomRate
-            ? "CUSTOM"
-            : usesDerivedReserved
-              ? "EST"
-              : (candidateRateInfo.conf ?? "EST");
+              // Confidence follows the rates actually used in the current billing
+              // mix. A synthesized reserved rate is EST even when the provider's
+              // on-demand row is LISTED; a saved customer-entered relevant rate is
+              // surfaced as CUSTOM rather than inheriting registry provenance.
+              const usesOnDemand = odShare > 0;
+              const usesReserved = odShare < 1;
+              const usesCustomRate =
+                (usesOnDemand && candidateCloudOverride.instOD != null) ||
+                (usesReserved && candidateCloudOverride.instRes != null);
+              const usesDerivedReserved =
+                usesReserved && candidateRateInfo.res == null && candidateCloudOverride.instRes == null;
+              const confidence = usesCustomRate
+                ? "CUSTOM"
+                : usesDerivedReserved
+                  ? "EST"
+                  : (candidateRateInfo.conf ?? "EST");
 
-          return {
-            cloudTotal: candidateTotal.cloud,
-            monthlyCloudBaseline: candidateRun.monthlyCloudBaseline,
-            confidence,
-            confidenceLabel: GPUAAS_CONFIDENCE[confidence] ?? confidence,
-            rateNote: usesCustomRate
-              ? "Uses a saved customer-entered rate for this provider / GPU class."
-              : usesDerivedReserved
-                ? "The selected billing mix uses a derived 1-year reserved rate (60% of on-demand); validate before customer use."
-                : candidateRateInfo.note,
-          };
-        },
-      }), 3)
-    : [];
+              return {
+                cloudTotal: candidateTotal.cloud,
+                monthlyCloudBaseline: candidateRun.monthlyCloudBaseline,
+                confidence,
+                confidenceLabel: GPUAAS_CONFIDENCE[confidence] ?? confidence,
+                rateNote: usesCustomRate
+                  ? "Uses a saved customer-entered rate for this provider / GPU class."
+                  : usesDerivedReserved
+                    ? "The selected billing mix uses a derived 1-year reserved rate (60% of on-demand); validate before customer use."
+                    : candidateRateInfo.note,
+              };
+            },
+          }),
+          3
+        )
+      : [];
 
   // GPU Sizing's technical recommendation, expressed in the same "X x system"
   // shape as the fleet display. In bake-off mode this is informational only
@@ -1134,15 +1904,17 @@ function AppInner() {
   // legacy/bookmarked handoffs or a future catalog divergence -- today's live
   // GPU Sizing classes each map 1:1 to their TCO target, so this display
   // figure and r.technicalSystems should already agree without it firing.
-  const gpuSizingSystems = gpuSizingCount ? (() => {
-    const tgtClass = SYS_CLASS[ownSys];
-    const srcClassNormalized = sourceClass ? normalizeSourceClass(sourceClass) : tgtClass;
-    if (srcClassNormalized !== tgtClass && IDX.train[srcClassNormalized] != null) {
-      const conv = computeGenPF(ownSys, srcClassNormalized, trainShare);
-      return Math.max(1, Math.ceil(Math.ceil(gpuSizingCount / conv) / SYSTEMS[ownSys].gpus));
-    }
-    return Math.max(1, Math.ceil(gpuSizingCount / SYSTEMS[ownSys].gpus));
-  })() : null;
+  const gpuSizingSystems = gpuSizingCount
+    ? (() => {
+        const tgtClass = SYS_CLASS[ownSys];
+        const srcClassNormalized = sourceClass ? normalizeSourceClass(sourceClass) : tgtClass;
+        if (srcClassNormalized !== tgtClass && IDX.train[srcClassNormalized] != null) {
+          const conv = computeGenPF(ownSys, srcClassNormalized, trainShare);
+          return Math.max(1, Math.ceil(Math.ceil(gpuSizingCount / conv) / SYSTEMS[ownSys].gpus));
+        }
+        return Math.max(1, Math.ceil(gpuSizingCount / SYSTEMS[ownSys].gpus));
+      })()
+    : null;
   const fleetsDisagree = gpuSizingSystems !== null && gpuSizingSystems !== r.sysAdj;
 
   // Minimum viable spend: smallest monthly bill where on-prem beats cloud at the selected horizon (bake-off mode only -- workload mode's cost isn't driven by the bill, so this question doesn't apply there)
@@ -1153,8 +1925,34 @@ function AppInner() {
       if (rr.tot(horizon).saveAdj > 0) return Math.round(b / 5000) * 5000;
     }
     return null;
-  }, [gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, retrofit, migration, dualRun, redundancy, residPct, computeShare, odShare, provider, ov, horizon, mode, cloudUnitPriceTrend]);
-  const tier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
+  }, [
+    gpuClass,
+    ownSys,
+    trainShare,
+    util,
+    fastPB,
+    bulkPB,
+    egressPct,
+    growth,
+    facility,
+    powerRate,
+    fNet,
+    fSw,
+    fNvaie,
+    retrofit,
+    migration,
+    dualRun,
+    redundancy,
+    residPct,
+    computeShare,
+    odShare,
+    provider,
+    ov,
+    horizon,
+    mode,
+    cloudUnitPriceTrend,
+  ]);
+  const tier = tier3Hrs > 0 ? "VALIDATED" : bill !== 105000 || gpuClass !== "H100" ? "REFINED" : "DIRECTIONAL";
   const maxBar = Math.max(t.cloud, t.cloudFloor, t.onAdj, t.onFlr, 1);
   const isSelf = facility !== "Equinix";
 
@@ -1195,9 +1993,11 @@ function AppInner() {
     // three Year-1 scalars, which are what they'd actually build from.
   });
 
-
   return (
-    <div className="tco-root" style={{ background: C.bg, minHeight: "100vh", color: C.ink, fontFamily: "'Inter', system-ui, sans-serif" }}>
+    <div
+      className="tco-root"
+      style={{ background: C.bg, minHeight: "100vh", color: C.ink, fontFamily: "'Inter', system-ui, sans-serif" }}
+    >
       <style>{`        .tco-root, .tco-root *{box-sizing:border-box} input[type=range]{height:22px} button:focus-visible{outline:2px solid ${C.green};outline-offset:2px;box-shadow:0 0 0 5px rgba(255,255,255,.85)}
         input[type=number]::-webkit-inner-spin-button{opacity:1}
         .report-methodology-print{display:none}
@@ -1238,49 +2038,102 @@ function AppInner() {
           same styling, same box, zero visual change -- satisfies both
           findings at once without restructuring anything. */}
       <main style={{ maxWidth: 560, margin: "0 auto", padding: "18px 14px 60px" }}>
-
-        <div className="tco-app-header" style={{ borderBottom: `1px solid ${C.line}`, paddingBottom: 14, marginBottom: 16 }}>
+        <div
+          className="tco-app-header"
+          style={{ borderBottom: `1px solid ${C.line}`, paddingBottom: 14, marginBottom: 16 }}
+        >
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <a href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }} aria-label="AI Factory Tools home">
+            <a
+              href="/"
+              style={{ display: "flex", alignItems: "center", flexShrink: 0 }}
+              aria-label="AI Factory Tools home"
+            >
               <img src={cdwLogo} alt="CDW" style={{ height: 36, width: "auto" }} />
             </a>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: C.green, textTransform: "uppercase" }}>AI Factory Tools</div>
-              <h1 style={{ ...disp, fontSize: 20, fontWeight: 700, margin: 0, color: C.ink }}>Cloud vs On-Prem TCO Calculator</h1>
+              <div
+                style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: C.green, textTransform: "uppercase" }}
+              >
+                AI Factory Tools
+              </div>
+              <h1 style={{ ...disp, fontSize: 20, fontWeight: 700, margin: 0, color: C.ink }}>
+                Cloud vs On-Prem TCO Calculator
+              </h1>
             </div>
           </div>
-          <div style={{ fontSize: 13, color: C.sub, marginTop: 8 }}>What your current AIaaS spend buys you if you owned it instead.</div>
+          <div style={{ fontSize: 13, color: C.sub, marginTop: 8 }}>
+            What your current AIaaS spend buys you if you owned it instead.
+          </div>
           {/* Fix (cosmetic, caught in post-remediation PDF testing): the
               other three tools' equivalent AuthWidget row already carries
               no-print (see GpuSizingCalculator.jsx for the pattern); this
               one didn't, so the signed-in account row ("Name · My Summary
               · Sign out") printed at the top of TCO's report and audit
               PDFs -- not ideal in a client leave-behind. */}
-          <div className="no-print" style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <div
+            className="no-print"
+            style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
+          >
             {arrivedFromGpuSizing ? (
-              <a href="/gpu-sizing" style={{ fontSize: 12, fontWeight: 600, color: C.green, textDecoration: "none" }}>&larr; Adjust GPU sizing</a>
-            ) : <span />}
+              <a href="/gpu-sizing" style={{ fontSize: 12, fontWeight: 600, color: C.green, textDecoration: "none" }}>
+                &larr; Adjust GPU sizing
+              </a>
+            ) : (
+              <span />
+            )}
             <AuthWidget />
           </div>
         </div>
 
         {view === "calc" && r.isWorkloadMode && (
-          <div style={{ background: gpuSizingBasis === "higher-growth" ? "#FFF5F5" : C.panel, border: `1px solid ${gpuSizingBasis === "higher-growth" ? "#E6A3A3" : C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: gpuSizingBasis === "higher-growth" ? C.red : C.sub, marginBottom: 3 }}>SIZING BASIS</div>
+          <div
+            style={{
+              background: gpuSizingBasis === "higher-growth" ? "#FFF5F5" : C.panel,
+              border: `1px solid ${gpuSizingBasis === "higher-growth" ? "#E6A3A3" : C.line}`,
+              borderRadius: 10,
+              padding: "10px 12px",
+              marginBottom: 14,
+            }}
+          >
+            <div
+              style={{
+                ...mono,
+                fontSize: 10,
+                letterSpacing: 0.8,
+                color: gpuSizingBasis === "higher-growth" ? C.red : C.sub,
+                marginBottom: 3,
+              }}
+            >
+              SIZING BASIS
+            </div>
             <div style={{ fontSize: 13, fontWeight: 700, color: C.ink }}>
-              {gpuSizingBasis === "higher-growth" ? "Higher-growth alternative selected in GPU Sizing" : "Recommended configuration from GPU Sizing"}
+              {gpuSizingBasis === "higher-growth"
+                ? "Higher-growth alternative selected in GPU Sizing"
+                : "Recommended configuration from GPU Sizing"}
             </div>
             {gpuSizingBasis === "higher-growth" && (
-              <div style={{ fontSize: 12, color: C.sub, marginTop: 3 }}>This configuration intentionally includes additional capacity/headroom beyond the primary recommendation.</div>
+              <div style={{ fontSize: 12, color: C.sub, marginTop: 3 }}>
+                This configuration intentionally includes additional capacity/headroom beyond the primary
+                recommendation.
+              </div>
             )}
           </div>
         )}
 
         {view === "gate" && (
-          <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, marginBottom: 14 }}>
+          <div
+            style={{
+              background: C.panel,
+              border: `1px solid ${C.line}`,
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 14,
+            }}
+          >
             <div style={{ ...disp, fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Get the full TCO report</div>
             <div style={{ fontSize: 12, color: C.sub, marginBottom: 10 }}>
-              The report includes the fleet build, full assumption ledger with sources, and the floor-case analysis. On the production site this will also be emailed to you as a PDF.
+              The report includes the fleet build, full assumption ledger with sources, and the floor-case analysis. On
+              the production site this will also be emailed to you as a PDF.
             </div>
             {/* Fix (Bug 6, bonus, same as ROI's identical lead-gate pattern):
                 placeholder-only inputs aren't announced by screen readers as
@@ -1289,200 +2142,632 @@ function AppInner() {
             {["name", "company", "email"].map((f) => {
               const placeholderText = f === "name" ? "Full name" : f === "company" ? "Company" : "Work email";
               return (
-                <input key={f} placeholder={placeholderText} aria-label={placeholderText}
-                  value={lead[f]} type={f === "email" ? "email" : "text"}
+                <input
+                  key={f}
+                  placeholder={placeholderText}
+                  aria-label={placeholderText}
+                  value={lead[f]}
+                  type={f === "email" ? "email" : "text"}
                   onChange={(e) => setLead({ ...lead, [f]: e.target.value })}
-                  style={{ width: "100%", boxSizing: "border-box", fontSize: 14, padding: "11px 12px", marginBottom: 8,
-                    borderRadius: 8, border: "1px solid #D1D5DB", background: "#FFFFFF", color: C.ink }} />
+                  style={{
+                    width: "100%",
+                    boxSizing: "border-box",
+                    fontSize: 14,
+                    padding: "11px 12px",
+                    marginBottom: 8,
+                    borderRadius: 8,
+                    border: "1px solid #D1D5DB",
+                    background: "#FFFFFF",
+                    color: C.ink,
+                  }}
+                />
               );
             })}
             {leadStatus && <div style={{ fontSize: 12, color: C.amber, marginBottom: 6 }}>{leadStatus}</div>}
             <div style={{ display: "flex", gap: 8 }}>
-              <button onClick={submitLead} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 14, padding: "12px", borderRadius: 8, border: "none", cursor: "pointer", background: C.green, color: "#fff" }}>View my report</button>
-              <button onClick={() => setView("calc")} style={{ ...disp, fontSize: 14, padding: "12px 14px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: C.panel, color: C.sub }}>Back</button>
+              <button
+                onClick={submitLead}
+                style={{
+                  ...disp,
+                  flex: 1,
+                  fontWeight: 700,
+                  fontSize: 14,
+                  padding: "12px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  background: C.green,
+                  color: "#fff",
+                }}
+              >
+                View my report
+              </button>
+              <button
+                onClick={() => setView("calc")}
+                style={{
+                  ...disp,
+                  fontSize: 14,
+                  padding: "12px 14px",
+                  borderRadius: 8,
+                  border: `1px solid ${C.line}`,
+                  cursor: "pointer",
+                  background: C.panel,
+                  color: C.sub,
+                }}
+              >
+                Back
+              </button>
             </div>
           </div>
         )}
 
         {view === "report" && (
-          <div className="tco-print-report" style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
+          <div
+            className="tco-print-report"
+            style={{
+              background: "#fff",
+              border: `1px solid ${C.line}`,
+              borderRadius: 12,
+              padding: 18,
+              marginBottom: 14,
+            }}
+          >
             <div className="no-print pdf-btn-row" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button onClick={() => window.print()} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 13, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: C.ink, color: "#fff" }}>Print / Save as PDF</button>
-              <button onClick={() => setView("audit")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.ink }}>Calculation Methodology &amp; Audit Trail</button>
-              <button onClick={() => setView("calc")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.sub }}>Back to calculator</button>
+              <button
+                onClick={() => window.print()}
+                style={{
+                  ...disp,
+                  flex: 1,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  padding: "10px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  background: C.ink,
+                  color: "#fff",
+                }}
+              >
+                Print / Save as PDF
+              </button>
+              <button
+                onClick={() => setView("audit")}
+                style={{
+                  ...disp,
+                  fontSize: 13,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: `1px solid ${C.line}`,
+                  cursor: "pointer",
+                  background: "#fff",
+                  color: C.ink,
+                }}
+              >
+                Calculation Methodology &amp; Audit Trail
+              </button>
+              <button
+                onClick={() => setView("calc")}
+                style={{
+                  ...disp,
+                  fontSize: 13,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: `1px solid ${C.line}`,
+                  cursor: "pointer",
+                  background: "#fff",
+                  color: C.sub,
+                }}
+              >
+                Back to calculator
+              </button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
               <img src={cdwLogo} alt="CDW" style={{ height: 34, width: "auto" }} />
-              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: C.sub }}>AI FACTORY · CLOUD-TO-ON-PREM AI TCO ANALYSIS</div>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: C.sub }}>
+                AI FACTORY · CLOUD-TO-ON-PREM AI TCO ANALYSIS
+              </div>
             </div>
-            <div style={{ ...disp, fontSize: 21, fontWeight: 700, margin: "4px 0 2px" }}>Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}</div>
-            <div style={{ fontSize: 12, color: C.sub, marginBottom: 12 }}>{new Date().toLocaleDateString()} · Confidence: {tier} · {provider} · {gpuClass} workloads</div>
+            <div style={{ ...disp, fontSize: 21, fontWeight: 700, margin: "4px 0 2px" }}>
+              Prepared for {lead.name || "you"}
+              {lead.company ? `, ${lead.company}` : ""}
+            </div>
+            <div style={{ fontSize: 12, color: C.sub, marginBottom: 12 }}>
+              {new Date().toLocaleDateString()} · Confidence: {tier} · {provider} · {gpuClass} workloads
+            </div>
             {t.saveAdj > 0 ? (
               <div style={{ background: C.greenSoft, borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
                 <div style={{ ...mono, fontSize: 11, color: C.green }}>{horizon}-YEAR PROJECTED SAVINGS</div>
                 <div style={{ ...mono, fontSize: 32, fontWeight: 600, color: C.green }}>{fmtM(t.saveAdj)}</div>
-                <div style={{ fontSize: 12, color: C.ink }}>vs. staying in cloud ({fmtM(t.cloud)}) · even with zero performance credit (floor case): {fmtM(t.saveFlr)}</div>
+                <div style={{ fontSize: 12, color: C.ink }}>
+                  vs. staying in cloud ({fmtM(t.cloud)}) · even with zero performance credit (floor case):{" "}
+                  {fmtM(t.saveFlr)}
+                </div>
               </div>
             ) : (
-              <div style={{ background: "#F1F1F1", borderLeft: "3px solid #CC0000", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
-                <div style={{ ...mono, fontSize: 11, color: C.ink }}>{`NO COST CROSSOVER WITHIN THE SELECTED ${horizon}-YEAR HORIZON`}</div>
+              <div
+                style={{
+                  background: "#F1F1F1",
+                  borderLeft: "3px solid #CC0000",
+                  borderRadius: 10,
+                  padding: "12px 14px",
+                  marginBottom: 12,
+                }}
+              >
+                <div
+                  style={{ ...mono, fontSize: 11, color: C.ink }}
+                >{`NO COST CROSSOVER WITHIN THE SELECTED ${horizon}-YEAR HORIZON`}</div>
                 <div style={{ fontSize: 12, color: C.ink, marginTop: 4 }}>
-                  At the stated consumption, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by {fmtM(-t.saveAdj)}. Fixed cluster overhead and transition costs dominate at this scale and horizon; a longer horizon may still cross{r.crossoverMo && r.crossoverMo > horizon * 12 ? ` (projected around month ${r.crossoverMo})` : ""}.{minViable && minViable > bill ? ` On-prem begins to pencil around ${fmtM(minViable)}/mo at these settings.` : ""}
+                  At the stated consumption, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by{" "}
+                  {fmtM(-t.saveAdj)}. Fixed cluster overhead and transition costs dominate at this scale and horizon; a
+                  longer horizon may still cross
+                  {r.crossoverMo && r.crossoverMo > horizon * 12 ? ` (projected around month ${r.crossoverMo})` : ""}.
+                  {minViable && minViable > bill
+                    ? ` On-prem begins to pencil around ${fmtM(minViable)}/mo at these settings.`
+                    : ""}
                 </div>
               </div>
             )}
-            <Row label="Planning basis" value={r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend"} sub={r.isWorkloadMode ? "both sides costed from the GPU Sizing technical requirement" : "on-prem sized from your reported cloud spend"} />
-            <Row label={`Recommended build`} value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`} sub={r.isWorkloadMode ? `fixed to the workload's technical requirement · ${facility}` : `${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
-            <Row label="Cloud GPU unit-price trend" value={`${cloudUnitPriceTrend > 0 ? "+" : ""}${cloudUnitPriceTrend}%/yr`} sub="applies to modeled cloud GPU compute rates only; workload growth remains separate" />
-            <Row label="Total capex + one-time transition" value={fmtM(r.adj.capex + r.oneTime)} sub={`incl. ${fmtM(r.oneTime)} migration, dual-run, and exit costs`} />
-            <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
-            <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub={r.isWorkloadMode ? "capex + one-time vs. estimated workload-equivalent cloud cost" : "capex + one-time vs. current monthly cloud bill"} />
-            <Row label="Residual value credit" value={`−${fmt(r.adj.resid)}`} sub={`${Math.round(residPct * 100)}% of systems + storage capex at horizon`} />
-            {r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`} sub={`${modelDisplay} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
+            <Row
+              label="Planning basis"
+              value={r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend"}
+              sub={
+                r.isWorkloadMode
+                  ? "both sides costed from the GPU Sizing technical requirement"
+                  : "on-prem sized from your reported cloud spend"
+              }
+            />
+            <Row
+              label={`Recommended build`}
+              value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`}
+              sub={
+                r.isWorkloadMode
+                  ? `fixed to the workload's technical requirement · ${facility}`
+                  : `${Math.round(r.headroom * 100)}% growth headroom · ${facility}`
+              }
+            />
+            <Row
+              label="Cloud GPU unit-price trend"
+              value={`${cloudUnitPriceTrend > 0 ? "+" : ""}${cloudUnitPriceTrend}%/yr`}
+              sub="applies to modeled cloud GPU compute rates only; workload growth remains separate"
+            />
+            <Row
+              label="Total capex + one-time transition"
+              value={fmtM(r.adj.capex + r.oneTime)}
+              sub={`incl. ${fmtM(r.oneTime)} migration, dual-run, and exit costs`}
+            />
+            <Row
+              label="Ongoing operations"
+              value={`${fmt(r.adj.opex)}/mo`}
+              sub={
+                facility === "Equinix"
+                  ? "Equinix colo bundle incl. managed services"
+                  : "power, facility, admin, storage support"
+              }
+            />
+            <Row
+              label="Simple payback"
+              value={r.payback ? `${r.payback.toFixed(0)} months` : "—"}
+              sub={
+                r.isWorkloadMode
+                  ? "capex + one-time vs. estimated workload-equivalent cloud cost"
+                  : "capex + one-time vs. current monthly cloud bill"
+              }
+            />
+            <Row
+              label="Residual value credit"
+              value={`−${fmt(r.adj.resid)}`}
+              sub={`${Math.round(residPct * 100)}% of systems + storage capex at horizon`}
+            />
+            {r.cap.fits && (
+              <Row
+                label="Serving capacity (est.)"
+                value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`}
+                sub={`${modelDisplay} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`}
+              />
+            )}
             {r.isWorkloadMode ? (
               <>
-                <Row label="Technical workload requirement" value={`${r.sysAdj} × ${ownSys}`} sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- ${gpuSizingBasis === "higher-growth" ? "user-selected higher-growth alternative" : "GPU Sizing recommended configuration"}; fleet size is duty-cycle-independent`} />
-                <Row label="Cloud-pricing basis" value={`${Math.round(r.gpuHrsCloud).toLocaleString()} GPU-hrs/mo`} sub={workingDayHours ? `${workingDayHours} hrs/day duty cycle from GPU Sizing (not 24/7)` : `no duty-cycle data from GPU Sizing -- assumes ${Math.round(util * 100)}% of all hours, likely an overstatement`} />
+                <Row
+                  label="Technical workload requirement"
+                  value={`${r.sysAdj} × ${ownSys}`}
+                  sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- ${gpuSizingBasis === "higher-growth" ? "user-selected higher-growth alternative" : "GPU Sizing recommended configuration"}; fleet size is duty-cycle-independent`}
+                />
+                <Row
+                  label="Cloud-pricing basis"
+                  value={`${Math.round(r.gpuHrsCloud).toLocaleString()} GPU-hrs/mo`}
+                  sub={
+                    workingDayHours
+                      ? `${workingDayHours} hrs/day duty cycle from GPU Sizing (not 24/7)`
+                      : `no duty-cycle data from GPU Sizing -- assumes ${Math.round(util * 100)}% of all hours, likely an overstatement`
+                  }
+                />
               </>
             ) : (
               <>
-                <Row label="Your current consumption (reconstructed)" value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`} sub={tier3Hrs > 0 ? "from your invoice" : `from spend at ${provider} ${gpuClass} list rates (${RATES_ASOF})`} />
+                <Row
+                  label="Your current consumption (reconstructed)"
+                  value={`${Math.round(r.gpuHrs).toLocaleString()} GPU-hrs/mo`}
+                  sub={
+                    tier3Hrs > 0
+                      ? "from your invoice"
+                      : `from spend at ${provider} ${gpuClass} list rates (${RATES_ASOF})`
+                  }
+                />
                 {gpuSizingSystems && (
-                  <Row label="GPU Sizing technical recommendation" value={`${gpuSizingSystems} × ${ownSys}`} sub={`${gpuSizingCount} GPUs, node-rounded -- workload requirement, not spend-derived${fleetsDisagree ? "; differs from the build above" : ""}`} />
+                  <Row
+                    label="GPU Sizing technical recommendation"
+                    value={`${gpuSizingSystems} × ${ownSys}`}
+                    sub={`${gpuSizingCount} GPUs, node-rounded -- workload requirement, not spend-derived${fleetsDisagree ? "; differs from the build above" : ""}`}
+                  />
                 )}
               </>
             )}
             <div className="report-methodology-full" style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
               {r.isWorkloadMode ? (
                 <>
-                  Methodology (Workload Requirement mode, v2.9): cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). The on-prem fleet is sized directly to the GPU Sizing technical requirement ({gpuSizingCount} GPUs{r.sourceConversion ? ` at ${sourceClass}, normalized to ${ownSys} using a ${r.sourceConversion.toFixed(2)}x generational capability ratio since the recommended class isn't sold new as that system` : ` at ${ownSys}`}), not derived from spend, and grows year over year on the same growth rate applied to that requirement; fleet size is independent of duty cycle, since owned hardware must be present whether or not it's continuously in use. The cloud-side estimate instead uses {workingDayHours ? `a ${workingDayHours}-hour/day duty cycle from GPU Sizing's own workload timing` : `the on-prem target utilization (${Math.round(util * 100)}%) as a fallback, since no duty-cycle data came through with this handoff -- likely an overstatement for a business-hours workload`}, converted into rented {gpuClass} hours using ONLY the hardware generational capability factor ({r.genPF.toFixed(2)}x, benchmark-derived from MLPerf-class throughput ratios for {ownSys} vs {gpuClass} -- directional and workload-normalized, not a universal physical conversion constant). Network, scheduling, and inference-stack efficiency factors (fNet/fSw/fNvaie) are deliberately excluded from this conversion, since those are advantages of owning infrastructure, not something a cloud renter gets; applying them to price a rental would be circular. The floor case instead assumes zero generational credit (1.00x), the conservative case if that capability ratio is overstated. Storage is a direct input (no bill to auto-scale it from). On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}); residual value applies to hardware only. This is a directional analysis for a workload that may not yet exist at this scale in your current cloud environment.
+                  Methodology (Workload Requirement mode, v2.9): cash-flow TCO in nominal dollars (not accounting
+                  depreciation, not discounted NPV). The on-prem fleet is sized directly to the GPU Sizing technical
+                  requirement ({gpuSizingCount} GPUs
+                  {r.sourceConversion
+                    ? ` at ${sourceClass}, normalized to ${ownSys} using a ${r.sourceConversion.toFixed(2)}x generational capability ratio since the recommended class isn't sold new as that system`
+                    : ` at ${ownSys}`}
+                  ), not derived from spend, and grows year over year on the same growth rate applied to that
+                  requirement; fleet size is independent of duty cycle, since owned hardware must be present whether or
+                  not it's continuously in use. The cloud-side estimate instead uses{" "}
+                  {workingDayHours
+                    ? `a ${workingDayHours}-hour/day duty cycle from GPU Sizing's own workload timing`
+                    : `the on-prem target utilization (${Math.round(util * 100)}%) as a fallback, since no duty-cycle data came through with this handoff -- likely an overstatement for a business-hours workload`}
+                  , converted into rented {gpuClass} hours using ONLY the hardware generational capability factor (
+                  {r.genPF.toFixed(2)}x, benchmark-derived from MLPerf-class throughput ratios for {ownSys} vs{" "}
+                  {gpuClass} -- directional and workload-normalized, not a universal physical conversion constant).
+                  Network, scheduling, and inference-stack efficiency factors (fNet/fSw/fNvaie) are deliberately
+                  excluded from this conversion, since those are advantages of owning infrastructure, not something a
+                  cloud renter gets; applying them to price a rental would be circular. The floor case instead assumes
+                  zero generational credit (1.00x), the conservative case if that capability ratio is overstated.
+                  Storage is a direct input (no bill to auto-scale it from). On-prem pricing per NVIDIA DGX TCO
+                  reference ({ONPREM_ASOF}); residual value applies to hardware only. This is a directional analysis for
+                  a workload that may not yet exist at this scale in your current cloud environment.
                 </>
               ) : (
                 <>
-                  Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net, shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+                  Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud
+                  spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}
+                  % target utilization with MLPerf-derived generational performance factors ({r.npf.toFixed(2)}x net,
+                  shown alongside a zero-factor floor case). On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}
+                  ). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental
+                  systems, racks, power, admin, and residual all scale); storage is held static. Mixed
+                  training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors.
+                  Residual value applies to hardware only — professional services and software subscriptions are
+                  excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier
+                  1 a true two-input model); manual entries are reconciled against that share with a visible warning on
+                  mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand
+                  rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until
+                  exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth
+                  headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable
+                  reference implementation of the core sizing and TCO formulas; this application extends it with dynamic
+                  fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics
+                  figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a
+                  sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud
+                  commitment early-termination, hybrid burst. This is a directional analysis — a validated version
+                  requires your actual cloud invoice.
                 </>
               )}
             </div>
-            <div className="report-methodology-print" style={{ fontSize: 10.5, color: C.sub, marginTop: 10, lineHeight: 1.45 }}>
+            <div
+              className="report-methodology-print"
+              style={{ fontSize: 10.5, color: C.sub, marginTop: 10, lineHeight: 1.45 }}
+            >
               <b>Methodology summary:</b>{" "}
               {r.isWorkloadMode
                 ? `On-prem capacity is sized from the GPU Sizing technical requirement; the cloud alternative prices that same workload using its duty cycle and the benchmark-derived generational capability factor.`
-                : `Reported cloud spend is normalized to GPU-hours at current reference rates; the comparable on-prem fleet is sized at ${Math.round(util * 100)}% target utilization and evaluated with an adjusted case plus a zero-performance-credit floor case.`}
-              {" "}Cash-flow TCO is shown in nominal dollars. Detailed assumptions, pricing provenance, caveats, and the reproducibility ledger appear in the appendix.
+                : `Reported cloud spend is normalized to GPU-hours at current reference rates; the comparable on-prem fleet is sized at ${Math.round(util * 100)}% target utilization and evaluated with an adjusted case plus a zero-performance-credit floor case.`}{" "}
+              Cash-flow TCO is shown in nominal dollars. Detailed assumptions, pricing provenance, caveats, and the
+              reproducibility ledger appear in the appendix.
             </div>
             <div style={{ marginTop: 16 }}>
-              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 6 }}>WHERE THE MONEY GOES IN YEAR 1</div>
-              <YearOneBreakdownReport cloudYear1={r.cloudYear1} capital={r.adj.capex + r.oneTime} operating={r.adj.opex * 12} />
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 6 }}>
+                WHERE THE MONEY GOES IN YEAR 1
+              </div>
+              <YearOneBreakdownReport
+                cloudYear1={r.cloudYear1}
+                capital={r.adj.capex + r.oneTime}
+                operating={r.adj.opex * 12}
+              />
             </div>
             <div className="report-cumulative" style={{ marginTop: 16 }}>
-              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 6 }}>CUMULATIVE SPEND, {Math.max(2, horizon)}-YEAR VIEW{horizon < 2 ? " (min. 2yr shown for a readable trend)" : ""}</div>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 6 }}>
+                CUMULATIVE SPEND, {Math.max(2, horizon)}-YEAR VIEW
+                {horizon < 2 ? " (min. 2yr shown for a readable trend)" : ""}
+              </div>
               <CrossoverChartReport points={r.cumulativeByYear} horizon={horizon} crossoverMo={r.crossoverMo} />
             </div>
             <div className="report-appendix" style={{ marginTop: 14 }}>
-              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>APPENDIX - FULL INPUTS & OUTPUTS (for independent reproduction)</div>
-              <div className="report-appendix-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 14px", fontSize: 11 }}>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.2, color: C.sub, marginBottom: 4 }}>
+                APPENDIX - FULL INPUTS & OUTPUTS (for independent reproduction)
+              </div>
+              <div
+                className="report-appendix-grid"
+                style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "2px 14px", fontSize: 11 }}
+              >
                 {[
                   ["Planning basis", r.isWorkloadMode ? "Workload Requirement (v2.9)" : "Existing Cloud Spend"],
-                  [r.isWorkloadMode ? "Reported monthly cloud spend (context only)" : "Monthly cloud AI spend", `${fmt(bill)}/mo`],
+                  [
+                    r.isWorkloadMode ? "Reported monthly cloud spend (context only)" : "Monthly cloud AI spend",
+                    `${fmt(bill)}/mo`,
+                  ],
                   ["Provider / rented GPU class", `${provider} / ${gpuClass} (${RATES[provider][gpuClass].conf})`],
                   ["On-prem target system", ownSys],
-                  ["Training / inference mix", `${Math.round(trainShare * 100)}% / ${Math.round((1 - trainShare) * 100)}%`],
+                  [
+                    "Training / inference mix",
+                    `${Math.round(trainShare * 100)}% / ${Math.round((1 - trainShare) * 100)}%`,
+                  ],
                   ["On-demand share", `${Math.round(odShare * 100)}%`],
                   ["Compute share of bill", `${Math.round(computeShare * 100)}%`],
-                  ["Fast / bulk storage", `${fastPB.toFixed(2)} / ${bulkPB.toFixed(2)} PB (${effectiveStorageAuto ? "auto from bill" : "manual"})`],
+                  [
+                    "Fast / bulk storage",
+                    `${fastPB.toFixed(2)} / ${bulkPB.toFixed(2)} PB (${effectiveStorageAuto ? "auto from bill" : "manual"})`,
+                  ],
                   ["Egress", `${Math.round(egressPct * 100)}%/mo`],
                   ["Annual compute growth", `${Math.round(growth * 100)}%`],
                   ["Facility", facility],
                   ["Power rate", `$${powerRate}/kW-mo`],
                   ["Target utilization", `${Math.round(util * 100)}%`],
                   ...(r.isWorkloadMode
-                    ? [["Generational capability factor (genPF)", `${r.genPF.toFixed(2)}x -- benchmark-derived, directional; fNet/fSw/fNvaie excluded (see methodology)`]]
-                    : [["Factors net / sw / NVAIE", `${fNet.toFixed(2)}x / ${fSw.toFixed(2)}x / ${fNvaie.toFixed(2)}x`],
-                       ["Generational / NPF", `${r.genPF.toFixed(2)}x / ${r.npf.toFixed(2)}x`]]),
+                    ? [
+                        [
+                          "Generational capability factor (genPF)",
+                          `${r.genPF.toFixed(2)}x -- benchmark-derived, directional; fNet/fSw/fNvaie excluded (see methodology)`,
+                        ],
+                      ]
+                    : [
+                        [
+                          "Factors net / sw / NVAIE",
+                          `${fNet.toFixed(2)}x / ${fSw.toFixed(2)}x / ${fNvaie.toFixed(2)}x`,
+                        ],
+                        ["Generational / NPF", `${r.genPF.toFixed(2)}x / ${r.npf.toFixed(2)}x`],
+                      ]),
                   ["Tier 3 GPU-hours", tier3Hrs > 0 ? tier3Hrs.toLocaleString() : "not provided"],
-                  ["Migration / dual-run / retrofit", `${fmtM(migration)} / ${dualRun}mo / ${facility === "Self-hosted (retrofit)" ? fmtM(retrofit) : "n/a"}`],
+                  [
+                    "Migration / dual-run / retrofit",
+                    `${fmtM(migration)} / ${dualRun}mo / ${facility === "Self-hosted (retrofit)" ? fmtM(retrofit) : "n/a"}`,
+                  ],
                   ["Redundancy / residual", `${redundancy ? "N+1 on" : "off"} / ${Math.round(residPct * 100)}%`],
-                  [r.isWorkloadMode ? "Technical GPU-hours (target class)" : "Reconstructed GPU-hours", `${Math.round(r.gpuHrs).toLocaleString()}/mo`],
+                  [
+                    r.isWorkloadMode ? "Technical GPU-hours (target class)" : "Reconstructed GPU-hours",
+                    `${Math.round(r.gpuHrs).toLocaleString()}/mo`,
+                  ],
                   ["Systems (adjusted / floor)", `${r.sysAdj} / ${r.sysFloor}`],
-                  ...(gpuSizingSystems && !r.isWorkloadMode ? [["GPU Sizing technical recommendation", `${gpuSizingSystems} × ${ownSys} (${gpuSizingCount} GPUs, node-rounded)`]] : []),
+                  ...(gpuSizingSystems && !r.isWorkloadMode
+                    ? [
+                        [
+                          "GPU Sizing technical recommendation",
+                          `${gpuSizingSystems} × ${ownSys} (${gpuSizingCount} GPUs, node-rounded)`,
+                        ],
+                      ]
+                    : []),
                   ["Fleet by year (adjusted)", r.fleetAdj.slice(0, horizon).join(" → ")],
-                  ["Capex / one-time / residual credit", `${fmt(r.adj.capex)} / ${fmt(r.oneTime)} / −${fmt(r.adj.resid)}`],
+                  [
+                    "Capex / one-time / residual credit",
+                    `${fmt(r.adj.capex)} / ${fmt(r.oneTime)} / −${fmt(r.adj.resid)}`,
+                  ],
                   ["On-prem opex", `${fmt(r.adj.opex)}/mo`],
-                  [`Cloud vs on-prem (${horizon}yr)`, `${fmt(t.cloud)} vs ${fmt(t.onAdj)}${r.isWorkloadMode ? ` (floor cloud: ${fmt(t.cloudFloor)})` : ""}`],
+                  [
+                    `Cloud vs on-prem (${horizon}yr)`,
+                    `${fmt(t.cloud)} vs ${fmt(t.onAdj)}${r.isWorkloadMode ? ` (floor cloud: ${fmt(t.cloudFloor)})` : ""}`,
+                  ],
                   ["Savings (adjusted / floor)", `${fmt(t.saveAdj)} / ${fmt(t.saveFlr)}`],
                   ["Model / quantization (capacity est.)", `${modelDisplay} / ${quant}`],
-                  ["Est. users / $ per 1M tokens", r.cap.fits ? `${r.cap.users.toLocaleString()} / $${r.cap.perM.toFixed(2)} (vs API $${r.cap.cloudPerM.toFixed(2)})` : "model does not fit fleet"],
+                  [
+                    "Est. users / $ per 1M tokens",
+                    r.cap.fits
+                      ? `${r.cap.users.toLocaleString()} / $${r.cap.perM.toFixed(2)} (vs API $${r.cap.cloudPerM.toFixed(2)})`
+                      : "model does not fit fleet",
+                  ],
                   ["Rate card overrides", editedCount > 0 ? Object.keys(ov).join(", ") : "none — all defaults"],
-                  ...(r.isWorkloadMode ? [] : [["Spend/storage reconciliation", `${fmt(r.cloudStorage)}/mo implied vs ${fmt(r.storageBudget)}/mo non-compute budget — ${r.cloudStorage > r.storageBudget * 1.02 ? `OVERALLOCATED by ${fmt(r.cloudStorage - r.storageBudget)}` : "within tolerance"}`]]),
-                  ["Crossover (cumulative) / static payback", `${r.crossoverMo ? `month ${r.crossoverMo}` : "none ≤60mo"} / ${r.payback ? r.payback.toFixed(0) + " mo" : "n/a"}`],
+                  ...(r.isWorkloadMode
+                    ? []
+                    : [
+                        [
+                          "Spend/storage reconciliation",
+                          `${fmt(r.cloudStorage)}/mo implied vs ${fmt(r.storageBudget)}/mo non-compute budget — ${r.cloudStorage > r.storageBudget * 1.02 ? `OVERALLOCATED by ${fmt(r.cloudStorage - r.storageBudget)}` : "within tolerance"}`,
+                        ],
+                      ]),
+                  [
+                    "Crossover (cumulative) / static payback",
+                    `${r.crossoverMo ? `month ${r.crossoverMo}` : "none ≤60mo"} / ${r.payback ? r.payback.toFixed(0) + " mo" : "n/a"}`,
+                  ],
                   ["— APPLIED RATES (snapshot) —", ""],
-                  ["Pricing verified", `Cloud ${RATES_ASOF} (${cloudRatesStaleness.days}d ago, ${cloudRatesStaleness.level}) · On-prem ${ONPREM_ASOF} (${onpremStaleness.days}d ago, ${onpremStaleness.level})`],
-                  ["Cloud $/GPU-hr OD / reserved", `$${rc.instOD} / $${rc.instRes} (${RATES[provider][gpuClass].conf})`],
+                  [
+                    "Pricing verified",
+                    `Cloud ${RATES_ASOF} (${cloudRatesStaleness.days}d ago, ${cloudRatesStaleness.level}) · On-prem ${ONPREM_ASOF} (${onpremStaleness.days}d ago, ${onpremStaleness.level})`,
+                  ],
+                  [
+                    "Cloud $/GPU-hr OD / reserved",
+                    `$${rc.instOD} / $${rc.instRes} (${RATES[provider][gpuClass].conf})`,
+                  ],
                   ["NVAIE $/GPU-hr OD / reserved", `$${rc.nvaieOD} / $${rc.nvaieRes}`],
                   ["Cloud storage fast / bulk $/GB-mo", `$${rc.fastGB} / $${rc.bulkGB}`],
                   ["Egress $/GB · API $/1M tok", `$${rc.egressGB} · $${rc.cloudTok}`],
                   ["System loaded cost / kW", `${fmt(rc.perSysCost)} / ${rc.sysKw} kW`],
                   ["Cluster fixed / Equinix bundle", `${fmt(rc.cluster)} / ${fmt(rc.equinixMo)}/sys/mo`],
                   ["On-prem storage fast / bulk $/PB", `${fmt(rc.fastPB)} / ${fmt(rc.bulkPB)}`],
-                  ["Admin ratio / FTE / ops growth", `${rc.adminRatio}/FTE · ${fmt(rc.opFTE)} · ${Math.round(rc.opsGrowth * 100)}%/yr`],
-                  ["Suite baseline", "AI Factory Suite 2026.09 baseline; current source may include Unreleased maintenance. TCO parity remains enforced against the audited reference workbook in CI."],
+                  [
+                    "Admin ratio / FTE / ops growth",
+                    `${rc.adminRatio}/FTE · ${fmt(rc.opFTE)} · ${Math.round(rc.opsGrowth * 100)}%/yr`,
+                  ],
+                  [
+                    "Suite baseline",
+                    "AI Factory Suite 2026.09 baseline; current source may include Unreleased maintenance. TCO parity remains enforced against the audited reference workbook in CI.",
+                  ],
                 ].map(([k, v]) => (
-                  <div className="report-appendix-row" key={k} style={{ display: "flex", justifyContent: "space-between", borderBottom: `1px solid ${C.line}`, padding: "2px 0" }}>
-                    <span style={{ color: C.sub }}>{k}</span><span style={{ ...mono }}>{v}</span>
+                  <div
+                    className="report-appendix-row"
+                    key={k}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      borderBottom: `1px solid ${C.line}`,
+                      padding: "2px 0",
+                    }}
+                  >
+                    <span style={{ color: C.sub }}>{k}</span>
+                    <span style={{ ...mono }}>{v}</span>
                   </div>
                 ))}
               </div>
             </div>
-            <div style={{ borderTop: `2px solid ${C.ink}`, marginTop: 14, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
+            <div
+              style={{
+                borderTop: `2px solid ${C.ink}`,
+                marginTop: 14,
+                paddingTop: 10,
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
               <div>
                 <div style={{ ...disp, fontWeight: 700, fontSize: 13 }}>Jay B. Carlile</div>
                 <div style={{ fontSize: 11, color: C.sub }}>AI Solutions Executive · CDW AI Factory</div>
               </div>
-              <div style={{ fontSize: 11, color: C.sub, textAlign: "right" }}>Next step: bring your cloud invoice<br/>for a validated analysis</div>
+              <div style={{ fontSize: 11, color: C.sub, textAlign: "right" }}>
+                Next step: bring your cloud invoice
+                <br />
+                for a validated analysis
+              </div>
             </div>
           </div>
         )}
 
-
         {view === "audit" && (
-          <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
+          <div
+            style={{
+              background: "#fff",
+              border: `1px solid ${C.line}`,
+              borderRadius: 12,
+              padding: 18,
+              marginBottom: 14,
+            }}
+          >
             <div className="no-print pdf-btn-row" style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              <button onClick={() => window.print()} style={{ ...disp, flex: 1, fontWeight: 700, fontSize: 13, padding: "10px", borderRadius: 8, border: "none", cursor: "pointer", background: C.ink, color: "#fff" }}>Print / Save as PDF</button>
-              <button onClick={() => setView("report")} style={{ ...disp, fontSize: 13, padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.line}`, cursor: "pointer", background: "#fff", color: C.sub }}>Back to report</button>
+              <button
+                onClick={() => window.print()}
+                style={{
+                  ...disp,
+                  flex: 1,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  padding: "10px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
+                  background: C.ink,
+                  color: "#fff",
+                }}
+              >
+                Print / Save as PDF
+              </button>
+              <button
+                onClick={() => setView("report")}
+                style={{
+                  ...disp,
+                  fontSize: 13,
+                  padding: "10px 12px",
+                  borderRadius: 8,
+                  border: `1px solid ${C.line}`,
+                  cursor: "pointer",
+                  background: "#fff",
+                  color: C.sub,
+                }}
+              >
+                Back to report
+              </button>
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
               <img src={cdwLogo} alt="CDW" style={{ height: 34, width: "auto" }} />
-              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: C.sub }}>AI FACTORY · CALCULATION METHODOLOGY &amp; AUDIT TRAIL</div>
+              <div style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: C.sub }}>
+                AI FACTORY · CALCULATION METHODOLOGY &amp; AUDIT TRAIL
+              </div>
             </div>
-            <div style={{ ...disp, fontSize: 21, fontWeight: 700, margin: "4px 0 2px" }}>Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}</div>
-            <div style={{ fontSize: 12, color: C.sub, marginBottom: 4 }}>{new Date().toLocaleDateString()} · Reproducible derivation of the material calculations supporting the {horizon}-year TCO result shown in the main report</div>
+            <div style={{ ...disp, fontSize: 21, fontWeight: 700, margin: "4px 0 2px" }}>
+              Prepared for {lead.name || "you"}
+              {lead.company ? `, ${lead.company}` : ""}
+            </div>
+            <div style={{ fontSize: 12, color: C.sub, marginBottom: 4 }}>
+              {new Date().toLocaleDateString()} · Reproducible derivation of the material calculations supporting the{" "}
+              {horizon}-year TCO result shown in the main report
+            </div>
             <div style={{ fontSize: 11, color: C.sub, marginBottom: 16, fontStyle: "italic" }}>
-              This document formats and explains the same calculation the main report already ran -- it does not run a separate or independent calculation. Every figure below traces to the same engine output shown on screen.
+              This document formats and explains the same calculation the main report already ran -- it does not run a
+              separate or independent calculation. Every figure below traces to the same engine output shown on screen.
             </div>
 
             {/* SECTION 1: SCENARIO OVERVIEW */}
-            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>1. SCENARIO OVERVIEW</div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.sub, marginTop: 6, marginBottom: 2 }}>What you told us</div>
+            <div
+              style={{
+                ...mono,
+                fontSize: 11,
+                letterSpacing: 1,
+                color: C.ink,
+                marginBottom: 8,
+                borderBottom: `2px solid ${C.ink}`,
+                paddingBottom: 4,
+              }}
+            >
+              1. SCENARIO OVERVIEW
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.sub, marginTop: 6, marginBottom: 2 }}>
+              What you told us
+            </div>
             <Row label="Planning basis" value={r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend"} />
             {r.isWorkloadMode ? (
-              <Row label="Technical GPU requirement" value={`${gpuSizingCount} × ${sourceClass || gpuClass} (from GPU Sizing)`} />
+              <Row
+                label="Technical GPU requirement"
+                value={`${gpuSizingCount} × ${sourceClass || gpuClass} (from GPU Sizing)`}
+              />
             ) : (
               <Row label="Reported monthly cloud bill" value={fmt(bill)} />
             )}
             <Row label="Cloud provider / rented GPU class" value={`${provider} / ${gpuClass}`} />
             <Row label="Target on-prem system" value={ownSys} />
-            <Row label="On-demand vs. reserved mix" value={`${Math.round(odShare * 100)}% on-demand / ${Math.round((1 - odShare) * 100)}% reserved`} />
+            <Row
+              label="On-demand vs. reserved mix"
+              value={`${Math.round(odShare * 100)}% on-demand / ${Math.round((1 - odShare) * 100)}% reserved`}
+            />
             {r.isWorkloadMode && <Row label="Duty cycle" value={`${workingDayHours} hrs/day`} />}
-            <Row label="Model context" value={`${modelDisplay} @ ${quant}`} sub={r.isWorkloadMode ? "carried from GPU Sizing when available; used only for directional capacity/unit economics" : "standalone TCO capacity assumption"} />
+            <Row
+              label="Model context"
+              value={`${modelDisplay} @ ${quant}`}
+              sub={
+                r.isWorkloadMode
+                  ? "carried from GPU Sizing when available; used only for directional capacity/unit economics"
+                  : "standalone TCO capacity assumption"
+              }
+            />
             <Row label="Annual compute growth" value={`${Math.round(growth * 100)}%/yr`} />
             <Row label="Facility" value={facility} />
             <Row label="Analysis horizon" value={`${horizon} years`} />
-            <Row label="Residual value assumption" value={`${Math.round(residPct * 100)}% of hardware value at horizon`} />
+            <Row
+              label="Residual value assumption"
+              value={`${Math.round(residPct * 100)}% of hardware value at horizon`}
+            />
 
-            <div style={{ fontSize: 11, fontWeight: 700, color: C.sub, marginTop: 12, marginBottom: 2 }}>Model-supplied assumptions (editable rate card, not your inputs)</div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.sub, marginTop: 12, marginBottom: 2 }}>
+              Model-supplied assumptions (editable rate card, not your inputs)
+            </div>
             <Row label="On-demand rate" value={`$${rc.instOD.toFixed(2)}/GPU-hr`} sub={`${provider} ${gpuClass}`} />
-            <Row label="Reserved rate" value={`$${rc.instRes.toFixed(2)}/GPU-hr`} sub={RATES[provider][gpuClass].res != null ? "NVIDIA TCO snapshot ($68.36 per 8-GPU B200 instance)" : "60% of on-demand, estimated 1-yr reserved discount"} />
-            <Row label="NVAIE software rate (on-demand / reserved)" value={`$${rc.nvaieOD.toFixed(2)} / $${rc.nvaieRes.toFixed(2)} per GPU-hr`} />
+            <Row
+              label="Reserved rate"
+              value={`$${rc.instRes.toFixed(2)}/GPU-hr`}
+              sub={
+                RATES[provider][gpuClass].res != null
+                  ? "NVIDIA TCO snapshot ($68.36 per 8-GPU B200 instance)"
+                  : "60% of on-demand, estimated 1-yr reserved discount"
+              }
+            />
+            <Row
+              label="NVAIE software rate (on-demand / reserved)"
+              value={`$${rc.nvaieOD.toFixed(2)} / $${rc.nvaieRes.toFixed(2)} per GPU-hr`}
+            />
             <Row label="PaaS uplift" value={`${(rc.paasUplift * 100).toFixed(0)}%`} />
             {(() => {
               // Every editable rate-card field this document's equations use,
@@ -1493,30 +2778,75 @@ function AppInner() {
               // rows below with their own default-reference comparison, so
               // they're excluded here to avoid double-disclosure.
               const RATE_LABELS = {
-                instRes: "Cloud $/GPU-hr, 1-yr reserved", nvaieRes: "NVAIE support $/GPU-hr, reserved",
-                nvaieOD: "NVAIE support $/GPU-hr, on-demand", fastGB: "Fast storage $/GB/mo",
-                bulkGB: "Bulk storage $/GB/mo", cloudTok: "Managed API blended $/1M tokens",
-                egressGB: "Egress $/GB", cluster: "Cluster mgmt nodes $ (fixed per cluster)",
-                fastPB: "Fast storage $/PB", bulkPB: "Bulk storage $/PB",
-                sysKw: `Power kW per ${ownSys}`, equinixMo: "Equinix bundle $/system/mo",
-                adminRatio: "Systems per admin FTE", opFTE: "Admin FTE loaded $/yr",
+                instRes: "Cloud $/GPU-hr, 1-yr reserved",
+                nvaieRes: "NVAIE support $/GPU-hr, reserved",
+                nvaieOD: "NVAIE support $/GPU-hr, on-demand",
+                fastGB: "Fast storage $/GB/mo",
+                bulkGB: "Bulk storage $/GB/mo",
+                cloudTok: "Managed API blended $/1M tokens",
+                egressGB: "Egress $/GB",
+                cluster: "Cluster mgmt nodes $ (fixed per cluster)",
+                fastPB: "Fast storage $/PB",
+                bulkPB: "Bulk storage $/PB",
+                sysKw: `Power kW per ${ownSys}`,
+                equinixMo: "Equinix bundle $/system/mo",
+                adminRatio: "Systems per admin FTE",
+                opFTE: "Admin FTE loaded $/yr",
                 netMo: "Network/VPN/firewall $/mo",
               };
               const overridden = Object.keys(ov).filter((k) => k in RATE_LABELS);
               if (!overridden.length) return null;
               return (
-                <div style={{ fontSize: 11, color: C.ink, marginTop: 8, background: "#FFF8E6", border: "1px solid #E8CE8A", borderRadius: 8, padding: "10px 12px" }}>
-                  <b>Rate card overrides in this scenario:</b> {overridden.map((k) => RATE_LABELS[k]).join(", ")}. Source: User/client supplied -- these values were entered directly rather than taken from the reference registry below. Unmodified assumptions continue to use the reference sources shown in Section 6.
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: C.ink,
+                    marginTop: 8,
+                    background: "#FFF8E6",
+                    border: "1px solid #E8CE8A",
+                    borderRadius: 8,
+                    padding: "10px 12px",
+                  }}
+                >
+                  <b>Rate card overrides in this scenario:</b> {overridden.map((k) => RATE_LABELS[k]).join(", ")}.
+                  Source: User/client supplied -- these values were entered directly rather than taken from the
+                  reference registry below. Unmodified assumptions continue to use the reference sources shown in
+                  Section 6.
                 </div>
               );
             })()}
 
-            <div style={{ fontSize: 11, color: C.ink, marginTop: 12, marginBottom: 14, background: "#F7F7F7", borderRadius: 8, padding: "10px 12px" }}>
-              <b>Key assumptions worth stress-testing:</b> the blended cloud $/GPU-hr rate (Section 2), the generational capability factor between your rented and target GPU classes, annual compute growth, on-prem system cost, and any unusually large infrastructure or transition costs specific to this scenario.
+            <div
+              style={{
+                fontSize: 11,
+                color: C.ink,
+                marginTop: 12,
+                marginBottom: 14,
+                background: "#F7F7F7",
+                borderRadius: 8,
+                padding: "10px 12px",
+              }}
+            >
+              <b>Key assumptions worth stress-testing:</b> the blended cloud $/GPU-hr rate (Section 2), the generational
+              capability factor between your rented and target GPU classes, annual compute growth, on-prem system cost,
+              and any unusually large infrastructure or transition costs specific to this scenario.
             </div>
 
             {/* SECTION 2: CLOUD CALCULATION */}
-            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>2. HOW THE CLOUD COST WAS CALCULATED</div>
+            <div
+              style={{
+                ...mono,
+                fontSize: 11,
+                letterSpacing: 1,
+                color: C.ink,
+                marginTop: 18,
+                marginBottom: 8,
+                borderBottom: `2px solid ${C.ink}`,
+                paddingBottom: 4,
+              }}
+            >
+              2. HOW THE CLOUD COST WAS CALCULATED
+            </div>
             <AuditFormula
               label="Blended cloud rate (instance + software, weighted by your on-demand/reserved mix)"
               formula="blended = [odShare × (instOD + nvaieOD) + (1 − odShare) × (instRes + nvaieRes)] × (1 + paasUplift)"
@@ -1524,7 +2854,10 @@ function AppInner() {
               result={`$${r.blended.toFixed(2)}/GPU-hr`}
             />
             {SYS_CLASS[ownSys] === gpuClass ? (
-              <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>Cloud-rented class ({gpuClass}) and on-prem target class ({SYS_CLASS[ownSys]}) are the same; generational conversion factor = <b>{r.genPF.toFixed(2)}×</b>.</div>
+              <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>
+                Cloud-rented class ({gpuClass}) and on-prem target class ({SYS_CLASS[ownSys]}) are the same;
+                generational conversion factor = <b>{r.genPF.toFixed(2)}×</b>.
+              </div>
             ) : (
               <AuditFormula
                 label="Generational capability factor (cloud-rented class differs from on-prem target class)"
@@ -1534,8 +2867,20 @@ function AppInner() {
               />
             )}
             {r.sourceConversion && (
-              <div style={{ fontSize: 11, color: C.sub, marginBottom: 10, background: "#F7F7F7", borderRadius: 6, padding: "8px 10px" }}>
-                <b>Separate normalization:</b> the GPU Sizing handoff's source class ({sourceClass}) differs from the on-prem target class ({SYS_CLASS[ownSys]}). The incoming GPU count was converted at <b>{r.sourceConversion.toFixed(2)}×</b> before fleet sizing below. This is unrelated to the cloud-rented-class factor above.
+              <div
+                style={{
+                  fontSize: 11,
+                  color: C.sub,
+                  marginBottom: 10,
+                  background: "#F7F7F7",
+                  borderRadius: 6,
+                  padding: "8px 10px",
+                }}
+              >
+                <b>Separate normalization:</b> the GPU Sizing handoff's source class ({sourceClass}) differs from the
+                on-prem target class ({SYS_CLASS[ownSys]}). The incoming GPU count was converted at{" "}
+                <b>{r.sourceConversion.toFixed(2)}×</b> before fleet sizing below. This is unrelated to the
+                cloud-rented-class factor above.
               </div>
             )}
             {r.isWorkloadMode ? (
@@ -1555,11 +2900,23 @@ function AppInner() {
               </>
             ) : (
               <>
-                <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>In Existing Cloud Spend mode, your reported monthly bill <b>is</b> the cloud cost -- it is not derived from the blended rate. The blended rate is used only to reverse-estimate how many GPU-hours that bill represents, for sizing the comparable on-prem fleet below.</div>
+                <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>
+                  In Existing Cloud Spend mode, your reported monthly bill <b>is</b> the cloud cost -- it is not derived
+                  from the blended rate. The blended rate is used only to reverse-estimate how many GPU-hours that bill
+                  represents, for sizing the comparable on-prem fleet below.
+                </div>
                 <AuditFormula
                   label="Reconstructed GPU-hours (for on-prem fleet sizing only)"
-                  formula={tier3Hrs > 0 ? "gpuHrs = your entered Tier 3 actual GPU-hours (overrides the estimate)" : "gpuHrs = (monthly bill × compute share) ÷ blended rate"}
-                  substituted={tier3Hrs > 0 ? `= ${tier3Hrs.toLocaleString()} hrs/mo (Tier 3 actual)` : `= (${fmt(bill)} × ${Math.round(computeShare * 100)}%) ÷ $${r.blended.toFixed(2)}/hr`}
+                  formula={
+                    tier3Hrs > 0
+                      ? "gpuHrs = your entered Tier 3 actual GPU-hours (overrides the estimate)"
+                      : "gpuHrs = (monthly bill × compute share) ÷ blended rate"
+                  }
+                  substituted={
+                    tier3Hrs > 0
+                      ? `= ${tier3Hrs.toLocaleString()} hrs/mo (Tier 3 actual)`
+                      : `= (${fmt(bill)} × ${Math.round(computeShare * 100)}%) ÷ $${r.blended.toFixed(2)}/hr`
+                  }
                   result={`${r.gpuHrs.toLocaleString(undefined, { maximumFractionDigits: 0 })} hrs/mo`}
                 />
                 <AuditFormula
@@ -1568,7 +2925,10 @@ function AppInner() {
                   substituted={`= ${r.genPF.toFixed(2)} × ${fNet.toFixed(2)} × ${fSw.toFixed(2)} × ${fNvaie.toFixed(2)}`}
                   result={`${(r.genPF * fNet * fSw * fNvaie).toFixed(2)}×`}
                 />
-                <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>Your monthly bill: <b style={{ color: C.ink }}>{fmt(bill)}/mo</b> ({fmt(bill * computeShare)} compute + {fmt(bill * (1 - computeShare))} non-compute).</div>
+                <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>
+                  Your monthly bill: <b style={{ color: C.ink }}>{fmt(bill)}/mo</b> ({fmt(bill * computeShare)} compute
+                  + {fmt(bill * (1 - computeShare))} non-compute).
+                </div>
               </>
             )}
             <AuditFormula
@@ -1578,21 +2938,58 @@ function AppInner() {
               result={fmt(r.cloudStorage)}
             />
             {r.isWorkloadMode ? (
-              <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>Year 1 cloud total (compute + storage) = {fmt(r.monthlyCloudBaseline - r.cloudStorage)} + {fmt(r.cloudStorage)} = <b style={{ color: C.ink }}>{fmt(r.monthlyCloudBaseline)}/mo</b>. The compute portion grows {Math.round(growth * 100)}%/yr; the storage portion grows {Math.round(rc.opsGrowth * 100)}%/yr -- these are different rates, not a single blended escalation.</div>
+              <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>
+                Year 1 cloud total (compute + storage) = {fmt(r.monthlyCloudBaseline - r.cloudStorage)} +{" "}
+                {fmt(r.cloudStorage)} = <b style={{ color: C.ink }}>{fmt(r.monthlyCloudBaseline)}/mo</b>. The compute
+                portion grows {Math.round(growth * 100)}%/yr; the storage portion grows {Math.round(rc.opsGrowth * 100)}
+                %/yr -- these are different rates, not a single blended escalation.
+              </div>
             ) : (
-              <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>Year 1 cloud total = your reported bill = <b style={{ color: C.ink }}>{fmt(bill)}/mo</b>. The compute-share portion grows {Math.round(growth * 100)}%/yr; the non-compute-share portion grows {Math.round(rc.opsGrowth * 100)}%/yr -- these are different rates, not a single blended escalation.</div>
+              <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>
+                Year 1 cloud total = your reported bill = <b style={{ color: C.ink }}>{fmt(bill)}/mo</b>. The
+                compute-share portion grows {Math.round(growth * 100)}%/yr; the non-compute-share portion grows{" "}
+                {Math.round(rc.opsGrowth * 100)}%/yr -- these are different rates, not a single blended escalation.
+              </div>
             )}
 
-            <div style={{ fontSize: 11, color: C.sub, marginBottom: 10, background: "#F7F7F7", borderRadius: 6, padding: "8px 10px" }}>
-              <b>Cloud GPU unit-price trend:</b> {cloudUnitPriceTrend > 0 ? "+" : ""}{cloudUnitPriceTrend}%/yr applied to modeled cloud GPU compute rates only. Workload growth remains a separate consumption assumption.
+            <div
+              style={{
+                fontSize: 11,
+                color: C.sub,
+                marginBottom: 10,
+                background: "#F7F7F7",
+                borderRadius: 6,
+                padding: "8px 10px",
+              }}
+            >
+              <b>Cloud GPU unit-price trend:</b> {cloudUnitPriceTrend > 0 ? "+" : ""}
+              {cloudUnitPriceTrend}%/yr applied to modeled cloud GPU compute rates only. Workload growth remains a
+              separate consumption assumption.
             </div>
 
             {/* SECTION 3: ON-PREM CALCULATION */}
-            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>3. HOW THE ON-PREM FLEET AND COST WAS CALCULATED</div>
+            <div
+              style={{
+                ...mono,
+                fontSize: 11,
+                letterSpacing: 1,
+                color: C.ink,
+                marginTop: 18,
+                marginBottom: 8,
+                borderBottom: `2px solid ${C.ink}`,
+                paddingBottom: 4,
+              }}
+            >
+              3. HOW THE ON-PREM FLEET AND COST WAS CALCULATED
+            </div>
             <AuditFormula
               label="System count"
               formula="systems = CEILING(technicalGpuHrs / perSystemHrs)"
-              substituted={r.isWorkloadMode ? "sized directly from the GPU Sizing technical requirement" : "sized from workload-equivalent hours at target utilization"}
+              substituted={
+                r.isWorkloadMode
+                  ? "sized directly from the GPU Sizing technical requirement"
+                  : "sized from workload-equivalent hours at target utilization"
+              }
               result={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`}
             />
             <AuditFormula
@@ -1607,7 +3004,10 @@ function AppInner() {
               substituted={`${fmt(migration)} migration${facility === "Self-hosted (retrofit)" ? ` + ${fmt(retrofit)} retrofit` : ""} + (${dualRun} mo × ${fmt(r.monthlyCloudBaseline)}) + ${fmt(r.exitEgress)} egress`}
               result={fmt(r.oneTime)}
             />
-            <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>Initial capital + transition = {fmt(r.adj.capex)} + {fmt(r.oneTime)} = <b style={{ color: C.ink }}>{fmt(r.adj.capex + r.oneTime)}</b></div>
+            <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>
+              Initial capital + transition = {fmt(r.adj.capex)} + {fmt(r.oneTime)} ={" "}
+              <b style={{ color: C.ink }}>{fmt(r.adj.capex + r.oneTime)}</b>
+            </div>
             {r.year0OpexBreakdown.isEquinix ? (
               <AuditFormula
                 label="Monthly operating cost (Equinix)"
@@ -1631,8 +3031,23 @@ function AppInner() {
             />
 
             {/* SECTION 4: YEAR-BY-YEAR CASH FLOW & CROSSOVER */}
-            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>4. YEAR-BY-YEAR CUMULATIVE CASH FLOW</div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 11, marginBottom: 10 }}>
+            <div
+              style={{
+                ...mono,
+                fontSize: 11,
+                letterSpacing: 1,
+                color: C.ink,
+                marginTop: 18,
+                marginBottom: 8,
+                borderBottom: `2px solid ${C.ink}`,
+                paddingBottom: 4,
+              }}
+            >
+              4. YEAR-BY-YEAR CUMULATIVE CASH FLOW
+            </div>
+            <div
+              style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, fontSize: 11, marginBottom: 10 }}
+            >
               <div style={{ fontWeight: 700, color: C.sub }}>Year</div>
               <div style={{ fontWeight: 700, color: C.sub }}>Cumulative cloud</div>
               <div style={{ fontWeight: 700, color: C.sub }}>Cumulative on-prem</div>
@@ -1645,12 +3060,30 @@ function AppInner() {
               ))}
             </div>
             <div style={{ fontSize: 11, color: C.sub, marginBottom: 14 }}>
-              {r.crossoverMo ? `Cumulative on-prem spend drops below cumulative cloud spend at month ${r.crossoverMo}${r.crossoverMo <= horizon * 12 ? " -- inside your selected horizon." : ", which falls outside your selected horizon."}` : "No crossover found within 60 months at these settings."}
+              {r.crossoverMo
+                ? `Cumulative on-prem spend drops below cumulative cloud spend at month ${r.crossoverMo}${r.crossoverMo <= horizon * 12 ? " -- inside your selected horizon." : ", which falls outside your selected horizon."}`
+                : "No crossover found within 60 months at these settings."}
             </div>
 
             {/* SECTION 5: RECONCILIATION */}
-            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>5. RECONCILIATION</div>
-            <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>Each check below sums figures from a different part of this document and compares the total to the engine's own horizon total -- not the same number read twice.</div>
+            <div
+              style={{
+                ...mono,
+                fontSize: 11,
+                letterSpacing: 1,
+                color: C.ink,
+                marginTop: 18,
+                marginBottom: 8,
+                borderBottom: `2px solid ${C.ink}`,
+                paddingBottom: 4,
+              }}
+            >
+              5. RECONCILIATION
+            </div>
+            <div style={{ fontSize: 11, color: C.sub, marginBottom: 10 }}>
+              Each check below sums figures from a different part of this document and compares the total to the
+              engine's own horizon total -- not the same number read twice.
+            </div>
             {(() => {
               // Individual-year values, derived by subtracting consecutive cumulative
               // points already emitted by the engine -- not a new calculation of the
@@ -1672,7 +3105,10 @@ function AppInner() {
                   <ReconCheck
                     label="On-prem total (net of residual)"
                     parts={[
-                      ...onPremByYear.map((v, i) => ({ label: `Year ${i + 1} on-prem cash flow (capital + operating)`, value: fmt(v) })),
+                      ...onPremByYear.map((v, i) => ({
+                        label: `Year ${i + 1} on-prem cash flow (capital + operating)`,
+                        value: fmt(v),
+                      })),
                       { label: "Less: residual value credit at horizon", value: `−${fmt(r.adj.resid)}` },
                     ]}
                     calculated={onPremReconciled}
@@ -1692,38 +3128,94 @@ function AppInner() {
             })()}
 
             {/* SECTION 6: SOURCES & CAVEATS */}
-            <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>6. SOURCES, CONFIDENCE, AND CAVEATS</div>
+            <div
+              style={{
+                ...mono,
+                fontSize: 11,
+                letterSpacing: 1,
+                color: C.ink,
+                marginTop: 18,
+                marginBottom: 8,
+                borderBottom: `2px solid ${C.ink}`,
+                paddingBottom: 4,
+              }}
+            >
+              6. SOURCES, CONFIDENCE, AND CAVEATS
+            </div>
             <AuditSourceRow
-              label="Cloud on-demand rate" value={`$${rc.instOD.toFixed(2)}/hr`}
-              source={"instOD" in ov ? "User/client override" : "Public provider pricing, normalized from tracked pricing sources"}
-              basis={"instOD" in ov ? `Default reference: $${defaults.instOD.toFixed(2)}/hr, ${RATES[provider]?.[gpuClass]?.conf || "—"}` : `${provider} ${gpuClass}`}
+              label="Cloud on-demand rate"
+              value={`$${rc.instOD.toFixed(2)}/hr`}
+              source={
+                "instOD" in ov
+                  ? "User/client override"
+                  : "Public provider pricing, normalized from tracked pricing sources"
+              }
+              basis={
+                "instOD" in ov
+                  ? `Default reference: $${defaults.instOD.toFixed(2)}/hr, ${RATES[provider]?.[gpuClass]?.conf || "—"}`
+                  : `${provider} ${gpuClass}`
+              }
               confidence={"instOD" in ov ? null : RATES[provider]?.[gpuClass]?.conf || "—"}
               verified={"instOD" in ov ? null : fmtVerifiedDate(CLOUD_RATES_VERIFIED_AT)}
             />
             <AuditSourceRow
-              label="On-prem system cost" value={fmt(rc.perSysCost)}
+              label="On-prem system cost"
+              value={fmt(rc.perSysCost)}
               source={"perSysCost" in ov ? "User/client override" : "NVIDIA DGX TCO reference pricing"}
-              basis={"perSysCost" in ov ? `Default reference: ${fmt(defaults.perSysCost)}, verified ${fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)}` : ownSys}
+              basis={
+                "perSysCost" in ov
+                  ? `Default reference: ${fmt(defaults.perSysCost)}, verified ${fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)}`
+                  : ownSys
+              }
               verified={"perSysCost" in ov ? null : fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)}
             />
-            <AuditSourceRow label="Generational capability factor" value={`${r.genPF.toFixed(2)}×`} source="MLPerf-derived benchmark ratio" confidence="Directional -- workload-dependent" />
-            {r.cap.fits && <AuditSourceRow label="Serving capacity estimate" value={`~${r.cap.users.toLocaleString()} users`} source="Rule-of-thumb sizing, not a benchmark" est />}
+            <AuditSourceRow
+              label="Generational capability factor"
+              value={`${r.genPF.toFixed(2)}×`}
+              source="MLPerf-derived benchmark ratio"
+              confidence="Directional -- workload-dependent"
+            />
+            {r.cap.fits && (
+              <AuditSourceRow
+                label="Serving capacity estimate"
+                value={`~${r.cap.users.toLocaleString()} users`}
+                source="Rule-of-thumb sizing, not a benchmark"
+                est
+              />
+            )}
             <div style={{ fontSize: 10.5, color: C.sub, marginTop: 12, lineHeight: 1.5 }}>
-              All figures on this page are directional planning estimates derived from the inputs and rate card shown above, using the same calculation the main report already ran. They are intended to support scenario planning and internal decision-making, not to serve as a final quote or binding proposal. Confirm current pricing, technical specifications, and implementation timelines with your CDW account team before finalizing any purchase or budget decision.
+              All figures on this page are directional planning estimates derived from the inputs and rate card shown
+              above, using the same calculation the main report already ran. They are intended to support scenario
+              planning and internal decision-making, not to serve as a final quote or binding proposal. Confirm current
+              pricing, technical specifications, and implementation timelines with your CDW account team before
+              finalizing any purchase or budget decision.
             </div>
 
-            <div style={{ borderTop: `2px solid ${C.ink}`, marginTop: 16, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>
+            <div
+              style={{
+                borderTop: `2px solid ${C.ink}`,
+                marginTop: 16,
+                paddingTop: 10,
+                display: "flex",
+                justifyContent: "space-between",
+              }}
+            >
               <div>
                 <div style={{ ...disp, fontWeight: 700, fontSize: 13 }}>Jay B. Carlile</div>
                 <div style={{ fontSize: 11, color: C.sub }}>AI Solutions Executive · CDW AI Factory</div>
               </div>
-              <div style={{ fontSize: 11, color: C.sub, textAlign: "right" }}>Questions about this derivation?<br/>Bring your cloud invoice for a validated pass</div>
+              <div style={{ fontSize: 11, color: C.sub, textAlign: "right" }}>
+                Questions about this derivation?
+                <br />
+                Bring your cloud invoice for a validated pass
+              </div>
             </div>
           </div>
         )}
 
-        {view === "calc" && (<div>
-        {/* Fix (Planning Basis toggle, product decision confirmed): this used
+        {view === "calc" && (
+          <div>
+            {/* Fix (Planning Basis toggle, product decision confirmed): this used
             to also require arrivedFromGpuSizing, a URL-only flag that's
             false on any refresh, Back/Forward, or bare-link visit -- so the
             whole panel (toggle AND the explanatory text) vanished the
@@ -1738,474 +3230,1344 @@ function AppInner() {
             keeping it available for the rest of the session once a real
             handoff has occurred, matching how every other TCO field
             already behaves after a refresh. */}
-        {gpuSizingSystems && (
-          <div style={{ background: "#F5F5F5", border: "1px solid #ddd", borderRadius: 10, padding: "12px 16px", marginBottom: 14, fontSize: 13, color: "#444" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 8 }}>
-              <span style={{ ...mono, fontSize: 10, letterSpacing: 1, color: "#888" }}>PLANNING BASIS</span>
-              <div style={{ display: "flex", gap: 4 }}>
-                {[["workload", "Workload Requirement"], ["spend", "Existing Cloud Spend"]].map(([mv, label]) => (
-                  <button key={mv} onClick={() => setMode(mv)}
-                    style={{ ...disp, fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
-                      border: mode === mv ? "none" : "1px solid #ccc", background: mode === mv ? "#CC0000" : "transparent",
-                      color: mode === mv ? "#fff" : "#666" }}>{label}</button>
+            {gpuSizingSystems && (
+              <div
+                style={{
+                  background: "#F5F5F5",
+                  border: "1px solid #ddd",
+                  borderRadius: 10,
+                  padding: "12px 16px",
+                  marginBottom: 14,
+                  fontSize: 13,
+                  color: "#444",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 12,
+                    marginBottom: 8,
+                  }}
+                >
+                  <span style={{ ...mono, fontSize: 10, letterSpacing: 1, color: "#888" }}>PLANNING BASIS</span>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {[
+                      ["workload", "Workload Requirement"],
+                      ["spend", "Existing Cloud Spend"],
+                    ].map(([mv, label]) => (
+                      <button
+                        key={mv}
+                        onClick={() => setMode(mv)}
+                        style={{
+                          ...disp,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: "4px 10px",
+                          borderRadius: 8,
+                          cursor: "pointer",
+                          border: mode === mv ? "none" : "1px solid #ccc",
+                          background: mode === mv ? "#CC0000" : "transparent",
+                          color: mode === mv ? "#fff" : "#666",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {mode === "workload" ? (
+                  <>
+                    Comparing{" "}
+                    <strong>
+                      {r.sysAdj} x {ownSys}
+                    </strong>{" "}
+                    ({gpuSizingCount} {sourceClass || ownSys}-class GPUs, your GPU Sizing recommendation) for{" "}
+                    <strong>{modelDisplay}</strong>
+                    {incomingQuant ? ` at ${quant}` : ""}
+                    against the estimated cloud cost of running that <em>same workload</em>, not your entered spend.
+                    Storage is now a direct input below (no bill to auto-derive it from). Switch to "Existing Cloud
+                    Spend" above for the original bake-off against what you're paying today.
+                    <div style={{ marginTop: 6, color: "#666" }}>
+                      {r.sourceConversion ? (
+                        <>
+                          Recommendation was sized at {sourceClass} ({gpuSizingCount} GPUs); normalized to {r.sysAdj} ×{" "}
+                          {ownSys} using a {r.sourceConversion.toFixed(2)}x generational capability ratio, since{" "}
+                          {ownSys} isn't the same class the count was computed for.{" "}
+                        </>
+                      ) : null}
+                      {workingDayHours ? (
+                        <>
+                          Cloud side priced for a {workingDayHours}-hour/day duty cycle (from GPU Sizing), not 24/7 -- a
+                          business-hours workload shouldn't be priced as continuous rental.{" "}
+                        </>
+                      ) : (
+                        <>
+                          No duty-cycle data came through from GPU Sizing (training handoff, or an older link), so the
+                          cloud side assumes the same utilization as the on-prem target ({Math.round(util * 100)}% of
+                          all hours) -- likely an overstatement for a business-hours workload.{" "}
+                        </>
+                      )}
+                      Cloud alternative priced at{" "}
+                      <strong>
+                        {provider} {gpuClass}
+                      </strong>{" "}
+                      -- change this under Tier 2 if that's not what you'd actually rent.
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    Target system pre-set to <strong>{ownSys}</strong>, based on your GPU Sizing recommendation of{" "}
+                    <strong>
+                      {gpuSizingSystems} x {ownSys}
+                    </strong>{" "}
+                    ({gpuSizingCount} GPUs). Enter your current monthly cloud spend below to see whether owning it costs
+                    less than what you're paying today.
+                    {fleetsDisagree ? (
+                      <div style={{ marginTop: 6, color: "#666" }}>
+                        The fleet size below is derived from your cloud spend, not this technical recommendation, so it
+                        may differ. Cloud spend reflects your current usage and pricing; GPU Sizing reflects the
+                        workload's technical requirement -- they can legitimately disagree. Switch to "Workload
+                        Requirement" above for a fair comparison based on what the workload actually needs.
+                      </div>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            )}
+            {/* RESULTS */}
+            <div
+              style={{
+                background: C.ink,
+                borderRadius: 14,
+                padding: "16px 16px 12px",
+                marginBottom: 14,
+                color: "#FFFFFF",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: "#ABABAB" }}>
+                  {horizon}-YEAR SAVINGS · {tier}
+                  {editedCount > 0 ? ` · ${editedCount} RATE${editedCount > 1 ? "S" : ""} EDITED` : ""}
+                </span>
+                <div style={{ display: "flex", gap: 4 }}>
+                  {[1, 3, 5].map((h) => (
+                    <button
+                      key={h}
+                      onClick={() => setHorizon(h)}
+                      style={{
+                        ...disp,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        padding: "4px 10px",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        border: horizon === h ? "none" : "1px solid #4A4A4A",
+                        background: horizon === h ? C.green : "transparent",
+                        color: horizon === h ? "#FFFFFF" : "#ABABAB",
+                      }}
+                    >
+                      {h}yr
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {t.saveAdj > 0 ? (
+                <>
+                  <div
+                    style={{
+                      ...mono,
+                      fontSize: 40,
+                      fontWeight: 600,
+                      color: "#FFFFFF",
+                      margin: "6px 0 0",
+                      borderBottom: "3px solid #CC0000",
+                      display: "inline-block",
+                      paddingBottom: 2,
+                    }}
+                  >
+                    {fmtM(t.saveAdj)}
+                  </div>
+                  <div style={{ fontSize: 12, color: "#D0D0D0", marginBottom: 10 }}>
+                    {(t.cloud > 0 ? (t.saveAdj / t.cloud) * 100 : 0).toFixed(0)}% below cloud · floor case (
+                    {r.isWorkloadMode ? "no generational credit" : "no perf factors"}):{" "}
+                    <span style={{ ...mono, color: "#C9C9C9" }}>{fmtM(t.saveFlr)}</span>
+                  </div>
+                </>
+              ) : (
+                <div
+                  style={{
+                    background: "#3A3A3A",
+                    borderLeft: "3px solid #CC0000",
+                    borderRadius: 6,
+                    padding: "10px 12px",
+                    margin: "8px 0 10px",
+                  }}
+                >
+                  <div
+                    style={{ ...mono, fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}
+                  >{`NO COST CROSSOVER WITHIN THE SELECTED ${horizon}-YEAR HORIZON`}</div>
+                  <div style={{ fontSize: 12, color: "#D0D0D0", marginTop: 4 }}>
+                    At these settings, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by{" "}
+                    {fmtM(-t.saveAdj)} — the fixed cluster overhead and transition costs outweigh the ownership
+                    advantage at this scale and horizon. A longer horizon may still cross — check the 3yr and 5yr views.
+                    {r.crossoverMo && r.crossoverMo > horizon * 12
+                      ? ` Cumulative cash flows project crossover around month ${r.crossoverMo}.`
+                      : ""}
+                    {minViable && minViable > bill
+                      ? ` On-prem starts to pencil around ${fmtM(minViable)}/mo at these settings.`
+                      : ""}{" "}
+                    An honest tool says so.
+                  </div>
+                </div>
+              )}
+              <div style={{ background: "#1F1F1F", borderRadius: 8, padding: "10px 12px" }}>
+                {r.isWorkloadMode ? (
+                  <>
+                    <Bar
+                      label={`Stay in cloud — adjusted (workload-equivalent)`}
+                      value={t.cloud}
+                      max={maxBar}
+                      color={"#8A8A8A"}
+                    />
+                    <Bar
+                      label={`Stay in cloud — floor case (no generational credit)`}
+                      value={t.cloudFloor}
+                      max={maxBar}
+                      color={"#C9C9C9"}
+                    />
+                    <Bar
+                      label={`Own it (${r.sysAdj} × ${ownSys}${redundancy ? " incl. N+1" : ""}, fixed by workload requirement)`}
+                      value={t.onAdj}
+                      max={maxBar}
+                      color={"#CC0000"}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Bar label={`Stay in cloud (${horizon}yr)`} value={t.cloud} max={maxBar} color={"#8A8A8A"} />
+                    <Bar
+                      label={`Own it — adjusted (${r.sysAdj} × ${ownSys}${redundancy ? " incl. N+1" : ""})`}
+                      value={t.onAdj}
+                      max={maxBar}
+                      color={"#CC0000"}
+                    />
+                    <Bar
+                      label={`Own it — floor case (${r.sysFloor} × ${ownSys}${redundancy ? " incl. N+1" : ""})`}
+                      value={t.onFlr}
+                      max={maxBar}
+                      color={"#C9C9C9"}
+                    />
+                  </>
+                )}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 10 }}>
+                {[
+                  [
+                    "FLEET",
+                    `${r.sysAdj} sys`,
+                    r.fleetAdj[horizon - 1] > r.sysAdj
+                      ? `${Math.round(r.headroom * 100)}% headroom → ${r.fleetAdj[horizon - 1]} sys by yr ${horizon}`
+                      : `${Math.round(r.headroom * 100)}% headroom`,
+                  ],
+                  ["CAPEX + 1-TIME", fmtM(r.adj.capex + r.oneTime), `${fmtM(r.oneTime)} transition`],
+                  [
+                    "CROSSOVER",
+                    r.crossoverMo ? `mo ${r.crossoverMo}` : "none ≤60mo",
+                    `static payback ${r.payback ? r.payback.toFixed(0) + "mo" : "n/a"} · ${t.onAdj > 0 ? Math.round((t.saveAdj / t.onAdj) * 100) : 0}% ROI`,
+                  ],
+                ].map(([k, v, s]) => (
+                  <div key={k} style={{ background: "#1F1F1F", borderRadius: 8, padding: "8px 10px" }}>
+                    <div style={{ ...mono, fontSize: 9, letterSpacing: 1.2, color: "#ABABAB" }}>{k}</div>
+                    <div style={{ ...mono, fontSize: 15, fontWeight: 600, color: "#FFFFFF" }}>{v}</div>
+                    <div style={{ fontSize: 10, color: "#ABABAB" }}>{s}</div>
+                  </div>
                 ))}
               </div>
-            </div>
-            {mode === "workload" ? (
-              <>
-                Comparing <strong>{r.sysAdj} x {ownSys}</strong> ({gpuSizingCount} {sourceClass || ownSys}-class GPUs, your GPU Sizing recommendation)
-                for <strong>{modelDisplay}</strong>{incomingQuant ? ` at ${quant}` : ""}
-                against the estimated cloud cost of running that <em>same workload</em>, not your entered spend. Storage is
-                now a direct input below (no bill to auto-derive it from). Switch to "Existing Cloud Spend" above for the
-                original bake-off against what you're paying today.
-                <div style={{ marginTop: 6, color: "#666" }}>
-                  {r.sourceConversion ? (
-                    <>Recommendation was sized at {sourceClass} ({gpuSizingCount} GPUs); normalized to {r.sysAdj} × {ownSys} using
-                    a {r.sourceConversion.toFixed(2)}x generational capability ratio, since {ownSys} isn't the same class the
-                    count was computed for. </>
-                  ) : null}
-                  {workingDayHours ? (
-                    <>Cloud side priced for a {workingDayHours}-hour/day duty cycle (from GPU Sizing), not 24/7 -- a business-hours
-                    workload shouldn't be priced as continuous rental. </>
-                  ) : (
-                    <>No duty-cycle data came through from GPU Sizing (training handoff, or an older link), so the cloud side
-                    assumes the same utilization as the on-prem target ({Math.round(util * 100)}% of all hours) -- likely an
-                    overstatement for a business-hours workload. </>
-                  )}
-                  Cloud alternative priced at <strong>{provider} {gpuClass}</strong> -- change this under Tier 2 if that's not what
-                  you'd actually rent.
+
+              <div style={{ marginTop: 14 }}>
+                <div style={{ ...mono, fontSize: 10, letterSpacing: 1, color: "#ABABAB", marginBottom: 6 }}>
+                  WHERE THE MONEY GOES IN YEAR 1
                 </div>
-              </>
-            ) : (
-              <>
-                Target system pre-set to <strong>{ownSys}</strong>, based on your GPU Sizing recommendation of{" "}
-                <strong>{gpuSizingSystems} x {ownSys}</strong> ({gpuSizingCount} GPUs). Enter your current monthly cloud
-                spend below to see whether owning it costs less than what you're paying today.
-                {fleetsDisagree ? (
-                  <div style={{ marginTop: 6, color: "#666" }}>
-                    The fleet size below is derived from your cloud spend, not this technical recommendation, so it may
-                    differ. Cloud spend reflects your current usage and pricing; GPU Sizing reflects the workload's
-                    technical requirement -- they can legitimately disagree. Switch to "Workload Requirement" above for
-                    a fair comparison based on what the workload actually needs.
-                  </div>
-                ) : null}
-              </>
-            )}
-          </div>
-        )}
-        {/* RESULTS */}
-        <div style={{ background: C.ink, borderRadius: 14, padding: "16px 16px 12px", marginBottom: 14, color: "#FFFFFF" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: "#ABABAB" }}>
-              {horizon}-YEAR SAVINGS · {tier}{editedCount > 0 ? ` · ${editedCount} RATE${editedCount > 1 ? "S" : ""} EDITED` : ""}
-            </span>
-            <div style={{ display: "flex", gap: 4 }}>
-              {[1, 3, 5].map((h) => (
-                <button key={h} onClick={() => setHorizon(h)}
-                  style={{ ...disp, fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 8, cursor: "pointer",
-                    border: horizon === h ? "none" : "1px solid #4A4A4A", background: horizon === h ? C.green : "transparent",
-                    color: horizon === h ? "#FFFFFF" : "#ABABAB" }}>{h}yr</button>
-              ))}
-            </div>
-          </div>
-          {t.saveAdj > 0 ? (
-            <>
-              <div style={{ ...mono, fontSize: 40, fontWeight: 600, color: "#FFFFFF", margin: "6px 0 0", borderBottom: "3px solid #CC0000", display: "inline-block", paddingBottom: 2 }}>
-                {fmtM(t.saveAdj)}
+                <YearOneBreakdown
+                  cloudYear1={r.cloudYear1}
+                  capital={r.adj.capex + r.oneTime}
+                  operating={r.adj.opex * 12}
+                />
               </div>
-              <div style={{ fontSize: 12, color: "#D0D0D0", marginBottom: 10 }}>
-                {(t.cloud > 0 ? (t.saveAdj / t.cloud) * 100 : 0).toFixed(0)}% below cloud · floor case ({r.isWorkloadMode ? "no generational credit" : "no perf factors"}): <span style={{ ...mono, color: "#C9C9C9" }}>{fmtM(t.saveFlr)}</span>
-              </div>
-            </>
-          ) : (
-            <div style={{ background: "#3A3A3A", borderLeft: "3px solid #CC0000", borderRadius: 6, padding: "10px 12px", margin: "8px 0 10px" }}>
-              <div style={{ ...mono, fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>{`NO COST CROSSOVER WITHIN THE SELECTED ${horizon}-YEAR HORIZON`}</div>
-              <div style={{ fontSize: 12, color: "#D0D0D0", marginTop: 4 }}>
-                At these settings, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by {fmtM(-t.saveAdj)} — the fixed cluster overhead and transition costs outweigh the ownership advantage at this scale and horizon. A longer horizon may still cross — check the 3yr and 5yr views.{r.crossoverMo && r.crossoverMo > horizon * 12 ? ` Cumulative cash flows project crossover around month ${r.crossoverMo}.` : ""}
-                {minViable && minViable > bill ? ` On-prem starts to pencil around ${fmtM(minViable)}/mo at these settings.` : ""} An honest tool says so.
+
+              <div style={{ marginTop: 14 }}>
+                <div style={{ ...mono, fontSize: 10, letterSpacing: 1, color: "#ABABAB", marginBottom: 6 }}>
+                  CUMULATIVE SPEND, {Math.max(2, horizon)}-YEAR VIEW
+                  {horizon < 2 ? " (min. 2yr shown for a readable trend)" : ""}
+                </div>
+                <CrossoverChart points={r.cumulativeByYear} horizon={horizon} crossoverMo={r.crossoverMo} />
+                <div style={{ display: "flex", gap: 14, fontSize: 10, color: "#ABABAB", marginTop: 4 }}>
+                  <span>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 10,
+                        height: 2,
+                        background: "#8A8A8A",
+                        marginRight: 4,
+                        verticalAlign: "middle",
+                      }}
+                    />
+                    Stay in cloud (cumulative)
+                  </span>
+                  <span>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        width: 10,
+                        height: 2,
+                        background: "#CC0000",
+                        marginRight: 4,
+                        verticalAlign: "middle",
+                      }}
+                    />
+                    Own it (cumulative)
+                  </span>
+                  {r.crossoverMo && r.crossoverMo <= horizon * 12 && (
+                    <span style={{ color: "#FFFFFF" }}>Crosses over month {r.crossoverMo}</span>
+                  )}
+                </div>
               </div>
             </div>
-          )}
-          <div style={{ background: "#1F1F1F", borderRadius: 8, padding: "10px 12px" }}>
-            {r.isWorkloadMode ? (
-              <>
-                <Bar label={`Stay in cloud — adjusted (workload-equivalent)`} value={t.cloud} max={maxBar} color={"#8A8A8A"} />
-                <Bar label={`Stay in cloud — floor case (no generational credit)`} value={t.cloudFloor} max={maxBar} color={"#C9C9C9"} />
-                <Bar label={`Own it (${r.sysAdj} × ${ownSys}${redundancy ? " incl. N+1" : ""}, fixed by workload requirement)`} value={t.onAdj} max={maxBar} color={"#CC0000"} />
-              </>
-            ) : (
-              <>
-                <Bar label={`Stay in cloud (${horizon}yr)`} value={t.cloud} max={maxBar} color={"#8A8A8A"} />
-                <Bar label={`Own it — adjusted (${r.sysAdj} × ${ownSys}${redundancy ? " incl. N+1" : ""})`} value={t.onAdj} max={maxBar} color={"#CC0000"} />
-                <Bar label={`Own it — floor case (${r.sysFloor} × ${ownSys}${redundancy ? " incl. N+1" : ""})`} value={t.onFlr} max={maxBar} color={"#C9C9C9"} />
-              </>
-            )}
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 10 }}>
-            {[
-              ["FLEET", `${r.sysAdj} sys`, r.fleetAdj[horizon - 1] > r.sysAdj ? `${Math.round(r.headroom * 100)}% headroom → ${r.fleetAdj[horizon - 1]} sys by yr ${horizon}` : `${Math.round(r.headroom * 100)}% headroom`],
-              ["CAPEX + 1-TIME", fmtM(r.adj.capex + r.oneTime), `${fmtM(r.oneTime)} transition`],
-              ["CROSSOVER", r.crossoverMo ? `mo ${r.crossoverMo}` : "none ≤60mo", `static payback ${r.payback ? r.payback.toFixed(0) + "mo" : "n/a"} · ${t.onAdj > 0 ? Math.round((t.saveAdj / t.onAdj) * 100) : 0}% ROI`],
-            ].map(([k, v, s]) => (
-              <div key={k} style={{ background: "#1F1F1F", borderRadius: 8, padding: "8px 10px" }}>
-                <div style={{ ...mono, fontSize: 9, letterSpacing: 1.2, color: "#ABABAB" }}>{k}</div>
-                <div style={{ ...mono, fontSize: 15, fontWeight: 600, color: "#FFFFFF" }}>{v}</div>
-                <div style={{ fontSize: 10, color: "#ABABAB" }}>{s}</div>
-              </div>
-            ))}
-          </div>
 
-          <div style={{ marginTop: 14 }}>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: 1, color: "#ABABAB", marginBottom: 6 }}>WHERE THE MONEY GOES IN YEAR 1</div>
-            <YearOneBreakdown cloudYear1={r.cloudYear1} capital={r.adj.capex + r.oneTime} operating={r.adj.opex * 12} />
-          </div>
-
-          <div style={{ marginTop: 14 }}>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: 1, color: "#ABABAB", marginBottom: 6 }}>CUMULATIVE SPEND, {Math.max(2, horizon)}-YEAR VIEW{horizon < 2 ? " (min. 2yr shown for a readable trend)" : ""}</div>
-            <CrossoverChart points={r.cumulativeByYear} horizon={horizon} crossoverMo={r.crossoverMo} />
-            <div style={{ display: "flex", gap: 14, fontSize: 10, color: "#ABABAB", marginTop: 4 }}>
-              <span><span style={{ display: "inline-block", width: 10, height: 2, background: "#8A8A8A", marginRight: 4, verticalAlign: "middle" }} />Stay in cloud (cumulative)</span>
-              <span><span style={{ display: "inline-block", width: 10, height: 2, background: "#CC0000", marginRight: 4, verticalAlign: "middle" }} />Own it (cumulative)</span>
-              {r.crossoverMo && r.crossoverMo <= horizon * 12 && (
-                <span style={{ color: "#FFFFFF" }}>Crosses over month {r.crossoverMo}</span>
+            {/* TIER 1 */}
+            <Section title="Start here" badge="TIER 1">
+              <Slider
+                label={mode === "workload" ? "Reported monthly cloud spend (context only)" : "Monthly cloud AI spend"}
+                value={bill}
+                min={20000}
+                max={2000000}
+                step={5000}
+                onChange={setBill}
+                display={fmtM(bill) + "/mo"}
+                tip={TIPS.spend}
+              />
+              {mode === "workload" && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: C.sub,
+                    background: "#F5F5F5",
+                    borderRadius: 6,
+                    padding: "6px 9px",
+                    marginTop: -2,
+                    marginBottom: 6,
+                  }}
+                >
+                  In workload mode this isn't used to size anything — it's shown only so you can compare it against the
+                  estimated cost of actually running this workload in the cloud:{" "}
+                  <strong>{fmtM(r.monthlyCloudBaseline)}/mo</strong>.
+                  {r.monthlyCloudBaseline > bill * 1.5
+                    ? " That's substantially higher than the reported spend, which likely means this workload isn't fully running in the cloud today at this scale."
+                    : ""}
+                </div>
               )}
-            </div>
-          </div>
-        </div>
-
-        {/* TIER 1 */}
-        <Section title="Start here" badge="TIER 1">
-          <Slider label={mode === "workload" ? "Reported monthly cloud spend (context only)" : "Monthly cloud AI spend"} value={bill} min={20000} max={2000000} step={5000}
-            onChange={setBill} display={fmtM(bill) + "/mo"} tip={TIPS.spend} />
-          {mode === "workload" && (
-            <div style={{ fontSize: 11, color: C.sub, background: "#F5F5F5", borderRadius: 6, padding: "6px 9px", marginTop: -2, marginBottom: 6 }}>
-              In workload mode this isn't used to size anything — it's shown only so you can compare it against the estimated
-              cost of actually running this workload in the cloud: <strong>{fmtM(r.monthlyCloudBaseline)}/mo</strong>.
-              {r.monthlyCloudBaseline > bill * 1.5 ? " That's substantially higher than the reported spend, which likely means this workload isn't fully running in the cloud today at this scale." : ""}
-            </div>
-          )}
-          <TipLabel text="Primary provider" tip={TIPS.provider} />
-          <Seg options={PROVIDERS} value={provider} onChange={setProvider} />
-          <div style={{ fontSize: 11, color: C.green, background: C.greenSoft, borderRadius: 6, padding: "6px 9px" }}>
-            {provider} {gpuClass}: ${rateInfo.od.toFixed(2)}/GPU-hr on-demand · confidence: {rateInfo.conf}
-            {rateInfo.conf === "QUOTE" ? " (estimate — verify with provider)" : ""}{rateInfo.note ? ` (${rateInfo.note})` : ""} · {rateInfo.res != null ? "reserved = NVIDIA TCO snapshot" : "reserved = 40% off list (est.)"} · rates as of {RATES_ASOF}. Override any rate below.
-          </div>
-          {r.isWorkloadMode && (
-            <>
-              <button
-                type="button"
-                onClick={() => setBestValueOpen((open) => !open)}
-                aria-expanded={bestValueOpen}
-                style={{ ...disp, width: "100%", marginTop: 8, fontSize: 12, fontWeight: 700, padding: "9px 12px", borderRadius: 8,
-                  border: `1px solid ${C.green}`, cursor: "pointer", background: bestValueOpen ? C.greenSoft : "#FFFFFF", color: C.green }}
+              <TipLabel text="Primary provider" tip={TIPS.provider} />
+              <Seg options={PROVIDERS} value={provider} onChange={setProvider} />
+              <div
+                style={{ fontSize: 11, color: C.green, background: C.greenSoft, borderRadius: 6, padding: "6px 9px" }}
               >
-                {bestValueOpen ? "Hide Best-Value GPUaaS" : "Find Best-Value GPUaaS"}
-              </button>
-              <div style={{ fontSize: 10.5, color: C.sub, marginTop: 4, lineHeight: 1.4 }}>
-                Ranks providers for the current {gpuClass} workload using the same TCO engine and billing assumptions. v1 does not substitute another GPU class.
+                {provider} {gpuClass}: ${rateInfo.od.toFixed(2)}/GPU-hr on-demand · confidence: {rateInfo.conf}
+                {rateInfo.conf === "QUOTE" ? " (estimate — verify with provider)" : ""}
+                {rateInfo.note ? ` (${rateInfo.note})` : ""} ·{" "}
+                {rateInfo.res != null ? "reserved = NVIDIA TCO snapshot" : "reserved = 40% off list (est.)"} · rates as
+                of {RATES_ASOF}. Override any rate below.
               </div>
-              {bestValueOpen && (
-                <BestValueGpuAasPanel
-                  rows={bestValueRows}
-                  gpuClass={gpuClass}
-                  horizon={horizon}
-                  activeProvider={provider}
-                  onUseProvider={setProvider}
-                  onClose={() => setBestValueOpen(false)}
+              {r.isWorkloadMode && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setBestValueOpen((open) => !open)}
+                    aria-expanded={bestValueOpen}
+                    style={{
+                      ...disp,
+                      width: "100%",
+                      marginTop: 8,
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: "9px 12px",
+                      borderRadius: 8,
+                      border: `1px solid ${C.green}`,
+                      cursor: "pointer",
+                      background: bestValueOpen ? C.greenSoft : "#FFFFFF",
+                      color: C.green,
+                    }}
+                  >
+                    {bestValueOpen ? "Hide Best-Value GPUaaS" : "Find Best-Value GPUaaS"}
+                  </button>
+                  <div style={{ fontSize: 10.5, color: C.sub, marginTop: 4, lineHeight: 1.4 }}>
+                    Ranks providers for the current {gpuClass} workload using the same TCO engine and billing
+                    assumptions. v1 does not substitute another GPU class.
+                  </div>
+                  {bestValueOpen && (
+                    <BestValueGpuAasPanel
+                      rows={bestValueRows}
+                      gpuClass={gpuClass}
+                      horizon={horizon}
+                      activeProvider={provider}
+                      onUseProvider={setProvider}
+                      onClose={() => setBestValueOpen(false)}
+                    />
+                  )}
+                </>
+              )}
+              {cloudRatesStaleness.level !== "current" && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: cloudRatesStaleness.level === "stale" ? "#B91C1C" : "#B45309",
+                    background: cloudRatesStaleness.level === "stale" ? "#FEF2F2" : "#FFFBEB",
+                    border: `1px solid ${cloudRatesStaleness.level === "stale" ? "#FECACA" : "#FDE68A"}`,
+                    borderRadius: 6,
+                    padding: "6px 9px",
+                    marginTop: 6,
+                  }}
+                >
+                  {cloudRatesStaleness.level === "stale"
+                    ? `Cloud rates last verified ${cloudRatesStaleness.days} days ago — refresh against current provider pricing before using this in front of a client.`
+                    : `Cloud rates last verified ${cloudRatesStaleness.days} days ago — a review is due soon.`}
+                </div>
+              )}
+            </Section>
+
+            {view === "calc" && (
+              <div
+                style={{
+                  background: "#F7F7F7",
+                  border: `1px solid ${C.line}`,
+                  borderRadius: 10,
+                  padding: "10px 12px",
+                  marginBottom: 14,
+                }}
+              >
+                <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: C.sub, marginBottom: 3 }}>
+                  CLOUD GPU PRICE SENSITIVITY
+                </div>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    gap: 12,
+                    marginBottom: 4,
+                  }}
+                >
+                  <label htmlFor="cloud-unit-price-trend" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>
+                    Cloud GPU unit-price trend
+                  </label>
+                  <span
+                    style={{ ...mono, fontSize: 12, fontWeight: 700, color: cloudUnitPriceTrend === 0 ? C.sub : C.ink }}
+                  >
+                    {cloudUnitPriceTrend > 0 ? "+" : ""}
+                    {cloudUnitPriceTrend}%/yr
+                  </span>
+                </div>
+                <input
+                  id="cloud-unit-price-trend"
+                  aria-label="Cloud GPU unit-price trend"
+                  type="range"
+                  min="-20"
+                  max="20"
+                  step="5"
+                  value={cloudUnitPriceTrend}
+                  onChange={(e) => setCloudUnitPriceTrend(Number(e.target.value))}
+                  style={{ width: "100%" }}
+                />
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 10.5,
+                    color: C.sub,
+                    marginTop: -1,
+                  }}
+                >
+                  <span>-20%</span>
+                  <span>0%</span>
+                  <span>+20%</span>
+                </div>
+                <div style={{ fontSize: 11, color: C.sub, marginTop: 7, lineHeight: 1.4 }}>
+                  Applies an annual change to modeled cloud GPU compute rates only. Workload growth remains a separate
+                  consumption assumption.
+                </div>
+              </div>
+            )}
+
+            {/* TIER 2 */}
+            <Section title="Refine when known" badge="TIER 2" defaultOpen={false}>
+              <TipLabel text="GPU class they rent today" tip={TIPS.gpuClass} style={{ fontSize: 13 }} />
+              <Seg options={Object.keys(IDX.train)} value={gpuClass} onChange={setCloudGpuClass} />
+              {mode === "workload" && matchedCloudGpuClass ? (
+                <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
+                  {cloudGpuClassOverridden
+                    ? `Cloud comparison is a user override: ${gpuClass}, while GPU Sizing is based on ${sourceClass}. This changes cloud pricing and workload-equivalent rental hours only.`
+                    : `Matched to ${sourceClass} from GPU Sizing for a like-for-like starting comparison. Change this only if the actual or proposed cloud rental uses a different GPU class.`}
+                </div>
+              ) : (
+                <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
+                  Sets both the performance factor AND the rate used to reconstruct their GPU-hours from spend.
+                </div>
+              )}
+              <TipLabel text="On-prem target system" tip={TIPS.ownSys} />
+              {gpuSizingCount ? (
+                <div
+                  style={{
+                    border: `1px solid ${C.line}`,
+                    borderRadius: 8,
+                    padding: "9px 11px",
+                    margin: "6px 0 8px",
+                    background: "#F7F7F7",
+                  }}
+                >
+                  <div style={{ ...mono, fontSize: 13, fontWeight: 700, color: C.ink }}>{ownSys}</div>
+                  <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>
+                    Set by GPU Sizing. Return to GPU Sizing to change the technical design.
+                  </div>
+                  <a
+                    href="/gpu-sizing"
+                    style={{ fontSize: 11, color: C.green, fontWeight: 700, textDecoration: "none" }}
+                  >
+                    Adjust in GPU Sizing →
+                  </a>
+                </div>
+              ) : (
+                <Seg options={OWN_TARGETS} value={ownSys} onChange={setOwnSys} />
+              )}
+              <Slider
+                label="Workload mix — training share"
+                value={trainShare}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={setTrainShare}
+                display={`${Math.round(trainShare * 100)}% train`}
+                tip={TIPS.trainShare}
+              />
+              <Slider
+                label="On-demand share of billing"
+                value={odShare}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={setOdShare}
+                display={`${Math.round(odShare * 100)}% OD`}
+                tip={TIPS.odShare}
+              />
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                <span
+                  style={{
+                    ...mono,
+                    fontSize: 9,
+                    letterSpacing: 1,
+                    color: effectiveStorageAuto ? "#CC0000" : C.sub,
+                    border: `1px solid ${effectiveStorageAuto ? "#CC0000" : C.line}`,
+                    borderRadius: 3,
+                    padding: "1px 6px",
+                  }}
+                >
+                  {effectiveStorageAuto
+                    ? "STORAGE: AUTO (scaled to bill)"
+                    : mode === "workload"
+                      ? "STORAGE: MANUAL (workload mode — no bill to scale from)"
+                      : "STORAGE: MANUAL"}
+                </span>
+                {!effectiveStorageAuto && mode !== "workload" && (
+                  <button
+                    onClick={() => setStorageAuto(true)}
+                    style={{
+                      border: `1px solid ${C.line}`,
+                      background: "transparent",
+                      color: C.sub,
+                      borderRadius: 4,
+                      padding: "1px 8px",
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    back to auto
+                  </button>
+                )}
+              </div>
+              <Slider
+                label="Fast storage"
+                value={fastPB}
+                min={0}
+                max={3}
+                step={0.05}
+                onChange={setFastPB}
+                display={`${fastPB.toFixed(2)} PB`}
+                tip={TIPS.fastStorage}
+              />
+              <Slider
+                label="Bulk storage"
+                value={bulkPB}
+                min={0}
+                max={10}
+                step={0.25}
+                onChange={setBulkPB}
+                display={`${bulkPB.toFixed(2)} PB`}
+                tip={TIPS.bulkStorage}
+              />
+              <Slider
+                label="Egress"
+                value={egressPct}
+                min={0}
+                max={0.3}
+                step={0.01}
+                onChange={setEgressPct}
+                display={`${Math.round(egressPct * 100)}% /mo`}
+                tip={TIPS.egress}
+              />
+              {mode !== "workload" && !storageAuto && r.cloudStorage > r.storageBudget * 1.02 && (
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "#B4530A",
+                    background: "#FBF3EC",
+                    borderRadius: 6,
+                    padding: "8px 10px",
+                    margin: "4px 0 8px",
+                  }}
+                >
+                  The entered storage implies {fmt(r.cloudStorage)}/mo of cloud storage + egress, but only{" "}
+                  {fmt(r.storageBudget)}/mo of the stated bill is non-compute. Reduce storage, raise the bill, or{" "}
+                  <button
+                    onClick={() => {
+                      const scale = r.cloudStorage > 0 ? r.storageBudget / r.cloudStorage : 1;
+                      setFastPB(Math.max(0, Math.round((fastPB * scale) / 0.05) * 0.05));
+                      setBulkPB(Math.max(0, Math.round((bulkPB * scale) / 0.25) * 0.25));
+                    }}
+                    style={{
+                      border: "1px solid #B4530A",
+                      background: "transparent",
+                      color: "#B4530A",
+                      borderRadius: 4,
+                      padding: "1px 8px",
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    fit storage to bill
+                  </button>
+                </div>
+              )}
+              <Slider
+                label="Compute share of the bill"
+                value={computeShare}
+                min={0.2}
+                max={0.9}
+                step={0.05}
+                onChange={setComputeShare}
+                display={`${Math.round(computeShare * 100)}%`}
+                tip={TIPS.computeShare}
+              />
+              <Slider
+                label="Annual compute growth"
+                value={growth}
+                min={0}
+                max={1}
+                step={0.05}
+                onChange={setGrowth}
+                display={`${Math.round(growth * 100)}%/yr`}
+                tip={TIPS.growth}
+              />
+              <TipLabel text="Facility readiness" tip={TIPS.facility} />
+              <Seg options={FACILITIES} value={facility} onChange={setFacility} />
+              {facility === "Self-hosted (retrofit)" && (
+                <Slider
+                  label="Facility retrofit (one-time)"
+                  value={retrofit}
+                  min={0}
+                  max={2000000}
+                  step={50000}
+                  onChange={setRetrofit}
+                  display={fmtM(retrofit)}
+                  hint="2 DGX/rack = ~29 kW/rack, beyond most legacy DCs. Typical buildout $10-15K per kW of new capacity."
                 />
               )}
-            </>
-          )}
-          {cloudRatesStaleness.level !== "current" && (
-            <div style={{ fontSize: 11, color: cloudRatesStaleness.level === "stale" ? "#B91C1C" : "#B45309", background: cloudRatesStaleness.level === "stale" ? "#FEF2F2" : "#FFFBEB", border: `1px solid ${cloudRatesStaleness.level === "stale" ? "#FECACA" : "#FDE68A"}`, borderRadius: 6, padding: "6px 9px", marginTop: 6 }}>
-              {cloudRatesStaleness.level === "stale"
-                ? `Cloud rates last verified ${cloudRatesStaleness.days} days ago — refresh against current provider pricing before using this in front of a client.`
-                : `Cloud rates last verified ${cloudRatesStaleness.days} days ago — a review is due soon.`}
-            </div>
-          )}
-        </Section>
+              {isSelf && (
+                <Slider
+                  label="Power rate (fully loaded)"
+                  value={powerRate}
+                  min={100}
+                  max={450}
+                  step={25}
+                  onChange={setPowerRate}
+                  display={`$${powerRate}/kW-mo`}
+                  tip={TIPS.powerRate}
+                />
+              )}
+              <Slider
+                label="Target on-prem utilization"
+                value={util}
+                min={0.5}
+                max={1}
+                step={0.05}
+                onChange={setUtil}
+                display={`${Math.round(util * 100)}%`}
+                tip={TIPS.util}
+              />
+            </Section>
 
-        {view === "calc" && (
-          <div style={{ background: "#F7F7F7", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: C.sub, marginBottom: 3 }}>CLOUD GPU PRICE SENSITIVITY</div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
-              <label htmlFor="cloud-unit-price-trend" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>Cloud GPU unit-price trend</label>
-              <span style={{ ...mono, fontSize: 12, fontWeight: 700, color: cloudUnitPriceTrend === 0 ? C.sub : C.ink }}>{cloudUnitPriceTrend > 0 ? "+" : ""}{cloudUnitPriceTrend}%/yr</span>
+            {/* ONE-TIME & RESILIENCE */}
+            <Section title="Transition & resilience" badge="v1.2" defaultOpen={false}>
+              <Slider
+                label="Migration engineering (one-time)"
+                value={migration}
+                min={0}
+                max={500000}
+                step={25000}
+                onChange={setMigration}
+                display={fmtM(migration)}
+                tip={TIPS.migration}
+              />
+              <Slider
+                label="Dual-run period"
+                value={dualRun}
+                min={0}
+                max={6}
+                step={1}
+                onChange={setDualRun}
+                display={`${dualRun} mo`}
+                tip={TIPS.dualRun}
+              />
+              <TipLabel text="N+1 redundancy" tip={TIPS.redundancy} />
+              <Seg
+                options={["Off", "On (+1 system)"]}
+                value={redundancy ? "On (+1 system)" : "Off"}
+                onChange={(v) => setRedundancy(v !== "Off")}
+              />
+              <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
+                <strong>TCO resilience assumption:</strong> N+1 adds one spare system beyond the GPU Sizing base
+                requirement. It does not change what GPU Sizing recommended; it changes the fleet being economically
+                evaluated here. A 1-system base fleet otherwise has zero failover.
+              </div>
+              <Row
+                label="Cloud exit egress (auto)"
+                value={fmt(r.exitEgress)}
+                sub="computed from your storage inputs"
+                tip={TIPS.exitEgress}
+              />
+              <Slider
+                label="Residual value at horizon"
+                value={residPct}
+                min={0}
+                max={0.4}
+                step={0.05}
+                onChange={setResidPct}
+                display={`${Math.round(residPct * 100)}%`}
+                hint="Credit on systems + storage capex at horizon end. Flat % simplification; partial answer to the refresh objection."
+              />
+            </Section>
+
+            {/* FACTORS */}
+            <Section title="Performance factors" badge="RANGE · DEFAULT · BREAKEVEN" defaultOpen={false}>
+              <TipLabel
+                text="What these factors are"
+                tip={TIPS.factorsGroup}
+                style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }}
+              />
+              {r.isWorkloadMode && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: C.sub,
+                    background: "#F5F5F5",
+                    borderRadius: 6,
+                    padding: "6px 9px",
+                    marginBottom: 6,
+                  }}
+                >
+                  In Workload Requirement mode, only the generational capability factor below is used. The three sliders
+                  (network, scheduling, NVAIE) are ownership-side operational advantages, not rental-pricing inputs, so
+                  they don't affect this comparison -- see the report methodology for why.
+                </div>
+              )}
+              <Row
+                label="Generational (from lookup)"
+                value={`${r.genPF.toFixed(2)}x`}
+                sub={`${gpuClass} → ${ownSys}, weighted by workload mix · ${EST_IDX.includes(SYS_CLASS[ownSys]) || EST_IDX.includes(gpuClass) ? "provisional (EST) pending NVIDIA-sourced factors" : "MLPerf-derived"} · benchmark-derived, directional -- not a universal physical conversion constant`}
+                tip={TIPS.genSpeedup}
+              />
+              <Slider
+                label="Reference-architecture network"
+                value={fNet}
+                min={1}
+                max={2.5}
+                step={0.05}
+                onChange={setFNet}
+                display={`${fNet.toFixed(2)}x`}
+                tip={TIPS.network}
+              />
+              <Slider
+                label="AI Factory software (Run:ai / Mission Control)"
+                value={fSw}
+                min={1}
+                max={3}
+                step={0.05}
+                onChange={setFSw}
+                display={`${fSw.toFixed(2)}x`}
+                tip={TIPS.runai}
+              />
+              <Slider
+                label="NVAIE / NIMs"
+                value={fNvaie}
+                min={1}
+                max={5}
+                step={0.05}
+                onChange={setFNvaie}
+                display={`${fNvaie.toFixed(2)}x`}
+                tip={TIPS.nvaie}
+              />
+              {r.isWorkloadMode ? (
+                <Row
+                  label="Net Performance Factor"
+                  value="not used in this mode"
+                  sub="workload mode uses the generational factor alone -- see methodology"
+                />
+              ) : (
+                <Row
+                  label="Net Performance Factor"
+                  value={`${r.npf.toFixed(2)}x`}
+                  sub="Your cloud GPU-hours ÷ NPF = on-prem hours needed"
+                />
+              )}
+            </Section>
+
+            {/* CAPACITY & UNIT ECONOMICS (v1.9) */}
+            <Section title="Capacity & unit economics" badge="EST" defaultOpen={false}>
+              <TipLabel
+                text="How these estimates work"
+                tip={TIPS.capGroup}
+                style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }}
+              />
+              <TipLabel text="Model" tip={TIPS.modelSize} style={{ fontSize: 13 }} />
+              <select
+                value={modelId}
+                onChange={(e) => setSelectedModelId(e.target.value)}
+                aria-label="Model for capacity estimate"
+                style={{
+                  width: "100%",
+                  padding: "9px 10px",
+                  border: `1px solid ${C.line}`,
+                  borderRadius: 8,
+                  background: "#fff",
+                  color: C.ink,
+                  margin: "4px 0 8px",
+                }}
+              >
+                {modelOptions.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+              {modelId === "custom" && (
+                <label style={{ display: "block", fontSize: 12, color: C.sub, marginBottom: 8 }}>
+                  Model parameters (billions)
+                  <input
+                    type="number"
+                    min="0.1"
+                    step="0.1"
+                    value={modelParamsB}
+                    onChange={(e) => {
+                      const n = parseFloat(e.target.value);
+                      if (Number.isFinite(n) && n > 0) setModelParamsB(n);
+                    }}
+                    aria-label="Custom model parameters in billions"
+                    style={{
+                      width: "100%",
+                      boxSizing: "border-box",
+                      marginTop: 4,
+                      padding: "8px 10px",
+                      border: `1px solid ${C.line}`,
+                      borderRadius: 8,
+                    }}
+                  />
+                </label>
+              )}
+              {gpuSizingCount && (
+                <div style={{ fontSize: 11, color: C.sub, marginBottom: 8 }}>
+                  Model context is shared with GPU Sizing when available. GPU Sizing remains authoritative for the
+                  technical GPU count; this model value only drives the directional capacity and unit-economics
+                  estimates below.
+                </div>
+              )}
+              <TipLabel text="Quantization" tip={TIPS.quant} style={{ fontSize: 13 }} />
+              <Seg options={Object.keys(QUANT)} value={quant} onChange={setQuant} />
+              {!r.cap.fits ? (
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "#B4530A",
+                    background: "#FBF3EC",
+                    borderRadius: 6,
+                    padding: "8px 10px",
+                    marginTop: 6,
+                  }}
+                >
+                  A {modelDisplay} model at {quant} needs {r.cap.gpusPerReplica} GPUs per copy, but the current fleet
+                  has {r.sysAdj * SYSTEMS[ownSys].gpus}. Add systems, pick a smaller model, or lower the precision.
+                </div>
+              ) : (
+                <>
+                  <Row
+                    label="GPUs per model copy / copies in fleet"
+                    value={`${r.cap.gpusPerReplica} / ${r.cap.replicas}`}
+                    sub={`${modelDisplay} @ ${quant} on ${ownSys} (${SYSTEMS[ownSys].vram} GB/GPU, ×${KV_OVERHEAD} overhead)`}
+                  />
+                  <Row
+                    label="Concurrent interactive users (est.)"
+                    value={r.cap.users.toLocaleString()}
+                    sub={`at ${TOK_PER_USER} tok/s per user, ${Math.round(util * 100)}% utilization`}
+                  />
+                  <Row
+                    label="Token throughput (est.)"
+                    value={`${r.cap.monthlyTokM >= 1000 ? (r.cap.monthlyTokM / 1000).toFixed(1) + "B" : Math.round(r.cap.monthlyTokM) + "M"} tokens/mo`}
+                    sub="fleet-wide at target utilization"
+                  />
+                  <Row
+                    label="Cost per 1M tokens"
+                    value={`$${r.cap.perM.toFixed(2)} vs $${r.cap.cloudPerM.toFixed(2)}`}
+                    sub="on-prem all-in vs managed-API blended list (editable in Rate card)"
+                  />
+                  <Row
+                    label="Cost per user / month"
+                    value={`$${Math.round(r.cap.perUserOn).toLocaleString()} vs $${Math.round(r.cap.perUserCloud).toLocaleString()}`}
+                    sub="on-prem vs cloud API at the same usage"
+                  />
+                </>
+              )}
+            </Section>
+
+            {/* TIER 3 */}
+            <Section title="Validated analysis" badge="TIER 3" defaultOpen={false}>
+              <Slider
+                label="Actual monthly GPU-hours (from invoice)"
+                value={tier3Hrs}
+                min={0}
+                max={100000}
+                step={500}
+                onChange={setTier3Hrs}
+                display={tier3Hrs > 0 ? tier3Hrs.toLocaleString() : "not provided"}
+                tip={TIPS.tier3}
+              />
+            </Section>
+
+            {/* RATE CARD */}
+            <Section
+              title="Rate card"
+              badge={editedCount > 0 ? `${editedCount} EDITED` : "EDITABLE"}
+              badgeColor={editedCount > 0 ? "#CC0000" : undefined}
+              defaultOpen={false}
+            >
+              <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>
+                Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem
+                defaults = NVIDIA DGX TCO tool ({ONPREM_ASOF}). Cloud instance-rate edits are saved by provider + GPU
+                class, and system-specific on-prem edits are saved by target system, so workload changes do not erase
+                customer-entered pricing or misapply it to different hardware.
+              </div>
+              {editedCount > 0 && (
+                <button
+                  onClick={resetActiveRateEdits}
+                  style={{
+                    ...mono,
+                    fontSize: 11,
+                    padding: "7px 12px",
+                    borderRadius: 7,
+                    cursor: "pointer",
+                    border: "1px solid #CC0000",
+                    background: "#FBEAEA",
+                    color: "#CC0000",
+                    marginBottom: 8,
+                    fontWeight: 700,
+                  }}
+                >
+                  Reset current scenario edits ({editedCount})
+                </button>
+              )}
+              <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "8px 0 2px", color: C.sub }}>
+                CLOUD — {provider} {gpuClass} ($/GPU-hr) · {rateInfo.conf} · as of {RATES_ASOF}
+              </div>
+              <RateField
+                k="instRes"
+                label="Cloud $/GPU-hr, 1-yr reserved"
+                eff={rc}
+                defaults={defaults}
+                ov={activeCloudRateOverride}
+                setOv={setActiveCloudRateOverride}
+                step={0.001}
+                fmt={(v) => `$${v}`}
+              />
+              <RateField
+                k="instOD"
+                label="Cloud $/GPU-hr, on-demand"
+                eff={rc}
+                defaults={defaults}
+                ov={activeCloudRateOverride}
+                setOv={setActiveCloudRateOverride}
+                step={0.01}
+                fmt={(v) => `$${v}`}
+              />
+              <RateField
+                k="nvaieRes"
+                label="NVAIE support $/GPU-hr, reserved"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={0.01}
+                fmt={(v) => `$${v}`}
+              />
+              <RateField
+                k="nvaieOD"
+                label="NVAIE support $/GPU-hr, on-demand"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={0.01}
+                fmt={(v) => `$${v}`}
+              />
+              <RateField
+                k="fastGB"
+                label="Fast storage $/GB/mo"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={0.01}
+                fmt={(v) => `$${v}`}
+              />
+              <RateField
+                k="bulkGB"
+                label="Bulk storage $/GB/mo"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={0.01}
+                fmt={(v) => `$${v}`}
+              />
+              <RateField
+                k="cloudTok"
+                label="Managed API blended $/1M tokens (EST)"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={0.5}
+                fmt={(v) => `$${v}`}
+              />
+              <RateField
+                k="egressGB"
+                label="Egress $/GB"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={0.01}
+                fmt={(v) => `$${v}`}
+              />
+              <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>
+                ON-PREM HARDWARE · NVIDIA TCO tool capture, Aug 2026
+              </div>
+              <RateField
+                k="perSysCost"
+                label={`${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`}
+                eff={rc}
+                defaults={defaults}
+                ov={activeOnPremRateOverride}
+                setOv={setActiveOnPremRateOverride}
+                step={1000}
+                fmt={fmt}
+              />
+              <RateField
+                k="cluster"
+                label="Cluster mgmt nodes $ (fixed per cluster — amortizes across fleet)"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={10000}
+                fmt={fmt}
+              />
+              <RateField
+                k="fastPB"
+                label="Fast storage $/PB"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={10000}
+                fmt={fmt}
+              />
+              <RateField
+                k="bulkPB"
+                label="Bulk storage $/PB"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={10000}
+                fmt={fmt}
+              />
+              <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>
+                OPERATIONS · NVIDIA TCO tool, {ONPREM_ASOF} (Equinix bundle Aug 2026)
+              </div>
+              {onpremStaleness.level !== "current" && (
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: onpremStaleness.level === "stale" ? "#B91C1C" : "#B45309",
+                    marginBottom: 4,
+                  }}
+                >
+                  On-prem pricing last verified {onpremStaleness.days} days ago
+                  {onpremStaleness.level === "stale" ? " — refresh before client use" : " — review due soon"}.
+                </div>
+              )}
+              <RateField
+                k="sysKw"
+                label={`Power kW per ${ownSys} (avg load)`}
+                eff={rc}
+                defaults={defaults}
+                ov={activeOnPremRateOverride}
+                setOv={setActiveOnPremRateOverride}
+                step={0.1}
+              />
+              <RateField
+                k="equinixMo"
+                label="Equinix bundle $/system/mo"
+                eff={rc}
+                defaults={defaults}
+                ov={activeOnPremRateOverride}
+                setOv={setActiveOnPremRateOverride}
+                step={100}
+                fmt={fmt}
+              />
+              <RateField
+                k="adminRatio"
+                label="Systems per admin FTE"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={1}
+              />
+              <RateField
+                k="opFTE"
+                label="Admin FTE loaded $/yr"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={1000}
+                fmt={fmt}
+              />
+              <RateField
+                k="netMo"
+                label="Network/VPN/firewall $/mo"
+                eff={rc}
+                defaults={defaults}
+                ov={ov}
+                setOv={setOv}
+                step={100}
+                fmt={fmt}
+              />
+            </Section>
+
+            {/* LEDGER */}
+            <Section title="Methodology & assumptions" defaultOpen={false}>
+              <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.5, marginBottom: 8 }}>
+                <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your
+                provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both
+                paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting
+                depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and
+                on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance
+                factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED /
+                NODE-NORM / EST / QUOTE); on-prem costs are NVIDIA DGX TCO tool captures (Jul–Aug 2026). The on-prem
+                fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks,
+                power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a
+                harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only —
+                professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the
+                non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are
+                reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative
+                monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex
+                charged when incurred; residual excluded until exit); static payback is shown as a secondary metric
+                only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room.
+                The companion workbook is the auditable reference implementation of the core sizing and TCO formulas;
+                this application extends it with dynamic fleet growth, five-provider rate routing and interface-level
+                validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model
+                memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond the
+                residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk,
+                hybrid burst.
+              </div>
+              <Row
+                label="Reconstructed cloud GPU-hours"
+                value={`${Math.round(r.gpuHrs).toLocaleString()}/mo`}
+                sub={
+                  tier3Hrs > 0
+                    ? "customer invoice"
+                    : `spend ÷ ${provider} ${gpuClass} blended rate $${r.blended.toFixed(2)}/instance-hr`
+                }
+              />
+              <Row
+                label={`GPU-hours one ${ownSys} supplies`}
+                value={`${Math.round(r.perSysHrs).toLocaleString()}/mo`}
+                sub={`${SYSTEMS[ownSys].gpus} GPUs × 730 hrs × ${Math.round(util * 100)}% utilization`}
+              />
+              <Row
+                label="One-time transition & exit"
+                value={fmt(r.oneTime)}
+                sub={`migration ${fmtM(migration)} + dual-run ${dualRun}mo × bill + exit egress ${fmt(r.exitEgress)}${facility === "Self-hosted (retrofit)" ? ` + retrofit ${fmtM(retrofit)}` : ""}`}
+              />
+              <Row
+                label="Residual credit at horizon (adjusted fleet)"
+                value={`−${fmt(r.adj.resid)}`}
+                sub={`${Math.round(residPct * 100)}% of systems + storage capex · flat % simplification`}
+              />
+              <Row
+                label="Cloud storage + egress spend displaced"
+                value={`${fmt(r.cloudStorage)}/mo`}
+                sub="egress disappears on-prem; storage cost moves into the on-prem storage lines above"
+                flag={"fastGB" in ov || "bulkGB" in ov || "egressGB" in ov}
+              />
+              <Row
+                label="On-prem opex"
+                value={`${fmt(r.adj.opex)}/mo`}
+                sub={
+                  facility === "Equinix"
+                    ? SYSTEMS[ownSys].gpus > 8
+                      ? "Equinix bundle + storage support — bundle rate calibrated for 8-GPU systems; NVL-72 colo pricing TBD"
+                      : "Equinix bundle + storage support"
+                    : "power + facility + admin + storage support"
+                }
+                flag={"equinixMo" in ov || "opFTE" in ov || "adminRatio" in ov}
+              />
+              <Row
+                label="Fixed cluster cost in capex"
+                value={fmt(rc.cluster)}
+                sub="mgmt server nodes — why bigger bills pencil better"
+                flag={"cluster" in ov}
+              />
+              <div style={{ fontSize: 11, color: C.sub, marginTop: 10 }}>
+                {editedCount > 0
+                  ? `Running on a modified rate card (${editedCount} value${editedCount > 1 ? "s" : ""} edited).`
+                  : `Running on list rates (${provider} ${gpuClass}, ${RATES_ASOF}) + NVIDIA TCO tool on-prem defaults (${ONPREM_ASOF}) + MLPerf-derived factors.`}{" "}
+                OCI note: egress is $0 on OCI as of Feb 2026 — zero the egress rate when modeling OCI exits. Still
+                excluded: refresh cadence beyond residual, NPV, commitment early-termination, stranded capacity, hybrid
+                burst. Saved rate profiles and auto-scaling fleet: v2.
+              </div>
+            </Section>
+
+            <div
+              style={{
+                marginBottom: 10,
+                borderRadius: 10,
+                border: `1px solid ${C.line}`,
+                background: "#F7F7F7",
+                padding: "12px 16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: 0.5,
+                    color: C.sub,
+                    textTransform: "uppercase",
+                    marginBottom: 2,
+                  }}
+                >
+                  Next: task-level ROI
+                </div>
+                <div style={{ fontSize: 12, color: "#444" }}>
+                  Send this infrastructure cost ({fmt(r.adj.capex + r.oneTime)} upfront, {fmt(r.adj.opex * 12)}/yr
+                  ongoing) into the ROI Calculator as the AI cost side of a task-automation business case.
+                  {r.isWorkloadMode
+                    ? " Based on the Workload Requirement fleet, not your reported cloud spend."
+                    : " Based on your reported cloud spend."}
+                </div>
+              </div>
+              <a
+                href={`/roi?initialCost=${Math.round(r.adj.capex + r.oneTime)}&recurringCost=${Math.round(r.adj.opex * 12)}&planningBasis=${r.isWorkloadMode ? "workload" : "spend"}`}
+                style={{
+                  ...disp,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  padding: "9px 14px",
+                  borderRadius: 8,
+                  background: C.green,
+                  color: "#fff",
+                  textDecoration: "none",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                Send to ROI Calculator
+              </a>
             </div>
-            <input id="cloud-unit-price-trend" aria-label="Cloud GPU unit-price trend" type="range" min="-20" max="20" step="5" value={cloudUnitPriceTrend} onChange={(e) => setCloudUnitPriceTrend(Number(e.target.value))} style={{ width: "100%" }} />
-            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.sub, marginTop: -1 }}><span>-20%</span><span>0%</span><span>+20%</span></div>
-            <div style={{ fontSize: 11, color: C.sub, marginTop: 7, lineHeight: 1.4 }}>Applies an annual change to modeled cloud GPU compute rates only. Workload growth remains a separate consumption assumption.</div>
+
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+              <button
+                onClick={requestReport}
+                style={{
+                  ...disp,
+                  flex: "1 1 240px",
+                  fontWeight: 700,
+                  fontSize: 15,
+                  padding: "14px",
+                  borderRadius: 10,
+                  border: "none",
+                  cursor: "pointer",
+                  background: C.green,
+                  color: "#fff",
+                }}
+              >
+                Get the full report (PDF)
+              </button>
+              <button
+                onClick={openAudit}
+                style={{
+                  ...disp,
+                  flex: "1 1 240px",
+                  fontWeight: 600,
+                  fontSize: 13,
+                  padding: "14px",
+                  borderRadius: 10,
+                  border: "1px solid " + C.line,
+                  cursor: "pointer",
+                  background: "#fff",
+                  color: C.ink,
+                }}
+              >
+                Calculation Methodology &amp; Audit Trail
+              </button>
+            </div>
           </div>
         )}
-
-        {/* TIER 2 */}
-        <Section title="Refine when known" badge="TIER 2" defaultOpen={false}>
-          <TipLabel text="GPU class they rent today" tip={TIPS.gpuClass} style={{ fontSize: 13 }} />
-          <Seg options={Object.keys(IDX.train)} value={gpuClass} onChange={setCloudGpuClass} />
-          {mode === "workload" && matchedCloudGpuClass ? (
-            <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
-              {cloudGpuClassOverridden
-                ? `Cloud comparison is a user override: ${gpuClass}, while GPU Sizing is based on ${sourceClass}. This changes cloud pricing and workload-equivalent rental hours only.`
-                : `Matched to ${sourceClass} from GPU Sizing for a like-for-like starting comparison. Change this only if the actual or proposed cloud rental uses a different GPU class.`}
-            </div>
-          ) : (
-            <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
-              Sets both the performance factor AND the rate used to reconstruct their GPU-hours from spend.
-            </div>
-          )}
-          <TipLabel text="On-prem target system" tip={TIPS.ownSys} />
-          {gpuSizingCount ? (
-            <div style={{ border: `1px solid ${C.line}`, borderRadius: 8, padding: "9px 11px", margin: "6px 0 8px", background: "#F7F7F7" }}>
-              <div style={{ ...mono, fontSize: 13, fontWeight: 700, color: C.ink }}>{ownSys}</div>
-              <div style={{ fontSize: 11, color: C.sub, marginTop: 2 }}>Set by GPU Sizing. Return to GPU Sizing to change the technical design.</div>
-              <a href="/gpu-sizing" style={{ fontSize: 11, color: C.green, fontWeight: 700, textDecoration: "none" }}>Adjust in GPU Sizing →</a>
-            </div>
-          ) : (
-            <Seg options={OWN_TARGETS} value={ownSys} onChange={setOwnSys} />
-          )}
-          <Slider label="Workload mix — training share" value={trainShare} min={0} max={1} step={0.05}
-            onChange={setTrainShare} display={`${Math.round(trainShare * 100)}% train`} tip={TIPS.trainShare} />
-          <Slider label="On-demand share of billing" value={odShare} min={0} max={1} step={0.05}
-            onChange={setOdShare} display={`${Math.round(odShare * 100)}% OD`} tip={TIPS.odShare} />
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-            <span style={{ ...mono, fontSize: 9, letterSpacing: 1, color: effectiveStorageAuto ? "#CC0000" : C.sub, border: `1px solid ${effectiveStorageAuto ? "#CC0000" : C.line}`, borderRadius: 3, padding: "1px 6px" }}>
-              {effectiveStorageAuto ? "STORAGE: AUTO (scaled to bill)" : mode === "workload" ? "STORAGE: MANUAL (workload mode — no bill to scale from)" : "STORAGE: MANUAL"}
-            </span>
-            {!effectiveStorageAuto && mode !== "workload" && (
-              <button onClick={() => setStorageAuto(true)} style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.sub, borderRadius: 4, padding: "1px 8px", fontSize: 11, cursor: "pointer" }}>
-                back to auto
-              </button>
-            )}
-          </div>
-          <Slider label="Fast storage" value={fastPB} min={0} max={3} step={0.05}
-            onChange={setFastPB} display={`${fastPB.toFixed(2)} PB`} tip={TIPS.fastStorage} />
-          <Slider label="Bulk storage" value={bulkPB} min={0} max={10} step={0.25}
-            onChange={setBulkPB} display={`${bulkPB.toFixed(2)} PB`} tip={TIPS.bulkStorage} />
-          <Slider label="Egress" value={egressPct} min={0} max={0.3} step={0.01}
-            onChange={setEgressPct} display={`${Math.round(egressPct * 100)}% /mo`} tip={TIPS.egress} />
-          {mode !== "workload" && !storageAuto && r.cloudStorage > r.storageBudget * 1.02 && (
-            <div style={{ fontSize: 12, color: "#B4530A", background: "#FBF3EC", borderRadius: 6, padding: "8px 10px", margin: "4px 0 8px" }}>
-              The entered storage implies {fmt(r.cloudStorage)}/mo of cloud storage + egress, but only {fmt(r.storageBudget)}/mo of the stated bill is non-compute. Reduce storage, raise the bill, or{" "}
-              <button onClick={() => {
-                const scale = r.cloudStorage > 0 ? r.storageBudget / r.cloudStorage : 1;
-                setFastPB(Math.max(0, Math.round((fastPB * scale) / 0.05) * 0.05));
-                setBulkPB(Math.max(0, Math.round((bulkPB * scale) / 0.25) * 0.25));
-              }} style={{ border: "1px solid #B4530A", background: "transparent", color: "#B4530A", borderRadius: 4, padding: "1px 8px", fontSize: 11, cursor: "pointer" }}>
-                fit storage to bill
-              </button>
-            </div>
-          )}
-          <Slider label="Compute share of the bill" value={computeShare} min={0.2} max={0.9} step={0.05}
-            onChange={setComputeShare} display={`${Math.round(computeShare * 100)}%`} tip={TIPS.computeShare} />
-          <Slider label="Annual compute growth" value={growth} min={0} max={1} step={0.05}
-            onChange={setGrowth} display={`${Math.round(growth * 100)}%/yr`} tip={TIPS.growth} />
-          <TipLabel text="Facility readiness" tip={TIPS.facility} />
-          <Seg options={FACILITIES} value={facility} onChange={setFacility} />
-          {facility === "Self-hosted (retrofit)" && (
-            <Slider label="Facility retrofit (one-time)" value={retrofit} min={0} max={2000000} step={50000}
-              onChange={setRetrofit} display={fmtM(retrofit)}
-              hint="2 DGX/rack = ~29 kW/rack, beyond most legacy DCs. Typical buildout $10-15K per kW of new capacity." />
-          )}
-          {isSelf && (
-            <Slider label="Power rate (fully loaded)" value={powerRate} min={100} max={450} step={25}
-              onChange={setPowerRate} display={`$${powerRate}/kW-mo`} tip={TIPS.powerRate} />
-          )}
-          <Slider label="Target on-prem utilization" value={util} min={0.5} max={1} step={0.05}
-            onChange={setUtil} display={`${Math.round(util * 100)}%`} tip={TIPS.util} />
-        </Section>
-
-        {/* ONE-TIME & RESILIENCE */}
-        <Section title="Transition & resilience" badge="v1.2" defaultOpen={false}>
-          <Slider label="Migration engineering (one-time)" value={migration} min={0} max={500000} step={25000}
-            onChange={setMigration} display={fmtM(migration)} tip={TIPS.migration} />
-          <Slider label="Dual-run period" value={dualRun} min={0} max={6} step={1}
-            onChange={setDualRun} display={`${dualRun} mo`} tip={TIPS.dualRun} />
-          <TipLabel text="N+1 redundancy" tip={TIPS.redundancy} />
-          <Seg options={["Off", "On (+1 system)"]} value={redundancy ? "On (+1 system)" : "Off"}
-            onChange={(v) => setRedundancy(v !== "Off")} />
-          <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
-            <strong>TCO resilience assumption:</strong> N+1 adds one spare system beyond the GPU Sizing base requirement. It does not change what GPU Sizing recommended; it changes the fleet being economically evaluated here. A 1-system base fleet otherwise has zero failover.
-          </div>
-          <Row label="Cloud exit egress (auto)" value={fmt(r.exitEgress)} sub="computed from your storage inputs" tip={TIPS.exitEgress} />
-          <Slider label="Residual value at horizon" value={residPct} min={0} max={0.4} step={0.05}
-            onChange={setResidPct} display={`${Math.round(residPct * 100)}%`}
-            hint="Credit on systems + storage capex at horizon end. Flat % simplification; partial answer to the refresh objection." />
-        </Section>
-
-        {/* FACTORS */}
-        <Section title="Performance factors" badge="RANGE · DEFAULT · BREAKEVEN" defaultOpen={false}>
-          <TipLabel text="What these factors are" tip={TIPS.factorsGroup} style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }} />
-          {r.isWorkloadMode && (
-            <div style={{ fontSize: 11, color: C.sub, background: "#F5F5F5", borderRadius: 6, padding: "6px 9px", marginBottom: 6 }}>
-              In Workload Requirement mode, only the generational capability factor below is used. The three sliders
-              (network, scheduling, NVAIE) are ownership-side operational advantages, not rental-pricing inputs, so
-              they don't affect this comparison -- see the report methodology for why.
-            </div>
-          )}
-          <Row label="Generational (from lookup)" value={`${r.genPF.toFixed(2)}x`}
-            sub={`${gpuClass} → ${ownSys}, weighted by workload mix · ${EST_IDX.includes(SYS_CLASS[ownSys]) || EST_IDX.includes(gpuClass) ? "provisional (EST) pending NVIDIA-sourced factors" : "MLPerf-derived"} · benchmark-derived, directional -- not a universal physical conversion constant`} tip={TIPS.genSpeedup} />
-          <Slider label="Reference-architecture network" value={fNet} min={1} max={2.5} step={0.05}
-            onChange={setFNet} display={`${fNet.toFixed(2)}x`} tip={TIPS.network} />
-          <Slider label="AI Factory software (Run:ai / Mission Control)" value={fSw} min={1} max={3} step={0.05}
-            onChange={setFSw} display={`${fSw.toFixed(2)}x`} tip={TIPS.runai} />
-          <Slider label="NVAIE / NIMs" value={fNvaie} min={1} max={5} step={0.05}
-            onChange={setFNvaie} display={`${fNvaie.toFixed(2)}x`} tip={TIPS.nvaie} />
-          {r.isWorkloadMode ? (
-            <Row label="Net Performance Factor" value="not used in this mode" sub="workload mode uses the generational factor alone -- see methodology" />
-          ) : (
-            <Row label="Net Performance Factor" value={`${r.npf.toFixed(2)}x`} sub="Your cloud GPU-hours ÷ NPF = on-prem hours needed" />
-          )}
-        </Section>
-
-        {/* CAPACITY & UNIT ECONOMICS (v1.9) */}
-        <Section title="Capacity & unit economics" badge="EST" defaultOpen={false}>
-          <TipLabel text="How these estimates work" tip={TIPS.capGroup} style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }} />
-          <TipLabel text="Model" tip={TIPS.modelSize} style={{ fontSize: 13 }} />
-          <select
-            value={modelId}
-            onChange={(e) => setSelectedModelId(e.target.value)}
-            aria-label="Model for capacity estimate"
-            style={{ width: "100%", padding: "9px 10px", border: `1px solid ${C.line}`, borderRadius: 8, background: "#fff", color: C.ink, margin: "4px 0 8px" }}
-          >
-            {TCO_MODEL_OPTIONS.map((m) => <option key={m.id} value={m.id}>{m.label}</option>)}
-          </select>
-          {modelId === "custom" && (
-            <label style={{ display: "block", fontSize: 12, color: C.sub, marginBottom: 8 }}>
-              Model parameters (billions)
-              <input
-                type="number" min="0.1" step="0.1" value={modelParamsB}
-                onChange={(e) => { const n = parseFloat(e.target.value); if (Number.isFinite(n) && n > 0) setModelParamsB(n); }}
-                aria-label="Custom model parameters in billions"
-                style={{ width: "100%", boxSizing: "border-box", marginTop: 4, padding: "8px 10px", border: `1px solid ${C.line}`, borderRadius: 8 }}
-              />
-            </label>
-          )}
-          {gpuSizingCount && <div style={{ fontSize: 11, color: C.sub, marginBottom: 8 }}>Model context is shared with GPU Sizing when available. GPU Sizing remains authoritative for the technical GPU count; this model value only drives the directional capacity and unit-economics estimates below.</div>}
-          <TipLabel text="Quantization" tip={TIPS.quant} style={{ fontSize: 13 }} />
-          <Seg options={Object.keys(QUANT)} value={quant} onChange={setQuant} />
-          {!r.cap.fits ? (
-            <div style={{ fontSize: 12, color: "#B4530A", background: "#FBF3EC", borderRadius: 6, padding: "8px 10px", marginTop: 6 }}>
-              A {modelDisplay} model at {quant} needs {r.cap.gpusPerReplica} GPUs per copy, but the current fleet has {r.sysAdj * SYSTEMS[ownSys].gpus}. Add systems, pick a smaller model, or lower the precision.
-            </div>
-          ) : (
-            <>
-              <Row label="GPUs per model copy / copies in fleet" value={`${r.cap.gpusPerReplica} / ${r.cap.replicas}`} sub={`${modelDisplay} @ ${quant} on ${ownSys} (${SYSTEMS[ownSys].vram} GB/GPU, ×${KV_OVERHEAD} overhead)`} />
-              <Row label="Concurrent interactive users (est.)" value={r.cap.users.toLocaleString()} sub={`at ${TOK_PER_USER} tok/s per user, ${Math.round(util * 100)}% utilization`} />
-              <Row label="Token throughput (est.)" value={`${r.cap.monthlyTokM >= 1000 ? (r.cap.monthlyTokM / 1000).toFixed(1) + "B" : Math.round(r.cap.monthlyTokM) + "M"} tokens/mo`} sub="fleet-wide at target utilization" />
-              <Row label="Cost per 1M tokens" value={`$${r.cap.perM.toFixed(2)} vs $${r.cap.cloudPerM.toFixed(2)}`} sub="on-prem all-in vs managed-API blended list (editable in Rate card)" />
-              <Row label="Cost per user / month" value={`$${Math.round(r.cap.perUserOn).toLocaleString()} vs $${Math.round(r.cap.perUserCloud).toLocaleString()}`} sub="on-prem vs cloud API at the same usage" />
-            </>
-          )}
-        </Section>
-
-        {/* TIER 3 */}
-        <Section title="Validated analysis" badge="TIER 3" defaultOpen={false}>
-          <Slider label="Actual monthly GPU-hours (from invoice)" value={tier3Hrs} min={0} max={100000} step={500}
-            onChange={setTier3Hrs} display={tier3Hrs > 0 ? tier3Hrs.toLocaleString() : "not provided"}
-            tip={TIPS.tier3} />
-        </Section>
-
-        {/* RATE CARD */}
-        <Section title="Rate card" badge={editedCount > 0 ? `${editedCount} EDITED` : "EDITABLE"}
-          badgeColor={editedCount > 0 ? "#CC0000" : undefined} defaultOpen={false}>
-          <div style={{ fontSize: 11, color: C.sub, marginBottom: 6 }}>
-            Cloud instance rates auto-fill from the {provider} × {gpuClass} list table (as of {RATES_ASOF}); on-prem defaults = NVIDIA DGX TCO tool ({ONPREM_ASOF}). Cloud instance-rate edits are saved by provider + GPU class, and system-specific on-prem edits are saved by target system, so workload changes do not erase customer-entered pricing or misapply it to different hardware.
-          </div>
-          {editedCount > 0 && (
-            <button onClick={resetActiveRateEdits}
-              style={{ ...mono, fontSize: 11, padding: "7px 12px", borderRadius: 7, cursor: "pointer",
-                border: "1px solid #CC0000", background: "#FBEAEA", color: "#CC0000", marginBottom: 8, fontWeight: 700 }}>
-              Reset current scenario edits ({editedCount})
-            </button>
-          )}
-          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "8px 0 2px", color: C.sub }}>CLOUD — {provider} {gpuClass} ($/GPU-hr) · {rateInfo.conf} · as of {RATES_ASOF}</div>
-          <RateField k="instRes" label="Cloud $/GPU-hr, 1-yr reserved" eff={rc} defaults={defaults} ov={activeCloudRateOverride} setOv={setActiveCloudRateOverride} step={0.001} fmt={(v)=>`$${v}`} />
-          <RateField k="instOD" label="Cloud $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={activeCloudRateOverride} setOv={setActiveCloudRateOverride} step={0.01} fmt={(v)=>`$${v}`} />
-          <RateField k="nvaieRes" label="NVAIE support $/GPU-hr, reserved" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
-          <RateField k="nvaieOD" label="NVAIE support $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
-          <RateField k="fastGB" label="Fast storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
-          <RateField k="bulkGB" label="Bulk storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
-          <RateField k="cloudTok" label="Managed API blended $/1M tokens (EST)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.5} fmt={(v)=>`$${v}`} />
-          <RateField k="egressGB" label="Egress $/GB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
-          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>ON-PREM HARDWARE · NVIDIA TCO tool capture, Aug 2026</div>
-          <RateField k="perSysCost" label={`${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`} eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={1000} fmt={fmt} />
-          <RateField k="cluster" label="Cluster mgmt nodes $ (fixed per cluster — amortizes across fleet)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
-          <RateField k="fastPB" label="Fast storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
-          <RateField k="bulkPB" label="Bulk storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
-          <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>OPERATIONS · NVIDIA TCO tool, {ONPREM_ASOF} (Equinix bundle Aug 2026)</div>
-          {onpremStaleness.level !== "current" && (
-            <div style={{ fontSize: 11, color: onpremStaleness.level === "stale" ? "#B91C1C" : "#B45309", marginBottom: 4 }}>
-              On-prem pricing last verified {onpremStaleness.days} days ago{onpremStaleness.level === "stale" ? " — refresh before client use" : " — review due soon"}.
-            </div>
-          )}
-          <RateField k="sysKw" label={`Power kW per ${ownSys} (avg load)`} eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={0.1} />
-          <RateField k="equinixMo" label="Equinix bundle $/system/mo" eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={100} fmt={fmt} />
-          <RateField k="adminRatio" label="Systems per admin FTE" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1} />
-          <RateField k="opFTE" label="Admin FTE loaded $/yr" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={1000} fmt={fmt} />
-          <RateField k="netMo" label="Network/VPN/firewall $/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={100} fmt={fmt} />
-        </Section>
-
-        {/* LEDGER */}
-        <Section title="Methodology & assumptions" defaultOpen={false}>
-          <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.5, marginBottom: 8 }}>
-            <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED / NODE-NORM / EST / QUOTE); on-prem costs are NVIDIA DGX TCO tool captures (Jul–Aug 2026). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond the residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk, hybrid burst.
-          </div>
-          <Row label="Reconstructed cloud GPU-hours" value={`${Math.round(r.gpuHrs).toLocaleString()}/mo`}
-            sub={tier3Hrs > 0 ? "customer invoice" : `spend ÷ ${provider} ${gpuClass} blended rate $${r.blended.toFixed(2)}/instance-hr`} />
-          <Row label={`GPU-hours one ${ownSys} supplies`} value={`${Math.round(r.perSysHrs).toLocaleString()}/mo`} sub={`${SYSTEMS[ownSys].gpus} GPUs × 730 hrs × ${Math.round(util * 100)}% utilization`} />
-          <Row label="One-time transition & exit" value={fmt(r.oneTime)}
-            sub={`migration ${fmtM(migration)} + dual-run ${dualRun}mo × bill + exit egress ${fmt(r.exitEgress)}${facility === "Self-hosted (retrofit)" ? ` + retrofit ${fmtM(retrofit)}` : ""}`} />
-          <Row label="Residual credit at horizon (adjusted fleet)" value={`−${fmt(r.adj.resid)}`}
-            sub={`${Math.round(residPct * 100)}% of systems + storage capex · flat % simplification`} />
-          <Row label="Cloud storage + egress spend displaced" value={`${fmt(r.cloudStorage)}/mo`} sub="egress disappears on-prem; storage cost moves into the on-prem storage lines above" flag={"fastGB" in ov || "bulkGB" in ov || "egressGB" in ov} />
-          <Row label="On-prem opex" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? (SYSTEMS[ownSys].gpus > 8 ? "Equinix bundle + storage support — bundle rate calibrated for 8-GPU systems; NVL-72 colo pricing TBD" : "Equinix bundle + storage support") : "power + facility + admin + storage support"} flag={"equinixMo" in ov || "opFTE" in ov || "adminRatio" in ov} />
-          <Row label="Fixed cluster cost in capex" value={fmt(rc.cluster)} sub="mgmt server nodes — why bigger bills pencil better" flag={"cluster" in ov} />
-          <div style={{ fontSize: 11, color: C.sub, marginTop: 10 }}>
-            {editedCount > 0
-              ? `Running on a modified rate card (${editedCount} value${editedCount > 1 ? "s" : ""} edited).`
-              : `Running on list rates (${provider} ${gpuClass}, ${RATES_ASOF}) + NVIDIA TCO tool on-prem defaults (${ONPREM_ASOF}) + MLPerf-derived factors.`}
-            {" "}OCI note: egress is $0 on OCI as of Feb 2026 — zero the egress rate when modeling OCI exits. Still excluded: refresh cadence beyond residual, NPV, commitment early-termination, stranded capacity, hybrid burst. Saved rate profiles and auto-scaling fleet: v2.
-          </div>
-        </Section>
-
-        <div style={{ marginBottom: 10, borderRadius: 10, border: `1px solid ${C.line}`, background: "#F7F7F7", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: C.sub, textTransform: "uppercase", marginBottom: 2 }}>Next: task-level ROI</div>
-            <div style={{ fontSize: 12, color: "#444" }}>
-              Send this infrastructure cost ({fmt(r.adj.capex + r.oneTime)} upfront, {fmt(r.adj.opex * 12)}/yr ongoing) into the ROI Calculator as the AI cost side of a task-automation business case.
-              {r.isWorkloadMode ? " Based on the Workload Requirement fleet, not your reported cloud spend." : " Based on your reported cloud spend."}
-            </div>
-          </div>
-          <a
-            href={`/roi?initialCost=${Math.round(r.adj.capex + r.oneTime)}&recurringCost=${Math.round(r.adj.opex * 12)}&planningBasis=${r.isWorkloadMode ? "workload" : "spend"}`}
-            style={{ ...disp, fontSize: 12, fontWeight: 700, padding: "9px 14px", borderRadius: 8, background: C.green, color: "#fff", textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap" }}
-          >
-            Send to ROI Calculator
-          </a>
-        </div>
-
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
-          <button onClick={requestReport}
-            style={{ ...disp, flex: "1 1 240px", fontWeight: 700, fontSize: 15, padding: "14px", borderRadius: 10,
-              border: "none", cursor: "pointer", background: C.green, color: "#fff" }}>
-            Get the full report (PDF)
-          </button>
-          <button onClick={openAudit}
-            style={{ ...disp, flex: "1 1 240px", fontWeight: 600, fontSize: 13, padding: "14px", borderRadius: 10,
-              border: "1px solid " + C.line, cursor: "pointer", background: "#fff", color: C.ink }}>
-            Calculation Methodology &amp; Audit Trail
-          </button>
-        </div>
-        </div>)}
       </main>
     </div>
   );
 }
 
-export default function App() {
+export default function App({ visibleModelOptions }) {
   return (
     <AuthProvider>
-      <AppInner />
+      <AppInner visibleModelOptions={visibleModelOptions} />
     </AuthProvider>
   );
 }

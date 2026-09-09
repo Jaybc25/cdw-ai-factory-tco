@@ -26,9 +26,8 @@ function RouteScrollManager() {
     // browser's own restoration only for genuine Back/Forward history visits.
     if (firstRender.current) {
       firstRender.current = false;
-      const navigationEntry = typeof performance !== "undefined"
-        ? performance.getEntriesByType?.("navigation")?.[0]
-        : null;
+      const navigationEntry =
+        typeof performance !== "undefined" ? performance.getEntriesByType?.("navigation")?.[0] : null;
       if (navigationEntry?.type === "back_forward") return;
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       return;
@@ -55,9 +54,7 @@ function ToolRoutes() {
             backLabel="GPU Sizing"
             toolKey="tco"
           >
-            <ModelCatalogVisibilityRoute tool="tco">
-              <TcoCalculator />
-            </ModelCatalogVisibilityRoute>
+            <ModelCatalogVisibilityRoute tool="tco">{React.createElement(TcoCalculator)}</ModelCatalogVisibilityRoute>
           </SharedToolShell>
         )}
       />
@@ -71,7 +68,7 @@ function ToolRoutes() {
             toolKey="gpu-sizing"
           >
             <ModelCatalogVisibilityRoute tool="gpu-sizing">
-              <GpuSizingCalculator />
+              {React.createElement(GpuSizingCalculator)}
             </ModelCatalogVisibilityRoute>
           </SharedToolShell>
         )}

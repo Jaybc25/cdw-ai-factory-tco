@@ -34,6 +34,11 @@ on:
       - "package.json"
       - "package-lock.json"
       - "playwright.config.js"
+      - "index.html"
+      - "vercel.json"
+      - "eslint.config.mjs"
+      - ".prettierrc.json"
+      - ".prettierignore"
       - ".github/workflows/quality-gate.yml"
   pull_request:
     paths:
@@ -66,6 +71,11 @@ on:
       - "package.json"
       - "package-lock.json"
       - "playwright.config.js"
+      - "index.html"
+      - "vercel.json"
+      - "eslint.config.mjs"
+      - ".prettierrc.json"
+      - ".prettierignore"
       - ".github/workflows/quality-gate.yml"
 
 permissions:
@@ -85,6 +95,12 @@ jobs:
 
       - name: Install application dependencies
         run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
 
       - name: Production build
         run: npm run build
@@ -204,6 +220,13 @@ jobs:
       - name: Install Playwright test runner
         run: npm install --no-save --no-package-lock @playwright/test
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.os }}-playwright-
+
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
@@ -246,6 +269,13 @@ jobs:
 
       - name: Install Playwright test runner
         run: npm install --no-save --no-package-lock @playwright/test
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: ${{ runner.os }}-playwright-
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

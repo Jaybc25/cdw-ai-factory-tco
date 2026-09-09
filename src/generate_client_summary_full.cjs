@@ -59,12 +59,18 @@ const CONTENT_W = PAGE_W - MX * 2;
 
 function logoBox(slide, x, y, w, h, label) {
   slide.addShape("rect", {
-    x, y, w, h,
+    x,
+    y,
+    w,
+    h,
     fill: { color: WHITE },
     line: { color: "AAAAAA", width: 1, dashType: "dash" },
   });
   slide.addText(label, {
-    x, y, w, h,
+    x,
+    y,
+    w,
+    h,
     align: "center",
     valign: "middle",
     fontFace: FONT,
@@ -84,9 +90,9 @@ const TOOL_LABEL_FALLBACK = {
 };
 
 const SERVICE_MAP = {
-  "Data": { primary: "AI Readiness Data Quality Assessment" },
+  Data: { primary: "AI Readiness Data Quality Assessment" },
   "Security & Governance": { primary: "AI Risk Assessments (NIST & ISO 42001 Frameworks)" },
-  "Infrastructure": { primary: "Infrastructure Readiness Assessment" },
+  Infrastructure: { primary: "Infrastructure Readiness Assessment" },
   "People & Operations": { primary: "CDW Applied AI Academy" },
   "Business & Use Case": { primary: "Private AI Launch Workshop" },
 };
@@ -98,7 +104,10 @@ const SERVICE_MAP = {
 // trailing "Readiness", trim, case-insensitive) before giving up.
 function serviceFor(category) {
   if (SERVICE_MAP[category]) return SERVICE_MAP[category];
-  const normalized = category.replace(/\s*readiness\s*$/i, "").trim().toLowerCase();
+  const normalized = category
+    .replace(/\s*readiness\s*$/i, "")
+    .trim()
+    .toLowerCase();
   const key = Object.keys(SERVICE_MAP).find((k) => k.toLowerCase() === normalized);
   return key ? SERVICE_MAP[key] : null;
 }
@@ -132,8 +141,15 @@ function statusColor(status) {
 // confirmed from live PDF exports, rather than a plain black bold label.
 function sectionLabel(slide, text, x, y, w) {
   slide.addText(text.toUpperCase(), {
-    x, y, w, h: 0.26,
-    fontFace: FONT, fontSize: 11.5, bold: true, color: MIDGRAY, charSpacing: 1.2,
+    x,
+    y,
+    w,
+    h: 0.26,
+    fontFace: FONT,
+    fontSize: 11.5,
+    bold: true,
+    color: MIDGRAY,
+    charSpacing: 1.2,
   });
 }
 
@@ -143,15 +159,28 @@ function sectionLabel(slide, text, x, y, w) {
 // formatCode: "#,##0" for counts, '"$"#,##0' for money.
 function addBarChart(slide, x, y, w, h, title, categories, values, formatCode, colors) {
   slide.addChart("bar", [{ name: title, labels: categories, values }], {
-    x, y, w, h,
+    x,
+    y,
+    w,
+    h,
     barDir: "bar",
-    showTitle: true, title, titleFontFace: FONT, titleFontSize: 11, titleColor: BODY, titleBold: true,
-    showValue: true, dataLabelPosition: "outEnd",
-    dataLabelFontFace: FONT, dataLabelFontSize: 9, dataLabelColor: BODY,
+    showTitle: true,
+    title,
+    titleFontFace: FONT,
+    titleFontSize: 11,
+    titleColor: BODY,
+    titleBold: true,
+    showValue: true,
+    dataLabelPosition: "outEnd",
+    dataLabelFontFace: FONT,
+    dataLabelFontSize: 9,
+    dataLabelColor: BODY,
     dataLabelFormatCode: formatCode,
     chartColors: colors || [RED, CHARCOAL, "999999", "CCCCCC"],
     showLegend: false,
-    catAxisLabelColor: BODY, catAxisLabelFontFace: FONT, catAxisLabelFontSize: 9.5,
+    catAxisLabelColor: BODY,
+    catAxisLabelFontFace: FONT,
+    catAxisLabelFontSize: 9.5,
     valAxisHidden: true,
     valGridLine: { style: "none" },
     catGridLine: { style: "none" },
@@ -165,21 +194,44 @@ function addBarChart(slide, x, y, w, h, title, categories, values, formatCode, c
 // charts above, and this can't be visually confirmed in this environment);
 // a visible value axis plus gridlines carries the magnitude instead.
 function addLineChart(slide, x, y, w, h, categories, cloudValues, onPremValues) {
-  slide.addChart("line", [
-    { name: "Stay in Cloud", labels: categories, values: cloudValues },
-    { name: "Own It", labels: categories, values: onPremValues },
-  ], {
-    x, y, w, h,
-    showTitle: true, title: "Cumulative Spend by Year", titleFontFace: FONT, titleFontSize: 11, titleColor: BODY, titleBold: true,
-    chartColors: [CHARCOAL, RED],
-    lineSize: 2.5, lineDataSymbol: "circle", lineDataSymbolSize: 6,
-    showLegend: true, legendPos: "b", legendFontFace: FONT, legendFontSize: 9, legendColor: MIDGRAY,
-    catAxisLabelColor: BODY, catAxisLabelFontFace: FONT, catAxisLabelFontSize: 9.5,
-    valAxisLabelColor: MIDGRAY, valAxisLabelFontFace: FONT, valAxisLabelFontSize: 9, valAxisLabelFormatCode: '"$"#,##0,,"M"',
-    valGridLine: { color: "EEEEEE", size: 0.75 },
-    catGridLine: { style: "none" },
-    plotArea: { fill: { color: WHITE } },
-  });
+  slide.addChart(
+    "line",
+    [
+      { name: "Stay in Cloud", labels: categories, values: cloudValues },
+      { name: "Own It", labels: categories, values: onPremValues },
+    ],
+    {
+      x,
+      y,
+      w,
+      h,
+      showTitle: true,
+      title: "Cumulative Spend by Year",
+      titleFontFace: FONT,
+      titleFontSize: 11,
+      titleColor: BODY,
+      titleBold: true,
+      chartColors: [CHARCOAL, RED],
+      lineSize: 2.5,
+      lineDataSymbol: "circle",
+      lineDataSymbolSize: 6,
+      showLegend: true,
+      legendPos: "b",
+      legendFontFace: FONT,
+      legendFontSize: 9,
+      legendColor: MIDGRAY,
+      catAxisLabelColor: BODY,
+      catAxisLabelFontFace: FONT,
+      catAxisLabelFontSize: 9.5,
+      valAxisLabelColor: MIDGRAY,
+      valAxisLabelFontFace: FONT,
+      valAxisLabelFontSize: 9,
+      valAxisLabelFormatCode: '"$"#,##0,,"M"',
+      valGridLine: { color: "EEEEEE", size: 0.75 },
+      catGridLine: { style: "none" },
+      plotArea: { fill: { color: WHITE } },
+    }
+  );
 }
 
 // Bold highlight card -- matches the reference deck's "3-YEAR SAVINGS" style:
@@ -189,18 +241,42 @@ function addLineChart(slide, x, y, w, h, categories, cloudValues, onPremValues) 
 function highlightCard(slide, x, y, w, h, label, stat, context) {
   slide.addShape("roundRect", { x, y, w, h, rectRadius: 0.1, fill: { color: CHARCOAL }, line: { type: "none" } });
   slide.addText(label.toUpperCase(), {
-    x: x + 0.22, y: y + 0.24, w: w - 0.44, h: 0.26,
-    fontFace: FONT, fontSize: 10, bold: true, color: "CCCCCC", charSpacing: 1.5, align: "center",
+    x: x + 0.22,
+    y: y + 0.24,
+    w: w - 0.44,
+    h: 0.26,
+    fontFace: FONT,
+    fontSize: 10,
+    bold: true,
+    color: "CCCCCC",
+    charSpacing: 1.5,
+    align: "center",
   });
   slide.addText(stat, {
-    x: x + 0.15, y: y + 0.52, w: w - 0.3, h: h * 0.42,
-    fontFace: DISPLAY_FONT, fontSize: 30, bold: true, color: WHITE, align: "center", valign: "middle",
+    x: x + 0.15,
+    y: y + 0.52,
+    w: w - 0.3,
+    h: h * 0.42,
+    fontFace: DISPLAY_FONT,
+    fontSize: 30,
+    bold: true,
+    color: WHITE,
+    align: "center",
+    valign: "middle",
     fit: "shrink",
   });
   if (context) {
     slide.addText(context, {
-      x: x + 0.22, y: y + h - 0.62, w: w - 0.44, h: 0.5,
-      fontFace: FONT, fontSize: 9.5, color: "DDDDDD", align: "center", valign: "top", lineSpacingMultiple: 1.15,
+      x: x + 0.22,
+      y: y + h - 0.62,
+      w: w - 0.44,
+      h: 0.5,
+      fontFace: FONT,
+      fontSize: 9.5,
+      color: "DDDDDD",
+      align: "center",
+      valign: "top",
+      lineSpacingMultiple: 1.15,
     });
   }
 }
@@ -211,29 +287,56 @@ function highlightCard(slide, x, y, w, h, label, stat, context) {
 
 const FIELD_FORMAT = {
   // TCO
-  savings: "money", floorCaseSavings: "money", cloudCost: "money", onPremCost: "money",
-  capexPlusOneTime: "money", monthlyOpex: "money", residualCredit: "money", monthlyBill: "money",
-  cloudYear1: "money", onPremYear1Capital: "money", onPremYear1Operating: "money",
+  savings: "money",
+  floorCaseSavings: "money",
+  cloudCost: "money",
+  onPremCost: "money",
+  capexPlusOneTime: "money",
+  monthlyOpex: "money",
+  residualCredit: "money",
+  monthlyBill: "money",
+  cloudYear1: "money",
+  onPremYear1Capital: "money",
+  onPremYear1Operating: "money",
   paybackMonths: "months",
   // GPU Sizing
-  budget: "money", lowerCostCount: "count", higherGrowthCount: "count", minTechnical: "count",
-  recommended: "count", utilizationPct: "percent",
+  budget: "money",
+  lowerCostCount: "count",
+  higherGrowthCount: "count",
+  minTechnical: "count",
+  recommended: "count",
+  utilizationPct: "percent",
   // Model Advisor
-  topModelParams: "count", eligibleCount: "count", totalCount: "count",
-  otherEligibleCount: "count", verificationCandidateCount: "count",
+  topModelParams: "count",
+  eligibleCount: "count",
+  totalCount: "count",
+  otherEligibleCount: "count",
+  verificationCandidateCount: "count",
   // ROI
-  grossCapacity: "count", redeployableCapacity: "count", fteEquivalent: "count",
-  steadyStateValue: "money", year1Value: "money", year1Net: "money", horizonNet: "money",
-  horizonROI: "percent", horizonYears: "count", payback: "months",
+  grossCapacity: "count",
+  redeployableCapacity: "count",
+  fteEquivalent: "count",
+  steadyStateValue: "money",
+  year1Value: "money",
+  year1Net: "money",
+  horizonNet: "money",
+  horizonROI: "percent",
+  horizonYears: "count",
+  payback: "months",
   // Readiness
-  doorsComplete: "count", doorsTotal: "count", suggestedStepCount: "count",
+  doorsComplete: "count",
+  doorsTotal: "count",
+  suggestedStepCount: "count",
 };
 
 const ACRONYMS = ["GPU", "ROI", "AI", "TCO", "FTE"];
 
 function labelize(key) {
   const spaced = key.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/^./, (c) => c.toUpperCase());
-  return spaced.split(" ").map((word) => (ACRONYMS.includes(word.toUpperCase()) ? word.toUpperCase() : word)).join(" ");
+  return spaced
+    .split(" ")
+    .map((word) => (ACRONYMS.includes(word.toUpperCase()) ? word.toUpperCase() : word))
+    .join(" ");
 }
 
 // Shared by both the curated "money" branch and the uncurated MONEY_WORDS
@@ -265,7 +368,20 @@ function fmtValue(key, value) {
       // dropped an uncurated field's percent formatting entirely above
       // that threshold.
       if (k.includes("pct") || k.includes("roi") || k.includes("percent")) return `${(value * 100).toFixed(1)}%`;
-      const MONEY_WORDS = ["cost", "savings", "value", "budget", "net", "bill", "opex", "capex", "credit", "spend", "price", "amount"];
+      const MONEY_WORDS = [
+        "cost",
+        "savings",
+        "value",
+        "budget",
+        "net",
+        "bill",
+        "opex",
+        "capex",
+        "credit",
+        "spend",
+        "price",
+        "amount",
+      ];
       if (MONEY_WORDS.some((w) => k.includes(w))) return fmtMoney(value);
     }
     return value.toLocaleString();
@@ -281,53 +397,111 @@ function fmtValue(key, value) {
 // until this list is updated.
 const DETAIL_FIELD_ORDER = {
   tco: [
-    { group: "Comparison", fields: [
-      ["planningBasis", "Planning Basis"], ["recommendedFleet", "Recommended Fleet"],
-      ["gpuSizingFleet", "GPU Sizing Fleet"], ["savings", "Savings (Adjusted)"],
-      ["floorCaseSavings", "Savings (Floor Case)"], ["cloudCost", "Cloud Cost"], ["onPremCost", "On-Prem Cost"],
-    ] },
-    { group: "Investment", fields: [
-      ["capexPlusOneTime", "Capex + One-Time"], ["monthlyOpex", "Monthly Opex"],
-      ["residualCredit", "Residual Credit"], ["paybackMonths", "Payback"], ["horizonYears", "Horizon"],
-      ["cloudYear1", "Cloud (Year 1)"], ["onPremYear1Capital", "On-Prem Upfront (Year 1)"],
-      ["onPremYear1Operating", "On-Prem Operating (Year 1)"],
-    ] },
-    { group: "Configuration", fields: [
-      ["facility", "Facility"], ["provider", "Cloud Provider"], ["gpuClass", "Cloud GPU Class"],
-      ["monthlyBill", "Reported Monthly Bill"], ["confidence", "Confidence"],
-    ] },
+    {
+      group: "Comparison",
+      fields: [
+        ["planningBasis", "Planning Basis"],
+        ["recommendedFleet", "Recommended Fleet"],
+        ["gpuSizingFleet", "GPU Sizing Fleet"],
+        ["savings", "Savings (Adjusted)"],
+        ["floorCaseSavings", "Savings (Floor Case)"],
+        ["cloudCost", "Cloud Cost"],
+        ["onPremCost", "On-Prem Cost"],
+      ],
+    },
+    {
+      group: "Investment",
+      fields: [
+        ["capexPlusOneTime", "Capex + One-Time"],
+        ["monthlyOpex", "Monthly Opex"],
+        ["residualCredit", "Residual Credit"],
+        ["paybackMonths", "Payback"],
+        ["horizonYears", "Horizon"],
+        ["cloudYear1", "Cloud (Year 1)"],
+        ["onPremYear1Capital", "On-Prem Upfront (Year 1)"],
+        ["onPremYear1Operating", "On-Prem Operating (Year 1)"],
+      ],
+    },
+    {
+      group: "Configuration",
+      fields: [
+        ["facility", "Facility"],
+        ["provider", "Cloud Provider"],
+        ["gpuClass", "Cloud GPU Class"],
+        ["monthlyBill", "Reported Monthly Bill"],
+        ["confidence", "Confidence"],
+      ],
+    },
   ],
   gpuSizing: [
-    { group: "Recommendation", fields: [
-      ["model", "Model"], ["mode", "Mode"], ["gpuClass", "Recommended GPU Class"],
-      ["minTechnical", "Minimum Technical (GPUs)"], ["recommended", "Recommended (GPUs)"], ["confidence", "Confidence"],
-    ] },
-    { group: "Alternatives & Budget", fields: [
-      ["lowerCostClass", "Lower-Cost Alternative Class"], ["lowerCostCount", "Lower-Cost Alternative (GPUs)"],
-      ["higherGrowthClass", "Higher-Growth Alternative Class"], ["higherGrowthCount", "Higher-Growth Alternative (GPUs)"],
-      ["utilizationPct", "Utilization"], ["budget", "Estimated Budget"],
-    ] },
+    {
+      group: "Recommendation",
+      fields: [
+        ["model", "Model"],
+        ["mode", "Mode"],
+        ["gpuClass", "Recommended GPU Class"],
+        ["minTechnical", "Minimum Technical (GPUs)"],
+        ["recommended", "Recommended (GPUs)"],
+        ["confidence", "Confidence"],
+      ],
+    },
+    {
+      group: "Alternatives & Budget",
+      fields: [
+        ["lowerCostClass", "Lower-Cost Alternative Class"],
+        ["lowerCostCount", "Lower-Cost Alternative (GPUs)"],
+        ["higherGrowthClass", "Higher-Growth Alternative Class"],
+        ["higherGrowthCount", "Higher-Growth Alternative (GPUs)"],
+        ["utilizationPct", "Utilization"],
+        ["budget", "Estimated Budget"],
+      ],
+    },
   ],
   modelAdvisor: [
-    { group: "Model", fields: [
-      ["topModel", "Recommended Model"], ["topModelLicense", "License"],
-      ["topModelParams", "Parameters (B)"], ["topModelConfidence", "Confidence"], ["primaryWorkload", "Primary Workload"],
-    ] },
-    { group: "Evaluation", fields: [
-      ["qualityPriority", "Quality Priority"], ["optimizationPriority", "Optimization Priority"],
-      ["eligibleCount", "Eligible Models"], ["otherEligibleCount", "Other Eligible Models"],
-      ["verificationCandidateCount", "Verification Candidates"], ["totalCount", "Total Models Evaluated"],
-    ] },
+    {
+      group: "Model",
+      fields: [
+        ["topModel", "Recommended Model"],
+        ["topModelLicense", "License"],
+        ["topModelParams", "Parameters (B)"],
+        ["topModelConfidence", "Confidence"],
+        ["primaryWorkload", "Primary Workload"],
+      ],
+    },
+    {
+      group: "Evaluation",
+      fields: [
+        ["qualityPriority", "Quality Priority"],
+        ["optimizationPriority", "Optimization Priority"],
+        ["eligibleCount", "Eligible Models"],
+        ["otherEligibleCount", "Other Eligible Models"],
+        ["verificationCandidateCount", "Verification Candidates"],
+        ["totalCount", "Total Models Evaluated"],
+      ],
+    },
   ],
   roi: [
-    { group: "Investment", fields: [
-      ["costSource", "AI Cost Source"], ["horizonYears", "Horizon"], ["payback", "Payback"],
-    ] },
-    { group: "Value Created", fields: [
-      ["grossCapacity", "Gross Capacity (hrs/yr)"], ["redeployableCapacity", "Redeployable Capacity (hrs/yr)"],
-      ["fteEquivalent", "FTE-Equivalent"], ["steadyStateValue", "Steady-State Value"], ["year1Value", "Year 1 Value"],
-      ["year1Net", "Year 1 Net"], ["horizonNet", "Horizon Net"], ["horizonROI", "Horizon ROI"],
-    ] },
+    {
+      group: "Investment",
+      fields: [
+        ["costSource", "AI Cost Source"],
+        ["horizonYears", "Horizon"],
+        ["payback", "Payback"],
+      ],
+    },
+    {
+      group: "Value Created",
+      fields: [
+        ["grossCapacity", "Gross Capacity (hrs/yr)"],
+        ["redeployableCapacity", "Redeployable Capacity (hrs/yr)"],
+        ["fteEquivalent", "FTE-Equivalent"],
+        ["steadyStateValue", "Steady-State Value"],
+        ["year1Value", "Year 1 Value"],
+        ["year1Net", "Year 1 Net"],
+        ["horizonNet", "Horizon Net"],
+        ["horizonROI", "Horizon ROI"],
+      ],
+    },
   ],
 };
 
@@ -337,17 +511,44 @@ const DETAIL_FIELD_ORDER = {
 // charting them side by side would visually imply a comparison that isn't
 // real, so it gets a badge treatment instead (see below).
 const CHART_SPEC = {
-  tco: { title: "Cloud vs. On-Prem (3-Yr)", formatCode: '"$"#,##0,,"M"', fields: [["onPremCost", "Own It"], ["cloudCost", "Stay in Cloud"]] },
-  roi: { title: "Capacity Created (hrs/yr)", formatCode: "#,##0", fields: [["grossCapacity", "Gross Capacity"], ["redeployableCapacity", "Redeployable"]] },
-  gpuSizing: { title: "GPU Configuration Options", formatCode: "#,##0", fields: [["minTechnical", "Minimum Technical"], ["recommended", "Recommended"], ["lowerCostCount", "Lower-Cost Alt"], ["higherGrowthCount", "Higher-Growth Alt"]] },
+  tco: {
+    title: "Cloud vs. On-Prem (3-Yr)",
+    formatCode: '"$"#,##0,,"M"',
+    fields: [
+      ["onPremCost", "Own It"],
+      ["cloudCost", "Stay in Cloud"],
+    ],
+  },
+  roi: {
+    title: "Capacity Created (hrs/yr)",
+    formatCode: "#,##0",
+    fields: [
+      ["grossCapacity", "Gross Capacity"],
+      ["redeployableCapacity", "Redeployable"],
+    ],
+  },
+  gpuSizing: {
+    title: "GPU Configuration Options",
+    formatCode: "#,##0",
+    fields: [
+      ["minTechnical", "Minimum Technical"],
+      ["recommended", "Recommended"],
+      ["lowerCostCount", "Lower-Cost Alt"],
+      ["higherGrowthCount", "Higher-Growth Alt"],
+    ],
+  },
 };
 
 function chartDataFor(toolKey, detail) {
   const spec = CHART_SPEC[toolKey];
   if (!spec || !detail) return null;
-  const categories = [], values = [];
+  const categories = [],
+    values = [];
   spec.fields.forEach(([key, label]) => {
-    if (typeof detail[key] === "number") { categories.push(label); values.push(detail[key]); }
+    if (typeof detail[key] === "number") {
+      categories.push(label);
+      values.push(detail[key]);
+    }
   });
   if (categories.length < 2) return null; // a chart needs at least 2 bars to mean anything
   return { title: spec.title, formatCode: spec.formatCode, categories, values };
@@ -377,19 +578,30 @@ function cumulativeChartDataFor(detail) {
 // already in the schema -- no itemized breakdowns or year-by-year figures
 // that aren't actually present.
 const HIGHLIGHT_SPEC = {
-  tco: (t) => (typeof t.detail?.savings === "number") ? {
-    label: `${t.detail.horizonYears || 3}-Year Savings`,
-    stat: fmtValue("savings", t.detail.savings),
-    context: typeof t.detail.cloudCost === "number" ? `vs. ${fmtValue("cloudCost", t.detail.cloudCost)} staying in cloud` : null,
-  } : null,
-  roi: (t) => (typeof t.detail?.horizonNet === "number") ? {
-    label: `${t.detail.horizonYears || 3}-Year Net Benefit`,
-    stat: fmtValue("horizonNet", t.detail.horizonNet),
-    context: [
-      typeof t.detail.horizonROI === "number" ? `${(t.detail.horizonROI * 100).toFixed(1)}% ROI` : null,
-      typeof t.detail.payback === "number" ? `${t.detail.payback.toFixed(1)}mo payback` : null,
-    ].filter(Boolean).join(" \u00b7 "),
-  } : null,
+  tco: (t) =>
+    typeof t.detail?.savings === "number"
+      ? {
+          label: `${t.detail.horizonYears || 3}-Year Savings`,
+          stat: fmtValue("savings", t.detail.savings),
+          context:
+            typeof t.detail.cloudCost === "number"
+              ? `vs. ${fmtValue("cloudCost", t.detail.cloudCost)} staying in cloud`
+              : null,
+        }
+      : null,
+  roi: (t) =>
+    typeof t.detail?.horizonNet === "number"
+      ? {
+          label: `${t.detail.horizonYears || 3}-Year Net Benefit`,
+          stat: fmtValue("horizonNet", t.detail.horizonNet),
+          context: [
+            typeof t.detail.horizonROI === "number" ? `${(t.detail.horizonROI * 100).toFixed(1)}% ROI` : null,
+            typeof t.detail.payback === "number" ? `${t.detail.payback.toFixed(1)}mo payback` : null,
+          ]
+            .filter(Boolean)
+            .join(" \u00b7 "),
+        }
+      : null,
 };
 
 // Detail-card rows assume a single-line value at LAYOUT.rowH. Long values
@@ -421,20 +633,24 @@ function detailGroups(toolKey, detail) {
   if (!detail) return [];
   const order = DETAIL_FIELD_ORDER[toolKey] || [];
   const seen = new Set();
-  const groups = order.map(({ group, fields }) => {
-    const rows = [];
-    fields.forEach(([key, label]) => {
-      if (detail[key] === undefined) return;
-      rows.push([label, fmtValue(key, detail[key])]);
-      seen.add(key);
-    });
-    return { group, rows };
-  }).filter((g) => g.rows.length > 0);
+  const groups = order
+    .map(({ group, fields }) => {
+      const rows = [];
+      fields.forEach(([key, label]) => {
+        if (detail[key] === undefined) return;
+        rows.push([label, fmtValue(key, detail[key])]);
+        seen.add(key);
+      });
+      return { group, rows };
+    })
+    .filter((g) => g.rows.length > 0);
   // Array/object-typed fields (e.g. TCO's cumulativeByYear) are chart-source
   // data, not label/value rows -- without this filter they'd render as
   // literal "[object Object]" text, the same class of bug already fixed
   // once in CombinedSummary.jsx's generic snapshot renderer.
-  const leftover = Object.keys(detail).filter((key) => !seen.has(key) && (detail[key] === null || typeof detail[key] !== "object"));
+  const leftover = Object.keys(detail).filter(
+    (key) => !seen.has(key) && (detail[key] === null || typeof detail[key] !== "object")
+  );
   if (leftover.length) {
     groups.push({ group: "Other", rows: leftover.map((key) => [labelize(key), fmtValue(key, detail[key])]) });
   }
@@ -448,11 +664,23 @@ let pageCursor = 0; // set once total is known, incremented per addContentPage c
 let TOTAL_PAGES = 0;
 const CONTENT_TOP = 1.65;
 const FOOTER_TOP = 10.15; // buffered below the visual footer (10.35) -- confirmed by an actual page-count mismatch that a razor-thin margin here drifts from real rendered heights
-const DISPLAY_FONT = "Cambria"; // safe-list serif for headlines/titles -- paired with Calibri body for real typographic contrast
+// safe-list serif for headlines/titles. pptxgenjs will fall back to a
+// system serif if the deck is opened on a machine without Cambria installed.
+const DISPLAY_FONT = "Cambria";
 
 // Shared with the estimator below -- both must agree, or the precomputed
 // page count (used for "X of Y" footers) drifts from what actually renders.
-const LAYOUT = { headline: 1.05, bulletLine: 0.24, bulletPad: 0.35, chart: 2.3, badge: 0.65, label: 0.3, rowH: 0.27, cardPad: 0.14, cardGap: 0.22 };
+const LAYOUT = {
+  headline: 1.05,
+  bulletLine: 0.24,
+  bulletPad: 0.35,
+  chart: 2.3,
+  badge: 0.65,
+  label: 0.3,
+  rowH: 0.27,
+  cardPad: 0.14,
+  cardGap: 0.22,
+};
 
 function addContentPage(eyebrow, title) {
   const slide = pres.addSlide();
@@ -463,22 +691,46 @@ function addContentPage(eyebrow, title) {
   // the flagged accent-stripe/underline pattern -- carried on every page.
   slide.addShape("ellipse", { x: MX, y: 0.62, w: 0.16, h: 0.16, fill: { color: RED }, line: { type: "none" } });
   slide.addText(eyebrow.toUpperCase(), {
-    x: MX + 0.26, y: 0.55, w: CONTENT_W - 1.8, h: 0.3,
-    fontFace: FONT, fontSize: 10.5, bold: true, color: RED, charSpacing: 2,
+    x: MX + 0.26,
+    y: 0.55,
+    w: CONTENT_W - 1.8,
+    h: 0.3,
+    fontFace: FONT,
+    fontSize: 10.5,
+    bold: true,
+    color: RED,
+    charSpacing: 2,
   });
   slide.addText(title, {
-    x: MX, y: 0.92, w: CONTENT_W, h: 0.6,
-    fontFace: DISPLAY_FONT, fontSize: 30, bold: true, color: CHARCOAL,
+    x: MX,
+    y: 0.92,
+    w: CONTENT_W,
+    h: 0.6,
+    fontFace: DISPLAY_FONT,
+    fontSize: 30,
+    bold: true,
+    color: CHARCOAL,
   });
   logoBox(slide, PAGE_W - MX - 1.3, 0.55, 1.3, 0.36, "CDW");
 
   slide.addText("CDW AI Factory", {
-    x: MX, y: 10.68, w: 3, h: 0.22,
-    fontFace: FONT, fontSize: 8.5, color: MIDGRAY,
+    x: MX,
+    y: 10.68,
+    w: 3,
+    h: 0.22,
+    fontFace: FONT,
+    fontSize: 8.5,
+    color: MIDGRAY,
   });
   slide.addText(`${pageCursor} of ${TOTAL_PAGES}`, {
-    x: PAGE_W - MX - 1, y: 10.68, w: 1, h: 0.22,
-    fontFace: FONT, fontSize: 8.5, color: MIDGRAY, align: "right",
+    x: PAGE_W - MX - 1,
+    y: 10.68,
+    w: 1,
+    h: 0.22,
+    fontFace: FONT,
+    fontSize: 8.5,
+    color: MIDGRAY,
+    align: "right",
   });
 
   return { slide, contentTop: CONTENT_TOP };
@@ -500,7 +752,8 @@ function estimateToolPageCount(t, key) {
     if (t.bullets && t.bullets.length) y += 0.45;
     if (key === "tco" && cumulativeChartDataFor(t.detail)) y += LAYOUT.chart + 0.15;
   } else {
-    let leftBottom = y, rightBottom = y;
+    let leftBottom = y,
+      rightBottom = y;
     if (t.bullets && t.bullets.length) leftBottom = y + LAYOUT.bulletLine * t.bullets.length + LAYOUT.bulletPad;
     const chart = chartDataFor(key, t.detail);
     if (chart) rightBottom = y + LAYOUT.chart;
@@ -522,15 +775,18 @@ function estimateToolPageCount(t, key) {
   return pages;
 }
 
-
-
 // ---------- compute page plan up front, so header/footer page numbers are
 // correct on every page without a second pass ----------
 
 const includedTools = TOOL_ORDER.filter((k) => data.tools[k] && data.tools[k].included);
 const readinessIncluded = !!(data.tools.readiness && data.tools.readiness.included);
 const toolPageCounts = includedTools.map((k) => estimateToolPageCount(data.tools[k], k));
-TOTAL_PAGES = 1 /* cover */ + 1 /* exec summary */ + toolPageCounts.reduce((a, b) => a + b, 0) + (readinessIncluded ? 1 : 0) + 1 /* closing */;
+TOTAL_PAGES =
+  1 /* cover */ +
+  1 /* exec summary */ +
+  toolPageCounts.reduce((a, b) => a + b, 0) +
+  (readinessIncluded ? 1 : 0) +
+  1 /* closing */;
 
 // ---------- Page 1: Cover ----------
 
@@ -540,49 +796,99 @@ pageCursor = 1;
 
 logoBox(cover, MX, 0.6, 2.0, 0.55, "CDW LOGO");
 if (safeClientLogoPath) {
-  cover.addImage({ path: safeClientLogoPath, x: PAGE_W - MX - 2.0, y: 0.6, w: 2.0, h: 0.55, sizing: { type: "contain", w: 2.0, h: 0.55 } });
+  cover.addImage({
+    path: safeClientLogoPath,
+    x: PAGE_W - MX - 2.0,
+    y: 0.6,
+    w: 2.0,
+    h: 0.55,
+    sizing: { type: "contain", w: 2.0, h: 0.55 },
+  });
 } else {
   logoBox(cover, PAGE_W - MX - 2.0, 0.6, 2.0, 0.55, "CLIENT LOGO");
 }
 
 cover.addText("AI FACTORY FULL ASSESSMENT", {
-  x: MX, y: 3.6, w: CONTENT_W, h: 0.3,
-  fontFace: FONT, fontSize: 11, bold: true, color: RED, charSpacing: 2,
+  x: MX,
+  y: 3.6,
+  w: CONTENT_W,
+  h: 0.3,
+  fontFace: FONT,
+  fontSize: 11,
+  bold: true,
+  color: RED,
+  charSpacing: 2,
 });
 cover.addText("Comprehensive AI Infrastructure\nAssessment & Recommendation", {
-  x: MX, y: 3.95, w: CONTENT_W, h: 1.5,
-  fontFace: FONT, fontSize: 30, bold: true, color: RED, lineSpacingMultiple: 1.05,
+  x: MX,
+  y: 3.95,
+  w: CONTENT_W,
+  h: 1.5,
+  fontFace: FONT,
+  fontSize: 30,
+  bold: true,
+  color: RED,
+  lineSpacingMultiple: 1.05,
 });
 cover.addText(`Prepared for ${data.clientName}`, {
-  x: MX, y: 5.6, w: CONTENT_W, h: 0.35,
-  fontFace: FONT, fontSize: 15, bold: true, color: BODY,
+  x: MX,
+  y: 5.6,
+  w: CONTENT_W,
+  h: 0.35,
+  fontFace: FONT,
+  fontSize: 15,
+  bold: true,
+  color: BODY,
 });
 cover.addText(data.date, {
-  x: MX, y: 5.95, w: CONTENT_W, h: 0.3,
-  fontFace: FONT, fontSize: 12, color: MIDGRAY,
+  x: MX,
+  y: 5.95,
+  w: CONTENT_W,
+  h: 0.3,
+  fontFace: FONT,
+  fontSize: 12,
+  color: MIDGRAY,
 });
 
 cover.addShape("rect", { x: MX, y: 6.5, w: 0.6, h: 0.04, fill: { color: RED }, line: { type: "none" } });
 cover.addText(
   "This document provides a comprehensive, detailed breakdown of the AI infrastructure assessment " +
-  "conducted using CDW's AI Factory tools -- covering technical sizing, cost economics, model " +
-  "selection, and organizational readiness. Figures throughout reflect the assumptions provided " +
-  "during your working session and are directional planning estimates, not a final quote.",
+    "conducted using CDW's AI Factory tools -- covering technical sizing, cost economics, model " +
+    "selection, and organizational readiness. Figures throughout reflect the assumptions provided " +
+    "during your working session and are directional planning estimates, not a final quote.",
   {
-    x: MX, y: 6.75, w: CONTENT_W, h: 1.3,
-    fontFace: FONT, fontSize: 11.5, color: BODY, valign: "top", lineSpacingMultiple: 1.2,
+    x: MX,
+    y: 6.75,
+    w: CONTENT_W,
+    h: 1.3,
+    fontFace: FONT,
+    fontSize: 11.5,
+    color: BODY,
+    valign: "top",
+    lineSpacingMultiple: 1.2,
   }
 );
 
-const coverIncludedNames = includedTools.map((k) => (data.tools[k].label || TOOL_LABEL_FALLBACK[k]));
+const coverIncludedNames = includedTools.map((k) => data.tools[k].label || TOOL_LABEL_FALLBACK[k]);
 if (readinessIncluded) coverIncludedNames.push("AI Readiness Checklists");
 cover.addText(`Covering: ${coverIncludedNames.join("  \u2022  ")}`, {
-  x: MX, y: 9.9, w: CONTENT_W, h: 0.5,
-  fontFace: FONT, fontSize: 10, italic: true, color: MIDGRAY,
+  x: MX,
+  y: 9.9,
+  w: CONTENT_W,
+  h: 0.5,
+  fontFace: FONT,
+  fontSize: 10,
+  italic: true,
+  color: MIDGRAY,
 });
 cover.addText(`${data.accountExec}  \u2022  CDW.com  \u2022  (800) 800-4239`, {
-  x: MX, y: 10.4, w: CONTENT_W, h: 0.3,
-  fontFace: FONT, fontSize: 9.5, color: MIDGRAY,
+  x: MX,
+  y: 10.4,
+  w: CONTENT_W,
+  h: 0.3,
+  fontFace: FONT,
+  fontSize: 9.5,
+  color: MIDGRAY,
 });
 
 // Synthesizes the same kind of opening narrative sentence the real 2-pager
@@ -593,15 +899,22 @@ function buildNarrative(data) {
   const parts = [];
   const roi = data.tools.roi;
   if (roi && roi.included && roi.headlineStat) {
-    const payback = roi.detail && typeof roi.detail.payback === "number" ? ` with a ${roi.detail.payback.toFixed(1)}-month payback` : "";
+    const payback =
+      roi.detail && typeof roi.detail.payback === "number"
+        ? ` with a ${roi.detail.payback.toFixed(1)}-month payback`
+        : "";
     const roiYears = roi.detail && typeof roi.detail.horizonYears === "number" ? roi.detail.horizonYears : 3;
-    parts.push(`Your on-prem infrastructure investment shows strong economics: ${roi.headlineStat} ${roiYears}-year ROI${payback}.`);
+    parts.push(
+      `Your on-prem infrastructure investment shows strong economics: ${roi.headlineStat} ${roiYears}-year ROI${payback}.`
+    );
   }
   const readiness = data.tools.readiness;
   if (readiness && readiness.included) {
     const gaps = readiness.statuses.filter((s) => isFlaggedStatus(s.status));
     if (gaps.length > 0) {
-      parts.push(`Readiness assessment surfaced gaps in ${gaps.length} of ${readiness.statuses.length} areas (${gaps.map((g) => g.category).join(", ")}) that should be addressed before implementation.`);
+      parts.push(
+        `Readiness assessment surfaced gaps in ${gaps.length} of ${readiness.statuses.length} areas (${gaps.map((g) => g.category).join(", ")}) that should be addressed before implementation.`
+      );
     } else {
       parts.push(`Readiness assessment shows all ${readiness.statuses.length} areas in good standing.`);
     }
@@ -637,9 +950,36 @@ function buildNarrative(data) {
     const y = gridTop + row * (cardH + gap);
     const statFontSize = card.stat.length > 9 ? 19 : 27;
 
-    slide.addShape("roundRect", { x, y, w: cardW, h: cardH, rectRadius: 0.08, fill: { color: CHARCOAL }, line: { type: "none" } });
-    slide.addText(card.stat, { x: x + 0.15, y: y + 0.15, w: cardW - 0.3, h: cardH - 0.65, fontFace: DISPLAY_FONT, fontSize: statFontSize, bold: true, color: WHITE, valign: "bottom" });
-    slide.addText(card.label, { x: x + 0.15, y: y + cardH - 0.45, w: cardW - 0.3, h: 0.4, fontFace: FONT, fontSize: 10.5, color: "DDDDDD", valign: "top" });
+    slide.addShape("roundRect", {
+      x,
+      y,
+      w: cardW,
+      h: cardH,
+      rectRadius: 0.08,
+      fill: { color: CHARCOAL },
+      line: { type: "none" },
+    });
+    slide.addText(card.stat, {
+      x: x + 0.15,
+      y: y + 0.15,
+      w: cardW - 0.3,
+      h: cardH - 0.65,
+      fontFace: DISPLAY_FONT,
+      fontSize: statFontSize,
+      bold: true,
+      color: WHITE,
+      valign: "bottom",
+    });
+    slide.addText(card.label, {
+      x: x + 0.15,
+      y: y + cardH - 0.45,
+      w: cardW - 0.3,
+      h: 0.4,
+      fontFace: FONT,
+      fontSize: 10.5,
+      color: "DDDDDD",
+      valign: "top",
+    });
   });
 
   let y = (hasCards ? gridTop + rows * cardH + (rows - 1) * gap : gridTop) + 0.45;
@@ -647,8 +987,15 @@ function buildNarrative(data) {
   const narrative = buildNarrative(data);
   if (narrative) {
     slide.addText(narrative, {
-      x: MX, y, w: CONTENT_W, h: 0.75,
-      fontFace: FONT, fontSize: 11, color: BODY, valign: "top", lineSpacingMultiple: 1.2,
+      x: MX,
+      y,
+      w: CONTENT_W,
+      h: 0.75,
+      fontFace: FONT,
+      fontSize: 11,
+      color: BODY,
+      valign: "top",
+      lineSpacingMultiple: 1.2,
     });
     y += 0.85;
   }
@@ -661,10 +1008,29 @@ function buildNarrative(data) {
     previewGaps.forEach((s, idx) => {
       const isLast = idx === previewGaps.length - 1;
       const svc = serviceFor(s.category);
-      stepItems.push({ text: s.category + ":  ", options: { fontFace: FONT, fontSize: 10.5, bold: true, color: BODY, paraSpaceAfter: 2, breakLine: false } });
-      stepItems.push({ text: svc ? svc.primary : "Discuss the right engagement with your CDW account team.", options: { fontFace: FONT, fontSize: 10.5, color: svc ? BODY : MIDGRAY, italic: !svc, paraSpaceAfter: 2, breakLine: !isLast } });
+      stepItems.push({
+        text: s.category + ":  ",
+        options: { fontFace: FONT, fontSize: 10.5, bold: true, color: BODY, paraSpaceAfter: 2, breakLine: false },
+      });
+      stepItems.push({
+        text: svc ? svc.primary : "Discuss the right engagement with your CDW account team.",
+        options: {
+          fontFace: FONT,
+          fontSize: 10.5,
+          color: svc ? BODY : MIDGRAY,
+          italic: !svc,
+          paraSpaceAfter: 2,
+          breakLine: !isLast,
+        },
+      });
     });
-    slide.addText(stepItems, { x: MX + 0.05, y, w: CONTENT_W - 0.1, h: 0.22 * previewGaps.length + 0.1, valign: "top" });
+    slide.addText(stepItems, {
+      x: MX + 0.05,
+      y,
+      w: CONTENT_W - 0.1,
+      h: 0.22 * previewGaps.length + 0.1,
+      valign: "top",
+    });
     y += 0.22 * previewGaps.length + 0.35;
   }
 
@@ -672,12 +1038,26 @@ function buildNarrative(data) {
   y += 0.28;
   const tocItems = includedTools.map((k, i) => ({
     text: `${data.tools[k].label || TOOL_LABEL_FALLBACK[k]} \u2014 full sizing, cost, and recommendation detail`,
-    options: { bullet: { code: "2022", indent: 14 }, fontFace: FONT, fontSize: 11, color: BODY, paraSpaceAfter: 3, breakLine: true },
+    options: {
+      bullet: { code: "2022", indent: 14 },
+      fontFace: FONT,
+      fontSize: 11,
+      color: BODY,
+      paraSpaceAfter: 3,
+      breakLine: true,
+    },
   }));
   if (readinessIncluded) {
     tocItems.push({
       text: "AI Readiness Checklists \u2014 category-by-category status and recommended next steps",
-      options: { bullet: { code: "2022", indent: 14 }, fontFace: FONT, fontSize: 11, color: BODY, paraSpaceAfter: 3, breakLine: false },
+      options: {
+        bullet: { code: "2022", indent: 14 },
+        fontFace: FONT,
+        fontSize: 11,
+        color: BODY,
+        paraSpaceAfter: 3,
+        breakLine: false,
+      },
     });
   } else if (tocItems.length) {
     tocItems[tocItems.length - 1].options.breakLine = false;
@@ -689,7 +1069,10 @@ function buildNarrative(data) {
 
 includedTools.forEach((key) => {
   const t = data.tools[key];
-  const { slide, contentTop } = addContentPage(TOOL_LABEL_FALLBACK[key] || t.label, t.label || TOOL_LABEL_FALLBACK[key]);
+  const { slide, contentTop } = addContentPage(
+    TOOL_LABEL_FALLBACK[key] || t.label,
+    t.label || TOOL_LABEL_FALLBACK[key]
+  );
   let y = contentTop + 0.1;
 
   // Large stat callout -- the number is the story on every real report
@@ -697,12 +1080,25 @@ includedTools.forEach((key) => {
   // with everything else at a similar size.
   if (t.headlineStat) {
     slide.addText((t.headlineLabel || "").toUpperCase(), {
-      x: MX, y, w: CONTENT_W, h: 0.24,
-      fontFace: FONT, fontSize: 10.5, bold: true, color: RED, charSpacing: 1.5,
+      x: MX,
+      y,
+      w: CONTENT_W,
+      h: 0.24,
+      fontFace: FONT,
+      fontSize: 10.5,
+      bold: true,
+      color: RED,
+      charSpacing: 1.5,
     });
     slide.addText(t.headlineStat, {
-      x: MX, y: y + 0.24, w: CONTENT_W, h: 0.8,
-      fontFace: DISPLAY_FONT, fontSize: 54, bold: true, color: CHARCOAL,
+      x: MX,
+      y: y + 0.24,
+      w: CONTENT_W,
+      h: 0.8,
+      fontFace: DISPLAY_FONT,
+      fontSize: 54,
+      bold: true,
+      color: CHARCOAL,
     });
     y += 1.15;
   }
@@ -716,7 +1112,8 @@ includedTools.forEach((key) => {
   // bullets-left / chart-right.
   const colGap = 0.3;
   const highlight = HIGHLIGHT_SPEC[key] ? HIGHLIGHT_SPEC[key](t) : null;
-  let leftBottom = y, rightBottom = y;
+  let leftBottom = y,
+    rightBottom = y;
 
   if (highlight) {
     const chartW = CONTENT_W * 0.6 - colGap / 2;
@@ -724,7 +1121,17 @@ includedTools.forEach((key) => {
     const cardX = MX + chartW + colGap;
     const chart = chartDataFor(key, t.detail);
     if (chart) {
-      addBarChart(slide, MX, y, chartW, LAYOUT.chart - 0.1, chart.title, chart.categories, chart.values, chart.formatCode);
+      addBarChart(
+        slide,
+        MX,
+        y,
+        chartW,
+        LAYOUT.chart - 0.1,
+        chart.title,
+        chart.categories,
+        chart.values,
+        chart.formatCode
+      );
       leftBottom = y + LAYOUT.chart;
     }
     highlightCard(slide, cardX, y, cardW, LAYOUT.chart - 0.1, highlight.label, highlight.stat, highlight.context);
@@ -733,8 +1140,15 @@ includedTools.forEach((key) => {
 
     if (t.bullets && t.bullets.length) {
       slide.addText(t.bullets.join("   \u2022   "), {
-        x: MX, y, w: CONTENT_W, h: 0.4,
-        fontFace: FONT, fontSize: 9.5, color: MIDGRAY, valign: "top", italic: true,
+        x: MX,
+        y,
+        w: CONTENT_W,
+        h: 0.4,
+        fontFace: FONT,
+        fontSize: 9.5,
+        color: MIDGRAY,
+        valign: "top",
+        italic: true,
       });
       y += 0.45;
     }
@@ -763,10 +1177,34 @@ includedTools.forEach((key) => {
         const rest = parts.length > 1 ? parts.slice(1).join(":") : b;
         const isLast = idx === t.bullets.length - 1;
         if (boldLabel) {
-          bulletItems.push({ text: boldLabel + " ", options: { bullet: { code: "2022", indent: 12 }, fontFace: FONT, fontSize: 10.5, bold: true, color: BODY, paraSpaceAfter: 4, breakLine: false } });
-          bulletItems.push({ text: rest.trim(), options: { fontFace: FONT, fontSize: 10.5, color: BODY, paraSpaceAfter: 4, breakLine: !isLast } });
+          bulletItems.push({
+            text: boldLabel + " ",
+            options: {
+              bullet: { code: "2022", indent: 12 },
+              fontFace: FONT,
+              fontSize: 10.5,
+              bold: true,
+              color: BODY,
+              paraSpaceAfter: 4,
+              breakLine: false,
+            },
+          });
+          bulletItems.push({
+            text: rest.trim(),
+            options: { fontFace: FONT, fontSize: 10.5, color: BODY, paraSpaceAfter: 4, breakLine: !isLast },
+          });
         } else {
-          bulletItems.push({ text: b, options: { bullet: { code: "2022", indent: 12 }, fontFace: FONT, fontSize: 10.5, color: BODY, paraSpaceAfter: 4, breakLine: !isLast } });
+          bulletItems.push({
+            text: b,
+            options: {
+              bullet: { code: "2022", indent: 12 },
+              fontFace: FONT,
+              fontSize: 10.5,
+              color: BODY,
+              paraSpaceAfter: 4,
+              breakLine: !isLast,
+            },
+          });
         }
       });
       slide.addText(bulletItems, { x: MX, y, w: leftW, h: 2.1, valign: "top" });
@@ -775,20 +1213,59 @@ includedTools.forEach((key) => {
 
     const chart = chartDataFor(key, t.detail);
     if (chart) {
-      addBarChart(slide, rightX, y, rightW, LAYOUT.chart - 0.1, chart.title, chart.categories, chart.values, chart.formatCode);
+      addBarChart(
+        slide,
+        rightX,
+        y,
+        rightW,
+        LAYOUT.chart - 0.1,
+        chart.title,
+        chart.categories,
+        chart.values,
+        chart.formatCode
+      );
       rightBottom = y + LAYOUT.chart;
     } else if (key === "modelAdvisor" && t.detail) {
       const conf = t.detail.topModelConfidence;
       const confColor = /high/i.test(conf) ? GREEN : /medium/i.test(conf) ? AMBER : MIDGRAY;
       if (conf) {
-        slide.addShape("roundRect", { x: rightX, y, w: 1.9, h: 0.38, rectRadius: 0.19, fill: { color: WHITE }, line: { color: confColor, width: 1.5 } });
-        slide.addText(`${conf.toUpperCase()} CONFIDENCE`, { x: rightX, y, w: 1.9, h: 0.38, align: "center", valign: "middle", fontFace: FONT, fontSize: 10, bold: true, color: confColor });
+        slide.addShape("roundRect", {
+          x: rightX,
+          y,
+          w: 1.9,
+          h: 0.38,
+          rectRadius: 0.19,
+          fill: { color: WHITE },
+          line: { color: confColor, width: 1.5 },
+        });
+        slide.addText(`${conf.toUpperCase()} CONFIDENCE`, {
+          x: rightX,
+          y,
+          w: 1.9,
+          h: 0.38,
+          align: "center",
+          valign: "middle",
+          fontFace: FONT,
+          fontSize: 10,
+          bold: true,
+          color: confColor,
+        });
         // License as a caption under the badge -- only shown paired with a
         // badge it can anchor to. Without one it's orphaned text with no
         // visual role, and it's already a proper labeled row in the Model
         // detail card below regardless, so it's not lost information.
         if (t.detail.topModelLicense) {
-          slide.addText(t.detail.topModelLicense, { x: rightX, y: y + 0.5, w: rightW, h: 0.4, valign: "top", fontFace: FONT, fontSize: 11, italic: true, color: MIDGRAY });
+          slide.addText(t.detail.topModelLicense, {
+            x: rightX,
+            y: y + 0.5,
+            w: rightW,
+            h: 0.4,
+            valign: "top",
+            fontFace: FONT,
+            fontSize: 11,
+            italic: true,
+            color: MIDGRAY,
+          });
         }
         rightBottom = y + LAYOUT.badge;
       }
@@ -809,7 +1286,10 @@ includedTools.forEach((key) => {
     const pairMaxCardH = Math.max(...pair.map((g) => cardHeightFor(g.rows)));
     const neededH = LAYOUT.label + pairMaxCardH;
     if (y + neededH > FOOTER_TOP) {
-      const next = addContentPage(TOOL_LABEL_FALLBACK[key] || t.label, `${t.label || TOOL_LABEL_FALLBACK[key]} (continued)`);
+      const next = addContentPage(
+        TOOL_LABEL_FALLBACK[key] || t.label,
+        `${t.label || TOOL_LABEL_FALLBACK[key]} (continued)`
+      );
       currentSlide = next.slide;
       y = next.contentTop + 0.15;
     }
@@ -818,17 +1298,48 @@ includedTools.forEach((key) => {
       sectionLabel(currentSlide, g.group, cardX, y, cardW);
       const cardH = cardHeightFor(g.rows);
       currentSlide.addShape("roundRect", {
-        x: cardX, y: y + LAYOUT.label, w: cardW, h: cardH, rectRadius: 0.06,
-        fill: { color: WHITE }, line: { color: "DDDDDD", width: 1 },
+        x: cardX,
+        y: y + LAYOUT.label,
+        w: cardW,
+        h: cardH,
+        rectRadius: 0.06,
+        fill: { color: WHITE },
+        line: { color: "DDDDDD", width: 1 },
       });
       let rowOffset = 0;
       g.rows.forEach(([label, value], ri) => {
         const rh = rowHeightFor(value);
         const rowY = y + LAYOUT.label + LAYOUT.cardPad + rowOffset;
-        currentSlide.addText(label, { x: cardX + 0.14, y: rowY, w: cardW * 0.58, h: rh - 0.02, fontFace: FONT, fontSize: 9.5, color: BODY, valign: "middle" });
-        currentSlide.addText(value, { x: cardX + cardW * 0.55, y: rowY, w: cardW * 0.45 - 0.2, h: rh - 0.02, fontFace: FONT, fontSize: 9.5, bold: true, color: BODY, valign: "middle", align: "right" });
+        currentSlide.addText(label, {
+          x: cardX + 0.14,
+          y: rowY,
+          w: cardW * 0.58,
+          h: rh - 0.02,
+          fontFace: FONT,
+          fontSize: 9.5,
+          color: BODY,
+          valign: "middle",
+        });
+        currentSlide.addText(value, {
+          x: cardX + cardW * 0.55,
+          y: rowY,
+          w: cardW * 0.45 - 0.2,
+          h: rh - 0.02,
+          fontFace: FONT,
+          fontSize: 9.5,
+          bold: true,
+          color: BODY,
+          valign: "middle",
+          align: "right",
+        });
         if (ri > 0) {
-          currentSlide.addShape("line", { x: cardX + 0.1, y: rowY, w: cardW - 0.2, h: 0, line: { color: "EEEEEE", width: 0.75 } });
+          currentSlide.addShape("line", {
+            x: cardX + 0.1,
+            y: rowY,
+            w: cardW - 0.2,
+            h: 0,
+            line: { color: "EEEEEE", width: 0.75 },
+          });
         }
         rowOffset += rh;
       });
@@ -837,8 +1348,14 @@ includedTools.forEach((key) => {
   }
   if (!groups.length) {
     slide.addText("Detailed figures were not provided for this tool in the source data.", {
-      x: MX, y, w: CONTENT_W, h: 0.4,
-      fontFace: FONT, fontSize: 11, italic: true, color: MIDGRAY,
+      x: MX,
+      y,
+      w: CONTENT_W,
+      h: 0.4,
+      fontFace: FONT,
+      fontSize: 11,
+      italic: true,
+      color: MIDGRAY,
     });
   }
 });
@@ -852,12 +1369,25 @@ if (readinessIncluded) {
   const rc2 = readinessReadyCount(data.tools.readiness);
   if (rc2) {
     slide.addText("READINESS AREAS READY", {
-      x: MX, y, w: CONTENT_W, h: 0.24,
-      fontFace: FONT, fontSize: 10.5, bold: true, color: RED, charSpacing: 1.5,
+      x: MX,
+      y,
+      w: CONTENT_W,
+      h: 0.24,
+      fontFace: FONT,
+      fontSize: 10.5,
+      bold: true,
+      color: RED,
+      charSpacing: 1.5,
     });
     slide.addText(`${rc2.ready}/${rc2.total}`, {
-      x: MX, y: y + 0.24, w: CONTENT_W, h: 0.8,
-      fontFace: DISPLAY_FONT, fontSize: 54, bold: true, color: CHARCOAL,
+      x: MX,
+      y: y + 0.24,
+      w: CONTENT_W,
+      h: 0.8,
+      fontFace: DISPLAY_FONT,
+      fontSize: 54,
+      bold: true,
+      color: CHARCOAL,
     });
     y += 1.15;
   }
@@ -870,15 +1400,46 @@ if (readinessIncluded) {
   const statusRows = data.tools.readiness.statuses;
   const cardH = statusRows.length * rowH + cardPad * 2;
   slide.addShape("roundRect", {
-    x: MX, y, w: CONTENT_W, h: cardH, rectRadius: 0.06,
-    fill: { color: WHITE }, line: { color: "DDDDDD", width: 1 },
+    x: MX,
+    y,
+    w: CONTENT_W,
+    h: cardH,
+    rectRadius: 0.06,
+    fill: { color: WHITE },
+    line: { color: "DDDDDD", width: 1 },
   });
   statusRows.forEach((s, i) => {
     const rowY = y + cardPad + i * rowH;
-    slide.addText(s.category, { x: MX + 0.18, y: rowY, w: CONTENT_W * 0.6, h: rowH - 0.02, fontFace: FONT, fontSize: 10.5, color: BODY, valign: "middle" });
-    slide.addText(s.status, { x: MX + CONTENT_W * 0.6, y: rowY, w: CONTENT_W * 0.4 - 0.3, h: rowH - 0.02, fontFace: FONT, fontSize: 10.5, bold: true, color: statusColor(s.status), valign: "middle", align: "right" });
+    slide.addText(s.category, {
+      x: MX + 0.18,
+      y: rowY,
+      w: CONTENT_W * 0.6,
+      h: rowH - 0.02,
+      fontFace: FONT,
+      fontSize: 10.5,
+      color: BODY,
+      valign: "middle",
+    });
+    slide.addText(s.status, {
+      x: MX + CONTENT_W * 0.6,
+      y: rowY,
+      w: CONTENT_W * 0.4 - 0.3,
+      h: rowH - 0.02,
+      fontFace: FONT,
+      fontSize: 10.5,
+      bold: true,
+      color: statusColor(s.status),
+      valign: "middle",
+      align: "right",
+    });
     if (i > 0) {
-      slide.addShape("line", { x: MX + 0.14, y: rowY, w: CONTENT_W - 0.28, h: 0, line: { color: "EEEEEE", width: 0.75 } });
+      slide.addShape("line", {
+        x: MX + 0.14,
+        y: rowY,
+        w: CONTENT_W - 0.28,
+        h: 0,
+        line: { color: "EEEEEE", width: 0.75 },
+      });
     }
   });
   y += cardH + 0.35;
@@ -892,15 +1453,45 @@ if (readinessIncluded) {
     flaggedDoors.forEach((s, idx) => {
       const isLast = idx === flaggedDoors.length - 1;
       const svc = serviceFor(s.category);
-      stepItems.push({ text: s.category + ": ", options: { bullet: { code: "2022", indent: 14 }, fontFace: FONT, fontSize: 11, bold: true, color: BODY, paraSpaceAfter: 2, breakLine: false } });
+      stepItems.push({
+        text: s.category + ": ",
+        options: {
+          bullet: { code: "2022", indent: 14 },
+          fontFace: FONT,
+          fontSize: 11,
+          bold: true,
+          color: BODY,
+          paraSpaceAfter: 2,
+          breakLine: false,
+        },
+      });
       if (svc) {
-        const text = svc.secondary ? `${svc.primary} (or ${svc.secondary})` : svc.primary;
-        stepItems.push({ text, options: { fontFace: FONT, fontSize: 11, color: BODY, paraSpaceAfter: 2, breakLine: !isLast } });
+        const text = svc.primary;
+        stepItems.push({
+          text,
+          options: { fontFace: FONT, fontSize: 11, color: BODY, paraSpaceAfter: 2, breakLine: !isLast },
+        });
       } else {
-        stepItems.push({ text: "Discuss the right engagement with your CDW account team.", options: { fontFace: FONT, fontSize: 11, italic: true, color: MIDGRAY, paraSpaceAfter: 2, breakLine: !isLast } });
+        stepItems.push({
+          text: "Discuss the right engagement with your CDW account team.",
+          options: {
+            fontFace: FONT,
+            fontSize: 11,
+            italic: true,
+            color: MIDGRAY,
+            paraSpaceAfter: 2,
+            breakLine: !isLast,
+          },
+        });
       }
     });
-    slide.addText(stepItems, { x: MX + 0.05, y, w: CONTENT_W - 0.1, h: 0.24 * flaggedDoors.length + 0.1, valign: "top" });
+    slide.addText(stepItems, {
+      x: MX + 0.05,
+      y,
+      w: CONTENT_W - 0.1,
+      h: 0.24 * flaggedDoors.length + 0.1,
+      valign: "top",
+    });
   }
 }
 
@@ -912,28 +1503,61 @@ if (readinessIncluded) {
 
   slide.addText(
     "Ready to move from assessment to implementation? Based on the analysis in this document, " +
-    "your CDW AI Factory team is prepared to help you take the next step -- whether that's " +
-    "refining the technical approach, building a formal proposal, or scheduling a working session " +
-    "with your infrastructure and security stakeholders.",
-    { x: MX, y, w: CONTENT_W, h: 1.4, fontFace: FONT, fontSize: 13, bold: true, color: RED, valign: "top", lineSpacingMultiple: 1.2 }
+      "your CDW AI Factory team is prepared to help you take the next step -- whether that's " +
+      "refining the technical approach, building a formal proposal, or scheduling a working session " +
+      "with your infrastructure and security stakeholders.",
+    {
+      x: MX,
+      y,
+      w: CONTENT_W,
+      h: 1.4,
+      fontFace: FONT,
+      fontSize: 13,
+      bold: true,
+      color: RED,
+      valign: "top",
+      lineSpacingMultiple: 1.2,
+    }
   );
   y += 1.7;
 
   slide.addText(
     "All figures in this document are directional planning estimates derived from the assumptions " +
-    "provided during your working session with CDW's AI Factory tools. They are intended to support " +
-    "scenario planning and internal decision-making, not to serve as a final quote or binding proposal. " +
-    "Confirm pricing, technical specifications, and implementation timelines with your CDW account team " +
-    "before finalizing any purchase or budget decision.",
-    { x: MX, y, w: CONTENT_W, h: 1.5, fontFace: FONT, fontSize: 10.5, color: MIDGRAY, valign: "top", lineSpacingMultiple: 1.25 }
+      "provided during your working session with CDW's AI Factory tools. They are intended to support " +
+      "scenario planning and internal decision-making, not to serve as a final quote or binding proposal. " +
+      "Confirm pricing, technical specifications, and implementation timelines with your CDW account team " +
+      "before finalizing any purchase or budget decision.",
+    {
+      x: MX,
+      y,
+      w: CONTENT_W,
+      h: 1.5,
+      fontFace: FONT,
+      fontSize: 10.5,
+      color: MIDGRAY,
+      valign: "top",
+      lineSpacingMultiple: 1.25,
+    }
   );
 
   slide.addShape("ellipse", { x: MX, y: 9.72, w: 0.1, h: 0.1, fill: { color: RED }, line: { type: "none" } });
   slide.addText(`${data.accountExec}  \u2022  CDW.com  \u2022  (800) 800-4239`, {
-    x: MX + 0.24, y: 9.62, w: 5.5, h: 0.3, fontFace: FONT, fontSize: 10, color: BODY,
+    x: MX + 0.24,
+    y: 9.62,
+    w: 5.5,
+    h: 0.3,
+    fontFace: FONT,
+    fontSize: 10,
+    color: BODY,
   });
   slide.addText("MKT-AIFACTORY-FULLSUMMARY", {
-    x: MX + 0.24, y: 9.9, w: 5.5, h: 0.25, fontFace: FONT, fontSize: 8, color: MIDGRAY,
+    x: MX + 0.24,
+    y: 9.9,
+    w: 5.5,
+    h: 0.25,
+    fontFace: FONT,
+    fontSize: 8,
+    color: MIDGRAY,
   });
   logoBox(slide, PAGE_W - MX - 1.6, 9.6, 1.6, 0.45, "CDW LOGO");
 }

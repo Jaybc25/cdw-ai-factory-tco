@@ -1,8 +1,5 @@
-import React, { useEffect, useState } from "react";
-import {
-  setGpuSizingModelVisibility,
-  setTcoModelVisibility,
-} from "./modelRegistry.js";
+import React, { useEffect, useMemo, useState } from "react";
+import { getVisibleModelOptions } from "./modelRegistry.js";
 
 const VISIBILITY_KEY = "ai-factory-model-catalog:include-existing";
 
@@ -34,29 +31,24 @@ export default function ModelCatalogVisibilityRoute({ tool, children }) {
   // the select as an invalid hidden value.
   const saved = readSavedSession(tool);
   const incoming = readIncomingModelId();
-  const selectedIds = tool === "gpu-sizing"
-    ? [incoming, saved.infModelId, saved.trainModelId].filter(Boolean)
-    : tool === "tco"
-      ? [incoming, saved.modelId].filter(Boolean)
-      : incoming ? [incoming] : [];
+  const selectedIds =
+    tool === "gpu-sizing"
+      ? [incoming, saved.infModelId, saved.trainModelId].filter(Boolean)
+      : tool === "tco"
+        ? [incoming, saved.modelId].filter(Boolean)
+        : incoming
+          ? [incoming]
+          : [];
 
-  if (tool === "gpu-sizing") {
-    setGpuSizingModelVisibility({ includeExisting, selectedIds });
-  } else if (tool === "tco") {
-    setTcoModelVisibility({ includeExisting, selectedIds });
-  }
+  const selectedIdsKey = selectedIds.join(",");
+  const visibleOptions = useMemo(
+    () => getVisibleModelOptions({ includeExisting, selectedIds }),
+    [includeExisting, selectedIdsKey]
+  );
 
   useEffect(() => {
     sessionStorage.setItem(VISIBILITY_KEY, includeExisting ? "true" : "false");
   }, [includeExisting]);
-
-  // `children` is a stable React element created by the route table. Cloning
-  // it with a visibility-version prop ensures the calculator itself rerenders
-  // after the shared model-option array changes; otherwise the wrapper checkbox
-  // rerenders but the already-rendered <select> can keep its old option DOM.
-  const toolElement = React.isValidElement(children)
-    ? React.cloneElement(children, { modelCatalogVisibilityVersion: includeExisting ? 1 : 0 })
-    : children;
 
   return (
     <>
@@ -71,11 +63,16 @@ export default function ModelCatalogVisibilityRoute({ tool, children }) {
           />
           <span>
             <strong className="text-gray-800">Include models for existing deployments</strong>
-            <span className="ml-1">Show older supported models for sizing or cost analysis of environments you already run. They are not recommended for new deployments.</span>
+            <span className="ml-1">
+              Show older supported models for sizing or cost analysis of environments you already run. They are not
+              recommended for new deployments.
+            </span>
           </span>
         </label>
       </div>
-      {toolElement}
+      {React.isValidElement(children)
+        ? React.cloneElement(children, { visibleModelOptions: visibleOptions })
+        : children}
     </>
   );
 }

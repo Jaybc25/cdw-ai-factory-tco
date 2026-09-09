@@ -3,6 +3,8 @@ import { supabase } from "./supabaseClient";
 import { clearLocalWorkspaceState, getWorkspaceResetBarrier, subscribeToWorkspaceReset } from "./workspaceReset.js";
 
 const AuthContext = createContext(null);
+const SUPABASE_CONFIGURED = !!supabase;
+const NO_AUTH_ERROR = () => ({ error: new Error("Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY to enable login, snapshots, and download logging.") });
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
@@ -11,6 +13,7 @@ export function AuthProvider({ children }) {
   const snapshotWritesBlockedRef = useRef(getWorkspaceResetBarrier()?.status === "pending");
 
   async function loadAccount(userId) {
+    if (!SUPABASE_CONFIGURED) { setLoading(false); return; }
     const { data, error } = await supabase
       .from("accounts")
       .select("*")
@@ -25,6 +28,23 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
+    if (!SUPABASE_CONFIGURED) {
+      setLoading(false);
+      const unsubscribeReset = subscribeToWorkspaceReset((event) => {
+        if (event.kind === "barrier") {
+          if (event.status === "pending") snapshotWritesBlockedRef.current = true;
+          if (event.status === "cancelled") snapshotWritesBlockedRef.current = false;
+          if (event.status === "committed") snapshotWritesBlockedRef.current = true;
+          return;
+        }
+        if (event.kind === "committed") {
+          snapshotWritesBlockedRef.current = true;
+          clearLocalWorkspaceState();
+        }
+      });
+      return () => unsubscribeReset();
+    }
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user?.id) loadAccount(session.user.id);
@@ -62,6 +82,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function signInWithEmail(email) {
+    if (!SUPABASE_CONFIGURED) return NO_AUTH_ERROR();
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: { emailRedirectTo: window.location.href },
@@ -74,15 +95,18 @@ export function AuthProvider({ children }) {
   // This still performs real Supabase authentication against the existing user
   // account and UID; it is not an email-only bypass and can be removed later.
   async function signInWithPassword(email, password) {
+    if (!SUPABASE_CONFIGURED) return NO_AUTH_ERROR();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   }
 
   async function signOut() {
+    if (!SUPABASE_CONFIGURED) return NO_AUTH_ERROR();
     await supabase.auth.signOut();
   }
 
   async function completeSetup({ name, company }) {
+    if (!SUPABASE_CONFIGURED) return NO_AUTH_ERROR();
     if (!session?.user?.id) return { error: new Error("Not logged in") };
     const { data, error } = await supabase
       .from("accounts")
@@ -95,6 +119,7 @@ export function AuthProvider({ children }) {
   }
 
   async function logDownloadEvent(tool, keyInputs) {
+    if (!SUPABASE_CONFIGURED) return;
     if (!session?.user?.id) return;
     try {
       const { data: insertedRow, error } = await supabase
@@ -120,6 +145,7 @@ export function AuthProvider({ children }) {
   // cross-tab write barrier before deleting tool_snapshots; while that barrier
   // is active, stale tabs are forbidden from recreating the scenario.
   async function saveSnapshot(tool, inputs, summary) {
+    if (!SUPABASE_CONFIGURED) return;
     if (!session?.user?.id || snapshotWritesBlockedRef.current) return;
     try {
       const { error } = await supabase.from("tool_snapshots").upsert(

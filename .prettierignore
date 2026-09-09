@@ -1,0 +1,8 @@
+dist
+node_modules
+playwright-report
+*.log
+.DS_Store
+__pycache__
+.cache
+coverage
