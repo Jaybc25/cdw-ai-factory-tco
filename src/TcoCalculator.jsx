@@ -1015,6 +1015,13 @@ function AppInner() {
     setView("report");
   }
 
+  function openAudit() {
+    if (isLoggedIn && !needsSetup && account) {
+      setLead({ name: account.name || "", company: account.company || "", email: account.email || "" });
+    }
+    setView("audit");
+  }
+
   function requestReport() {
     if (isLoggedIn && !needsSetup && account) {
       // Logged-in users skip the contact gate entirely -- their info is already known.
@@ -2177,11 +2184,18 @@ function AppInner() {
           </a>
         </div>
 
-        <button onClick={requestReport}
-          style={{ ...disp, width: "100%", fontWeight: 700, fontSize: 15, padding: "14px", borderRadius: 10,
-            border: "none", cursor: "pointer", background: C.green, color: "#fff", marginBottom: 10 }}>
-          Get the full report (PDF)
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+          <button onClick={requestReport}
+            style={{ ...disp, flex: "1 1 240px", fontWeight: 700, fontSize: 15, padding: "14px", borderRadius: 10,
+              border: "none", cursor: "pointer", background: C.green, color: "#fff" }}>
+            Get the full report (PDF)
+          </button>
+          <button onClick={openAudit}
+            style={{ ...disp, flex: "1 1 240px", fontWeight: 600, fontSize: 13, padding: "14px", borderRadius: 10,
+              border: "1px solid " + C.line, cursor: "pointer", background: "#fff", color: C.ink }}>
+            Calculation Methodology &amp; Audit Trail
+          </button>
+        </div>
         </div>)}
       </main>
     </div>

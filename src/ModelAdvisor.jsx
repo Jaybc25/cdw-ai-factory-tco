@@ -496,6 +496,13 @@ function ModelAdvisorInner() {
   );
 
 
+  function openAudit() {
+    if (isLoggedIn && !needsSetup && account) {
+      setLead({ name: account.name || "", company: account.company || "", email: account.email || "" });
+    }
+    setView("audit");
+  }
+
   function requestReport() {
     if (isLoggedIn && !needsSetup && account) {
       setLead({ name: account.name || "", company: account.company || "", email: account.email || "" });
@@ -1080,13 +1087,22 @@ function ModelAdvisorInner() {
             )}
 
             {result.cards.length > 0 && (
-              <button
-                onClick={requestReport}
-                className="mt-6 w-full text-sm font-bold py-2.5 rounded-lg text-white"
-                style={{ background: RED }}
-              >
-                Get the full report
-              </button>
+              <div className="mt-6 flex flex-col sm:flex-row gap-2">
+                <button
+                  onClick={requestReport}
+                  className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white"
+                  style={{ background: RED }}
+                >
+                  Get the full report
+                </button>
+                <button
+                  onClick={openAudit}
+                  className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 bg-white"
+                  style={{ color: CHARCOAL }}
+                >
+                  Why these recommendations?
+                </button>
+              </div>
             )}
           </div>
         </div>

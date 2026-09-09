@@ -638,6 +638,13 @@ function RoiCalculatorInner() {
   );
 
 
+  function openAudit() {
+    if (isLoggedIn && !needsSetup && account) {
+      setLead({ name: account.name || "", company: account.company || "", email: account.email || "" });
+    }
+    setView("audit");
+  }
+
   function requestReport() {
     if (isLoggedIn && !needsSetup && account) {
       setLead({ name: account.name || "", company: account.company || "", email: account.email || "" });
@@ -1226,12 +1233,20 @@ function RoiCalculatorInner() {
                 <div style={styles.note}>
                   Simplified estimate based on average Year-1 realized benefit, spread evenly across 12 months. Actual timing will vary with implementation timing and the shape of the adoption ramp — not a worst-case figure.
                 </div>
-                <button
-                  onClick={requestReport}
-                  style={{ width: "100%", marginTop: 14, fontWeight: 700, fontSize: 14, padding: "11px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: RED, color: "#fff" }}
-                >
-                  Get the full ROI report
-                </button>
+                <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 8, marginTop: 14 }}>
+                  <button
+                    onClick={requestReport}
+                    style={{ flex: 1, width: isMobile ? "100%" : "auto", fontWeight: 700, fontSize: 14, padding: "11px 12px", borderRadius: 8, border: "none", cursor: "pointer", background: RED, color: "#fff" }}
+                  >
+                    Get the full ROI report
+                  </button>
+                  <button
+                    onClick={openAudit}
+                    style={{ width: isMobile ? "100%" : "auto", fontWeight: 600, fontSize: 13, padding: "11px 12px", borderRadius: 8, border: "1px solid " + GRAY_BORDER, cursor: "pointer", background: "#fff", color: CHARCOAL }}
+                  >
+                    Calculation Methodology &amp; Audit Trail
+                  </button>
+                </div>
                 <div style={{ ...styles.guardrail, marginTop: 14, marginBottom: 0, background: "rgba(255,255,255,0.06)" }}>
                   These results represent capacity created and its economic value, not headcount reduction. No output in this tool should be read as a staffing recommendation.
                 </div>
