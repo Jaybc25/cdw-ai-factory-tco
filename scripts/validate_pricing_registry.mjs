@@ -8,7 +8,7 @@ import {
 
 const errors = [];
 const expectedProviders = ["AWS", "Azure", "GCP", "OCI", "CoreWeave"];
-const expectedSizingClasses = ["H200", "B200", "GB200 NVL72", "B300"];
+const expectedSizingClasses = ["B200", "GB200 NVL72", "B300"];
 
 for (const provider of expectedProviders) {
   if (!CLOUD_GPU_RATES[provider]) errors.push(`Missing cloud provider ${provider}`);
@@ -55,6 +55,19 @@ if (ONPREM_SYSTEMS["DGX GB200 NVL-72"].loadedAdders !== ONPREM_SYSTEMS["DGX GB30
   errors.push("GB200 and GB300 must preserve the same validated non-hardware loaded-system adders in this pricing-only refresh");
 }
 
+// Commercial eligibility is price-book gated for NVIDIA on-prem systems.
+for (const retiredClass of ["A100", "H100", "H200"]) {
+  if (GPU_SIZING_SYSTEM_MAP[retiredClass]) errors.push(`${retiredClass}: must not be mapped as a new on-prem GPU Sizing option`);
+  if (GPU_SIZING_PRICE_USD[retiredClass]) errors.push(`${retiredClass}: must not have a new-purchase GPU Sizing price`);
+}
+if (ONPREM_SYSTEMS["DGX H200"]) errors.push("DGX H200: must not remain in the current on-prem purchase registry");
+
+for (const [systemName, system] of Object.entries(ONPREM_SYSTEMS)) {
+  if (!system.hardwareSku || !system.hardwareListPrice || !system.hardwarePriceAsOf) {
+    errors.push(`${systemName}: current on-prem systems must be backed by an approved current NVIDIA price-book SKU`);
+  }
+}
+
 for (const gpuClass of expectedSizingClasses) {
   const systemName = GPU_SIZING_SYSTEM_MAP[gpuClass];
   const system = ONPREM_SYSTEMS[systemName];
@@ -84,6 +97,9 @@ if (!tcoSource.includes("CLOUD_GPU_RATES as RATES") || !tcoSource.includes("ONPR
 }
 if (!sizingSource.includes("GPU_SIZING_PRICE_USD as GPU_PRICE_USD")) {
   errors.push("GpuSizingCalculator.jsx is not consuming the shared pricing registry");
+}
+if (!sizingSource.includes("].filter((gpu) => GPU_PRICE_USD[gpu.id]);")) {
+  errors.push("GpuSizingCalculator.jsx must filter technical GPU references to current price-book-backed on-prem purchase classes");
 }
 
 if (errors.length) {
