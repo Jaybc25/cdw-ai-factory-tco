@@ -1253,29 +1253,73 @@ function GPUSizingCalculatorInner() {
         <div className="flex gap-2 mb-6">{["Inference", "Training"].map((m) => (<button key={m} onClick={() => setMode(m)} className="px-5 py-2 rounded-lg text-sm font-bold transition-colors" style={mode === m ? { background: RED, color: "white" } : { background: "#F2F2F2", color: CHARCOAL }}>{m === "Inference" ? "Inference sizing" : "Training / fine-tuning sizing"}</button>))}</div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div>
-            <div className="flex gap-4 mb-4 border-b border-gray-200">{["simple", "advanced"].map((p) => (<button key={p} onClick={() => setPathLevel(p)} className="pb-2 text-sm font-semibold capitalize" style={pathLevel === p ? { color: RED, borderBottom: `2px solid ${RED}` } : { color: "#707070" }}>{p} path</button>))}</div>
+            <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: RED }}>Workload requirements</div>
+            <div className="text-xs text-gray-500 mb-4">Start with what the workload needs. Common deployment defaults and expert assumptions remain available below.</div>
             {mode === "Inference" ? (
               <>
                 <Field label="Model" tipKey="infModel"><Select value={infModel.id} onChange={(id) => setInfModel(MODELS.find((m) => m.id === id))} options={MODELS.map((m) => m.id)} /><div className="text-xs text-gray-500 mt-1">{infModel.label}</div></Field>
                 {infModel.id === "custom" && <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200"><Field label="Params (B)"><NumberInput value={customParamsB} onChange={setCustomParamsB} /></Field><Field label="Layers"><NumberInput value={customLayers} onChange={setCustomLayers} /></Field><Field label="KV heads"><NumberInput value={customKvHeads} onChange={setCustomKvHeads} /></Field><Field label="Head dim"><NumberInput value={customHeadDim} onChange={setCustomHeadDim} /></Field></div>}
-                <Field label="Quantization" tipKey="quant"><Select value={quant} onChange={setQuant} options={["FP16", "FP8", "FP4"]} /></Field>
                 <Field label="Peak concurrent users" tipKey="concurrentUsers" hint="Concurrent generating sessions, not total licensed users"><NumberInput value={concurrentUsers} onChange={setConcurrentUsers} ariaLabel="Peak concurrent users" /></Field>
-                <Field label="Target tokens/sec per user" tipKey="targetTokPerUser"><NumberInput value={targetTokPerUser} onChange={setTargetTokPerUser} ariaLabel="Target tokens/sec per user" /></Field>
+                <Field label="Target response speed (tokens/sec per user)" tipKey="targetTokPerUser"><NumberInput value={targetTokPerUser} onChange={setTargetTokPerUser} ariaLabel="Target tokens/sec per user" /></Field>
                 <SampleOutputPreview tokPerSec={targetTokPerUser} />
                 <Field label="Environment" tipKey="environment"><Select value={environment} onChange={setEnvironment} options={["Production", "Dev/Test/POC"]} /></Field>
-                <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
-                {pathLevel === "advanced" && <div className="mt-4 pt-4 border-t border-gray-200"><Field label="Avg input tokens" tipKey="avgInputTokens"><NumberInput value={avgInputTokens} onChange={setAvgInputTokens} /></Field><Field label="Avg output tokens" tipKey="avgOutputTokens"><NumberInput value={avgOutputTokens} onChange={setAvgOutputTokens} /></Field><Field label="Attention/KV cache precision (bytes/element)" tipKey="kvBytesPerElement"><NumberInput value={kvBytesPerElement} onChange={setKvBytesPerElement} step={1} /></Field><Field label="Runtime/activation overhead %"><NumberInput value={overheadPct} onChange={setOverheadPct} step={0.01} /></Field></div>}
+                <details className="rounded-xl border border-gray-200 bg-white mb-4">
+                  <summary className="cursor-pointer px-4 py-3 list-none">
+                    <div className="flex items-start justify-between gap-3">
+                      <div><div className="text-sm font-bold" style={{ color: CHARCOAL }}>Deployment assumptions</div><div className="text-xs text-gray-500 mt-1">{quant} · {infGpuOverride}</div></div>
+                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>Adjust</span>
+                    </div>
+                  </summary>
+                  <div className="border-t border-gray-100 px-4 pt-4 pb-1">
+                    <Field label="Quantization" tipKey="quant"><Select value={quant} onChange={setQuant} options={["FP16", "FP8", "FP4"]} /></Field>
+                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
+                  </div>
+                </details>
+                <details open={pathLevel === "advanced"} onToggle={(e) => setPathLevel(e.currentTarget.open ? "advanced" : "simple")} className="rounded-xl border border-gray-200 bg-white">
+                  <summary className="cursor-pointer px-4 py-3 list-none">
+                    <div className="flex items-start justify-between gap-3">
+                      <div><div className="text-sm font-bold" style={{ color: CHARCOAL }}>Advanced sizing assumptions</div><div className="text-xs text-gray-500 mt-1">{avgInputTokens.toLocaleString()} / {avgOutputTokens.toLocaleString()} tokens · {Math.round(overheadPct * 100)}% overhead</div></div>
+                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>Optional</span>
+                    </div>
+                  </summary>
+                  <div className="border-t border-gray-100 px-4 pt-4 pb-1">
+                    <Field label="Avg input tokens" tipKey="avgInputTokens"><NumberInput value={avgInputTokens} onChange={setAvgInputTokens} /></Field>
+                    <Field label="Avg output tokens" tipKey="avgOutputTokens"><NumberInput value={avgOutputTokens} onChange={setAvgOutputTokens} /></Field>
+                    <Field label="Attention/KV cache precision (bytes/element)" tipKey="kvBytesPerElement"><NumberInput value={kvBytesPerElement} onChange={setKvBytesPerElement} step={1} /></Field>
+                    <Field label="Runtime/activation overhead %"><NumberInput value={overheadPct} onChange={setOverheadPct} step={0.01} /></Field>
+                  </div>
+                </details>
               </>
             ) : (
               <>
                 <Field label="Model" tipKey="trainModel"><Select value={trainModel.id} onChange={(id) => setTrainModel(MODELS.find((m) => m.id === id))} options={MODELS.map((m) => m.id)} /><div className="text-xs text-gray-500 mt-1">{trainModel.label}</div></Field>
                 {trainModel.id === "custom" && <div className="mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200"><Field label="Params (B)"><NumberInput value={customParamsB} onChange={setCustomParamsB} /></Field></div>}
                 <Field label="Task type" tipKey="taskType"><Select value={taskType} onChange={setTaskType} options={["Pretraining", "Full fine-tune", "LoRA/PEFT"]} /></Field>
-                <Field label="Precision" tipKey="precision"><Select value={precision} onChange={setPrecision} options={["BF16", "FP8"]} /></Field>
                 <Field label="Dataset size (billions of tokens)" tipKey="datasetTokensB"><NumberInput value={datasetTokensB} onChange={setDatasetTokensB} /></Field>
                 <Field label="Target time to train (days)" tipKey="targetDays"><NumberInput value={targetDays} onChange={setTargetDays} /></Field>
-                <Field label="GPU class" tipKey="infGpuOverride"><Select value={trainGpuOverride} onChange={setTrainGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
-                {pathLevel === "advanced" && <div className="mt-4 pt-4 border-t border-gray-200"><Field label="MFU (achieved % of peak FLOPs)" tipKey="mfu" hint="Sourced default: Meta's Llama 3 paper reports 38-43% BF16 MFU at 16K-GPU scale"><NumberInput value={mfu} onChange={setMfu} step={0.01} /></Field></div>}
+                <details className="rounded-xl border border-gray-200 bg-white mb-4">
+                  <summary className="cursor-pointer px-4 py-3 list-none">
+                    <div className="flex items-start justify-between gap-3">
+                      <div><div className="text-sm font-bold" style={{ color: CHARCOAL }}>Deployment assumptions</div><div className="text-xs text-gray-500 mt-1">{precision} · {trainGpuOverride}</div></div>
+                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>Adjust</span>
+                    </div>
+                  </summary>
+                  <div className="border-t border-gray-100 px-4 pt-4 pb-1">
+                    <Field label="Precision" tipKey="precision"><Select value={precision} onChange={setPrecision} options={["BF16", "FP8"]} /></Field>
+                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={trainGpuOverride} onChange={setTrainGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
+                  </div>
+                </details>
+                <details open={pathLevel === "advanced"} onToggle={(e) => setPathLevel(e.currentTarget.open ? "advanced" : "simple")} className="rounded-xl border border-gray-200 bg-white">
+                  <summary className="cursor-pointer px-4 py-3 list-none">
+                    <div className="flex items-start justify-between gap-3">
+                      <div><div className="text-sm font-bold" style={{ color: CHARCOAL }}>Advanced sizing assumptions</div><div className="text-xs text-gray-500 mt-1">MFU {Math.round(mfu * 100)}%</div></div>
+                      <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>Optional</span>
+                    </div>
+                  </summary>
+                  <div className="border-t border-gray-100 px-4 pt-4 pb-1">
+                    <Field label="MFU (achieved % of peak FLOPs)" tipKey="mfu" hint="Sourced default: Meta's Llama 3 paper reports 38-43% BF16 MFU at 16K-GPU scale"><NumberInput value={mfu} onChange={setMfu} step={0.01} /></Field>
+                  </div>
+                </details>
               </>
             )}
           </div>
