@@ -91,16 +91,6 @@ function TipDot({ tipKey }) {
 }
 
 function Field({ label, hint, tipKey, children, group = false }) {
-  // Fix (Bug 6): same underlying gap as GpuSizingCalculator.jsx's identical
-  // Field component -- a real <label> element already existed, but it was
-  // never actually associated with the control(s) it describes. This file
-  // has one extra wrinkle GPU Sizing didn't: the "Workloads you care about"
-  // call site wraps a GROUP of already-individually-labeled checkboxes, not
-  // a single control. A <label> is only valid for one control; wrapping an
-  // entire checkbox group inside one would be invalid/confusing semantics.
-  // `group` switches to the correct <fieldset>/<legend> pattern for that
-  // one case. Every other call site here wraps exactly one Select, same as
-  // GpuSizingCalculator.jsx, so those get the same implicit label-wrap fix.
   const labelContent = (
     <>
       {label}
@@ -356,10 +346,6 @@ function DecisionRow({ label, value, sub }) {
   );
 }
 
-// Shows one candidate's score against the qualifying threshold for a given
-// slot decision -- pass/fail is read directly from the already-computed
-// qualified pool (membership check), never re-derived from the margin
-// arithmetic itself.
 function ScoreCompare({ model, metric, score, threshold, qualified, note }) {
   const pass = qualified;
   return (
@@ -375,50 +361,16 @@ function ScoreCompare({ model, metric, score, threshold, qualified, note }) {
 function ModelAdvisorInner() {
   const { isLoggedIn, needsSetup, account, logDownloadEvent } = useAuth();
   const catalog = useMemo(() => getCatalog(), []);
-
-  // Loaded early so sourceUseCase (below) can fall back to it -- see the
-  // Fix comment on that line.
   const saved = loadSessionState("model-advisor");
-
-  // Fix (Bug Group 1b): sourceUseCase previously read ONLY from the URL, so
-  // the "Workloads pre-filled based on your Use Case Explorer selection"
-  // banner vanished after Back/Forward or a hard refresh even though
-  // nothing it displays affects any calculation. Falling back to saved
-  // state keeps the banner alive for the rest of the session.
   const [sourceUseCase] = useState(() => getInitialSourceUseCase() ?? saved?.sourceUseCase ?? null);
 
-  // Consume the handoff -- see TcoCalculator.jsx's identical fix for the
-  // full rationale.
   useEffect(() => {
     if (sourceUseCase && typeof window !== "undefined") {
       window.history.replaceState(null, "", window.location.pathname);
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- intentionally mount-only, after initial param capture
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Field-level precedence, not all-or-nothing: only checkedWorkloads/
-  // primaryWorkload/sourceUseCase (the fields a sourceUseCase handoff can
-  // actually carry) get overridden by it. Everything else -- quality
-  // priority, license, governance, etc. -- is never part of any handoff, so
-  // it should keep restoring from the last saved session even when a new
-  // use case arrives.
-
-  // Fix (regression caught in post-remediation testing): checkedWorkloads
-  // and primaryWorkload used to branch directly on `sourceUseCase` to
-  // decide "did a real handoff just arrive, or should I fall back to saved
-  // state" -- but Fix 1b (above) deliberately made sourceUseCase persist
-  // across refresh so the provenance banner survives. That same
-  // persistence meant this branch condition was ALSO true on a bare
-  // refresh with no real handoff, forcing these two fields to re-read an
-  // empty URL via getInitialCheckedWorkloads()/getInitialPrimaryWorkload()
-  // and silently reset to the hardcoded default -- while the banner, still
-  // driven by the now-persisted sourceUseCase, kept claiming a prefill
-  // that had just been discarded. hasFreshSourceUseCase is captured
-  // URL-only, exactly once, entirely separate from the persisted
-  // sourceUseCase value used for the banner, so this branch only fires on
-  // a genuine new handoff -- the same pattern TcoCalculator.jsx's
-  // arrivedFromGpuSizing already uses correctly.
   const [hasFreshSourceUseCase] = useState(() => !!getInitialSourceUseCase());
-
   const [checkedWorkloads, setCheckedWorkloads] = useState(() => (
     hasFreshSourceUseCase ? getInitialCheckedWorkloads() : saved?.checkedWorkloads ?? getInitialCheckedWorkloads()
   ));
@@ -435,19 +387,14 @@ function ModelAdvisorInner() {
   const [dataSensitivity, setDataSensitivity] = useState(saved?.dataSensitivity ?? "general");
   const [optimizationPriority, setOptimizationPriority] = useState(saved?.optimizationPriority ?? "balanced");
 
-  const [view, setView] = useState("calc"); // calc | report | audit
+  const [view, setView] = useState("calc");
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
   const [leadStatus, setLeadStatus] = useState("");
 
-  // Persist every tweakable input (not view/lead/leadStatus -- transient UI
-  // flow and lead-capture PII don't belong in session-restored state) so
-  // leaving for another tool and coming back restores exactly where this
-  // tab left off, instead of resetting to defaults on every full page load.
   useEffect(() => {
     saveSessionState("model-advisor", {
       checkedWorkloads, primaryWorkload, qualityPriority, contextWindow, multimodal,
       reasoningIntensity, fineTuning, license, governance, dataSensitivity, optimizationPriority,
-      // Fix (Bug Group 1b): persist the provenance banner's source too.
       sourceUseCase,
     });
   }, [checkedWorkloads, primaryWorkload, qualityPriority, contextWindow, multimodal,
@@ -495,7 +442,6 @@ function ModelAdvisorInner() {
       : null
   );
 
-
   function openAudit() {
     if (isLoggedIn && !needsSetup && account) {
       setLead({ name: account.name || "", company: account.company || "", email: account.email || "" });
@@ -528,11 +474,6 @@ function ModelAdvisorInner() {
 
   return (
     <main className="min-h-screen bg-white" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-      {/* Fix (accessibility, axe-core findings): no <main> landmark existed
-          (same fix as TCO/ROI/GPU Sizing), and this page also had no
-          level-one heading -- the title below was a <div>, not a heading.
-          Converting to <h1> with a margin reset keeps the exact same
-          visual appearance while giving the page real document structure. */}
       <style>{`
         @media print {
           .no-print { display: none !important; }
@@ -748,7 +689,6 @@ function ModelAdvisorInner() {
             This document explains the same recommendation shown in the main report -- it does not re-rank models independently. Every score, threshold, and eligibility outcome below comes from the same engine functions that produced the recommendation on screen.
           </div>
 
-          {/* SECTION 1: YOUR REQUIREMENTS */}
           <div className="text-xs uppercase tracking-wide mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>1. Your Requirements</div>
           <DecisionRow label="Workloads selected" value={checkedWorkloads.map((w) => labelFor(WORKLOAD_OPTIONS, w)).join(", ")} />
           <DecisionRow label="Primary workload (drives ranking)" value={labelFor(WORKLOAD_OPTIONS, primaryWorkload)} sub="Ranking uses only this workload's metric, since a model strong at one task isn't necessarily strong at every task checked" />
@@ -761,10 +701,7 @@ function ModelAdvisorInner() {
           <DecisionRow label="Governance / origin" value={labelFor(GOVERNANCE_OPTIONS, governance)} />
           <DecisionRow label="Data sensitivity" value={labelFor(SENSITIVITY_OPTIONS, dataSensitivity)} sub="Informational only -- does not affect ranking or eligibility; only used to prompt a governance nudge in the UI" />
 
-          {/* SECTION 2: ELIGIBILITY GATE */}
           {(() => {
-            // Reads eligibilityTrace, computed once inside buildRecommendations --
-            // no second execution of the filter logic.
             const fullList = result.eligibilityTrace.allModels;
             const failedModels = result.eligibilityTrace.excludedModels;
             const tally = result.eligibilityTrace.exclusionCounts;
@@ -808,7 +745,6 @@ function ModelAdvisorInner() {
             );
           })()}
 
-          {/* SECTION 3: RANKING DECISION */}
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. How the Ranking Was Decided</div>
           <div className="text-xs text-gray-500 mb-2">
             The primary workload is compared using <b style={{ color: CHARCOAL }}>{METRIC_LABELS[result.metric]}</b>, a capability index from the tracked capability registry (synced {new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()}). It is directional rather than an externally standardized benchmark score; Section 6 explains the evidence and limitations.
@@ -850,7 +786,6 @@ function ModelAdvisorInner() {
           <DecisionRow label="Smaller-model qualifying floor" value={result.ranking.sizeSlotTopScore != null ? `>= ${(result.ranking.sizeSlotTopScore - result.ranking.sizeSlotFullMargin).toFixed(1)}` : "n/a"} sub="Minimum capability needed to remain eligible for the efficiency-oriented choice" />
           <DecisionRow label="Balanced qualifying floor" value={result.ranking.sizeSlotTopScore != null ? `>= ${(result.ranking.sizeSlotTopScore - result.ranking.sizeSlotHalfMargin).toFixed(1)}` : "n/a"} sub="A tighter capability floor used for the balanced choice" />
 
-          {/* SECTION 4: WHY THESE RECOMMENDATIONS */}
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>4. Why These Models Were Selected</div>
           <div className="text-xs text-gray-500 mb-3">Each recommendation role is evaluated separately: the capability leader, the smallest model that stays within the allowed tradeoff, and the balanced option can legitimately be different models.</div>
           {result.cards.map((card) => (
@@ -902,7 +837,6 @@ function ModelAdvisorInner() {
             </div>
           ))}
 
-          {/* SECTION 5: WHY NOT THE ALTERNATIVES */}
           {result.otherEligible.length > 0 && (
             <>
               <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>5. Why Not the Alternatives</div>
@@ -920,9 +854,6 @@ function ModelAdvisorInner() {
                 } else if (inEfficiencyPool) {
                   reason = `Scored ${score} (within the quality margin, threshold ${threshold?.toFixed(1)}), but ${m.param_count_billion}B is not the smallest qualifying model, so it lost the Efficiency slot on size.`;
                 } else if (m.param_count_billion == null) {
-                  // Unknown parameter count excludes a model from the size pools
-                  // regardless of its score -- must not be reported as a score
-                  // shortfall when the score actually clears the threshold.
                   const clearsThreshold = threshold != null && score >= threshold;
                   if (clearsThreshold) {
                     reason = `Scored ${score}, which clears the ${threshold.toFixed(1)} capability threshold, but parameter count is unverified. Size-based slots require a known parameter count, so this model could not compete for the Efficiency selection.`;
@@ -943,7 +874,6 @@ function ModelAdvisorInner() {
             </>
           )}
 
-          {/* SECTION 6: SOURCES, HEURISTICS & LIMITATIONS */}
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>6. Sources, Heuristics &amp; Limitations</div>
           <DecisionRow label="Model specs last synced" value={new Date(CATALOG_META.specsSyncedAt).toLocaleDateString()} />
           <DecisionRow label="Capability scores last synced" value={new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()} />
@@ -983,66 +913,106 @@ function ModelAdvisorInner() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Inputs */}
           <div>
-            <Field label="Workloads you care about" tipKey="workload" group>
-              <div className="grid grid-cols-2 gap-2">
-                {WORKLOAD_OPTIONS.map((w) => (
-                  <label key={w.value} className="flex items-center gap-2 text-sm">
-                    <input type="checkbox" checked={checkedWorkloads.includes(w.value)} onChange={() => toggleWorkload(w.value)} />
-                    {w.label}
-                  </label>
-                ))}
+            <div className="rounded-2xl border border-gray-200 p-5 mb-4" style={{ background: "#FAFAFA" }}>
+              <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: RED }}>Core decision</div>
+              <div className="text-lg font-bold mb-1" style={{ color: CHARCOAL }}>What are you trying to do?</div>
+              <div className="text-xs text-gray-500 mb-5">Start with the workload and the capability-versus-efficiency tradeoff. These are the primary inputs that shape the recommendation.</div>
+
+              <Field label="Workloads you care about" tipKey="workload" group>
+                <div className="grid grid-cols-2 gap-2">
+                  {WORKLOAD_OPTIONS.map((w) => (
+                    <label key={w.value} className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={checkedWorkloads.includes(w.value)} onChange={() => toggleWorkload(w.value)} />
+                      {w.label}
+                    </label>
+                  ))}
+                </div>
+              </Field>
+
+              <Field label="Which workload matters most?" tipKey="primaryWorkload" hint="This primary workload is the one used for ranking.">
+                <Select value={primaryWorkload} onChange={setPrimaryWorkload} options={WORKLOAD_OPTIONS.filter((w) => checkedWorkloads.includes(w.value))} />
+              </Field>
+
+              <Field label="Quality priority" tipKey="qualityPriority">
+                <Select value={qualityPriority} onChange={setQualityPriority} options={QUALITY_OPTIONS} />
+              </Field>
+
+              <Field label="Optimization priority" tipKey="optimizationPriority">
+                <Select value={optimizationPriority} onChange={setOptimizationPriority} options={OPTIMIZATION_OPTIONS} />
+              </Field>
+            </div>
+
+            <details className="rounded-xl border border-gray-200 bg-white mb-4">
+              <summary className="cursor-pointer px-4 py-3 list-none">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-bold" style={{ color: CHARCOAL }}>Deployment requirements</div>
+                    <div className="text-xs text-gray-500 mt-1">Apply constraints that can change which models are eligible.</div>
+                  </div>
+                  <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>Adjust</span>
+                </div>
+                <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div><span className="text-gray-400">Context:</span> <span className="text-gray-600">{labelFor(CONTEXT_OPTIONS, contextWindow)}</span></div>
+                  <div><span className="text-gray-400">Modality:</span> <span className="text-gray-600">{labelFor(MULTIMODAL_OPTIONS, multimodal)}</span></div>
+                  <div><span className="text-gray-400">License:</span> <span className="text-gray-600">{labelFor(LICENSE_OPTIONS, license)}</span></div>
+                  <div><span className="text-gray-400">Origin:</span> <span className="text-gray-600">{labelFor(GOVERNANCE_OPTIONS, governance)}</span></div>
+                  <div><span className="text-gray-400">Data:</span> <span className="text-gray-600">{labelFor(SENSITIVITY_OPTIONS, dataSensitivity)}</span></div>
+                </div>
+              </summary>
+              <div className="border-t border-gray-100 px-4 pt-4 pb-1">
+                <Field label="Context window need" tipKey="contextWindow">
+                  <Select value={contextWindow} onChange={setContextWindow} options={CONTEXT_OPTIONS} />
+                </Field>
+
+                <Field label="Multimodal need" tipKey="multimodal">
+                  <Select value={multimodal} onChange={setMultimodal} options={MULTIMODAL_OPTIONS} />
+                </Field>
+
+                <Field label="License requirement" tipKey="license">
+                  <Select value={license} onChange={setLicense} options={LICENSE_OPTIONS} />
+                </Field>
+
+                <Field label="Governance / origin restriction" tipKey="governance">
+                  <Select value={governance} onChange={setGovernance} options={GOVERNANCE_OPTIONS} />
+                </Field>
+
+                <Field label="Data sensitivity" tipKey="dataSensitivity">
+                  <Select value={dataSensitivity} onChange={setDataSensitivity} options={SENSITIVITY_OPTIONS} />
+                </Field>
+                {showGovernanceNudge && (
+                  <div className="text-xs rounded-lg px-3 py-2 mb-4 -mt-2" style={{ background: "#FEECEC", color: "#8A1F1F" }}>
+                    {dataSensitivity === "regulated" ? "Regulated" : "Air-gapped"} data often comes with a governance requirement -- consider setting one above if applicable to your deployment.
+                  </div>
+                )}
               </div>
-            </Field>
+            </details>
 
-            <Field label="Primary workload (used for ranking)" tipKey="primaryWorkload">
-              <Select value={primaryWorkload} onChange={setPrimaryWorkload} options={WORKLOAD_OPTIONS.filter((w) => checkedWorkloads.includes(w.value))} />
-            </Field>
+            <details className="rounded-xl border border-gray-200 bg-white">
+              <summary className="cursor-pointer px-4 py-3 list-none">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-bold" style={{ color: CHARCOAL }}>Additional planning details</div>
+                    <div className="text-xs text-gray-500 mt-1">Useful context for planning, but these fields do not currently affect model ranking.</div>
+                  </div>
+                  <span className="text-xs font-semibold whitespace-nowrap" style={{ color: RED }}>Optional</span>
+                </div>
+                <div className="mt-3 text-xs text-gray-500">
+                  {labelFor(REASONING_OPTIONS, reasoningIntensity)} · {labelFor(FINETUNE_OPTIONS, fineTuning)}
+                </div>
+              </summary>
+              <div className="border-t border-gray-100 px-4 pt-4 pb-1">
+                <Field label="Reasoning intensity" tipKey="reasoningIntensity" hint="Informational only — does not currently affect ranking.">
+                  <Select value={reasoningIntensity} onChange={setReasoningIntensity} options={REASONING_OPTIONS} />
+                </Field>
 
-            <Field label="Quality priority" tipKey="qualityPriority">
-              <Select value={qualityPriority} onChange={setQualityPriority} options={QUALITY_OPTIONS} />
-            </Field>
-
-            <Field label="Context window need" tipKey="contextWindow">
-              <Select value={contextWindow} onChange={setContextWindow} options={CONTEXT_OPTIONS} />
-            </Field>
-
-            <Field label="Multimodal need" tipKey="multimodal">
-              <Select value={multimodal} onChange={setMultimodal} options={MULTIMODAL_OPTIONS} />
-            </Field>
-
-            <Field label="Reasoning intensity" tipKey="reasoningIntensity" hint="Informational only — does not currently affect ranking.">
-              <Select value={reasoningIntensity} onChange={setReasoningIntensity} options={REASONING_OPTIONS} />
-            </Field>
-
-            <Field label="Fine-tuning intent" tipKey="fineTuning" hint="Informational only — does not currently affect ranking.">
-              <Select value={fineTuning} onChange={setFineTuning} options={FINETUNE_OPTIONS} />
-            </Field>
-
-            <Field label="License requirement" tipKey="license">
-              <Select value={license} onChange={setLicense} options={LICENSE_OPTIONS} />
-            </Field>
-
-            <Field label="Governance / origin restriction" tipKey="governance">
-              <Select value={governance} onChange={setGovernance} options={GOVERNANCE_OPTIONS} />
-            </Field>
-
-            <Field label="Data sensitivity" tipKey="dataSensitivity">
-              <Select value={dataSensitivity} onChange={setDataSensitivity} options={SENSITIVITY_OPTIONS} />
-            </Field>
-            {showGovernanceNudge && (
-              <div className="text-xs rounded-lg px-3 py-2 mb-4 -mt-2" style={{ background: "#FEECEC", color: "#8A1F1F" }}>
-                {dataSensitivity === "regulated" ? "Regulated" : "Air-gapped"} data often comes with a governance requirement -- consider setting one above if applicable to your deployment.
+                <Field label="Fine-tuning intent" tipKey="fineTuning" hint="Informational only — does not currently affect ranking.">
+                  <Select value={fineTuning} onChange={setFineTuning} options={FINETUNE_OPTIONS} />
+                </Field>
               </div>
-            )}
-
-            <Field label="Optimization priority" tipKey="optimizationPriority">
-              <Select value={optimizationPriority} onChange={setOptimizationPriority} options={OPTIMIZATION_OPTIONS} />
-            </Field>
+            </details>
           </div>
 
-          {/* Results */}
           <div>
             <div className="text-sm text-gray-500 mb-3">
               {result.eligibleCount} of {result.totalCount} tracked models meet your stated requirements
