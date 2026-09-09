@@ -1,5 +1,5 @@
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useEffect, useRef } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType } from "react-router-dom";
 import LandingPage from "./LandingPage.jsx";
 import TcoCalculator from "./TcoCalculator.jsx";
 import GpuSizingCalculator from "./GpuSizingCalculator.jsx";
@@ -15,6 +15,32 @@ import SharedToolShell from "./SharedToolShell.jsx";
 import "./print-overrides.css";
 
 const E2E_AUTH_BYPASS = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";
+
+function RouteScrollManager() {
+  const location = useLocation();
+  const navigationType = useNavigationType();
+  const firstRender = useRef(true);
+
+  useEffect(() => {
+    // A fresh/direct/reloaded tool visit should start at the top. Preserve the
+    // browser's own restoration only for genuine Back/Forward history visits.
+    if (firstRender.current) {
+      firstRender.current = false;
+      const navigationEntry = typeof performance !== "undefined"
+        ? performance.getEntriesByType?.("navigation")?.[0]
+        : null;
+      if (navigationEntry?.type === "back_forward") return;
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      return;
+    }
+
+    if (navigationType !== "POP") {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    }
+  }, [location.pathname, location.search, navigationType]);
+
+  return null;
+}
 
 function ToolRoutes() {
   return (
@@ -124,6 +150,7 @@ function ToolRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
+      <RouteScrollManager />
       <LoginFrontDoor>
         <ToolRoutes />
       </LoginFrontDoor>
