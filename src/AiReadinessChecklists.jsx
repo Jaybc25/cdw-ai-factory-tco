@@ -287,6 +287,11 @@ function AiReadinessChecklistsInner() {
     <div style={S.page}>
       <style>{`
         .readiness-print-only { display: none; }
+        .readiness-report-actions { display: flex; gap: 8px; margin-bottom: 16px; }
+        @media (max-width: 480px) {
+          .readiness-report-actions { flex-direction: column; }
+          .readiness-report-actions > button { width: 100%; }
+        }
         @media print {
           .no-print { display: none !important; }
           body { background: #fff; }
@@ -408,7 +413,7 @@ function AiReadinessChecklistsInner() {
 
               <div style={{ marginTop: 20 }}>
                 {!emailOpen && !emailDone && (
-                  <button className="no-print" style={S.primaryBtn} onClick={requestSummary}>Get my full readiness report</button>
+                  <button className="no-print" style={S.primaryBtn} onClick={requestSummary}>Get the full report (PDF)</button>
                 )}
                 {emailOpen && !emailDone && (
                   <div className="no-print" style={{ maxWidth: 420 }}>
@@ -424,9 +429,9 @@ function AiReadinessChecklistsInner() {
                 )}
                 {emailDone && (
                   <div className="readiness-report-root">
-                    <div className="no-print" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+                    <div className="no-print readiness-report-actions">
                       <button style={S.primaryBtn} onClick={() => window.print()}>Print / Save as PDF</button>
-                      <button style={{ ...S.primaryBtn, background: "#fff", color: C.charcoal, border: `1px solid ${C.line}` }} onClick={() => { setEmailDone(false); setEmailOpen(false); }}>Back</button>
+                      <button style={{ ...S.primaryBtn, background: "#fff", color: C.charcoal, border: `1px solid ${C.line}` }} onClick={() => { setEmailDone(false); setEmailOpen(false); }}>Back to assessment</button>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
                       <img src={cdwLogo} alt="CDW" style={{ height: 30, width: "auto" }} />
