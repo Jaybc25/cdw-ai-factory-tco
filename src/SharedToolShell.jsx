@@ -35,30 +35,32 @@ export default function SharedToolShell({
         .shared-tool-back:hover { text-decoration: underline; }
 
         /* Migration selectors suppress only legacy header/account chrome.
+           Some legacy wrappers use inline display styles, so !important is
+           intentional here: the shared shell owns this presentation layer.
            Tool bodies, report controls, breadcrumbs, state and handoffs stay intact. */
         .shared-tool-shell--use-cases .shared-tool-content > main > div:nth-of-type(1),
-        .shared-tool-shell--use-cases .shared-tool-content > main > div:nth-of-type(2) { display: none; }
+        .shared-tool-shell--use-cases .shared-tool-content > main > div:nth-of-type(2) { display: none !important; }
 
         .shared-tool-shell--model-advisor .shared-tool-content > main > .model-advisor-app-header,
-        .shared-tool-shell--model-advisor .shared-tool-content > main > .model-advisor-app-header + div { display: none; }
+        .shared-tool-shell--model-advisor .shared-tool-content > main > .model-advisor-app-header + div { display: none !important; }
 
-        .shared-tool-shell--readiness .shared-tool-content header { display: none; }
-        .shared-tool-shell--readiness .shared-tool-content header + main > .no-print:first-child { display: none; }
+        .shared-tool-shell--readiness .shared-tool-content header { display: none !important; }
+        .shared-tool-shell--readiness .shared-tool-content header + main > .no-print:first-child { display: none !important; }
 
         .shared-tool-shell--gpu-sizing .shared-tool-content > main > .gpu-app-header,
-        .shared-tool-shell--gpu-sizing .shared-tool-content > main > .gpu-app-header + div { display: none; }
+        .shared-tool-shell--gpu-sizing .shared-tool-content > main > .gpu-app-header + div { display: none !important; }
 
         .shared-tool-shell--roi .shared-tool-content > main > .roi-app-header,
-        .shared-tool-shell--roi .shared-tool-content > main > .roi-app-header + div { display: none; }
+        .shared-tool-shell--roi .shared-tool-content > main > .roi-app-header + div { display: none !important; }
 
         /* TCO keeps its useful one-line explanatory subtitle, while its old
            brand/title and account row are replaced by the common shell. */
         .shared-tool-shell--tco .shared-tool-content .tco-app-header > div:first-child,
-        .shared-tool-shell--tco .shared-tool-content .tco-app-header > .no-print { display: none; }
+        .shared-tool-shell--tco .shared-tool-content .tco-app-header > .no-print { display: none !important; }
         .shared-tool-shell--tco .shared-tool-content .tco-app-header { padding-top: 0 !important; }
 
         .shared-tool-shell--summary .shared-tool-content > div > div:nth-of-type(1),
-        .shared-tool-shell--summary .shared-tool-content > div > div:nth-of-type(2) { display: none; }
+        .shared-tool-shell--summary .shared-tool-content > div > div:nth-of-type(2) { display: none !important; }
 
         @media (max-width: 640px) {
           .shared-tool-header { padding: 10px 16px; }
