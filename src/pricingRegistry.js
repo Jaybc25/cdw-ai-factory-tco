@@ -88,13 +88,13 @@ export const CLOUD_GPU_RATES = new Proxy(ALL_CLOUD_GPU_RATES, {
   },
 });
 
-// NVIDIA September 2026 NPN public price list is now the primary hardware-list
-// source for current Blackwell DGX systems. `perSys` remains the existing TCO
-// loaded-system planning basis: hardware kit plus the same non-hardware adders
-// already modeled in the validated TCO methodology. Keeping the raw hardware
-// price and SKU beside `perSys` makes future price-book refreshes auditable.
+// Commercial eligibility rule for NVIDIA on-prem recommendations:
+// only current systems represented by approved current NVIDIA price-book SKUs
+// belong in this registry. Older GPUs can remain in cloud/rental rate tables
+// for existing-state and rental comparisons without being offered for purchase.
+// `perSys` remains the existing TCO loaded-system planning basis: hardware kit
+// plus the validated non-hardware adders already modeled in the TCO methodology.
 export const ONPREM_SYSTEMS = {
-  "DGX H200": { gpus: 8, perSys: 549764, kW: 10.2, perRack: 2, rackCost: 15000, vram: 141, prof: 25000, sw: 99000, pricingSource: "NVIDIA DGX TCO tool capture (Aug 2026)" },
   "DGX B200": { gpus: 8, perSys: 744793, hardwareListPrice: 485000, loadedAdders: 259793, hardwareSku: "DGXB-G1440+P1CMI36", hardwarePriceAsOf: "2026-09-08", kW: 14.4, perRack: 2, rackCost: 15000, vram: 192, prof: 25000, sw: 142800, pricingSource: "NVIDIA NPN Public Price List 202609; 3-year CM initial hardware kit" },
   "DGX B300": { gpus: 8, perSys: 874793, hardwareListPrice: 615000, loadedAdders: 259793, hardwareSku: "D0B3-G2304+P1CMI36", hardwarePriceAsOf: "2026-09-08", kW: 14.4, perRack: 2, rackCost: 15000, vram: 288, prof: 25000, sw: 142800, pricingSource: "NVIDIA NPN Public Price List 202609; 3-year CM initial hardware kit" },
   "DGX GB200 NVL-72": { gpus: 72, perSys: 7841432, hardwareListPrice: 4600000, loadedAdders: 3241432, hardwareSku: "DGXG-0072F+P1CMI36", hardwarePriceAsOf: "2026-09-08", kW: 120, perRack: 1, rackCost: 0, vram: 186, prof: 55558, sw: 1468800, pricingSource: "NVIDIA NPN Public Price List 202609; 3-year CM initial floor-feed hardware kit" },
@@ -102,7 +102,6 @@ export const ONPREM_SYSTEMS = {
 };
 
 export const GPU_SIZING_SYSTEM_MAP = {
-  H200: "DGX H200",
   B200: "DGX B200",
   "GB200 NVL72": "DGX GB200 NVL-72",
   B300: "DGX B300",
@@ -114,7 +113,7 @@ export const GPU_SIZING_PRICE_USD = Object.fromEntries(
     return [gpuClass, {
       amount: Math.round(system.perSys / system.gpus),
       confidence: "LISTED",
-      source: `Shared ONPREM_SYSTEMS registry: ${systemName} $${system.perSys.toLocaleString("en-US")} / ${system.gpus} GPUs (${system.pricingSource || "NVIDIA DGX TCO tool capture"})`,
+      source: `Shared ONPREM_SYSTEMS registry: ${systemName} $${system.perSys.toLocaleString("en-US")} / ${system.gpus} GPUs (${system.pricingSource})`,
     }];
   })
 );
