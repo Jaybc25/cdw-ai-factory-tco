@@ -677,6 +677,8 @@ const TCO_OWN_SYS_FOR_CLASS = {
   B200: "DGX B200",
   "GB200 NVL72": "DGX GB200 NVL-72",
   B300: "DGX B300",
+  "Rubin NVL8": "DGX Rubin NVL8",
+  "Vera Rubin NVL72": "DGX Vera Rubin NVL72",
 };
 
 function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", mode, workingDayHours, model, modelParamsB, quant }) {

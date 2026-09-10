@@ -1,3 +1,5 @@
+import { RUBIN_PHASE1_TCO_SYSTEMS } from "./rubinTcoActivationRegistry.js";
+
 // Commercial/customer-facing eligibility for GPUaaS providers.
 // Keep this separate from rate availability: a provider can remain fully modeled
 // for existing-state TCO calculations while being hidden from customer-facing
@@ -94,12 +96,19 @@ export const CLOUD_GPU_RATES = new Proxy(ALL_CLOUD_GPU_RATES, {
 // for existing-state and rental comparisons without being offered for purchase.
 // `perSys` remains the existing TCO loaded-system planning basis: hardware kit
 // plus the validated non-hardware adders already modeled in the TCO methodology.
-export const ONPREM_SYSTEMS = {
+const CURRENT_ONPREM_SYSTEMS = {
   "DGX B200": { gpus: 8, perSys: 744793, hardwareListPrice: 485000, loadedAdders: 259793, hardwareSku: "DGXB-G1440+P1CMI36", hardwarePriceAsOf: "2026-09-08", kW: 14.4, perRack: 2, rackCost: 15000, vram: 192, prof: 25000, sw: 142800, pricingSource: "NVIDIA NPN Public Price List 202609; 3-year CM initial hardware kit" },
   "DGX B300": { gpus: 8, perSys: 874793, hardwareListPrice: 615000, loadedAdders: 259793, hardwareSku: "D0B3-G2304+P1CMI36", hardwarePriceAsOf: "2026-09-08", kW: 14.4, perRack: 2, rackCost: 15000, vram: 288, prof: 25000, sw: 142800, pricingSource: "NVIDIA NPN Public Price List 202609; 3-year CM initial hardware kit" },
   "DGX GB200 NVL-72": { gpus: 72, perSys: 7841432, hardwareListPrice: 4600000, loadedAdders: 3241432, hardwareSku: "DGXG-0072F+P1CMI36", hardwarePriceAsOf: "2026-09-08", kW: 120, perRack: 1, rackCost: 0, vram: 186, prof: 55558, sw: 1468800, pricingSource: "NVIDIA NPN Public Price List 202609; 3-year CM initial floor-feed hardware kit" },
   "DGX GB300 NVL-72": { gpus: 72, perSys: 9741432, hardwareListPrice: 6500000, loadedAdders: 3241432, hardwareSku: "DGB3-0072F+P1CMI36", hardwarePriceAsOf: "2026-09-08", kW: 120, perRack: 1, rackCost: 0, vram: 288, prof: 55558, sw: 1468800, pricingSource: "NVIDIA NPN Public Price List 202609; 3-year CM initial floor-feed hardware kit" },
 };
+
+// Rubin entries are derived from current commercial evidence plus explicitly
+// labeled Phase 1 planning assumptions. Do not duplicate their numbers here.
+export const ONPREM_SYSTEMS = Object.freeze({
+  ...CURRENT_ONPREM_SYSTEMS,
+  ...RUBIN_PHASE1_TCO_SYSTEMS,
+});
 
 export const GPU_SIZING_SYSTEM_MAP = {
   B200: "DGX B200",
