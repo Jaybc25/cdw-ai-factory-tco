@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "verify:rubin": "node scripts/verifyRubinGpuSizing.mjs"
+    "verify:rubin": "node scripts/verifyRubinGpuSizing.mjs",
+    "verify:rubin-tco": "node scripts/verifyRubinTcoCommercial.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
