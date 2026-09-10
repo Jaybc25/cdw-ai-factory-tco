@@ -18,8 +18,8 @@ jobs:
           ref: rubin-inference-advisory
           fetch-depth: 0
       - name: Apply guarded source updates
-        shell: python
         run: |
+          python - <<'PY'
           from pathlib import Path
 
           p = Path('src/GpuSizingCalculator.jsx')
@@ -32,27 +32,27 @@ jobs:
           s = s.replace(old_import, new_import, 1)
 
           old_return_prep = '''  const idleGpuHoursAfterHours = recommendedCount * afterHours;
-  const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;
+          const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;
 
-  return {'''
+          return {'''
           new_return_prep = '''  const idleGpuHoursAfterHours = recommendedCount * afterHours;
-  const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;
-  const rubinAdvisory = getRubinInferenceAdvisory({
-    recommended: recommendedCount,
-    selectedClass: selected.id,
-    totalThroughputNeeded,
-  });
+          const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;
+          const rubinAdvisory = getRubinInferenceAdvisory({
+            recommended: recommendedCount,
+            selectedClass: selected.id,
+            totalThroughputNeeded,
+          });
 
-  return {'''
+          return {'''
           if old_return_prep not in s:
             raise SystemExit('result prep guard failed')
           s = s.replace(old_return_prep, new_return_prep, 1)
 
           old_result = '''    utilization,
-    workingDayHours,'''
+            workingDayHours,'''
           new_result = '''    utilization,
-    rubinAdvisory,
-    workingDayHours,'''
+            rubinAdvisory,
+            workingDayHours,'''
           if old_result not in s:
             raise SystemExit('result object guard failed')
           s = s.replace(old_result, new_result, 1)
@@ -110,6 +110,7 @@ jobs:
           if old_pkg not in t:
             raise SystemExit('package guard failed')
           pkg.write_text(t.replace(old_pkg, new_pkg, 1))
+          PY
       - name: Validate advisory
         run: |
           npm ci
