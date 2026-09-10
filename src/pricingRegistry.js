@@ -114,6 +114,7 @@ export const GPU_SIZING_SYSTEM_MAP = {
   B200: "DGX B200",
   "GB200 NVL72": "DGX GB200 NVL-72",
   B300: "DGX B300",
+  "GB300 NVL72": "DGX GB300 NVL-72",
 };
 
 export const GPU_SIZING_PRICE_USD = Object.fromEntries(

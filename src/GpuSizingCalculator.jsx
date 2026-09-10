@@ -18,7 +18,7 @@ import { RUBIN_GPU_SIZING_SPECS, RUBIN_TRAINING_CANDIDATES } from "./rubinGpuSiz
 // ---------------------------------------------------------------------------
 const TIPS = {
   infModel: "The model you plan to run. This list defaults to current choices; enable existing-deployment models only when sizing something you already run. If you're not sure which current model fits, start in Model Advisor.",
-  quant: "How compressed the model's weights are in memory. FP8 is the safe default for H200-class hardware and up; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300) and roughly halves memory again.",
+  quant: "How compressed the model's weights are in memory. FP8 is the safe default for H200-class hardware and up; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300/GB300) and roughly halves memory again.",
   concurrentUsers: "The maximum number of simultaneous active request streams during your busiest period. Include human users, AI agents, copilots, automations, and parallel sub-agents that may be generating model requests at the same time.",
   targetTokPerUser: "How fast each user's response should stream in. 20-30 tokens/sec feels roughly like natural reading speed for a chat experience; lower it for batch/offline jobs where speed matters less.",
   environment: "Whether this is a real production deployment or something lighter-weight. Dev/Test/POC unlocks a note about cheaper workstation-class GPUs, since production reliability requirements don't apply yet.",
@@ -104,9 +104,10 @@ function TipDot({ tipKey }) {
 // rubinGpuSizingRegistry.js is deliberately cleared.
 const GPU_SPECS = [
   { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8", nodeSize: 8 },
-  { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)", nodeSize: 8 },
-  { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified", nodeSize: 72 },
-  { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%", nodeSize: 8 },
+  { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 13072, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf Inference v6.0, Llama 2 70B Offline: 104,572 tok/s on 8x B200 / 8 = 13,071.5 tok/s/GPU", nodeSize: 8 },
+  { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12334, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf Inference v6.0, Llama 2 70B Offline: 888,054 tok/s on 72x GB200 / 72 = 12,334.1 tok/s/GPU", nodeSize: 72 },
+  { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 14119, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf Inference v6.0, Llama 2 70B Offline: 112,954 tok/s on 8x B300 / 8 = 14,119.3 tok/s/GPU", nodeSize: 8 },
+  { id: "GB300 NVL72", vram: 288, bf16: 2250, fp8: 5500, anchor: 15651, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf Inference v6.0, Llama 2 70B Offline: 1,126,850 tok/s on 72x GB300 / 72 = 15,650.7 tok/s/GPU", nodeSize: 72 },
 ].filter((gpu) => GPU_PRICE_USD[gpu.id]);
 
 const TRAINING_GPU_SPECS = [
