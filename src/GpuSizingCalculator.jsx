@@ -16,7 +16,7 @@ import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
 // ---------------------------------------------------------------------------
 const TIPS = {
   infModel: "The model you plan to run. This list defaults to current choices; enable existing-deployment models only when sizing something you already run. If you're not sure which current model fits, start in Model Advisor.",
-  quant: "How compressed the model's weights are in memory. FP8 is the safe default for H200-class hardware and up; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300) and roughly halves memory again.",
+  quant: "How compressed the model's weights are in memory. FP8 is the safe default for H200-class hardware and up; FP4 is available on Blackwell and Rubin-class GPUs and roughly halves memory again; inference recommendations still require a measured throughput anchor for each hardware class.",
   concurrentUsers: "The maximum number of simultaneous active request streams during your busiest period. Include human users, AI agents, copilots, automations, and parallel sub-agents that may be generating model requests at the same time.",
   targetTokPerUser: "How fast each user's response should stream in. 20-30 tokens/sec feels roughly like natural reading speed for a chat experience; lower it for batch/offline jobs where speed matters less.",
   environment: "Whether this is a real production deployment or something lighter-weight. Dev/Test/POC unlocks a note about cheaper workstation-class GPUs, since production reliability requirements don't apply yet.",
@@ -97,12 +97,21 @@ function TipDot({ tipKey }) {
   );
 }
 
-const GPU_SPECS = [
+const INFERENCE_GPU_SPECS = [
   { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8", nodeSize: 8 },
   { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)", nodeSize: 8 },
   { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified", nodeSize: 72 },
   { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%", nodeSize: 8 },
 ].filter((gpu) => GPU_PRICE_USD[gpu.id]);
+
+// Training and memory sizing use published hardware specifications rather than
+// measured inference tokens/sec. Rubin can therefore be supported here while
+// inference remains gated until a qualifying absolute benchmark is published.
+const TRAINING_GPU_SPECS = [
+  ...INFERENCE_GPU_SPECS,
+  { id: "Rubin NVL8", vram: 288, bf16: 4000, fp8: 17500, confidence: "LISTED", source: "NVIDIA DGX Rubin NVL8 / Rubin GPU preliminary specifications: 288GB HBM4, 4,000 TFLOPS BF16 dense, 17,500 TFLOPS FP8/FP6 dense", nodeSize: 8, inferenceStatus: "UNAVAILABLE" },
+  { id: "Vera Rubin NVL72", vram: 288, bf16: 4000, fp8: 17500, confidence: "LISTED", source: "NVIDIA DGX Vera Rubin NVL72 / Rubin GPU preliminary specifications: 288GB HBM4 per GPU, 4,000 TFLOPS BF16 dense, 17,500 TFLOPS FP8/FP6 dense", nodeSize: 72, inferenceStatus: "UNAVAILABLE" },
+];
 
 const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
 
@@ -172,7 +181,7 @@ function computeInference(inputs) {
   const totalThroughputNeeded = inputs.concurrentUsers * inputs.targetTokPerUser;
   const throughputScale = getInferenceThroughputScale(model, inputs.customParamsB);
 
-  const candidates = GPU_SPECS.map((gpu) => {
+  const candidates = INFERENCE_GPU_SPECS.map((gpu) => {
     const effectiveAnchor = gpu.anchor * throughputScale.factor;
     const gpusMem = ceilDiv(totalMemoryGB, gpu.vram);
     const gpusPerf = ceilDiv(totalThroughputNeeded, effectiveAnchor);
@@ -283,7 +292,7 @@ function computeTraining(inputs) {
   const flopsRequired = 6 * trainingSemantics.activeComputeParamsB * inputs.datasetTokensB * 1e18;
   const secondsTarget = inputs.targetDays * 86400;
 
-  const candidates = GPU_SPECS.map((gpu) => {
+  const candidates = TRAINING_GPU_SPECS.map((gpu) => {
     const peakTFLOPS = inputs.precision === "FP8" ? (gpu.fp8 ?? gpu.bf16) : gpu.bf16;
     const gpusFit = ceilDiv(trainingMemoryGB, gpu.vram);
     const achievableFlopsPerSec = peakTFLOPS * 1e12 * inputs.mfu;
@@ -322,7 +331,7 @@ function computeTraining(inputs) {
   const confidence =
     model.status !== "VERIFIED"
       ? { level: "LOW", note: "Model architecture not yet verified (custom entry)" }
-      : { level: "MEDIUM", note: `${trainingSemantics.basis} GPU FLOPs use NVIDIA published spec-sheet values; MFU remains an explicit user-adjustable assumption.` };
+      : { level: "MEDIUM", note: `${trainingSemantics.basis} GPU FLOPs use NVIDIA published spec-sheet values; MFU remains an explicit user-adjustable assumption.${selected?.inferenceStatus === "UNAVAILABLE" ? " Rubin inference sizing remains unavailable until a qualifying absolute throughput benchmark is published." : ""}` };
 
   const recommendedCount = selectedPriced.deployedCount;
   const lowerCostCount = lowerCost ? lowerCost.deployedCount : null;
@@ -662,7 +671,17 @@ const TCO_OWN_SYS_FOR_CLASS = {
 };
 
 function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", mode, workingDayHours, model, modelParamsB, quant }) {
-  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
+  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass];
+  if (!ownSys) {
+    return (
+      <div className="mb-6 rounded-xl p-4 border border-amber-200 bg-amber-50">
+        <div className="text-xs font-bold uppercase tracking-wide text-amber-800 mb-1">TCO activation pending</div>
+        <div className="text-xs text-amber-900">
+          Technical sizing is available for {selectedClass}, but loaded system economics are not yet complete enough for a defensible TCO handoff. No substitute hardware class is used.
+        </div>
+      </div>
+    );
+  }
   const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });
   if (model?.id) params.set("model", model.id);
   if (Number.isFinite(Number(modelParamsB)) && Number(modelParamsB) > 0) params.set("modelParamsB", String(modelParamsB));
@@ -1272,7 +1291,7 @@ function GPUSizingCalculatorInner() {
                   </summary>
                   <div className="border-t border-gray-100 px-4 pt-4 pb-1">
                     <Field label="Quantization" tipKey="quant"><Select value={quant} onChange={setQuant} options={["FP16", "FP8", "FP4"]} /></Field>
-                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
+                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...INFERENCE_GPU_SPECS.map((g) => g.id)]} /></Field>
                   </div>
                 </details>
                 <details open={pathLevel === "advanced"} onToggle={(e) => setPathLevel(e.currentTarget.open ? "advanced" : "simple")} className="rounded-xl border border-gray-200 bg-white">
@@ -1306,7 +1325,7 @@ function GPUSizingCalculatorInner() {
                   </summary>
                   <div className="border-t border-gray-100 px-4 pt-4 pb-1">
                     <Field label="Precision" tipKey="precision"><Select value={precision} onChange={setPrecision} options={["BF16", "FP8"]} /></Field>
-                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={trainGpuOverride} onChange={setTrainGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
+                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={trainGpuOverride} onChange={setTrainGpuOverride} options={["Auto-recommend", ...TRAINING_GPU_SPECS.map((g) => g.id)]} /></Field>
                   </div>
                 </details>
                 <details open={pathLevel === "advanced"} onToggle={(e) => setPathLevel(e.currentTarget.open ? "advanced" : "simple")} className="rounded-xl border border-gray-200 bg-white">
@@ -1334,7 +1353,7 @@ function GPUSizingCalculatorInner() {
               <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
-              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).</div>
+              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? `${result.selectedClass} is modeled as a 72-GPU rack-scale deployment quantum` : "8-GPU DGX nodes for this class"}).</div>
               <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
                 <button onClick={requestReport} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
