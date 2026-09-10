@@ -1,0 +1,66 @@
+name: Apply GPU deployable ranking fix
+
+on:
+  push:
+    branches:
+      - gpu-sizing-deployable-ranking
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[gpu-ranking-applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gpu-sizing-deployable-ranking
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Patch GPU Sizing calculator
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/GpuSizingCalculator.jsx')
+          s = p.read_text()
+
+          old_import = 'import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";'
+          new_import = old_import + '\nimport { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";'
+          if s.count(old_import) != 1:
+              raise SystemExit(f'Expected one selector import anchor, found {s.count(old_import)}')
+          s = s.replace(old_import, new_import)
+
+          old_auto = '  const autoRecommended = candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), candidates[0]);'
+          if s.count(old_auto) != 2:
+              raise SystemExit(f'Expected two raw GPU-count auto-recommend anchors, found {s.count(old_auto)}')
+          s = s.replace(old_auto, '  const autoRecommended = selectDeployableRecommendation(candidates);')
+
+          old_notice = 'Rubin technical sizing is active from NVIDIA-published memory and training FLOPS. Loaded budget/TCO economics are intentionally not shown yet because Rubin-specific fabric, cooling/infrastructure, and professional-services assumptions remain gated.'
+          new_notice = 'Rubin technical sizing is active from NVIDIA-published memory and training FLOPS. Phase 1 TCO is available using transparent EST/PROVISIONAL planning assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains a quote/Phase 2 activity.'
+          if s.count(old_notice) != 1:
+              raise SystemExit(f'Expected one stale Rubin TCO notice, found {s.count(old_notice)}')
+          s = s.replace(old_notice, new_notice)
+
+          p.write_text(s)
+          PY
+      - name: Verify recommendation behavior and build
+        run: |
+          npm run verify:gpu-ranking
+          npm run verify:rubin
+          npm run verify:rubin-tco
+          npm run verify:rubin-phase1
+          npm run verify:rubin-activation
+          npm run build
+      - name: Commit product change and remove temporary workflow
+        run: |
+          rm .github/workflows/apply-gpu-ranking-fix.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/GpuSizingCalculator.jsx
+          git rm --cached .github/workflows/apply-gpu-ranking-fix.yml || true
+          git commit -m "Rank GPU recommendations by deployable configuration [gpu-ranking-applied]"
+          git push origin HEAD:gpu-sizing-deployable-ranking
