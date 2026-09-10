@@ -27,18 +27,23 @@ assert(nvl72.hardwareListPrice === 10500000, "Vera Rubin NVL72 hardware list pri
 assert(nvl72.commercialStatus === "QUOTE_ONLY", "Vera Rubin NVL72 must remain QUOTE_ONLY unless NVIDIA T&C changes.");
 assert(nvl72.moq === 2, "Vera Rubin NVL72 MOQ must remain 2 unless commercial evidence changes.");
 assert(nvl72.moqEnforcedInTco === false, "Do not silently enforce MOQ 2 as a $21M TCO minimum without an explicit methodology decision.");
-assert(nvl72.systemPowerKW === null, "Vera Rubin NVL72 canonical TCO power must remain unresolved until first-party evidence qualifies.");
+assert(nvl72.systemPowerKW === null, "Vera Rubin NVL72 canonical rated power must remain null until first-party rated/design evidence qualifies.");
+assert(nvl72.phase1PlanningPowerKW === 136, "Vera Rubin Phase 1 planning basis should remain 136 kW unless NVIDIA evidence changes.");
+assert(nvl72.phase1PlanningPowerConfidence === "PROVISIONAL", "Vera Rubin 136 kW planning value must remain explicitly PROVISIONAL.");
+assert(nvl72.phase1PlanningPowerEditable === true, "Vera Rubin provisional power must remain customer-editable.");
+assert(nvl72.maxLpsScenarioPowerKW === 101, "Vera Rubin MaxLPS scenario power should remain 101 kW unless NVIDIA evidence changes.");
+assert(nvl72.facilityCabinetTdpKW === 330, "Vera Rubin facilities cabinet TDP evidence should remain 330 kW unless NVIDIA evidence changes.");
 
 for (const system of [nvl8, nvl72]) {
   assert(system.includedHardwareSupportYears === 3, `${system.gpuClass}: expected 3 years included Business Standard hardware support.`);
   assert(system.optionalSoftware.nvidiaAiEnterprise3Year.listPricePerGpu === 13500, `${system.gpuClass}: NVAIE 3-year per-GPU list price drifted.`);
   assert(system.optionalSoftware.nvidiaMissionControl3Year.listPricePerGpu === 12000, `${system.gpuClass}: Mission Control 3-year per-GPU list price drifted.`);
-  assert(system.perSys === null, `${system.gpuClass}: perSys must stay null until loaded economics are defensible.`);
-  assert(system.loadedAdders === null, `${system.gpuClass}: loadedAdders must stay null until loaded economics are defensible.`);
-  assert(system.sw === null, `${system.gpuClass}: sw must stay null until the explicit software modeling policy is chosen.`);
-  assert(system.prof === null, `${system.gpuClass}: prof must stay null until an economic install/services basis exists.`);
-  assert(system.fabricAndInfrastructure === null, `${system.gpuClass}: fabric/infrastructure economics must stay null until prices are defensible.`);
-  assert(system.tcoEnabled === false, `${system.gpuClass}: TCO must remain gated in the commercial scaffold.`);
+  assert(system.perSys === null, `${system.gpuClass}: perSys must stay null until active Phase 1 TCO wiring explicitly composes the planning values.`);
+  assert(system.loadedAdders === null, `${system.gpuClass}: loadedAdders must stay null until active Phase 1 TCO wiring explicitly composes the planning values.`);
+  assert(system.sw === null, `${system.gpuClass}: sw must stay null until the explicit software selection is made.`);
+  assert(system.prof === null, `${system.gpuClass}: commercial scaffold prof remains null; Phase 1 uses a separate editable EST assumption.`);
+  assert(system.fabricAndInfrastructure === null, `${system.gpuClass}: commercial scaffold fabric remains null; Phase 1 uses a separate editable EST assumption.`);
+  assert(system.tcoEnabled === false, `${system.gpuClass}: TCO must remain gated in the commercial scaffold until customer-facing wiring is implemented.`);
   assert(isRubinTcoEnabled(system === nvl8 ? "DGX Rubin NVL8" : "DGX Vera Rubin NVL72") === false, `${system.gpuClass}: TCO enablement helper must remain false.`);
   assert(Array.isArray(system.tcoBlockers) && system.tcoBlockers.length > 0, `${system.gpuClass}: explicit TCO blockers are required while gated.`);
 }
@@ -54,4 +59,4 @@ assert(RUBIN_NVL8_REFERENCE_ALLOCATIONS_PER_NODE.computeDgxLeafCables === 8, "Ru
 assert(RUBIN_NVL8_REFERENCE_ALLOCATIONS_PER_NODE.computePowerShelves110kW === 0.5, "Rubin NVL8 representative BOM should allocate one 110 kW compute power shelf per two DGX nodes.");
 assert(RUBIN_NVL8_REFERENCE_ALLOCATIONS_PER_NODE.computeRacksFromRepresentativeBom === 0.25, "Rubin NVL8 representative BOM implies one listed compute rack per four DGX nodes; retain this as evidence, not as TCO packing policy.");
 
-console.log("Rubin TCO commercial scaffold and activation-readiness evidence verification passed.");
+console.log("Rubin TCO commercial scaffold and Vera Rubin Phase 1 power semantics verification passed.");
