@@ -56,18 +56,19 @@ test("training sizing uses total parameters for resident state and active parame
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await switchToTraining(page);
 
-  // Dense Muse: resident and active parameter counts are the same. At the
-  // default full-fine-tune/BF16/50B-token/14-day/40%-MFU inputs, B200 needs
-  // 9 technical GPUs and node-rounds to 16.
+  // Dense Muse: resident and active parameter counts are the same. With Rubin
+  // training enabled from first-party FLOPS and memory specifications, the
+  // default full-fine-tune/BF16/50B-token/14-day/40%-MFU scenario needs five
+  // technical Rubin NVL8 GPUs and node-rounds to one 8-GPU system.
   await chooseInferenceModel(page, "muse-glimmer-30b");
-  await expect(resultCard(page, "Minimum technical")).toContainText("9 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B200");
-  await expect(resultCard(page, "Recommended")).toContainText("16 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("5 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("Rubin NVL8");
+  await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // MoE Scout: 109B resident state drives fit memory while only 17B active
-  // parameters drive token-level FLOPs. The result is 14 technical B300s,
-  // node-rounded to 16. Using total params for sparse FLOPs would materially
-  // inflate the time-bound requirement.
+  // parameters drive token-level FLOPs. The result remains 14 technical B300s,
+  // node-rounded to 16. Rubin cannot reduce the 288GB/GPU memory floor here,
+  // and using total params for sparse FLOPs would materially inflate the time-bound requirement.
   await chooseInferenceModel(page, "llama-4-scout");
   await expect(resultCard(page, "Minimum technical")).toContainText("14 GPUs");
   await expect(resultCard(page, "Minimum technical")).toContainText("B300");

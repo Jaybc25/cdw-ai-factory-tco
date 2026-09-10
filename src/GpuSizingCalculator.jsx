@@ -9,6 +9,7 @@ import { GPU_SIZING_PRICE_USD as GPU_PRICE_USD } from "./pricingRegistry.js";
 import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelParamsB } from "./modelRegistry.js";
 import { getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
 import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
+import { RUBIN_GPU_SIZING_SPECS, RUBIN_TRAINING_CANDIDATES } from "./rubinGpuSizingRegistry.js";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -97,12 +98,32 @@ function TipDot({ tipKey }) {
   );
 }
 
+// Inference candidates remain limited to classes with defensible absolute
+// throughput anchors. Rubin must not enter this array until the evidence gate in
+// rubinGpuSizingRegistry.js is deliberately cleared.
 const GPU_SPECS = [
   { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8", nodeSize: 8 },
   { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)", nodeSize: 8 },
   { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified", nodeSize: 72 },
   { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%", nodeSize: 8 },
 ].filter((gpu) => GPU_PRICE_USD[gpu.id]);
+
+const TRAINING_GPU_SPECS = [
+  ...GPU_SPECS,
+  ...RUBIN_TRAINING_CANDIDATES.map((gpu) => ({
+    id: gpu.id,
+    vram: gpu.vramGB,
+    bf16: gpu.bf16Tflops,
+    fp8: gpu.fp8Tflops,
+    nodeSize: gpu.nodeSize,
+    confidence: gpu.technicalConfidence,
+    source: gpu.technicalSource,
+    rubin: true,
+  })),
+];
+
+const RUBIN_INFERENCE_NAMES = RUBIN_GPU_SIZING_SPECS.map((gpu) => gpu.id).join(" and ");
+const isRubinClass = (id) => RUBIN_GPU_SIZING_SPECS.some((gpu) => gpu.id === id);
 
 const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
 
@@ -161,9 +182,6 @@ function computeInference(inputs) {
   const weightMemoryGB = model.totalParamsB * quantBytes;
   const avgTokens = inputs.avgInputTokens + inputs.avgOutputTokens;
   const sequenceStateMemory = getInferenceSequenceStateMemory(model, avgTokens, inputs.kvBytesPerElement);
-  // Retain the historical audit field for standard KV/MLA parity. For hybrid
-  // state models, this represents only the token-growing portion; fixed
-  // recurrent/compression state is carried separately in sequenceStateMemory.
   const kvBytesPerToken = avgTokens > 0 ? sequenceStateMemory.tokenGrowingBytes / avgTokens : 0;
   const kvCacheGBPerSeq = sequenceStateMemory.totalGBPerSequence;
   const kvCacheTotalGB = kvCacheGBPerSeq * inputs.concurrentUsers;
@@ -283,7 +301,7 @@ function computeTraining(inputs) {
   const flopsRequired = 6 * trainingSemantics.activeComputeParamsB * inputs.datasetTokensB * 1e18;
   const secondsTarget = inputs.targetDays * 86400;
 
-  const candidates = GPU_SPECS.map((gpu) => {
+  const candidates = TRAINING_GPU_SPECS.map((gpu) => {
     const peakTFLOPS = inputs.precision === "FP8" ? (gpu.fp8 ?? gpu.bf16) : gpu.bf16;
     const gpusFit = ceilDiv(trainingMemoryGB, gpu.vram);
     const achievableFlopsPerSec = peakTFLOPS * 1e12 * inputs.mfu;
@@ -322,7 +340,7 @@ function computeTraining(inputs) {
   const confidence =
     model.status !== "VERIFIED"
       ? { level: "LOW", note: "Model architecture not yet verified (custom entry)" }
-      : { level: "MEDIUM", note: `${trainingSemantics.basis} GPU FLOPs use NVIDIA published spec-sheet values; MFU remains an explicit user-adjustable assumption.` };
+      : { level: "MEDIUM", note: `${trainingSemantics.basis} GPU FLOPs use NVIDIA published spec-sheet values; MFU remains an explicit user-adjustable assumption. Rubin specifications remain preliminary where NVIDIA labels them preliminary.` };
 
   const recommendedCount = selectedPriced.deployedCount;
   const lowerCostCount = lowerCost ? lowerCost.deployedCount : null;
@@ -662,7 +680,17 @@ const TCO_OWN_SYS_FOR_CLASS = {
 };
 
 function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", mode, workingDayHours, model, modelParamsB, quant }) {
-  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
+  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass];
+  if (!ownSys) {
+    return (
+      <div className="mb-6 rounded-xl p-4 border border-amber-200 bg-amber-50">
+        <div className="text-xs font-bold uppercase tracking-wide text-amber-800 mb-1">TCO modeling not yet activated</div>
+        <div className="text-xs text-amber-900">
+          {selectedClass} technical sizing is available, but loaded TCO economics remain gated until Rubin-specific fabric, cooling/infrastructure, and professional-services assumptions are defensible. No substitute system or estimated TCO is used.
+        </div>
+      </div>
+    );
+  }
   const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });
   if (model?.id) params.set("model", model.id);
   if (Number.isFinite(Number(modelParamsB)) && Number(modelParamsB) > 0) params.set("modelParamsB", String(modelParamsB));
@@ -1035,6 +1063,11 @@ function GPUSizingCalculatorInner() {
             <ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent />
           </div>
           <BudgetPanel budget={result.budget} />
+          {mode === "Training" && isRubinClass(result.selectedClass) && (
+            <div className="mb-6 rounded-xl p-4 border border-amber-200 bg-amber-50 text-xs text-amber-900">
+              Rubin technical sizing is active from NVIDIA-published memory and training FLOPS. Loaded budget/TCO economics are intentionally not shown yet because Rubin-specific fabric, cooling/infrastructure, and professional-services assumptions remain gated.
+            </div>
+          )}
           {mode === "Inference" && <div className="gpu-report-utilization"><UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} /></div>}
           <div className="gpu-report-page2">
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2 mt-6">Assumptions used</div>
@@ -1182,8 +1215,8 @@ function GPUSizingCalculatorInner() {
 
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. Node Rounding, Budget &amp; Alternatives</div>
           <AuditFormula label="Recommended (node-rounded) configuration" formula="recommended = CEILING(minTechnical ÷ nodeSize) × nodeSize" substituted={`= CEILING(${result.minTechnical} ÷ ${result.selectedNodeSize}) × ${result.selectedNodeSize}`} result={`${result.recommended} × ${result.selectedClass}`} />
-          <AuditFormula label="Estimated budget" formula="budget = recommended × loadedCostPerGPU" substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`} result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : "—"} />
-          <div className="text-xs text-gray-500 mb-2 mt-2"><b>Lower-cost alternative:</b> {result.lowerCost.class ? `${result.lowerCost.class}, the cheapest other class in the catalog that is genuinely cheaper as a deployed (node-rounded) solution than the recommendation.` : "none -- the recommendation is already the cheapest deployed option in the current catalog."}</div>
+          <AuditFormula label="Estimated budget" formula="budget = recommended × loadedCostPerGPU" substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`} result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : isRubinClass(result.selectedClass) ? "Not yet activated" : "—"} />
+          <div className="text-xs text-gray-500 mb-2 mt-2"><b>Lower-cost alternative:</b> {result.lowerCost.class ? `${result.lowerCost.class}, the cheapest other class in the catalog that is genuinely cheaper as a deployed (node-rounded) solution than the recommendation.` : "none -- the recommendation is already the cheapest deployed option in the current catalog or the selected class does not yet have loaded-cost economics."}</div>
           <div className="text-xs text-gray-500 mb-4"><b>Higher-growth alternative:</b> {result.higherGrowth.class ? `${result.higherGrowth.class}, the other class with genuinely more real capability (${mode === "Inference" ? "throughput anchor" : "training FLOPS at your selected precision"}) than the recommendation.` : "none -- the recommendation is already the most capable class in the current catalog for this metric."}</div>
 
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>4. Reconciliation</div>
@@ -1198,7 +1231,7 @@ function GPUSizingCalculatorInner() {
               <>
                 <ReconCheck label="Minimum technical requirement" parts={mode === "Inference" ? [{ label: "Memory-bound GPUs", value: selected.gpusMem.toLocaleString() }, { label: "Performance-bound GPUs", value: selected.gpusPerf.toLocaleString() }] : [{ label: "GPUs to fit the model", value: selected.gpusFit.toLocaleString() }, { label: "GPUs to hit the time target", value: selected.gpusTime.toLocaleString() }]} calculated={minTechCalc} engineValue={result.minTechnical} format="count" />
                 <ReconCheck label="Recommended (node-rounded) count" parts={[{ label: "Minimum technical requirement", value: result.minTechnical.toLocaleString() }, { label: `Node size (${result.selectedClass})`, value: result.selectedNodeSize.toLocaleString() }]} calculated={recommendedCalc} engineValue={result.recommended} format="count" />
-                <ReconCheck label="Estimated budget" parts={[{ label: "Recommended GPU count", value: result.recommended.toLocaleString() }, { label: `Catalog price per GPU (${result.selectedClass})`, value: unitPrice != null ? fmtUsdPrecise(unitPrice) : "—" }]} calculated={budgetCalc} engineValue={result.budget.recommended ? result.budget.recommended.amount : null} format="currency" />
+                <ReconCheck label="Estimated budget" parts={[{ label: "Recommended GPU count", value: result.recommended.toLocaleString() }, { label: `Catalog price per GPU (${result.selectedClass})`, value: unitPrice != null ? fmtUsdPrecise(unitPrice) : isRubinClass(result.selectedClass) ? "Not yet activated" : "—" }]} calculated={budgetCalc} engineValue={result.budget.recommended ? result.budget.recommended.amount : null} format="currency" />
               </>
             );
           })()}
@@ -1223,11 +1256,11 @@ function GPUSizingCalculatorInner() {
                     <AuditRow label="Hardware throughput anchor" value={`${selected.anchor.toLocaleString()} tok/s (${selected.anchorPrecision})`} sub={`Confidence: ${selected.confidence} -- ${selected.source}`} />
                     <AuditRow label="Model-adjusted effective anchor" value={`${Math.round(selected.effectiveAnchor).toLocaleString()} tok/s`} sub={result.throughputScale.basis} />
                   </>
-                ) : <AuditRow label={`Peak TFLOPS (${precision})`} value={selected.peakTFLOPS.toLocaleString()} sub={`Confidence: ${result.confidence.level} -- NVIDIA published spec-sheet values`} />}
+                ) : <AuditRow label={`Peak TFLOPS (${precision})`} value={selected.peakTFLOPS.toLocaleString()} sub={`Confidence: ${selected.confidence || result.confidence.level} -- ${selected.source || "NVIDIA published spec-sheet values"}`} />}
                 <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Pricing</div>
-                <AuditRow label={`Loaded cost per ${result.selectedClass} GPU`} value={priceInfo ? fmtUsdPrecise(priceInfo.amount) : "—"} sub={priceInfo ? `Confidence: ${priceInfo.confidence} -- ${priceInfo.source}` : undefined} />
-                <AuditRow label="Pricing last verified" value={fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)} sub={`${onpremStaleness.days} days ago${onpremStaleness.level === "stale" ? " -- refresh before client use" : onpremStaleness.level === "review" ? " -- review due soon" : ""}`} />
-                {mode === "Training" && <><div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Training-specific assumption</div><AuditRow label="MFU (model FLOPs utilization)" value={`${Math.round(mfu * 100)}%`} sub={mfu === 0.4 ? "default value, sourced from Meta's Llama 3 paper" : `adjusted from the 40% default to ${Math.round(mfu * 100)}%`} /></>}
+                <AuditRow label={`Loaded cost per ${result.selectedClass} GPU`} value={priceInfo ? fmtUsdPrecise(priceInfo.amount) : isRubinClass(result.selectedClass) ? "Not yet activated" : "—"} sub={priceInfo ? `Confidence: ${priceInfo.confidence} -- ${priceInfo.source}` : isRubinClass(result.selectedClass) ? "Rubin loaded TCO economics remain gated; no Blackwell substitute or inferred adder is used." : undefined} />
+                {!isRubinClass(result.selectedClass) && <AuditRow label="Pricing last verified" value={fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)} sub={`${onpremStaleness.days} days ago${onpremStaleness.level === "stale" ? " -- refresh before client use" : onpremStaleness.level === "review" ? " -- review due soon" : ""}`} />}
+                {mode === "Training" && <><div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Training-specific assumption</div><AuditRow label="MFU (model FLOPs utilization)" value={`${Math.round(mfu * 100)}%`} sub={mfu === 0.4 ? "default value, sourced from Meta's Llama 3 paper; not yet independently validated on Rubin silicon" : `adjusted from the 40% default to ${Math.round(mfu * 100)}%`} /></>}
               </>
             );
           })()}
@@ -1273,6 +1306,9 @@ function GPUSizingCalculatorInner() {
                   <div className="border-t border-gray-100 px-4 pt-4 pb-1">
                     <Field label="Quantization" tipKey="quant"><Select value={quant} onChange={setQuant} options={["FP16", "FP8", "FP4"]} /></Field>
                     <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
+                    <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                      <strong>Rubin inference:</strong> {RUBIN_INFERENCE_NAMES} are intentionally not selectable yet. NVIDIA has not published a qualifying absolute per-GPU inference-throughput result comparable to the tool's current anchors. Training sizing is available; no FLOPS-, ratio-, or tokens/MW-derived inference estimate is used.
+                    </div>
                   </div>
                 </details>
                 <details open={pathLevel === "advanced"} onToggle={(e) => setPathLevel(e.currentTarget.open ? "advanced" : "simple")} className="rounded-xl border border-gray-200 bg-white">
@@ -1306,7 +1342,8 @@ function GPUSizingCalculatorInner() {
                   </summary>
                   <div className="border-t border-gray-100 px-4 pt-4 pb-1">
                     <Field label="Precision" tipKey="precision"><Select value={precision} onChange={setPrecision} options={["BF16", "FP8"]} /></Field>
-                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={trainGpuOverride} onChange={setTrainGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
+                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={trainGpuOverride} onChange={setTrainGpuOverride} options={["Auto-recommend", ...TRAINING_GPU_SPECS.map((g) => g.id)]} /></Field>
+                    <div className="mb-3 text-xs text-gray-500">Rubin training uses NVIDIA-published preliminary 288 GB HBM4, 4,000 BF16 TFLOPS, and 17,500 FP8/FP6 TFLOPS per GPU. The existing 40% MFU remains an explicit planning assumption and is not yet validated specifically on Rubin silicon.</div>
                   </div>
                 </details>
                 <details open={pathLevel === "advanced"} onToggle={(e) => setPathLevel(e.currentTarget.open ? "advanced" : "simple")} className="rounded-xl border border-gray-200 bg-white">
@@ -1329,12 +1366,17 @@ function GPUSizingCalculatorInner() {
             ) : (
             <>
               <div className="mb-4"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2 flex items-start gap-1"><Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{result.confidence.note}</p></div>
-              <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" /><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent selectable selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
-              <div className="flex flex-wrap gap-3 mb-6"><ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." /><ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." selectable={!!result.higherGrowth.class} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
+              <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" /><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent selectable={Boolean(TCO_OWN_SYS_FOR_CLASS[result.selectedClass])} selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
+              <div className="flex flex-wrap gap-3 mb-6"><ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." /><ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
               <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
+              {mode === "Training" && isRubinClass(result.selectedClass) && (
+                <div className="mb-4 rounded-xl p-4 border border-amber-200 bg-amber-50 text-xs text-amber-900">
+                  <strong>Technical sizing active; economics gated.</strong> This Rubin recommendation uses verified memory and training FLOPS inputs. Estimated budget and TCO remain intentionally unavailable until Rubin-specific loaded-cost assumptions are defensible.
+                </div>
+              )}
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
-              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).</div>
+              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "a 72-GPU NVL rack for this class" : "8-GPU DGX-class nodes for this class"}).</div>
               <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
                 <button onClick={requestReport} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
