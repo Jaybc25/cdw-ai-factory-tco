@@ -1,4 +1,4 @@
-import { RUBIN_PHASE1_PLANNING_MODEL, PHASE1_REFERENCE_RATIOS, selectedRubinSoftwareCost } from "../src/rubinPhase1PlanningModel.js";
+import { RUBIN_PHASE1_PLANNING_MODEL, PHASE1_REFERENCE_ANCHORS, selectedRubinSoftwareCost } from "../src/rubinPhase1PlanningModel.js";
 import { getRubinTcoCommercialSystem } from "../src/rubinTcoCommercialRegistry.js";
 
 function assert(condition, message) {
@@ -11,10 +11,13 @@ const c8 = getRubinTcoCommercialSystem("DGX Rubin NVL8");
 const c72 = getRubinTcoCommercialSystem("DGX Vera Rubin NVL72");
 
 assert(nvl8 && nvl72, "Expected both Rubin Phase 1 planning models.");
-assert(PHASE1_REFERENCE_RATIOS.fabricPctOfHardware > 0.18 && PHASE1_REFERENCE_RATIOS.fabricPctOfHardware < 0.20, "Fabric reference ratio drifted outside expected B200 planning range.");
-assert(PHASE1_REFERENCE_RATIOS.professionalServicesPctOfHardware > 0.05 && PHASE1_REFERENCE_RATIOS.professionalServicesPctOfHardware < 0.06, "PS reference ratio drifted outside expected B200 planning range.");
+assert(PHASE1_REFERENCE_ANCHORS.eightGpuDgx.fabricAllowance === 91993, "8-GPU DGX fabric planning anchor drifted.");
+assert(PHASE1_REFERENCE_ANCHORS.eightGpuDgx.professionalServicesAllowance === 25000, "8-GPU DGX PS planning anchor drifted.");
+assert(PHASE1_REFERENCE_ANCHORS.nvl72.fabricAllowance === 1717074, "NVL72 fabric planning anchor drifted.");
+assert(PHASE1_REFERENCE_ANCHORS.nvl72.professionalServicesAllowance === 55558, "NVL72 PS planning anchor drifted.");
 
 for (const model of [nvl8, nvl72]) {
+  assert(model.methodology === "PHASE1_ARCHITECTURE_CLASS_REFERENCE", `${model.hardwareListPrice}: expected architecture-class planning methodology.`);
   assert(model.fabricAllowance.confidence === "EST", `${model.hardwareListPrice}: fabric must remain EST.`);
   assert(model.fabricAllowance.editable === true, `${model.hardwareListPrice}: fabric estimate must remain editable.`);
   assert(model.professionalServicesAllowance.confidence === "EST", `${model.hardwareListPrice}: PS/install must remain EST.`);
@@ -23,6 +26,11 @@ for (const model of [nvl8, nvl72]) {
   assert(model.highDensityInfrastructure.confidence === "QUOTE", `${model.hardwareListPrice}: infrastructure should remain quote/customer supplied.`);
   assert(model.softwarePolicy.defaultSelection === "NONE", `${model.hardwareListPrice}: optional software must not be silently included.`);
 }
+
+assert(nvl8.fabricAllowance.amount === 91993, "Rubin NVL8 should inherit the 8-GPU DGX fabric planning anchor until replaced by better evidence.");
+assert(nvl8.professionalServicesAllowance.amount === 25000, "Rubin NVL8 should inherit the 8-GPU DGX PS planning anchor until replaced by quote/evidence.");
+assert(nvl72.fabricAllowance.amount === 1717074, "Vera Rubin NVL72 should inherit the existing NVL72 fabric planning anchor until replaced by better evidence.");
+assert(nvl72.professionalServicesAllowance.amount === 55558, "Vera Rubin NVL72 should inherit the existing NVL72 PS planning anchor until replaced by quote/evidence.");
 
 assert(nvl8.phase1TcoReadiness === "PROVISIONAL", "Rubin NVL8 should be provisional for Phase 1 planning, not fully activated by this registry alone.");
 assert(nvl72.phase1TcoReadiness === "BLOCKED_POWER", "Vera Rubin NVL72 must remain blocked on canonical power.");
