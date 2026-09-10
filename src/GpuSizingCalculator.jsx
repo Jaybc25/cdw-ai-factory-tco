@@ -10,6 +10,7 @@ import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelPar
 import { getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
 import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
 import { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";
+import { getRubinInferenceAdvisory } from "./rubinInferenceAdvisory.js";
 import { RUBIN_GPU_SIZING_SPECS, RUBIN_TRAINING_CANDIDATES } from "./rubinGpuSizingRegistry.js";
 
 // ---------------------------------------------------------------------------
@@ -267,6 +268,11 @@ function computeInference(inputs) {
   const afterHours = 24 - workingDayHours;
   const idleGpuHoursAfterHours = recommendedCount * afterHours;
   const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;
+  const rubinAdvisory = getRubinInferenceAdvisory({
+    recommended: recommendedCount,
+    selectedClass: selected.id,
+    totalThroughputNeeded,
+  });
 
   return {
     totalMemoryGB,
@@ -282,6 +288,7 @@ function computeInference(inputs) {
     rtxAlt,
     budget,
     utilization,
+    rubinAdvisory,
     workingDayHours,
     afterHours,
     idleGpuHoursAfterHours,
@@ -1067,7 +1074,14 @@ function GPUSizingCalculatorInner() {
             <ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent />
           </div>
           <BudgetPanel budget={result.budget} />
-          {mode === "Training" && isRubinClass(result.selectedClass) && (
+{mode === "Inference" && result.rubinAdvisory && (
+  <div className="mb-6 rounded-xl p-4 border border-amber-300 bg-amber-50 text-xs text-amber-900">
+    <div className="font-bold uppercase tracking-wide mb-1">Rubin architecture evaluation recommended · PROVISIONAL</div>
+    <div className="font-semibold mb-1">Verified sizing baseline: {result.recommended.toLocaleString()} × {result.selectedClass}</div>
+    <div>At this rack-scale Blackwell footprint, evaluate DGX Rubin NVL8 and DGX Vera Rubin NVL72 with CDW/NVIDIA solution engineering. No exact Rubin GPU count, utilization, or cost-per-token is inferred because a qualifying absolute per-GPU inference-throughput anchor is still unavailable.</div>
+  </div>
+)}
+{mode === "Training" && isRubinClass(result.selectedClass) && (
             <div className="mb-6 rounded-xl p-4 border border-amber-200 bg-amber-50 text-xs text-amber-900">
               Rubin technical sizing is active from NVIDIA-published memory and training FLOPS. Phase 1 TCO is available using transparent EST/PROVISIONAL planning assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains a quote/Phase 2 activity.
             </div>
@@ -1311,7 +1325,7 @@ function GPUSizingCalculatorInner() {
                     <Field label="Quantization" tipKey="quant"><Select value={quant} onChange={setQuant} options={["FP16", "FP8", "FP4"]} /></Field>
                     <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
                     <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                      <strong>Rubin inference:</strong> {RUBIN_INFERENCE_NAMES} are intentionally not selectable yet. NVIDIA has not published a qualifying absolute per-GPU inference-throughput result comparable to the tool's current anchors. Training sizing is available; no FLOPS-, ratio-, or tokens/MW-derived inference estimate is used.
+                      <strong>Rubin exact sizing:</strong> {RUBIN_INFERENCE_NAMES} are not selectable for benchmark-qualified GPU counts yet because a qualifying absolute per-GPU inference-throughput anchor is still unavailable. For rack-scale Blackwell results, the tool now surfaces Rubin separately as a provisional architecture-evaluation advisory without inventing a Rubin GPU count.
                     </div>
                   </div>
                 </details>
@@ -1373,7 +1387,18 @@ function GPUSizingCalculatorInner() {
               <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" /><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent selectable={Boolean(TCO_OWN_SYS_FOR_CLASS[result.selectedClass])} selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
               <div className="flex flex-wrap gap-3 mb-6"><ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." /><ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
               <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
-              {mode === "Training" && isRubinClass(result.selectedClass) && (
+    {mode === "Inference" && result.rubinAdvisory && (
+      <div className="mb-4 rounded-xl p-4 border border-amber-300 bg-amber-50">
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <div className="text-xs font-bold uppercase tracking-wide text-amber-900">Rubin architecture evaluation recommended</div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-200 text-amber-900">PROVISIONAL</span>
+        </div>
+        <div className="text-sm font-semibold text-amber-950 mb-1">Verified sizing baseline: {result.recommended.toLocaleString()} × {result.selectedClass}</div>
+        <p className="text-xs text-amber-900 mb-1">This benchmark-qualified Blackwell result has reached rack-scale deployment. Evaluate DGX Rubin NVL8 and DGX Vera Rubin NVL72 with CDW/NVIDIA solution engineering before committing to a large Blackwell build.</p>
+        <p className="text-xs text-amber-800"><strong>No exact Rubin GPU count is shown.</strong> Rubin inference efficiency evidence is strong, but the absolute per-GPU throughput anchor required by this calculator is still unavailable; FLOPS, relative ratios, and tokens/MW are not converted into synthetic sizing.</p>
+      </div>
+    )}
+    {mode === "Training" && isRubinClass(result.selectedClass) && (
                 <div className="mb-4 rounded-xl p-4 border border-amber-200 bg-amber-50 text-xs text-amber-900">
                   <strong>Technical sizing active; economics gated.</strong> This Rubin recommendation uses verified memory and training FLOPS inputs. Estimated budget and TCO remain intentionally unavailable until Rubin-specific loaded-cost assumptions are defensible.
                 </div>
