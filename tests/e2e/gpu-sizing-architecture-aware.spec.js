@@ -28,10 +28,10 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
 
   // Dense current default: 29.6B resident / 29.6B active. With the default
   // 100-user, 30 tok/s scenario, all supported GPU classes fit in one
-  // technical GPU; catalog order therefore selects H200 and node-rounds to 8.
+  // technical GPU; catalog order therefore selects B200 and node-rounds to 8.
   await chooseInferenceModel(page, "muse-glimmer-30b");
   await expect(resultCard(page, "Minimum technical")).toContainText("1 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("H200");
+  await expect(resultCard(page, "Minimum technical")).toContainText("B200");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // MoE: Scout is only 17B active per token but 109B resident. The one-sided
