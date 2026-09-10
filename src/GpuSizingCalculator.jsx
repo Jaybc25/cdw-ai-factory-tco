@@ -102,7 +102,7 @@ const GPU_SPECS = [
   { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)", nodeSize: 8 },
   { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified", nodeSize: 72 },
   { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%", nodeSize: 8 },
-];
+].filter((gpu) => GPU_PRICE_USD[gpu.id]);
 
 const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
 
