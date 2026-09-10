@@ -5,49 +5,49 @@
 // stay in the commercial/technical registries. The assumptions below are explicitly
 // EST or QUOTE and are intended to be customer-editable when wired into TCO.
 //
-// Baseline ratios are inherited from the existing DGX B200 Phase 1 reference model:
-// hardware $485,000; compute/storage/management fabric $54,323/$23,443/$14,227
-// (= $91,993, or 18.97% of hardware); professional services $25,000
-// (= 5.15% of hardware). These are methodology anchors, not Rubin vendor quotes.
+// These defaults inherit the closest existing Phase 1 architecture-class planning
+// anchors rather than scaling services/fabric as a percentage of expensive Rubin
+// hardware. They are methodology proxies, not Rubin vendor quotes.
 
-const B200_REFERENCE_HARDWARE = 485000;
-const B200_REFERENCE_FABRIC = 54323 + 23443 + 14227;
-const B200_REFERENCE_PROFESSIONAL_SERVICES = 25000;
-
-export const PHASE1_REFERENCE_RATIOS = Object.freeze({
-  fabricPctOfHardware: B200_REFERENCE_FABRIC / B200_REFERENCE_HARDWARE,
-  professionalServicesPctOfHardware: B200_REFERENCE_PROFESSIONAL_SERVICES / B200_REFERENCE_HARDWARE,
+export const PHASE1_REFERENCE_ANCHORS = Object.freeze({
+  eightGpuDgx: Object.freeze({
+    fabricAllowance: 91993,
+    professionalServicesAllowance: 25000,
+    basis: "Existing DGX B200 Phase 1 reference: compute/storage/management fabric $54,323/$23,443/$14,227 and professional services $25,000 per system."
+  }),
+  nvl72: Object.freeze({
+    fabricAllowance: 1717074,
+    professionalServicesAllowance: 55558,
+    basis: "Existing DGX GB200/GB300 NVL72 Phase 1 loaded-cost decomposition: $1,717,074 residual fabric/infrastructure planning allowance and $55,558 professional services per system."
+  }),
 });
 
-function roundToNearest(value, increment = 1000) {
-  return Math.round(value / increment) * increment;
-}
-
-function estimatedAllowance(hardwareListPrice, pct, label, note) {
+function estimatedAllowance(amount, label, note, basis) {
   return Object.freeze({
-    amount: roundToNearest(hardwareListPrice * pct),
+    amount,
     confidence: "EST",
     editable: true,
     label,
     note,
+    basis,
   });
 }
 
 export const RUBIN_PHASE1_PLANNING_MODEL = Object.freeze({
   "DGX Rubin NVL8": Object.freeze({
-    methodology: "PHASE1_REFERENCE",
+    methodology: "PHASE1_ARCHITECTURE_CLASS_REFERENCE",
     hardwareListPrice: 995000,
     fabricAllowance: estimatedAllowance(
-      995000,
-      PHASE1_REFERENCE_RATIOS.fabricPctOfHardware,
+      PHASE1_REFERENCE_ANCHORS.eightGpuDgx.fabricAllowance,
       "Reference fabric allowance",
-      "Directional Phase 1 allowance using the existing B200 fabric-to-hardware ratio. Replace with a customer/network quote or future Phase 2 Network Fabric Planner result when available."
+      "Directional Phase 1 placeholder inherited from the existing 8-GPU DGX reference model. It is not Rubin-specific fabric pricing; replace with a customer/network quote or future Phase 2 Network Fabric Planner result when available.",
+      PHASE1_REFERENCE_ANCHORS.eightGpuDgx.basis
     ),
     professionalServicesAllowance: estimatedAllowance(
-      995000,
-      PHASE1_REFERENCE_RATIOS.professionalServicesPctOfHardware,
+      PHASE1_REFERENCE_ANCHORS.eightGpuDgx.professionalServicesAllowance,
       "Installation & professional services",
-      "Directional Phase 1 allowance using the existing B200 PS-to-hardware ratio. Mandatory Rubin installation is quote-required; customer may override this estimate."
+      "Directional Phase 1 placeholder inherited from the existing 8-GPU DGX reference model. Mandatory Rubin installation is quote-required and the customer may override this estimate.",
+      PHASE1_REFERENCE_ANCHORS.eightGpuDgx.basis
     ),
     highDensityInfrastructure: Object.freeze({
       amount: null,
@@ -68,19 +68,19 @@ export const RUBIN_PHASE1_PLANNING_MODEL = Object.freeze({
   }),
 
   "DGX Vera Rubin NVL72": Object.freeze({
-    methodology: "PHASE1_REFERENCE",
+    methodology: "PHASE1_ARCHITECTURE_CLASS_REFERENCE",
     hardwareListPrice: 10500000,
     fabricAllowance: estimatedAllowance(
-      10500000,
-      PHASE1_REFERENCE_RATIOS.fabricPctOfHardware,
+      PHASE1_REFERENCE_ANCHORS.nvl72.fabricAllowance,
       "Reference fabric allowance",
-      "Directional Phase 1 allowance using the existing B200 fabric-to-hardware ratio only as a planning proxy. Replace with quote/reference architecture pricing or future Phase 2 Network Fabric Planner result."
+      "Directional Phase 1 placeholder inherited from the existing NVL72 reference model. It is not Vera Rubin-specific fabric pricing; replace with a quote/reference architecture price or future Phase 2 Network Fabric Planner result.",
+      PHASE1_REFERENCE_ANCHORS.nvl72.basis
     ),
     professionalServicesAllowance: estimatedAllowance(
-      10500000,
-      PHASE1_REFERENCE_RATIOS.professionalServicesPctOfHardware,
+      PHASE1_REFERENCE_ANCHORS.nvl72.professionalServicesAllowance,
       "Installation & professional services",
-      "Directional Phase 1 allowance using the existing B200 PS-to-hardware ratio. This is not an NVIDIA services quote and remains customer-editable."
+      "Directional Phase 1 placeholder inherited from the existing NVL72 reference model. This is not an NVIDIA services quote and remains customer-editable.",
+      PHASE1_REFERENCE_ANCHORS.nvl72.basis
     ),
     highDensityInfrastructure: Object.freeze({
       amount: null,
