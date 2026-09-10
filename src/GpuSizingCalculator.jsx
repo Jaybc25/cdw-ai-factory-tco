@@ -9,6 +9,7 @@ import { GPU_SIZING_PRICE_USD as GPU_PRICE_USD } from "./pricingRegistry.js";
 import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelParamsB } from "./modelRegistry.js";
 import { getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
 import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
+import { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";
 import { RUBIN_GPU_SIZING_SPECS, RUBIN_TRAINING_CANDIDATES } from "./rubinGpuSizingRegistry.js";
 
 // ---------------------------------------------------------------------------
@@ -197,7 +198,7 @@ function computeInference(inputs) {
     return { ...gpu, effectiveAnchor, gpusMem, gpusPerf, gpusWorkload: Math.max(gpusMem, gpusPerf) };
   });
 
-  const autoRecommended = candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), candidates[0]);
+  const autoRecommended = selectDeployableRecommendation(candidates);
   const selected = inputs.gpuClassOverride === "Auto-recommend"
     ? autoRecommended
     : candidates.find((c) => c.id === inputs.gpuClassOverride);
@@ -309,7 +310,7 @@ function computeTraining(inputs) {
     return { ...gpu, peakTFLOPS, gpusFit, gpusTime, gpusWorkload: Math.max(gpusFit, gpusTime) };
   });
 
-  const autoRecommended = candidates.reduce((best, c) => (c.gpusWorkload < best.gpusWorkload ? c : best), candidates[0]);
+  const autoRecommended = selectDeployableRecommendation(candidates);
   const selected = inputs.gpuClassOverride === "Auto-recommend"
     ? autoRecommended
     : candidates.find((c) => c.id === inputs.gpuClassOverride);
@@ -1067,7 +1068,7 @@ function GPUSizingCalculatorInner() {
           <BudgetPanel budget={result.budget} />
           {mode === "Training" && isRubinClass(result.selectedClass) && (
             <div className="mb-6 rounded-xl p-4 border border-amber-200 bg-amber-50 text-xs text-amber-900">
-              Rubin technical sizing is active from NVIDIA-published memory and training FLOPS. Loaded budget/TCO economics are intentionally not shown yet because Rubin-specific fabric, cooling/infrastructure, and professional-services assumptions remain gated.
+              Rubin technical sizing is active from NVIDIA-published memory and training FLOPS. Phase 1 TCO is available using transparent EST/PROVISIONAL planning assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains a quote/Phase 2 activity.
             </div>
           )}
           {mode === "Inference" && <div className="gpu-report-utilization"><UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} /></div>}
