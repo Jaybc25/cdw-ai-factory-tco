@@ -25,51 +25,27 @@ jobs:
           p = Path('src/GpuSizingCalculator.jsx')
           s = p.read_text()
 
-          old_import = 'import { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";\n'
-          new_import = old_import + 'import { getRubinInferenceAdvisory } from "./rubinInferenceAdvisory.js";\n'
-          if old_import not in s:
-            raise SystemExit('import guard failed')
-          s = s.replace(old_import, new_import, 1)
+          def replace_once(text, old, new, label):
+            if text.count(old) != 1:
+              raise SystemExit(f'{label} guard failed: found {text.count(old)} matches')
+            return text.replace(old, new, 1)
 
-          old_return_prep = '''  const idleGpuHoursAfterHours = recommendedCount * afterHours;
-          const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;
+          old = 'import { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";\n'
+          new = old + 'import { getRubinInferenceAdvisory } from "./rubinInferenceAdvisory.js";\n'
+          s = replace_once(s, old, new, 'import')
 
-          return {'''
-          new_return_prep = '''  const idleGpuHoursAfterHours = recommendedCount * afterHours;
-          const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;
-          const rubinAdvisory = getRubinInferenceAdvisory({
-            recommended: recommendedCount,
-            selectedClass: selected.id,
-            totalThroughputNeeded,
-          });
+          old = '  const idleGpuHoursAfterHours = recommendedCount * afterHours;\n  const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;\n\n  return {'
+          new = '  const idleGpuHoursAfterHours = recommendedCount * afterHours;\n  const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;\n  const rubinAdvisory = getRubinInferenceAdvisory({\n    recommended: recommendedCount,\n    selectedClass: selected.id,\n    totalThroughputNeeded,\n  });\n\n  return {'
+          s = replace_once(s, old, new, 'result prep')
 
-          return {'''
-          if old_return_prep not in s:
-            raise SystemExit('result prep guard failed')
-          s = s.replace(old_return_prep, new_return_prep, 1)
+          s = replace_once(s, '    utilization,\n    workingDayHours,', '    utilization,\n    rubinAdvisory,\n    workingDayHours,', 'result object')
 
-          old_result = '''    utilization,
-            workingDayHours,'''
-          new_result = '''    utilization,
-            rubinAdvisory,
-            workingDayHours,'''
-          if old_result not in s:
-            raise SystemExit('result object guard failed')
-          s = s.replace(old_result, new_result, 1)
+          old = '                      <strong>Rubin inference:</strong> {RUBIN_INFERENCE_NAMES} are intentionally not selectable yet. NVIDIA has not published a qualifying absolute per-GPU inference-throughput result comparable to the tool\'s current anchors. Training sizing is available; no FLOPS-, ratio-, or tokens/MW-derived inference estimate is used.'
+          new = '                      <strong>Rubin exact sizing:</strong> {RUBIN_INFERENCE_NAMES} are not selectable for benchmark-qualified GPU counts yet because a qualifying absolute per-GPU inference-throughput anchor is still unavailable. For rack-scale Blackwell results, the tool now surfaces Rubin separately as a provisional architecture-evaluation advisory without inventing a Rubin GPU count.'
+          s = replace_once(s, old, new, 'warning')
 
-          old_warning = '''                    <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                      <strong>Rubin inference:</strong> {RUBIN_INFERENCE_NAMES} are intentionally not selectable yet. NVIDIA has not published a qualifying absolute per-GPU inference-throughput result comparable to the tool's current anchors. Training sizing is available; no FLOPS-, ratio-, or tokens/MW-derived inference estimate is used.
-                    </div>'''
-          new_warning = '''                    <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-                      <strong>Rubin exact sizing:</strong> {RUBIN_INFERENCE_NAMES} are not selectable for benchmark-qualified GPU counts yet because a qualifying absolute per-GPU inference-throughput anchor is still unavailable. For rack-scale Blackwell results, the tool now surfaces Rubin separately as a provisional architecture-evaluation advisory without inventing a Rubin GPU count.
-                    </div>'''
-          if old_warning not in s:
-            raise SystemExit('warning guard failed')
-          s = s.replace(old_warning, new_warning, 1)
-
-          old_calc_insert = '''              <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
-              {mode === "Training" && isRubinClass(result.selectedClass) && ('''
-          new_calc_insert = '''              <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
+          old = '              <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />\n              {mode === "Training" && isRubinClass(result.selectedClass) && ('
+          new = '''              <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
               {mode === "Inference" && result.rubinAdvisory && (
                 <div className="mb-4 rounded-xl p-4 border border-amber-300 bg-amber-50">
                   <div className="flex items-center justify-between gap-3 mb-1">
@@ -82,13 +58,10 @@ jobs:
                 </div>
               )}
               {mode === "Training" && isRubinClass(result.selectedClass) && ('''
-          if old_calc_insert not in s:
-            raise SystemExit('calc advisory insertion guard failed')
-          s = s.replace(old_calc_insert, new_calc_insert, 1)
+          s = replace_once(s, old, new, 'calculator advisory insertion')
 
-          old_report_insert = '''          <BudgetPanel budget={result.budget} />
-          {mode === "Training" && isRubinClass(result.selectedClass) && ('''
-          new_report_insert = '''          <BudgetPanel budget={result.budget} />
+          old = '          <BudgetPanel budget={result.budget} />\n          {mode === "Training" && isRubinClass(result.selectedClass) && ('
+          new = '''          <BudgetPanel budget={result.budget} />
           {mode === "Inference" && result.rubinAdvisory && (
             <div className="mb-6 rounded-xl p-4 border border-amber-300 bg-amber-50 text-xs text-amber-900">
               <div className="font-bold uppercase tracking-wide mb-1">Rubin architecture evaluation recommended · PROVISIONAL</div>
@@ -97,19 +70,16 @@ jobs:
             </div>
           )}
           {mode === "Training" && isRubinClass(result.selectedClass) && ('''
-          if old_report_insert not in s:
-            raise SystemExit('report advisory insertion guard failed')
-          s = s.replace(old_report_insert, new_report_insert, 1)
+          s = replace_once(s, old, new, 'report advisory insertion')
 
           p.write_text(s)
 
           pkg = Path('package.json')
           t = pkg.read_text()
-          old_pkg = '    "verify:blackwell-inference": "node scripts/verifyBlackwellInferenceAnchors.mjs"\n'
-          new_pkg = '    "verify:blackwell-inference": "node scripts/verifyBlackwellInferenceAnchors.mjs",\n    "verify:rubin-inference-advisory": "node scripts/verifyRubinInferenceAdvisory.mjs"\n'
-          if old_pkg not in t:
-            raise SystemExit('package guard failed')
-          pkg.write_text(t.replace(old_pkg, new_pkg, 1))
+          old = '    "verify:blackwell-inference": "node scripts/verifyBlackwellInferenceAnchors.mjs"\n'
+          new = '    "verify:blackwell-inference": "node scripts/verifyBlackwellInferenceAnchors.mjs",\n    "verify:rubin-inference-advisory": "node scripts/verifyRubinInferenceAdvisory.mjs"\n'
+          t = replace_once(t, old, new, 'package')
+          pkg.write_text(t)
           PY
       - name: Validate advisory
         run: |
