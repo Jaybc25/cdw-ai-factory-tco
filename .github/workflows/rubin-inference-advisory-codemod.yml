@@ -1,0 +1,127 @@
+name: Rubin inference advisory codemod
+
+on:
+  push:
+    branches:
+      - rubin-inference-advisory
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: rubin-inference-advisory
+          fetch-depth: 0
+      - name: Apply guarded source updates
+        shell: python
+        run: |
+          from pathlib import Path
+
+          p = Path('src/GpuSizingCalculator.jsx')
+          s = p.read_text()
+
+          old_import = 'import { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";\n'
+          new_import = old_import + 'import { getRubinInferenceAdvisory } from "./rubinInferenceAdvisory.js";\n'
+          if old_import not in s:
+            raise SystemExit('import guard failed')
+          s = s.replace(old_import, new_import, 1)
+
+          old_return_prep = '''  const idleGpuHoursAfterHours = recommendedCount * afterHours;
+  const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;
+
+  return {'''
+          new_return_prep = '''  const idleGpuHoursAfterHours = recommendedCount * afterHours;
+  const headroomGpuHoursDuringDay = recommendedCount * (1 - utilization.recommended) * workingDayHours;
+  const rubinAdvisory = getRubinInferenceAdvisory({
+    recommended: recommendedCount,
+    selectedClass: selected.id,
+    totalThroughputNeeded,
+  });
+
+  return {'''
+          if old_return_prep not in s:
+            raise SystemExit('result prep guard failed')
+          s = s.replace(old_return_prep, new_return_prep, 1)
+
+          old_result = '''    utilization,
+    workingDayHours,'''
+          new_result = '''    utilization,
+    rubinAdvisory,
+    workingDayHours,'''
+          if old_result not in s:
+            raise SystemExit('result object guard failed')
+          s = s.replace(old_result, new_result, 1)
+
+          old_warning = '''                    <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                      <strong>Rubin inference:</strong> {RUBIN_INFERENCE_NAMES} are intentionally not selectable yet. NVIDIA has not published a qualifying absolute per-GPU inference-throughput result comparable to the tool's current anchors. Training sizing is available; no FLOPS-, ratio-, or tokens/MW-derived inference estimate is used.
+                    </div>'''
+          new_warning = '''                    <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                      <strong>Rubin exact sizing:</strong> {RUBIN_INFERENCE_NAMES} are not selectable for benchmark-qualified GPU counts yet because a qualifying absolute per-GPU inference-throughput anchor is still unavailable. For rack-scale Blackwell results, the tool now surfaces Rubin separately as a provisional architecture-evaluation advisory without inventing a Rubin GPU count.
+                    </div>'''
+          if old_warning not in s:
+            raise SystemExit('warning guard failed')
+          s = s.replace(old_warning, new_warning, 1)
+
+          old_calc_insert = '''              <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
+              {mode === "Training" && isRubinClass(result.selectedClass) && ('''
+          new_calc_insert = '''              <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
+              {mode === "Inference" && result.rubinAdvisory && (
+                <div className="mb-4 rounded-xl p-4 border border-amber-300 bg-amber-50">
+                  <div className="flex items-center justify-between gap-3 mb-1">
+                    <div className="text-xs font-bold uppercase tracking-wide text-amber-900">Rubin architecture evaluation recommended</div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-200 text-amber-900">PROVISIONAL</span>
+                  </div>
+                  <div className="text-sm font-semibold text-amber-950 mb-1">Verified sizing baseline: {result.recommended.toLocaleString()} × {result.selectedClass}</div>
+                  <p className="text-xs text-amber-900 mb-1">This benchmark-qualified Blackwell result has reached rack-scale deployment. Evaluate DGX Rubin NVL8 and DGX Vera Rubin NVL72 with CDW/NVIDIA solution engineering before committing to a large Blackwell build.</p>
+                  <p className="text-xs text-amber-800"><strong>No exact Rubin GPU count is shown.</strong> Rubin inference efficiency evidence is strong, but the absolute per-GPU throughput anchor required by this calculator is still unavailable; FLOPS, relative ratios, and tokens/MW are not converted into synthetic sizing.</p>
+                </div>
+              )}
+              {mode === "Training" && isRubinClass(result.selectedClass) && ('''
+          if old_calc_insert not in s:
+            raise SystemExit('calc advisory insertion guard failed')
+          s = s.replace(old_calc_insert, new_calc_insert, 1)
+
+          old_report_insert = '''          <BudgetPanel budget={result.budget} />
+          {mode === "Training" && isRubinClass(result.selectedClass) && ('''
+          new_report_insert = '''          <BudgetPanel budget={result.budget} />
+          {mode === "Inference" && result.rubinAdvisory && (
+            <div className="mb-6 rounded-xl p-4 border border-amber-300 bg-amber-50 text-xs text-amber-900">
+              <div className="font-bold uppercase tracking-wide mb-1">Rubin architecture evaluation recommended · PROVISIONAL</div>
+              <div className="font-semibold mb-1">Verified sizing baseline: {result.recommended.toLocaleString()} × {result.selectedClass}</div>
+              <div>At this rack-scale Blackwell footprint, evaluate DGX Rubin NVL8 and DGX Vera Rubin NVL72 with CDW/NVIDIA solution engineering. No exact Rubin GPU count, utilization, or cost-per-token is inferred because a qualifying absolute per-GPU inference-throughput anchor is still unavailable.</div>
+            </div>
+          )}
+          {mode === "Training" && isRubinClass(result.selectedClass) && ('''
+          if old_report_insert not in s:
+            raise SystemExit('report advisory insertion guard failed')
+          s = s.replace(old_report_insert, new_report_insert, 1)
+
+          p.write_text(s)
+
+          pkg = Path('package.json')
+          t = pkg.read_text()
+          old_pkg = '    "verify:blackwell-inference": "node scripts/verifyBlackwellInferenceAnchors.mjs"\n'
+          new_pkg = '    "verify:blackwell-inference": "node scripts/verifyBlackwellInferenceAnchors.mjs",\n    "verify:rubin-inference-advisory": "node scripts/verifyRubinInferenceAdvisory.mjs"\n'
+          if old_pkg not in t:
+            raise SystemExit('package guard failed')
+          pkg.write_text(t.replace(old_pkg, new_pkg, 1))
+      - name: Validate advisory
+        run: |
+          npm ci
+          npm run verify:rubin-inference-advisory
+          npm run verify:blackwell-inference
+          npm run verify:rubin
+          npm run build
+      - name: Commit durable changes and remove temporary workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/GpuSizingCalculator.jsx package.json
+          git rm .github/workflows/rubin-inference-advisory-codemod.yml
+          git commit -m "Surface Rubin for rack-scale inference evaluation"
+          git push origin HEAD:rubin-inference-advisory
