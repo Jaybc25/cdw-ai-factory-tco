@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "verify:rubin": "node scripts/verifyRubinGpuSizing.mjs",
     "verify:rubin-tco": "node scripts/verifyRubinTcoCommercial.mjs",
-    "verify:rubin-phase1": "node scripts/verifyRubinPhase1Planning.mjs"
+    "verify:rubin-phase1": "node scripts/verifyRubinPhase1Planning.mjs",
+    "verify:rubin-activation": "node scripts/verifyRubinTcoActivation.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
