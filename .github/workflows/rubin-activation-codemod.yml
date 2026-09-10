@@ -19,9 +19,21 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
+      - name: Refresh one stale guarded anchor
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('scripts/applyRubinTcoActivation.mjs')
+          s = p.read_text()
+          old = 'on-prem defaults = NVIDIA DGX TCO tool (Jul 2026). Edits stick until reset, including across provider switches.'
+          new = 'on-prem defaults = NVIDIA DGX TCO tool ({ONPREM_ASOF}). Cloud instance-rate edits are saved by provider + GPU class, and system-specific on-prem edits are saved by target system, so workload changes do not erase customer-entered pricing or misapply it to different hardware.'
+          if s.count(old) != 1:
+              raise SystemExit(f'Expected exactly one stale rate-card anchor, found {s.count(old)}')
+          p.write_text(s.replace(old, new))
+          PY
       - name: Apply guarded source edits
         run: node scripts/applyRubinTcoActivation.mjs
       - name: Verify Rubin evidence and activation
