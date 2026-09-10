@@ -16,47 +16,54 @@ jobs:
         with:
           ref: rubin-gpu-sizing-technical
           fetch-depth: 0
-      - name: Patch GPU sizing safely
+
+      - name: Patch GPU sizing
         run: |
           python - <<'PY'
           from pathlib import Path
+
           p = Path('src/GpuSizingCalculator.jsx')
           s = p.read_text()
 
-          old = '''const GPU_SPECS = [
+          old_registry = '''const GPU_SPECS = [
   { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8", nodeSize: 8 },
   { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)", nodeSize: 8 },
   { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified", nodeSize: 72 },
   { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%", nodeSize: 8 },
 ].filter((gpu) => GPU_PRICE_USD[gpu.id]);'''
 
-          new = '''const INFERENCE_GPU_SPECS = [
+          new_registry = '''const INFERENCE_GPU_SPECS = [
   { id: "H200", vram: 141, bf16: 989, fp8: 1979, anchor: 4373, anchorPrecision: "FP8", confidence: "LISTED", source: "MLCommons Inference v5.0, multiple official 8xH200 submissions cluster at ~34,700-34,988 tok/s / 8", nodeSize: 8 },
   { id: "B200", vram: 180, bf16: 2250, fp8: 4500, anchor: 12357, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf v5.0 blog: 98,858 tok/s offline / 8 (entries 5.0-0056, 5.0-0060)", nodeSize: 8 },
   { id: "GB200 NVL72", vram: 186, bf16: 2250, fp8: 4500, anchor: 12022, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 865,000 tok/s on one GB200 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified", nodeSize: 72 },
   { id: "B300", vram: 288, bf16: 2250, fp8: 5500, anchor: 15200, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED-derived", source: "Microsoft Azure blog citing Signal65: 1,100,000 tok/s on one GB300 NVL72 rack (72 GPUs) / 72, MLPerf v5.1, unverified, +/-5%", nodeSize: 8 },
 ].filter((gpu) => GPU_PRICE_USD[gpu.id]);
 
-// Training uses published peak FLOPS + explicit MFU, so Rubin can be sized
-// without inventing the absolute inference tokens/sec anchor that inference requires.
+// Training and memory sizing use published hardware specifications rather than
+// measured inference tokens/sec. Rubin can therefore be supported here while
+// inference remains gated until a qualifying absolute benchmark is published.
 const TRAINING_GPU_SPECS = [
   ...INFERENCE_GPU_SPECS,
-  { id: "Rubin NVL8", vram: 288, bf16: 4000, fp8: 17500, confidence: "LISTED", source: "NVIDIA DGX Rubin NVL8 / Rubin GPU published preliminary specifications; 288GB HBM4, 4,000 TFLOPS BF16 dense, 17,500 TFLOPS FP8/FP6 dense", nodeSize: 8, inferenceStatus: "UNAVAILABLE" },
-  { id: "Vera Rubin NVL72", vram: 288, bf16: 4000, fp8: 17500, confidence: "LISTED", source: "NVIDIA DGX Vera Rubin NVL72 / Rubin GPU published preliminary specifications; per-GPU 288GB HBM4, 4,000 TFLOPS BF16 dense, 17,500 TFLOPS FP8/FP6 dense", nodeSize: 72, inferenceStatus: "UNAVAILABLE" },
+  { id: "Rubin NVL8", vram: 288, bf16: 4000, fp8: 17500, confidence: "LISTED", source: "NVIDIA DGX Rubin NVL8 / Rubin GPU preliminary specifications: 288GB HBM4, 4,000 TFLOPS BF16 dense, 17,500 TFLOPS FP8/FP6 dense", nodeSize: 8, inferenceStatus: "UNAVAILABLE" },
+  { id: "Vera Rubin NVL72", vram: 288, bf16: 4000, fp8: 17500, confidence: "LISTED", source: "NVIDIA DGX Vera Rubin NVL72 / Rubin GPU preliminary specifications: 288GB HBM4 per GPU, 4,000 TFLOPS BF16 dense, 17,500 TFLOPS FP8/FP6 dense", nodeSize: 72, inferenceStatus: "UNAVAILABLE" },
 ];'''
-          assert old in s, 'GPU_SPECS block not found'
-          s = s.replace(old, new)
 
-          s = s.replace('const candidates = GPU_SPECS.map((gpu) => {', 'const candidates = INFERENCE_GPU_SPECS.map((gpu) => {', 1)
-          idx = s.find('const candidates = GPU_SPECS.map((gpu) => {')
-          assert idx != -1, 'training candidates block not found'
-          s = s[:idx] + s[idx:].replace('const candidates = GPU_SPECS.map((gpu) => {', 'const candidates = TRAINING_GPU_SPECS.map((gpu) => {', 1)
+          assert old_registry in s, 'Expected GPU registry block was not found'
+          s = s.replace(old_registry, new_registry, 1)
 
-          s = s.replace('options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]}', 'options={["Auto-recommend", ...INFERENCE_GPU_SPECS.map((g) => g.id)]}', 1)
-          s = s.replace('options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]}', 'options={["Auto-recommend", ...TRAINING_GPU_SPECS.map((g) => g.id)]}', 1)
+          marker = 'const candidates = GPU_SPECS.map((gpu) => {'
+          assert s.count(marker) == 2, f'Expected two candidate loops, found {s.count(marker)}'
+          s = s.replace(marker, 'const candidates = INFERENCE_GPU_SPECS.map((gpu) => {', 1)
+          s = s.replace(marker, 'const candidates = TRAINING_GPU_SPECS.map((gpu) => {', 1)
 
-          old_tco = '  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";\n  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });'
-          new_tco = '''  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass];
+          option_marker = 'options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]}'
+          assert s.count(option_marker) == 2, f'Expected two GPU selectors, found {s.count(option_marker)}'
+          s = s.replace(option_marker, 'options={["Auto-recommend", ...INFERENCE_GPU_SPECS.map((g) => g.id)]}', 1)
+          s = s.replace(option_marker, 'options={["Auto-recommend", ...TRAINING_GPU_SPECS.map((g) => g.id)]}', 1)
+
+          old_handoff = '''  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass] || "DGX B200";
+  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });'''
+          new_handoff = '''  const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass];
   if (!ownSys) {
     return (
       <div className="mb-6 rounded-xl p-4 border border-amber-200 bg-amber-50">
@@ -68,12 +75,32 @@ const TRAINING_GPU_SPECS = [
     );
   }
   const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });'''
-          assert old_tco in s, 'TCO fallback block not found'
-          s = s.replace(old_tco, new_tco)
+          assert old_handoff in s, 'Expected TCO fallback block was not found'
+          s = s.replace(old_handoff, new_handoff, 1)
 
-          old_conf = ': { level: "MEDIUM", note: `${trainingSemantics.basis} GPU FLOPs use NVIDIA published spec-sheet values; MFU remains an explicit user-adjustable assumption.` };'
-          new_conf = ': { level: "MEDIUM", note: `${trainingSemantics.basis} GPU FLOPs use NVIDIA published spec-sheet values; MFU remains an explicit user-adjustable assumption.${selected?.inferenceStatus === "UNAVAILABLE" ? " Rubin inference sizing remains unavailable until a qualifying absolute throughput benchmark is published." : ""}` };'
-          assert old_conf in s, 'training confidence text not found'
-          s = s.replace(old_conf, new_conf)
+          old_conf = ''': { level: "MEDIUM", note: `${trainingSemantics.basis} GPU FLOPs use NVIDIA published spec-sheet values; MFU remains an explicit user-adjustable assumption.` };'''
+          new_conf = ''': { level: "MEDIUM", note: `${trainingSemantics.basis} GPU FLOPs use NVIDIA published spec-sheet values; MFU remains an explicit user-adjustable assumption.${selected?.inferenceStatus === "UNAVAILABLE" ? " Rubin inference sizing remains unavailable until a qualifying absolute throughput benchmark is published." : ""}` };'''
+          assert old_conf in s, 'Expected training confidence text was not found'
+          s = s.replace(old_conf, new_conf, 1)
 
-          old_method = '({result.selectedNodeSize === 72 ? "GB200 NVL72 ships as one 72-GPU rack, not divisible smaller" : "8-GPU DGX nodes for this class"}).'</n          PY
+          old_tip = 'FP4 only applies to Blackwell-class GPUs (B200/GB200/B300) and roughly halves memory again.'
+          new_tip = 'FP4 is available on Blackwell and Rubin-class GPUs and roughly halves memory again; inference recommendations still require a measured throughput anchor for each hardware class.'
+          assert old_tip in s, 'Expected quantization tooltip text was not found'
+          s = s.replace(old_tip, new_tip, 1)
+
+          p.write_text(s)
+          PY
+
+      - name: Build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Remove one-time workflow and commit
+        run: |
+          rm .github/workflows/apply-rubin-step2.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/GpuSizingCalculator.jsx .github/workflows/apply-rubin-step2.yml
+          git commit -m "Add gated Rubin GPU sizing technical support"
+          git push origin HEAD:rubin-gpu-sizing-technical
