@@ -27,20 +27,22 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
 
   // Dense current default: 29.6B resident / 29.6B active. With the default
-  // 100-user, 30 tok/s scenario, all supported GPU classes fit in one
-  // technical GPU; catalog order therefore selects B200 and node-rounds to 8.
+  // 100-user, 30 tok/s scenario, all supported 8-GPU classes fit in one
+  // deployable node; deterministic tie-breaking selects B200.
   await chooseInferenceModel(page, "muse-glimmer-30b");
   await expect(resultCard(page, "Minimum technical")).toContainText("1 GPUs");
   await expect(resultCard(page, "Minimum technical")).toContainText("B200");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // MoE: Scout is only 17B active per token but 109B resident. The one-sided
-  // throughput rule gives it no unsupported speedup, while residency pushes
-  // H200/B200 above one technical GPU. GB200 NVL72 is the first 1-GPU fit.
+  // throughput rule gives it no unsupported speedup, while residency still
+  // changes the technical fit. Deployable ranking correctly prefers a 1-GPU
+  // technical B300 requirement rounded to 8 GPUs over a 1-GPU GB200 NVL72
+  // requirement that would force a 72-GPU deployment.
   await chooseInferenceModel(page, "llama-4-scout");
   await expect(resultCard(page, "Minimum technical")).toContainText("1 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("GB200 NVL72");
-  await expect(resultCard(page, "Recommended")).toContainText("72 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("B300");
+  await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // Hybrid: Maverick has the same 17B active-per-token concept as Scout but
   // a 400B resident model. If active parameters were incorrectly substituted
