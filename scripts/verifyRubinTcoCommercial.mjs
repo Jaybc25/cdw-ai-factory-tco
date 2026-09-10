@@ -1,4 +1,5 @@
 import { RUBIN_TCO_COMMERCIAL_SCAFFOLD, getRubinTcoCommercialSystem, isRubinTcoEnabled } from "../src/rubinTcoCommercialRegistry.js";
+import { RUBIN_NVL8_REFERENCE_BOM, RUBIN_NVL8_REFERENCE_ALLOCATIONS_PER_NODE } from "../src/rubinTcoReferenceBom.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -16,6 +17,9 @@ assert(nvl8.hardwareListPrice === 995000, "Rubin NVL8 hardware list price drifte
 assert(nvl8.commercialStatus === "LISTED", "Rubin NVL8 must remain LISTED unless commercial evidence changes.");
 assert(nvl8.moq === 1, "Rubin NVL8 MOQ must remain 1 unless commercial evidence changes.");
 assert(nvl8.systemPowerKW === 24, "Rubin NVL8 verified system power should remain 24 kW planning basis unless first-party evidence changes.");
+assert(nvl8.perRack === null, "Rubin NVL8 TCO rack packing must remain unresolved until NVIDIA rack representations are reconciled.");
+assert(nvl8.maximumPhysicalSystemsPerRack === 8, "Rubin NVL8 published maximum physical rack density should remain 8 unless first-party evidence changes.");
+assert(nvl8.rackArchitectureStatus === "UNRESOLVED_FOR_TCO", "Rubin NVL8 rack architecture must remain explicitly unresolved for TCO economics.");
 
 assert(nvl72.hardwareSkuFloorFeed === "DGXV-0072F+P1CMI36", "Vera Rubin NVL72 floor-feed SKU drifted.");
 assert(nvl72.hardwareSkuTopFeed === "DGXV-0072T+P1CMI36", "Vera Rubin NVL72 top-feed SKU drifted.");
@@ -33,9 +37,21 @@ for (const system of [nvl8, nvl72]) {
   assert(system.loadedAdders === null, `${system.gpuClass}: loadedAdders must stay null until loaded economics are defensible.`);
   assert(system.sw === null, `${system.gpuClass}: sw must stay null until the explicit software modeling policy is chosen.`);
   assert(system.prof === null, `${system.gpuClass}: prof must stay null until an economic install/services basis exists.`);
+  assert(system.fabricAndInfrastructure === null, `${system.gpuClass}: fabric/infrastructure economics must stay null until prices are defensible.`);
   assert(system.tcoEnabled === false, `${system.gpuClass}: TCO must remain gated in the commercial scaffold.`);
   assert(isRubinTcoEnabled(system === nvl8 ? "DGX Rubin NVL8" : "DGX Vera Rubin NVL72") === false, `${system.gpuClass}: TCO enablement helper must remain false.`);
   assert(Array.isArray(system.tcoBlockers) && system.tcoBlockers.length > 0, `${system.gpuClass}: explicit TCO blockers are required while gated.`);
 }
 
-console.log("Rubin TCO commercial scaffold verification passed.");
+assert(RUBIN_NVL8_REFERENCE_BOM.dgxNodes === 576, "Rubin NVL8 reference BOM must remain the NVIDIA 576-node / eight-SU design.");
+assert(RUBIN_NVL8_REFERENCE_BOM.scalableUnits === 8, "Rubin NVL8 reference BOM must remain eight SUs.");
+assert(RUBIN_NVL8_REFERENCE_BOM.computeAndRacks.dgxApprovedComputeRacks.count === 144, "Rubin NVL8 reference compute-rack count drifted.");
+assert(RUBIN_NVL8_REFERENCE_BOM.computeAndRacks.computePowerShelves110kW.count === 288, "Rubin NVL8 110 kW compute power-shelf count drifted.");
+assert(RUBIN_NVL8_REFERENCE_BOM.computeFabric.q3400ComputeLeafs.count === 64, "Rubin NVL8 Q3400 compute-leaf count drifted.");
+assert(RUBIN_NVL8_REFERENCE_BOM.computeFabric.q3400ComputeSpines.count === 36, "Rubin NVL8 Q3400 compute-spine count drifted.");
+assert(RUBIN_NVL8_REFERENCE_BOM.computeFabric.dgxLeafCables.count === 4608, "Rubin NVL8 DGX-leaf cable count drifted.");
+assert(RUBIN_NVL8_REFERENCE_ALLOCATIONS_PER_NODE.computeDgxLeafCables === 8, "Rubin NVL8 should allocate eight compute-fabric DGX-leaf cables per node in the representative BOM.");
+assert(RUBIN_NVL8_REFERENCE_ALLOCATIONS_PER_NODE.computePowerShelves110kW === 0.5, "Rubin NVL8 representative BOM should allocate one 110 kW compute power shelf per two DGX nodes.");
+assert(RUBIN_NVL8_REFERENCE_ALLOCATIONS_PER_NODE.computeRacksFromRepresentativeBom === 0.25, "Rubin NVL8 representative BOM implies one listed compute rack per four DGX nodes; retain this as evidence, not as TCO packing policy.");
+
+console.log("Rubin TCO commercial scaffold and activation-readiness evidence verification passed.");
