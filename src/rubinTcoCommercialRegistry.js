@@ -3,8 +3,8 @@
 // This file records current commercial facts without activating Rubin in the
 // live ONPREM_SYSTEMS TCO registry. Missing economics remain explicit nulls so
 // the application cannot manufacture a loaded system cost or lifecycle result.
-// Evidence basis: RubinEvidenceFoundation.md and NVIDIA NPN Public Price List
-// 202609, verified 2026-09-08/2026-09-10.
+// Evidence basis: docs/RUBIN_EVIDENCE_FOUNDATION_2026-09-10.md and NVIDIA NPN
+// Public Price List 202609, verified 2026-09-08/2026-09-10.
 
 export const RUBIN_TCO_COMMERCIAL_SCAFFOLD = Object.freeze({
   "DGX Rubin NVL8": Object.freeze({
@@ -36,13 +36,15 @@ export const RUBIN_TCO_COMMERCIAL_SCAFFOLD = Object.freeze({
     prof: null,
     fabricAndInfrastructure: null,
     rackCost: null,
-    perRack: 8,
-    rackArchitectureNote: "Rubin SuperPOD reference architecture supports up to eight DGX Rubin NVL8 systems per liquid-cooled DC-busbar rack; do not reuse B200/B300 two-system conventional-rack economics.",
+    perRack: null,
+    maximumPhysicalSystemsPerRack: 8,
+    rackArchitectureStatus: "UNRESOLVED_FOR_TCO",
+    rackArchitectureNote: "NVIDIA's Rubin SuperPOD architecture text says up to/eight DGX Rubin NVL8 systems per rack at ~225 kW, while the representative 576-node Major Components BOM lists 144 DGX-approved compute racks (576/144 = 4 nodes per listed compute rack). Because the published first-party materials do not reconcile these two representations, TCO rack packing and rack economics remain unset rather than choosing one silently.",
     tcoEnabled: false,
     tcoBlockers: Object.freeze([
       "Rubin-specific fabric/infrastructure planning cost not yet defensible.",
       "Economic professional-services/mandatory-install cost not yet defensible.",
-      "Rack/CDU/busbar economics not yet defensible.",
+      "Rack/CDU/busbar packing and economics require reconciliation of NVIDIA reference-architecture representations.",
       "Optional NVIDIA AI Enterprise and Mission Control treatment must be an explicit modeling choice rather than silently assumed.",
     ]),
     pricingSource: "NVIDIA NPN Public Price List 202609; 3-year CM initial hardware kit",
