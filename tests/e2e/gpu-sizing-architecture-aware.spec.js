@@ -3,6 +3,8 @@ import { AUTH_BYPASSED, BYPASS_ONLY_REASON } from "./helpers/auth-context.js";
 
 test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
 
+const TCO_SESSION_KEY = "ai-factory-session:tco";
+
 function modelSelectFor(page, modelId) {
   return page.locator("select").filter({ has: page.locator(`option[value="${modelId}"]`) }).first();
 }
@@ -21,6 +23,19 @@ async function chooseInferenceModel(page, modelId) {
 async function switchToTraining(page) {
   await page.getByRole("button", { name: "Training / fine-tuning sizing" }).click();
   await expect(page.getByRole("button", { name: "Training / fine-tuning sizing" })).toHaveCSS("color", "rgb(255, 255, 255)");
+}
+
+async function waitForTcoSession(page, expected = {}) {
+  await page.waitForFunction(
+    ({ key, expected }) => {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return false;
+      const saved = JSON.parse(raw);
+      return Object.entries(expected).every(([field, value]) => saved[field] === value);
+    },
+    { key: TCO_SESSION_KEY, expected },
+  );
+  return page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), TCO_SESSION_KEY);
 }
 
 test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct", async ({ page }) => {
@@ -76,7 +91,7 @@ test("training sizing uses total parameters for resident state and active parame
   await expect(resultCard(page, "Minimum technical")).toContainText("B300");
   await expect(resultCard(page, "Recommended")).toContainText("16 GPUs");
 
-  // Hybrid Maverick shares Scout's 17B active-compute concept but has 400B
+  // Hybrid Maverick shares Scout's 17B active-compute concept as Scout but has 400B
   // resident parameters. The much larger resident state therefore drives a
   // 50-GPU technical requirement on B300, node-rounded to 56. This pair is a
   // regression guard against collapsing residency into active parameters.
@@ -109,4 +124,42 @@ test("higher-growth production design is opt-in for TCO and resets after re-sizi
   await expect(page.getByRole("button", { name: /Recommended.*Selected for TCO/i })).toHaveAttribute("aria-pressed", "true");
   const resetHref = await tcoLink.getAttribute("href");
   expect(resetHref).toContain("sizingBasis=recommended");
+});
+
+test("GB300 NVL72 rack-scale recommendation preserves GPU Sizing to TCO handoff", async ({ page }) => {
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+  await chooseInferenceModel(page, "deepseek-v4-pro-0813");
+  await page.getByLabel("Peak concurrent users").fill("20000");
+  await page.getByLabel("Target tokens/sec per user").fill("50");
+
+  await expect(resultCard(page, "Minimum technical")).toContainText("64 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("GB300 NVL72");
+  await expect(resultCard(page, "Recommended")).toContainText("72 GPUs");
+  await expect(resultCard(page, "Recommended")).toContainText("GB300 NVL72");
+  await expect(page.getByText("TCO modeling not yet activated", { exact: true })).toHaveCount(0);
+
+  const tcoLink = page.getByRole("link", { name: "Compare TCO" });
+  await expect(tcoLink).toBeVisible();
+  const href = await tcoLink.getAttribute("href");
+  const params = new URL(href, "http://local.test").searchParams;
+  expect(params.get("ownSys")).toBe("DGX GB300 NVL-72");
+  expect(params.get("gpuCount")).toBe("72");
+  expect(params.get("sourceClass")).toBe("GB300 NVL72");
+  expect(params.get("sizingBasis")).toBe("recommended");
+  expect(params.get("model")).toBe("deepseek-v4-pro-0813");
+  expect(params.get("modelParamsB")).toBe("1650");
+  expect(params.get("quant")).toBe("FP8");
+  expect(params.get("workingDayHours")).toBe("10");
+
+  await page.goto(href, { waitUntil: "domcontentloaded" });
+  const saved = await waitForTcoSession(page, {
+    ownSys: "DGX GB300 NVL-72",
+    gpuSizingCount: 72,
+    sourceClass: "GB300 NVL72",
+    gpuSizingBasis: "recommended",
+    modelId: "deepseek-v4-pro-0813",
+  });
+  expect(saved.modelParamsB).toBe(1650);
+  expect(saved.quant).toBe("FP8");
+  expect(saved.workingDayHours).toBe(10);
 });
