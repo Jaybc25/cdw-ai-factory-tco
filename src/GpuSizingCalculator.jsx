@@ -686,6 +686,7 @@ const TCO_OWN_SYS_FOR_CLASS = {
   B200: "DGX B200",
   "GB200 NVL72": "DGX GB200 NVL-72",
   B300: "DGX B300",
+  "GB300 NVL72": "DGX GB300 NVL-72",
   "Rubin NVL8": "DGX Rubin NVL8",
   "Vera Rubin NVL72": "DGX Vera Rubin NVL72",
 };
