@@ -128,6 +128,8 @@ const TRAINING_GPU_SPECS = [
 const RUBIN_INFERENCE_NAMES = RUBIN_GPU_SIZING_SPECS.map((gpu) => gpu.id).join(" and ");
 const isRubinClass = (id) => RUBIN_GPU_SIZING_SPECS.some((gpu) => gpu.id === id);
 
+const RUBIN_TRAINING_TCO_NOTICE = "Technical sizing uses NVIDIA-published memory and training FLOPS. Phase 1 TCO is available using transparent EST/PROVISIONAL planning assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains a quote/Phase 2 activity.";
+
 const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
 
 const RTX_SPEC = {
@@ -1084,7 +1086,7 @@ function GPUSizingCalculatorInner() {
 )}
 {mode === "Training" && isRubinClass(result.selectedClass) && (
             <div className="mb-6 rounded-xl p-4 border border-amber-200 bg-amber-50 text-xs text-amber-900">
-              Rubin technical sizing is active from NVIDIA-published memory and training FLOPS. Phase 1 TCO is available using transparent EST/PROVISIONAL planning assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains a quote/Phase 2 activity.
+              {RUBIN_TRAINING_TCO_NOTICE}
             </div>
           )}
           {mode === "Inference" && <div className="gpu-report-utilization"><UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} /></div>}
@@ -1234,7 +1236,7 @@ function GPUSizingCalculatorInner() {
 
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. Node Rounding, Budget &amp; Alternatives</div>
           <AuditFormula label="Recommended (node-rounded) configuration" formula="recommended = CEILING(minTechnical ÷ nodeSize) × nodeSize" substituted={`= CEILING(${result.minTechnical} ÷ ${result.selectedNodeSize}) × ${result.selectedNodeSize}`} result={`${result.recommended} × ${result.selectedClass}`} />
-          <AuditFormula label="Estimated budget" formula="budget = recommended × loadedCostPerGPU" substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`} result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : isRubinClass(result.selectedClass) ? "Not yet activated" : "—"} />
+          <AuditFormula label="Estimated budget" formula="budget = recommended × loadedCostPerGPU" substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`} result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : isRubinClass(result.selectedClass) ? "See Phase 1 TCO" : "—"} />
           <div className="text-xs text-gray-500 mb-2 mt-2"><b>Lower-cost alternative:</b> {result.lowerCost.class ? `${result.lowerCost.class}, the cheapest other class in the catalog that is genuinely cheaper as a deployed (node-rounded) solution than the recommendation.` : "none -- the recommendation is already the cheapest deployed option in the current catalog or the selected class does not yet have loaded-cost economics."}</div>
           <div className="text-xs text-gray-500 mb-4"><b>Higher-growth alternative:</b> {result.higherGrowth.class ? `${result.higherGrowth.class}, the other class with genuinely more real capability (${mode === "Inference" ? "throughput anchor" : "training FLOPS at your selected precision"}) than the recommendation.` : "none -- the recommendation is already the most capable class in the current catalog for this metric."}</div>
 
@@ -1250,7 +1252,7 @@ function GPUSizingCalculatorInner() {
               <>
                 <ReconCheck label="Minimum technical requirement" parts={mode === "Inference" ? [{ label: "Memory-bound GPUs", value: selected.gpusMem.toLocaleString() }, { label: "Performance-bound GPUs", value: selected.gpusPerf.toLocaleString() }] : [{ label: "GPUs to fit the model", value: selected.gpusFit.toLocaleString() }, { label: "GPUs to hit the time target", value: selected.gpusTime.toLocaleString() }]} calculated={minTechCalc} engineValue={result.minTechnical} format="count" />
                 <ReconCheck label="Recommended (node-rounded) count" parts={[{ label: "Minimum technical requirement", value: result.minTechnical.toLocaleString() }, { label: `Node size (${result.selectedClass})`, value: result.selectedNodeSize.toLocaleString() }]} calculated={recommendedCalc} engineValue={result.recommended} format="count" />
-                <ReconCheck label="Estimated budget" parts={[{ label: "Recommended GPU count", value: result.recommended.toLocaleString() }, { label: `Catalog price per GPU (${result.selectedClass})`, value: unitPrice != null ? fmtUsdPrecise(unitPrice) : isRubinClass(result.selectedClass) ? "Not yet activated" : "—" }]} calculated={budgetCalc} engineValue={result.budget.recommended ? result.budget.recommended.amount : null} format="currency" />
+                <ReconCheck label="Estimated budget" parts={[{ label: "Recommended GPU count", value: result.recommended.toLocaleString() }, { label: `Catalog price per GPU (${result.selectedClass})`, value: unitPrice != null ? fmtUsdPrecise(unitPrice) : isRubinClass(result.selectedClass) ? "System-level Phase 1 TCO" : "—" }]} calculated={budgetCalc} engineValue={result.budget.recommended ? result.budget.recommended.amount : null} format="currency" />
               </>
             );
           })()}
@@ -1277,7 +1279,7 @@ function GPUSizingCalculatorInner() {
                   </>
                 ) : <AuditRow label={`Peak TFLOPS (${precision})`} value={selected.peakTFLOPS.toLocaleString()} sub={`Confidence: ${selected.confidence || result.confidence.level} -- ${selected.source || "NVIDIA published spec-sheet values"}`} />}
                 <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Pricing</div>
-                <AuditRow label={`Loaded cost per ${result.selectedClass} GPU`} value={priceInfo ? fmtUsdPrecise(priceInfo.amount) : isRubinClass(result.selectedClass) ? "Not yet activated" : "—"} sub={priceInfo ? `Confidence: ${priceInfo.confidence} -- ${priceInfo.source}` : isRubinClass(result.selectedClass) ? "Rubin loaded TCO economics remain gated; no Blackwell substitute or inferred adder is used." : undefined} />
+                <AuditRow label={`Loaded cost per ${result.selectedClass} GPU`} value={priceInfo ? fmtUsdPrecise(priceInfo.amount) : isRubinClass(result.selectedClass) ? "Modeled in Phase 1 TCO" : "—"} sub={priceInfo ? `Confidence: ${priceInfo.confidence} -- ${priceInfo.source}` : isRubinClass(result.selectedClass) ? `GPU Sizing does not invent a per-GPU loaded price. ${RUBIN_TRAINING_TCO_NOTICE}` : undefined} />
                 {!isRubinClass(result.selectedClass) && <AuditRow label="Pricing last verified" value={fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)} sub={`${onpremStaleness.days} days ago${onpremStaleness.level === "stale" ? " -- refresh before client use" : onpremStaleness.level === "review" ? " -- review due soon" : ""}`} />}
                 {mode === "Training" && <><div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Training-specific assumption</div><AuditRow label="MFU (model FLOPs utilization)" value={`${Math.round(mfu * 100)}%`} sub={mfu === 0.4 ? "default value, sourced from Meta's Llama 3 paper; not yet independently validated on Rubin silicon" : `adjusted from the 40% default to ${Math.round(mfu * 100)}%`} /></>}
               </>
@@ -1401,7 +1403,7 @@ function GPUSizingCalculatorInner() {
     )}
     {mode === "Training" && isRubinClass(result.selectedClass) && (
                 <div className="mb-4 rounded-xl p-4 border border-amber-200 bg-amber-50 text-xs text-amber-900">
-                  <strong>Technical sizing active; economics gated.</strong> This Rubin recommendation uses verified memory and training FLOPS inputs. Estimated budget and TCO remain intentionally unavailable until Rubin-specific loaded-cost assumptions are defensible.
+                  {RUBIN_TRAINING_TCO_NOTICE}
                 </div>
               )}
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
