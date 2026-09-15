@@ -5,6 +5,7 @@ on:
     branches:
       - fix/s7-rubin-training-tco-wording
     paths:
+      - scripts/apply-s7-rubin-wording.py
       - .github/workflows/apply-s7-rubin-wording.yml
 
 permissions:
@@ -17,98 +18,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: fix/s7-rubin-training-tco-wording
-
-      - name: Align Rubin training TCO wording and add regression
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('src/GpuSizingCalculator.jsx')
-          text = path.read_text()
-
-          anchor = 'const isRubinClass = (id) => RUBIN_GPU_SIZING_SPECS.some((gpu) => gpu.id === id);\n'
-          insert = anchor + '\nconst RUBIN_TRAINING_TCO_NOTICE = "Technical sizing uses NVIDIA-published memory and training FLOPS. Phase 1 TCO is available using transparent EST/PROVISIONAL planning assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains a quote/Phase 2 activity.";\n'
-          if anchor not in text:
-              raise SystemExit('Rubin class helper anchor not found')
-          text = text.replace(anchor, insert, 1)
-
-          replacements = [
-            (
-              'Rubin technical sizing is active from NVIDIA-published memory and training FLOPS. Phase 1 TCO is available using transparent EST/PROVISIONAL planning assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains a quote/Phase 2 activity.',
-              '{RUBIN_TRAINING_TCO_NOTICE}'
-            ),
-            (
-              '<strong>Technical sizing active; economics gated.</strong> This Rubin recommendation uses verified memory and training FLOPS inputs. Estimated budget and TCO remain intentionally unavailable until Rubin-specific loaded-cost assumptions are defensible.',
-              '{RUBIN_TRAINING_TCO_NOTICE}'
-            ),
-            (
-              'result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : isRubinClass(result.selectedClass) ? "Not yet activated" : "—"}',
-              'result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : isRubinClass(result.selectedClass) ? "See Phase 1 TCO" : "—"}'
-            ),
-            (
-              'value: unitPrice != null ? fmtUsdPrecise(unitPrice) : isRubinClass(result.selectedClass) ? "Not yet activated" : "—"',
-              'value: unitPrice != null ? fmtUsdPrecise(unitPrice) : isRubinClass(result.selectedClass) ? "System-level Phase 1 TCO" : "—"'
-            ),
-            (
-              '<AuditRow label={`Loaded cost per ${result.selectedClass} GPU`} value={priceInfo ? fmtUsdPrecise(priceInfo.amount) : isRubinClass(result.selectedClass) ? "Not yet activated" : "—"} sub={priceInfo ? `Confidence: ${priceInfo.confidence} -- ${priceInfo.source}` : isRubinClass(result.selectedClass) ? "Rubin loaded TCO economics remain gated; no Blackwell substitute or inferred adder is used." : undefined} />',
-              '<AuditRow label={`Loaded cost per ${result.selectedClass} GPU`} value={priceInfo ? fmtUsdPrecise(priceInfo.amount) : isRubinClass(result.selectedClass) ? "Modeled in Phase 1 TCO" : "—"} sub={priceInfo ? `Confidence: ${priceInfo.confidence} -- ${priceInfo.source}` : isRubinClass(result.selectedClass) ? `GPU Sizing does not invent a per-GPU loaded price. ${RUBIN_TRAINING_TCO_NOTICE}` : undefined} />'
-            ),
-          ]
-
-          for old, new in replacements:
-              if old not in text:
-                  raise SystemExit(f'Expected wording target not found: {old[:140]}')
-              text = text.replace(old, new, 1)
-
-          path.write_text(text)
-
-          test = Path('tests/e2e/rubin-training-tco-wording.spec.js')
-          test.write_text(r'''import { test, expect } from "@playwright/test";
-import { AUTH_BYPASSED, BYPASS_ONLY_REASON } from "./helpers/auth-context.js";
-
-test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
-
-function resultCard(page, title) {
-  return page.getByText(title, { exact: true }).first().locator("..").locator("..");
-}
-
-const canonical = "Technical sizing uses NVIDIA-published memory and training FLOPS. Phase 1 TCO is available using transparent EST/PROVISIONAL planning assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains a quote/Phase 2 activity.";
-
-test("Rubin training consistently presents Phase 1 TCO as available", async ({ page }) => {
-  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "Training / fine-tuning sizing" }).click();
-
-  await expect(resultCard(page, "Recommended")).toContainText("Rubin NVL8");
-  await expect(page.getByText(canonical, { exact: true })).toBeVisible();
-  await expect(page.getByText(/economics gated/i)).toHaveCount(0);
-  await expect(page.getByText(/TCO remain intentionally unavailable/i)).toHaveCount(0);
-
-  const tcoLink = page.getByRole("link", { name: "Compare TCO" });
-  await expect(tcoLink).toBeVisible();
-  await expect(tcoLink).toHaveAttribute("href", /ownSys=DGX\+Rubin\+NVL8/);
-
-  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
-  await expect(page.getByText("See Phase 1 TCO", { exact: true })).toBeVisible();
-  await expect(page.getByText("Modeled in Phase 1 TCO", { exact: true })).toBeVisible();
-  await expect(page.getByText(/Not yet activated/i)).toHaveCount(0);
-  await expect(page.getByText(/economics remain gated/i)).toHaveCount(0);
-  await expect(page.getByText(canonical, { exact: false })).toBeVisible();
-
-  await page.getByRole("button", { name: "Back to report" }).click();
-  await expect(page.getByText(canonical, { exact: true })).toBeVisible();
-  await expect(page.getByText(/economics gated/i)).toHaveCount(0);
-  await expect(page.getByText(/TCO remain intentionally unavailable/i)).toHaveCount(0);
-});
-''')
-          PY
-
-      - name: Commit production change and regression
-        shell: bash
+      - name: Apply S7 patch
+        run: python scripts/apply-s7-rubin-wording.py
+      - name: Commit S7 changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git rm .github/workflows/apply-s7-rubin-wording.yml
+          git rm scripts/apply-s7-rubin-wording.py .github/workflows/apply-s7-rubin-wording.yml
           git add src/GpuSizingCalculator.jsx tests/e2e/rubin-training-tco-wording.spec.js
           git diff --cached --check
           git commit -m "Align Rubin training Phase 1 TCO wording"
