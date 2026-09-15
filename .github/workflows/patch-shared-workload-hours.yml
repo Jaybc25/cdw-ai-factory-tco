@@ -1,0 +1,152 @@
+name: Patch shared workload hours
+
+on:
+  push:
+    branches:
+      - feature/shared-workload-hours
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/shared-workload-hours
+
+      - name: Apply TCO workload-hours control and regression
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('src/TcoCalculator.jsx')
+          text = path.read_text()
+
+          replacements = []
+
+          replacements.append((
+          '''  util: `What percent of your owned systems' capacity you realistically expect to use, accounting for maintenance windows, scheduling gaps, and uneven demand. NVIDIA's math implicitly assumes 100%, which nobody hits; the 85% default is an honest de-rate. Lower it if your workloads are bursty; raising it above 90% is optimistic.`,\n  tier3:''',
+          '''  util: `What percent of your owned systems' capacity you realistically expect to use, accounting for maintenance windows, scheduling gaps, and uneven demand. NVIDIA's math implicitly assumes 100%, which nobody hits; the 85% default is an honest de-rate. Lower it if your workloads are bursty; raising it above 90% is optimistic.`,\n  workingDayHours: `How many hours out of a 24-hour day this workload is active. In Workload Requirement mode this changes cloud rental GPU-hours, not the on-prem fleet size, and the value is shared with GPU Sizing so either tool can adjust the same assumption.`,\n  tier3:'''))
+
+          replacements.append((
+          '''function Seg({ options, value, onChange }) {''',
+          '''function WorkloadDayBar({ hours }) {\n  const activeHours = Math.max(1, Math.min(24, Math.round(hours)));\n  const startHour = Math.max(0, Math.round(12 - activeHours / 2));\n  const endHour = Math.min(24, startHour + activeHours);\n  return (\n    <div style={{ marginTop: 6 }}>\n      <div style={{ display: "grid", gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gap: 2, height: 26 }}>\n        {Array.from({ length: 24 }, (_, hour) => (\n          <div\n            key={hour}\n            aria-hidden="true"\n            style={{ background: hour >= startHour && hour < endHour ? C.green : "#E5E7EB", borderRadius: 2 }}\n          />\n        ))}\n      </div>\n      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.sub, marginTop: 3 }}>\n        <span>0h</span><span>12h</span><span>24h</span>\n      </div>\n    </div>\n  );\n}\n\nfunction Seg({ options, value, onChange }) {'''))
+
+          replacements.append((
+          '''  const [workingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);''',
+          '''  const [workingDayHours, setWorkingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);'''))
+
+          replacements.append((
+          '''  const rateInfo = RATES[provider][gpuClass];\n\n  // Auto mode:''',
+          '''  const rateInfo = RATES[provider][gpuClass];\n  const setSharedWorkingDayHours = (next) => {\n    const bounded = Math.max(1, Math.min(24, Number(next) || 1));\n    setWorkingDayHours(bounded);\n    const gpuSizingSaved = loadSessionState("gpu-sizing") ?? {};\n    saveSessionState("gpu-sizing", { ...gpuSizingSaved, workingDayHours: bounded });\n  };\n\n  // Auto mode:'''))
+
+          replacements.append((
+          '''                <Row label="Cloud-pricing basis" value={`${Math.round(r.gpuHrsCloud).toLocaleString()} GPU-hrs/mo`} sub={workingDayHours ? `${workingDayHours} hrs/day duty cycle from GPU Sizing (not 24/7)` : `no duty-cycle data from GPU Sizing -- assumes ${Math.round(util * 100)}% of all hours, likely an overstatement`} />''',
+          '''                <Row label="Cloud-pricing basis" value={`${Math.round(r.gpuHrsCloud).toLocaleString()} GPU-hrs/mo`} sub={workingDayHours ? `${workingDayHours} hrs/day duty cycle shared with GPU Sizing (not 24/7)` : `no duty-cycle data from GPU Sizing -- assumes ${Math.round(util * 100)}% of all hours, likely an overstatement`} />'''))
+
+          replacements.append((
+          '''The cloud-side estimate instead uses {workingDayHours ? `a ${workingDayHours}-hour/day duty cycle from GPU Sizing's own workload timing`''',
+          '''The cloud-side estimate instead uses {workingDayHours ? `a ${workingDayHours}-hour/day duty cycle shared with GPU Sizing`'''))
+
+          replacements.append((
+          '''                    <>Cloud side priced for a {workingDayHours}-hour/day duty cycle (from GPU Sizing), not 24/7 -- a business-hours\n                    workload shouldn't be priced as continuous rental. </>''',
+          '''                    <>Cloud side priced for a {workingDayHours}-hour/day duty cycle shared with GPU Sizing, not 24/7 -- a business-hours\n                    workload shouldn't be priced as continuous rental. </>'''))
+
+          old_card = '''        {view === "calc" && (\n          <div style={{ background: "#F7F7F7", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>\n            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: C.sub, marginBottom: 3 }}>CLOUD GPU PRICE SENSITIVITY</div>\n            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>\n              <label htmlFor="cloud-unit-price-trend" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>Cloud GPU unit-price trend</label>\n              <span style={{ ...mono, fontSize: 12, fontWeight: 700, color: cloudUnitPriceTrend === 0 ? C.sub : C.ink }}>{cloudUnitPriceTrend > 0 ? "+" : ""}{cloudUnitPriceTrend}%/yr</span>\n            </div>\n            <input id="cloud-unit-price-trend" aria-label="Cloud GPU unit-price trend" type="range" min="-20" max="20" step="5" value={cloudUnitPriceTrend} onChange={(e) => setCloudUnitPriceTrend(Number(e.target.value))} style={{ width: "100%" }} />\n            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.sub, marginTop: -1 }}><span>-20%</span><span>0%</span><span>+20%</span></div>\n            <div style={{ fontSize: 11, color: C.sub, marginTop: 7, lineHeight: 1.4 }}>Applies an annual change to modeled cloud GPU compute rates only. Workload growth remains a separate consumption assumption.</div>\n          </div>\n        )}'''
+          new_card = '''        {view === "calc" && (\n          <div style={{ background: "#F7F7F7", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>\n            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: C.sub, marginBottom: 3 }}>{r.isWorkloadMode ? "CLOUD & WORKLOAD SENSITIVITY" : "CLOUD GPU PRICE SENSITIVITY"}</div>\n            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>\n              <label htmlFor="cloud-unit-price-trend" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>Cloud GPU unit-price trend</label>\n              <span style={{ ...mono, fontSize: 12, fontWeight: 700, color: cloudUnitPriceTrend === 0 ? C.sub : C.ink }}>{cloudUnitPriceTrend > 0 ? "+" : ""}{cloudUnitPriceTrend}%/yr</span>\n            </div>\n            <input id="cloud-unit-price-trend" aria-label="Cloud GPU unit-price trend" type="range" min="-20" max="20" step="5" value={cloudUnitPriceTrend} onChange={(e) => setCloudUnitPriceTrend(Number(e.target.value))} style={{ width: "100%" }} />\n            <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.sub, marginTop: -1 }}><span>-20%</span><span>0%</span><span>+20%</span></div>\n            <div style={{ fontSize: 11, color: C.sub, marginTop: 7, lineHeight: 1.4 }}>Applies an annual change to modeled cloud GPU compute rates only. Workload growth remains a separate consumption assumption.</div>\n            {r.isWorkloadMode && workingDayHours && (\n              <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 12, paddingTop: 10 }}>\n                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>\n                  <label htmlFor="workload-hours-per-day" style={{ fontSize: 12, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center" }}>\n                    Length of working day <TipDot open={false} onClick={() => {}} />\n                  </label>\n                  <span style={{ ...mono, fontSize: 12, fontWeight: 700, color: C.green }}>{workingDayHours} hrs/day</span>\n                </div>\n                <input id="workload-hours-per-day" aria-label="Length of working day" type="range" min="1" max="24" step="1" value={workingDayHours} onChange={(e) => setSharedWorkingDayHours(Number(e.target.value))} style={{ width: "100%", accentColor: C.green }} />\n                <WorkloadDayBar hours={workingDayHours} />\n                <div style={{ fontSize: 11, color: C.sub, marginTop: 7, lineHeight: 1.4 }}>\n                  Shared with GPU Sizing. Changing this updates the cloud rental GPU-hours for the same technical workload; the on-prem fleet stays fixed to the GPU Sizing requirement.\n                </div>\n              </div>\n            )}\n          </div>\n        )}'''
+          replacements.append((old_card, new_card))
+
+          # The sensitivity control's tooltip should be functional, not decorative.
+          # Replace the temporary inline TipDot with a compact explanatory line instead.
+          replacements.append((
+          '''                  <label htmlFor="workload-hours-per-day" style={{ fontSize: 12, fontWeight: 700, color: C.ink, display: "flex", alignItems: "center" }}>\n                    Length of working day <TipDot open={false} onClick={() => {}} />\n                  </label>''',
+          '''                  <label htmlFor="workload-hours-per-day" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>Length of working day</label>'''))
+
+          replacements.append((
+          '''                  Shared with GPU Sizing. Changing this updates the cloud rental GPU-hours for the same technical workload; the on-prem fleet stays fixed to the GPU Sizing requirement.''',
+          '''                  Shared with GPU Sizing across the full 24-hour day. Changing this updates the cloud rental GPU-hours for the same technical workload; the on-prem fleet stays fixed to the GPU Sizing requirement.'''))
+
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f'Expected patch target not found:\n{old[:180]}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text)
+
+          test_path = Path('tests/e2e/tco-working-day-sync.spec.js')
+          test_path.write_text(r'''import { test, expect } from "@playwright/test";
+import { AUTH_BYPASSED, BYPASS_ONLY_REASON } from "./helpers/auth-context.js";
+
+test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+
+const TCO_KEY = "ai-factory-session:tco";
+const GPU_KEY = "ai-factory-session:gpu-sizing";
+
+async function waitForSavedField(page, key, field, expected) {
+  await page.waitForFunction(({ key, field, expected }) => {
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return false;
+    return JSON.parse(raw)?.[field] === expected;
+  }, { key, field, expected });
+}
+
+async function setRange(page, selector, value) {
+  await page.locator(selector).evaluate((el, value) => {
+    el.value = String(value);
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+}
+
+test("TCO working-day sensitivity stays synchronized with GPU Sizing", async ({ page }) => {
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction((key) => !!sessionStorage.getItem(key), GPU_KEY);
+
+  const params = new URLSearchParams({
+    ownSys: "DGX B300",
+    gpuCount: "8",
+    sourceClass: "B300",
+    sizingBasis: "recommended",
+    workingDayHours: "10",
+  });
+  await page.goto(`/tco?${params.toString()}`, { waitUntil: "domcontentloaded" });
+
+  const tcoHours = page.getByLabel("Length of working day");
+  await expect(tcoHours).toHaveValue("10");
+
+  await setRange(page, "#workload-hours-per-day", 18);
+  await expect(tcoHours).toHaveValue("18");
+  await waitForSavedField(page, TCO_KEY, "workingDayHours", 18);
+  await waitForSavedField(page, GPU_KEY, "workingDayHours", 18);
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByLabel("Length of working day")).toHaveValue("18");
+
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+  const gpuHours = page.getByLabel("Length of working day, hours per day");
+  await expect(gpuHours).toHaveValue("18");
+
+  await gpuHours.fill("12");
+  await gpuHours.blur();
+  await waitForSavedField(page, GPU_KEY, "workingDayHours", 12);
+
+  const compareTco = page.getByRole("link", { name: "Compare TCO" }).first();
+  await expect(compareTco).toHaveAttribute("href", /workingDayHours=12/);
+  await compareTco.click();
+  await expect(page.getByLabel("Length of working day")).toHaveValue("12");
+});
+''')
+          PY
+
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/TcoCalculator.jsx tests/e2e/tco-working-day-sync.spec.js
+          git diff --cached --check
+          git commit -m "Add shared workload-hours sensitivity"
+          git push origin HEAD:feature/shared-workload-hours
