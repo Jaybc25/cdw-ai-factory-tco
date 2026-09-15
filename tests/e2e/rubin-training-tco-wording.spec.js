@@ -23,7 +23,9 @@ test("Rubin training consistently presents Phase 1 TCO as available", async ({ p
   await expect(tcoLink).toHaveAttribute("href", /ownSys=DGX\+Rubin\+NVL8/);
 
   await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
-  await expect(page.getByText("See Phase 1 TCO", { exact: true })).toBeVisible();
+  // AuditFormula renders result values with a leading "= ", so match the
+  // visible line rather than requiring a standalone text node.
+  await expect(page.getByText(/See Phase 1 TCO/)).toBeVisible();
   await expect(page.getByText("Modeled in Phase 1 TCO", { exact: true })).toBeVisible();
   await expect(page.getByText(/Not yet activated/i)).toHaveCount(0);
   await expect(page.getByText(/economics remain gated/i)).toHaveCount(0);
