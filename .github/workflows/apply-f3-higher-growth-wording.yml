@@ -1,0 +1,36 @@
+name: Apply F3 higher-growth wording
+
+on:
+  push:
+    branches:
+      - fix/f3-higher-growth-wording
+    paths:
+      - .github/workflows/apply-f3-higher-growth-wording.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/f3-higher-growth-wording
+
+      - name: Apply F3 wording patch
+        run: python scripts/apply-f3-higher-growth-wording.py
+
+      - name: Validate F3 source contract
+        run: node scripts/validate_gpu_higher_growth_capacity.mjs
+
+      - name: Commit F3 changes
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/apply-f3-higher-growth-wording.yml scripts/apply-f3-higher-growth-wording.py
+          git add src/GpuSizingCalculator.jsx scripts/validate_gpu_higher_growth_capacity.mjs
+          git diff --cached --check
+          git commit -m "Clarify higher-growth as deployed capacity"
+          git push origin HEAD:fix/f3-higher-growth-wording
