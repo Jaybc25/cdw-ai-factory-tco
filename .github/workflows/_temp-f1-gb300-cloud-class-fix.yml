@@ -39,20 +39,20 @@ jobs:
           test = Path("tests/e2e/gpu-sizing-architecture-aware.spec.js")
           text = test.read_text()
           old = '''  const saved = await waitForTcoSession(page, {
-            ownSys: "DGX GB300 NVL-72",
-            gpuSizingCount: 72,
-            sourceClass: "GB300 NVL72",
-            gpuSizingBasis: "recommended",
-            modelId: "deepseek-v4-pro-0813",
-          });'''
+    ownSys: "DGX GB300 NVL-72",
+    gpuSizingCount: 72,
+    sourceClass: "GB300 NVL72",
+    gpuSizingBasis: "recommended",
+    modelId: "deepseek-v4-pro-0813",
+  });'''
           new = '''  const saved = await waitForTcoSession(page, {
-            ownSys: "DGX GB300 NVL-72",
-            gpuClass: "GB300",
-            gpuSizingCount: 72,
-            sourceClass: "GB300 NVL72",
-            gpuSizingBasis: "recommended",
-            modelId: "deepseek-v4-pro-0813",
-          });'''
+    ownSys: "DGX GB300 NVL-72",
+    gpuClass: "GB300",
+    gpuSizingCount: 72,
+    sourceClass: "GB300 NVL72",
+    gpuSizingBasis: "recommended",
+    modelId: "deepseek-v4-pro-0813",
+  });'''
           if old not in text:
               raise SystemExit("Expected GB300 regression block not found")
           test.write_text(text.replace(old, new, 1))
