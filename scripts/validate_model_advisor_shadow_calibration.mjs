@@ -1,3 +1,4 @@
+import capabilityData from "../data/model_capability_db.json" with { type: "json" };
 import { getCatalog, rankModels, MARGINS } from "../src/modelAdvisorEngine.js";
 
 const ACCEPTED_MARGINS = Object.freeze({
@@ -11,17 +12,28 @@ for (const [metric, priorities] of Object.entries(ACCEPTED_MARGINS)) for (const 
 
 const production = getCatalog().filter((m) => m.catalog_status === "recommended");
 assert(production.length === 13, `Expected 13-model activated Advisor population; found ${production.length}.`);
+const capabilityById = new Map(capabilityData.data.models.map((m) => [m.canonical_model_id, m]));
 
-const qwen = production.find((m) => m.canonical_model_id === "qwen3.8-27b");
-assert(qwen?.intelligence_index === 41.4 && qwen?.coding_index === 68.1 && qwen?.agentic_index === 46.8, "Qwen3.8 AA v4.3 mapping drifted.");
-const gemma = production.find((m) => m.canonical_model_id === "gemma-4-26b-a4b-it");
-assert(gemma?.intelligence_index === 13.9 && gemma?.coding_index == null && gemma?.agentic_index == null, "Gemma 4 default-semantics AA mapping drifted.");
+function assertSnapshotMapping(id, coverage) {
+  const source = capabilityById.get(id);
+  const model = production.find((m) => m.canonical_model_id === id);
+  assert(source && model, `${id} AA mapping is missing.`);
+  assert(source.confidence === "HIGH", `${id} AA source confidence drifted.`);
+  for (const metric of ["intelligence_index", "coding_index", "agentic_index"]) {
+    assert(model[metric] === (source[metric] ?? null), `${id} ${metric} does not match the checked-in AA snapshot.`);
+  }
+  const count = [model.intelligence_index, model.coding_index, model.agentic_index].filter(Number.isFinite).length;
+  if (coverage === "exact") assert(count === 3, `${id} must expose all three recommendation metrics.`);
+  if (coverage === "intelligence-only") assert(Number.isFinite(model.intelligence_index) && model.coding_index == null && model.agentic_index == null, `${id} must retain intelligence-only evidence until coverage is explicitly reviewed.`);
+}
+
+assertSnapshotMapping("qwen3.8-27b", "exact");
+assertSnapshotMapping("gemma-4-26b-a4b-it", "intelligence-only");
 for (const id of ["deepseek-v4-flash-0731", "deepseek-v4-pro-0813"]) {
   const m = production.find((x) => x.canonical_model_id === id);
   assert(m && m.intelligence_index == null && m.coding_index == null && m.agentic_index == null, `${id} must remain scoreless until an approved default-semantics AA mapping exists.`);
 }
-const nemotron = production.find((m) => m.canonical_model_id === "nemotron-3-super-120b-a12b");
-assert(nemotron?.intelligence_index === 18.6 && nemotron?.coding_index === 37.7 && nemotron?.agentic_index === 4.2, "Nemotron AA mapping drifted.");
+assertSnapshotMapping("nemotron-3-super-120b-a12b", "exact");
 
 const metricByWorkload = { chat: "intelligence_index", coding: "coding_index", agentic: "agentic_index" };
 for (const [workload, metric] of Object.entries(metricByWorkload)) {
@@ -33,4 +45,4 @@ for (const [workload, metric] of Object.entries(metricByWorkload)) {
   }
 }
 
-console.log("Model Advisor activated calibration PASS: accepted margins remain exact across the 13-model recommended population; the approved AA v4.3 mappings make Qwen3.8 the current unconstrained intelligence/coding/agentic leader and all three ranking slots; Gemma 4 carries intelligence-only default-semantics evidence; DeepSeek V4 Flash/Pro remain deliberately scoreless.");
+console.log("Model Advisor activated calibration PASS: accepted margins remain exact across the 13-model recommended population; mutable AA scores reconcile to the current checked-in snapshot; Qwen3.8 remains the current unconstrained intelligence/coding/agentic leader and all three ranking slots; Gemma 4 carries intelligence-only default-semantics evidence; DeepSeek V4 Flash/Pro remain deliberately scoreless.");
