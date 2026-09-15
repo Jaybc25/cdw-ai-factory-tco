@@ -1,0 +1,52 @@
+name: Temporary F1 GB300 cloud-class fix v2
+
+on:
+  push:
+    branches:
+      - fix/f1-gb300-cloud-class-handoff
+    paths:
+      - ".github/workflows/_temp-f1-gb300-cloud-class-fix-v2.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/f1-gb300-cloud-class-handoff
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply F1 completion patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          tco = Path("src/TcoCalculator.jsx")
+          text = tco.read_text()
+          old_map = 'const GPU_SIZING_CLASS_TO_TCO_CLASS = { "B200": "B200-class", "GB200 NVL72": "GB200", "Rubin NVL8": "Rubin NVL8", "Vera Rubin NVL72": "Vera Rubin NVL72" };'
+          new_map = 'const GPU_SIZING_CLASS_TO_TCO_CLASS = { "B200": "B200-class", "GB200 NVL72": "GB200", "GB300 NVL72": "GB300", "Rubin NVL8": "Rubin NVL8", "Vera Rubin NVL72": "Vera Rubin NVL72" };'
+          if old_map not in text:
+              raise SystemExit("Expected TCO normalization map not found")
+          tco.write_text(text.replace(old_map, new_map, 1))
+
+          test = Path("tests/e2e/gpu-sizing-architecture-aware.spec.js")
+          text = test.read_text()
+          needle = '    ownSys: "DGX GB300 NVL-72",\n    gpuSizingCount: 72,'
+          replacement = '    ownSys: "DGX GB300 NVL-72",\n    gpuClass: "GB300",\n    gpuSizingCount: 72,'
+          if needle not in text:
+              raise SystemExit("Expected GB300 regression anchor not found")
+          test.write_text(text.replace(needle, replacement, 1))
+          PY
+      - name: Remove temporary workflows
+        run: rm -f .github/workflows/_temp-f1-gb300-cloud-class-fix.yml .github/workflows/_temp-f1-gb300-cloud-class-fix-v2.yml
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix GB300 cloud class handoff"
+          git push origin HEAD:fix/f1-gb300-cloud-class-handoff
