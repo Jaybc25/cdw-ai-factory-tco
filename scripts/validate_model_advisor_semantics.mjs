@@ -1,8 +1,10 @@
 import { getCatalog, buildRecommendations, MARGINS, selectMetric } from "../src/modelAdvisorEngine.js";
+import capabilityData from "../data/model_capability_db.json" with { type: "json" };
 
 const catalog = getCatalog();
 const recommended = catalog.filter((m) => m.catalog_status === "recommended");
 const recommendedIds = new Set(recommended.map((m) => m.canonical_model_id));
+const capabilityById = new Map(capabilityData.data.models.map((m) => [m.canonical_model_id, m]));
 const expectedIds = new Set([
   "muse-glimmer-30b", "llama-4-scout", "llama-4-maverick",
   "granite-4.2-30b", "gpt-oss-20b", "gpt-oss-120b",
@@ -19,16 +21,32 @@ const expectedMargins = {
 };
 for (const [metric, priorities] of Object.entries(expectedMargins)) for (const [priority, expected] of Object.entries(priorities)) if (MARGINS[metric]?.[priority] !== expected) throw new Error(`Advisor margin drift for ${metric}/${priority}.`);
 
-const qwen = recommended.find((m) => m.canonical_model_id === "qwen3.8-27b");
-if (!qwen || qwen.intelligence_index !== 41.4 || qwen.coding_index !== 68.1 || qwen.agentic_index !== 46.8) throw new Error("Qwen3.8 sourced AA capability mapping drifted.");
-const gemma = recommended.find((m) => m.canonical_model_id === "gemma-4-26b-a4b-it");
-if (!gemma || gemma.intelligence_index !== 13.9 || gemma.coding_index != null || gemma.agentic_index != null) throw new Error("Gemma 4 default-semantics AA capability mapping drifted.");
+// Capability scores are a weekly synchronized external snapshot. Validate that
+// Advisor consumes the checked-in source faithfully instead of pinning mutable
+// benchmark numbers into the test itself. Shape/coverage expectations remain
+// explicit so a source variant or evidence-expansion change still requires review.
+function assertCapabilityMapping(id, expectedCoverage) {
+  const source = capabilityById.get(id);
+  const model = recommended.find((m) => m.canonical_model_id === id);
+  if (!source || !model) throw new Error(`${id} capability mapping is missing.`);
+  if (source.confidence !== "HIGH") throw new Error(`${id} capability source must remain HIGH confidence.`);
+  for (const metric of ["intelligence_index", "coding_index", "agentic_index"]) {
+    const expected = source[metric] ?? null;
+    if (model[metric] !== expected) throw new Error(`${id} ${metric} does not match the checked-in AA capability snapshot.`);
+  }
+  const finiteCount = [model.intelligence_index, model.coding_index, model.agentic_index].filter(Number.isFinite).length;
+  if (expectedCoverage === "exact" && finiteCount !== 3) throw new Error(`${id} must retain all three recommendation metrics.`);
+  if (expectedCoverage === "intelligence-only" && !(Number.isFinite(model.intelligence_index) && model.coding_index == null && model.agentic_index == null)) throw new Error(`${id} must retain intelligence-only evidence until coverage is explicitly reviewed.`);
+  return model;
+}
+
+assertCapabilityMapping("qwen3.8-27b", "exact");
+assertCapabilityMapping("gemma-4-26b-a4b-it", "intelligence-only");
 for (const id of ["deepseek-v4-flash-0731", "deepseek-v4-pro-0813"]) {
   const model = recommended.find((m) => m.canonical_model_id === id);
   if (!model || model.intelligence_index != null || model.coding_index != null || model.agentic_index != null) throw new Error(`${id} must remain recommendation-eligible but scoreless until an approved default-semantics capability mapping exists.`);
 }
-const nemotron = recommended.find((m) => m.canonical_model_id === "nemotron-3-super-120b-a12b");
-if (!nemotron || nemotron.intelligence_index !== 18.6 || nemotron.coding_index !== 37.7 || nemotron.agentic_index !== 4.2) throw new Error("Nemotron sourced capability mapping drifted.");
+assertCapabilityMapping("nemotron-3-super-120b-a12b", "exact");
 
 const workloads = ["chat", "coding", "agentic"];
 const qualities = ["frontier-like", "strong", "economical"];
@@ -62,4 +80,4 @@ for (const workload of workloads) {
   if (overall !== "gpt-oss-20b") throw new Error(`${workload}/us-only/economical/infrastructure-efficiency: expected gpt-oss-20b; found ${overall}.`);
 }
 
-console.log("Model Advisor semantic calibration PASS: thirteen current models are active; Qwen3.8 is the current unconstrained v4.3 evidence leader across intelligence/coding/agentic; Gemma 4 carries intelligence-only default-semantics evidence; DeepSeek V4 Flash/Pro remain deliberately scoreless; U.S.-only governance restores the expected Muse performance and gpt-oss-20b economical efficiency pattern.");
+console.log("Model Advisor semantic calibration PASS: thirteen current models are active; mutable AA scores reconcile to the current checked-in snapshot; Qwen3.8 remains the current unconstrained v4.3 evidence leader across intelligence/coding/agentic; Gemma 4 carries intelligence-only default-semantics evidence; DeepSeek V4 Flash/Pro remain deliberately scoreless; U.S.-only governance restores the expected Muse performance and gpt-oss-20b economical efficiency pattern.");
