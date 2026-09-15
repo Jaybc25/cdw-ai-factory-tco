@@ -130,6 +130,21 @@ const isRubinClass = (id) => RUBIN_GPU_SIZING_SPECS.some((gpu) => gpu.id === id)
 
 const RUBIN_TRAINING_TCO_NOTICE = "Technical sizing uses NVIDIA-published memory and training FLOPS. Phase 1 TCO is available using transparent EST/PROVISIONAL planning assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains a quote/Phase 2 activity.";
 
+function getHigherGrowthSubtitle(higherGrowth) {
+  if (!higherGrowth?.class) return null;
+  return higherGrowth.growthBasis === "next-deployment-quantum"
+    ? "Same GPU class, next deployment quantum for additional headroom"
+    : "Different deployable configuration with more total capacity for additional headroom";
+}
+
+function getHigherGrowthAuditText(higherGrowth, mode) {
+  if (!higherGrowth?.class) return "none -- no valid node-rounded capacity step above the recommendation is available.";
+  const capacityMetric = mode === "Inference" ? "throughput" : "training compute";
+  return higherGrowth.growthBasis === "next-deployment-quantum"
+    ? `${higherGrowth.class}, the same GPU class expanded to the next deployment quantum, increasing total deployed ${capacityMetric} capacity and headroom.`
+    : `${higherGrowth.class}, a different deployable configuration whose node-rounded total ${capacityMetric} capacity exceeds the recommendation, providing additional headroom.`;
+}
+
 const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
 
 const RTX_SPEC = {
@@ -651,7 +666,7 @@ function UtilizationPanel({ result, workingDayHours, onWorkingDayHoursChange }) 
       <UtilizationBar label="Higher-growth alt" gpuClass={result.higherGrowth.class} pct={u.higherGrowth} />
       <p className="text-xs text-gray-500 mt-2 mb-4">
         Same estimated workload, different deployable configurations -- a lower utilization % in the higher-growth option isn't
-        waste, it's headroom bought on purpose. The higher-growth option may use a different class or the next deployment quantum of the same class.
+        waste, it's headroom bought on purpose. Higher-growth means more node-rounded deployed capacity, not necessarily a newer or faster GPU class; it may be the next deployment quantum of the same class.
       </p>
       <div className="flex items-center justify-between mb-2">
         <span className="text-xs font-semibold" style={{ color: CHARCOAL }}>Length of working day</span>
@@ -1121,7 +1136,7 @@ function GPUSizingCalculatorInner() {
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Alternatives considered</div>
             <div className="flex flex-wrap gap-3 mb-6">
               <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />
-              <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog."  subtitle={result.higherGrowth.growthBasis === "next-deployment-quantum" ? "Next deployment quantum for additional headroom" : "Higher deployable capacity for additional headroom"}/>
+              <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog."  subtitle={getHigherGrowthSubtitle(result.higherGrowth)}/>
             </div>
             {mode === "Inference" && environment === "Dev/Test/POC" && result.rtxAlt.eligible && (
               <div className="mb-6 rounded-xl p-4 bg-blue-50 border border-blue-200">
@@ -1238,7 +1253,7 @@ function GPUSizingCalculatorInner() {
           <AuditFormula label="Recommended (node-rounded) configuration" formula="recommended = CEILING(minTechnical ÷ nodeSize) × nodeSize" substituted={`= CEILING(${result.minTechnical} ÷ ${result.selectedNodeSize}) × ${result.selectedNodeSize}`} result={`${result.recommended} × ${result.selectedClass}`} />
           <AuditFormula label="Estimated budget" formula="budget = recommended × loadedCostPerGPU" substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`} result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : isRubinClass(result.selectedClass) ? "See Phase 1 TCO" : "—"} />
           <div className="text-xs text-gray-500 mb-2 mt-2"><b>Lower-cost alternative:</b> {result.lowerCost.class ? `${result.lowerCost.class}, the cheapest other class in the catalog that is genuinely cheaper as a deployed (node-rounded) solution than the recommendation.` : "none -- the recommendation is already the cheapest deployed option in the current catalog or the selected class does not yet have loaded-cost economics."}</div>
-          <div className="text-xs text-gray-500 mb-4"><b>Higher-growth alternative:</b> {result.higherGrowth.class ? `${result.higherGrowth.class}, the other class with genuinely more real capability (${mode === "Inference" ? "throughput anchor" : "training FLOPS at your selected precision"}) than the recommendation.` : "none -- the recommendation is already the most capable class in the current catalog for this metric."}</div>
+          <div className="text-xs text-gray-500 mb-4"><b>Higher-growth alternative:</b> {getHigherGrowthAuditText(result.higherGrowth, mode)}</div>
 
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>4. Reconciliation</div>
           <div className="text-xs text-gray-500 mb-3">Each check below redoes the arithmetic from already-shown intermediate values and compares the result to the engine's own field for that formula -- not the same number read twice.</div>
@@ -1388,7 +1403,7 @@ function GPUSizingCalculatorInner() {
             <>
               <div className="mb-4"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2 flex items-start gap-1"><Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{result.confidence.note}</p></div>
               <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" /><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent selectable={Boolean(TCO_OWN_SYS_FOR_CLASS[result.selectedClass])} selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
-              <div className="flex flex-wrap gap-3 mb-6"><ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." /><ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth alternative in the current supported catalog." selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
+              <div className="flex flex-wrap gap-3 mb-6"><ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." /><ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog." subtitle={getHigherGrowthSubtitle(result.higherGrowth)} selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
               <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
     {mode === "Inference" && result.rubinAdvisory && (
       <div className="mb-4 rounded-xl p-4 border border-amber-300 bg-amber-50">
