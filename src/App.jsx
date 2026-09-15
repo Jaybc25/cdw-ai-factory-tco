@@ -16,6 +16,30 @@ import "./print-overrides.css";
 
 const E2E_AUTH_BYPASS = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";
 
+// GPU Sizing and TCO use slightly different names for NVL rack classes.
+// TCO already normalizes most handoff names internally; this small route-level
+// bridge covers GB300 NVL72 so a fresh handoff cannot fall back to the stale
+// saved/default H100 rental class before TCO persists the new workload state.
+// Explicit user overrides still win, matching TCO's ownership rules.
+function normalizeTcoHandoffCloudClass() {
+  if (typeof window === "undefined") return;
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("sourceClass") !== "GB300 NVL72") return;
+
+  const key = "ai-factory-session:tco";
+  try {
+    const saved = JSON.parse(sessionStorage.getItem(key) || "{}");
+    if (saved?.cloudGpuClassOverridden === true) return;
+    sessionStorage.setItem(key, JSON.stringify({
+      ...saved,
+      gpuClass: "GB300",
+      cloudGpuClassOverridden: false,
+    }));
+  } catch {
+    // A malformed session should not block the route; TCO will rebuild state.
+  }
+}
+
 function RouteScrollManager() {
   const location = useLocation();
   const navigationType = useNavigationType();
@@ -42,25 +66,27 @@ function RouteScrollManager() {
   return null;
 }
 
+function TcoRoute() {
+  normalizeTcoHandoffCloudClass();
+  return (
+    <SharedToolShell
+      title="Cloud vs On-Prem TCO Calculator"
+      backHref="/gpu-sizing"
+      backLabel="GPU Sizing"
+      toolKey="tco"
+    >
+      <ModelCatalogVisibilityRoute tool="tco">
+        <TcoCalculator />
+      </ModelCatalogVisibilityRoute>
+    </SharedToolShell>
+  );
+}
+
 function ToolRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route
-        path="/tco"
-        element={(
-          <SharedToolShell
-            title="Cloud vs On-Prem TCO Calculator"
-            backHref="/gpu-sizing"
-            backLabel="GPU Sizing"
-            toolKey="tco"
-          >
-            <ModelCatalogVisibilityRoute tool="tco">
-              <TcoCalculator />
-            </ModelCatalogVisibilityRoute>
-          </SharedToolShell>
-        )}
-      />
+      <Route path="/tco" element={<TcoRoute />} />
       <Route
         path="/gpu-sizing"
         element={(
