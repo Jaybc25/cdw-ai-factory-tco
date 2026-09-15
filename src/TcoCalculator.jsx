@@ -484,6 +484,24 @@ function Slider({ label, value, min, max, step, onChange, display, hint, tip }) 
   );
 }
 
+function WorkloadDayBar({ hours }) {
+  const activeHours = Math.max(1, Math.min(24, Math.round(hours)));
+  const startHour = Math.max(0, Math.round(12 - activeHours / 2));
+  const endHour = Math.min(24, startHour + activeHours);
+  return (
+    <div style={{ marginTop: 6 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(24, minmax(0, 1fr))", gap: 2, height: 26 }}>
+        {Array.from({ length: 24 }, (_, hour) => (
+          <div key={hour} aria-hidden="true" style={{ background: hour >= startHour && hour < endHour ? C.green : "#E5E7EB", borderRadius: 2 }} />
+        ))}
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.sub, marginTop: 3 }}>
+        <span>0h</span><span>12h</span><span>24h</span>
+      </div>
+    </div>
+  );
+}
+
 function Seg({ options, value, onChange }) {
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, margin: "8px 0" }}>
@@ -872,7 +890,7 @@ function AppInner() {
   const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);
   const [gpuSizingBasis] = useState(() => arrivedFromGpuSizing ? getInitialSizingBasis() : saved?.gpuSizingBasis ?? "recommended");
   const matchedCloudGpuClass = sourceClass ? normalizeSourceClass(sourceClass) : null;
-  const [workingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);
+  const [workingDayHours, setWorkingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);
   const [incomingModelContext] = useState(getInitialModelContext);
   const [incomingQuant] = useState(getInitialQuantization);
 
@@ -1075,6 +1093,12 @@ function AppInner() {
     if (mode === "workload" && matchedCloudGpuClass) setCloudGpuClassOverridden(next !== matchedCloudGpuClass);
   };
   const rateInfo = RATES[provider][gpuClass];
+  const setSharedWorkingDayHours = (next) => {
+    const bounded = Math.max(1, Math.min(24, Number(next) || 1));
+    setWorkingDayHours(bounded);
+    const gpuSizingSaved = loadSessionState("gpu-sizing") ?? {};
+    saveSessionState("gpu-sizing", { ...gpuSizingSaved, workingDayHours: bounded });
+  };
 
   // Auto mode: size PB so implied cloud storage+egress consumes the non-compute budget (25/75 fast/bulk split)
   // v2.9: workload mode has no bill to derive storage from, so it's always manual there regardless of the toggle.
@@ -1365,7 +1389,7 @@ function AppInner() {
             {r.isWorkloadMode ? (
               <>
                 <Row label="Technical workload requirement" value={`${r.sysAdj} × ${ownSys}`} sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- ${gpuSizingBasis === "higher-growth" ? "user-selected higher-growth alternative" : "GPU Sizing recommended configuration"}; fleet size is duty-cycle-independent`} />
-                <Row label="Cloud-pricing basis" value={`${Math.round(r.gpuHrsCloud).toLocaleString()} GPU-hrs/mo`} sub={workingDayHours ? `${workingDayHours} hrs/day duty cycle from GPU Sizing (not 24/7)` : `no duty-cycle data from GPU Sizing -- assumes ${Math.round(util * 100)}% of all hours, likely an overstatement`} />
+                <Row label="Cloud-pricing basis" value={`${Math.round(r.gpuHrsCloud).toLocaleString()} GPU-hrs/mo`} sub={workingDayHours ? `${workingDayHours} hrs/day duty cycle shared with GPU Sizing (not 24/7)` : `no duty-cycle data from GPU Sizing -- assumes ${Math.round(util * 100)}% of all hours, likely an overstatement`} />
               </>
             ) : (
               <>
@@ -1790,7 +1814,7 @@ function AppInner() {
                     count was computed for. </>
                   ) : null}
                   {workingDayHours ? (
-                    <>Cloud side priced for a {workingDayHours}-hour/day duty cycle (from GPU Sizing), not 24/7 -- a business-hours
+                    <>Cloud side priced for a {workingDayHours}-hour/day duty cycle shared with GPU Sizing, not 24/7 -- a business-hours
                     workload shouldn't be priced as continuous rental. </>
                   ) : (
                     <>No duty-cycle data came through from GPU Sizing (training handoff, or an older link), so the cloud side
@@ -1952,7 +1976,7 @@ function AppInner() {
 
         {view === "calc" && (
           <div style={{ background: "#F7F7F7", border: `1px solid ${C.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 14 }}>
-            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: C.sub, marginBottom: 3 }}>CLOUD GPU PRICE SENSITIVITY</div>
+            <div style={{ ...mono, fontSize: 10, letterSpacing: 0.8, color: C.sub, marginBottom: 3 }}>{r.isWorkloadMode ? "CLOUD & WORKLOAD SENSITIVITY" : "CLOUD GPU PRICE SENSITIVITY"}</div>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
               <label htmlFor="cloud-unit-price-trend" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>Cloud GPU unit-price trend</label>
               <span style={{ ...mono, fontSize: 12, fontWeight: 700, color: cloudUnitPriceTrend === 0 ? C.sub : C.ink }}>{cloudUnitPriceTrend > 0 ? "+" : ""}{cloudUnitPriceTrend}%/yr</span>
@@ -1960,6 +1984,17 @@ function AppInner() {
             <input id="cloud-unit-price-trend" aria-label="Cloud GPU unit-price trend" type="range" min="-20" max="20" step="5" value={cloudUnitPriceTrend} onChange={(e) => setCloudUnitPriceTrend(Number(e.target.value))} style={{ width: "100%" }} />
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, color: C.sub, marginTop: -1 }}><span>-20%</span><span>0%</span><span>+20%</span></div>
             <div style={{ fontSize: 11, color: C.sub, marginTop: 7, lineHeight: 1.4 }}>Applies an annual change to modeled cloud GPU compute rates only. Workload growth remains a separate consumption assumption.</div>
+            {r.isWorkloadMode && workingDayHours && (
+              <div style={{ borderTop: `1px solid ${C.line}`, marginTop: 12, paddingTop: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12, marginBottom: 4 }}>
+                  <label htmlFor="workload-hours-per-day" style={{ fontSize: 12, fontWeight: 700, color: C.ink }}>Length of working day</label>
+                  <span style={{ ...mono, fontSize: 12, fontWeight: 700, color: C.green }}>{workingDayHours} hrs/day</span>
+                </div>
+                <input id="workload-hours-per-day" aria-label="Length of working day" type="range" min="1" max="24" step="1" value={workingDayHours} onChange={(e) => setSharedWorkingDayHours(Number(e.target.value))} style={{ width: "100%", accentColor: C.green }} />
+                <WorkloadDayBar hours={workingDayHours} />
+                <div style={{ fontSize: 11, color: C.sub, marginTop: 7, lineHeight: 1.4 }}>Shared with GPU Sizing across the full 24-hour day. Changing this updates cloud rental GPU-hours for the same technical workload; the on-prem fleet stays fixed to the GPU Sizing requirement.</div>
+              </div>
+            )}
           </div>
         )}
 
