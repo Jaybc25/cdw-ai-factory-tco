@@ -1,0 +1,133 @@
+name: Apply GB300 handoff fix
+
+on:
+  push:
+    branches:
+      - fix/gb300-cloud-handoff
+    paths:
+      - .github/workflows/apply-gb300-handoff-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/gb300-cloud-handoff
+
+      - name: Patch GB300 cloud-class normalization and add regression
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          tco = Path("src/TcoCalculator.jsx")
+          text = tco.read_text()
+          old = '''// Normalizes GPU Sizing's class naming to TCO's IDX/rate-table naming, where
+// they differ (B200 -> B200-class, GB200 NVL72 -> GB200). Identity otherwise.
+const GPU_SIZING_CLASS_TO_TCO_CLASS = { "B200": "B200-class", "GB200 NVL72": "GB200", "Rubin NVL8": "Rubin NVL8", "Vera Rubin NVL72": "Vera Rubin NVL72" };'''
+          new = '''// Normalizes GPU Sizing's class naming to TCO's IDX/rate-table naming, where
+// they differ (B200 -> B200-class, GB200/GB300 NVL72 -> GB200/GB300). Identity otherwise.
+const GPU_SIZING_CLASS_TO_TCO_CLASS = { "B200": "B200-class", "GB200 NVL72": "GB200", "GB300 NVL72": "GB300", "Rubin NVL8": "Rubin NVL8", "Vera Rubin NVL72": "Vera Rubin NVL72" };'''
+          if old not in text:
+              raise SystemExit("Expected TCO normalization block not found; refusing to patch a drifted file")
+          tco.write_text(text.replace(old, new, 1))
+
+          test = Path("tests/e2e/tco-gb300-handoff.spec.js")
+          test.write_text(r'''import { test, expect } from "@playwright/test";
+import { AUTH_BYPASSED, BYPASS_ONLY_REASON } from "./helpers/auth-context.js";
+
+test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+
+const KEY = "ai-factory-session:tco";
+
+async function seedTcoSession(page, state) {
+  await page.goto("/tco", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction((key) => !!sessionStorage.getItem(key), KEY);
+  await page.evaluate(({ key, state }) => {
+    sessionStorage.setItem(key, JSON.stringify(state));
+  }, { key: KEY, state });
+}
+
+async function waitForTcoSession(page, expected = {}) {
+  await page.waitForFunction(
+    ({ key, expected }) => {
+      const raw = sessionStorage.getItem(key);
+      if (!raw) return false;
+      const saved = JSON.parse(raw);
+      return Object.entries(expected).every(([field, value]) => saved[field] === value);
+    },
+    { key: KEY, expected },
+  );
+  return page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)), KEY);
+}
+
+async function openTier2(page) {
+  const trigger = page.getByRole("button", { name: /Refine when known/i });
+  await expect(trigger).toBeVisible();
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+}
+
+test("GB300 NVL72 GPU Sizing handoff starts TCO on GB300 cloud rental and survives refresh", async ({ page }) => {
+  // Reproduce the clean-reset/default state that previously fell back to H100.
+  await seedTcoSession(page, {
+    mode: "spend",
+    provider: "AWS",
+    gpuClass: "H100",
+    cloudGpuClassOverridden: false,
+  });
+
+  const params = new URLSearchParams({
+    ownSys: "DGX GB300 NVL-72",
+    gpuCount: "72",
+    sourceClass: "GB300 NVL72",
+    sizingBasis: "recommended",
+    workingDayHours: "10",
+  });
+  await page.goto(`/tco?${params.toString()}`, { waitUntil: "domcontentloaded" });
+
+  const saved = await waitForTcoSession(page, {
+    mode: "workload",
+    provider: "AWS",
+    ownSys: "DGX GB300 NVL-72",
+    gpuSizingCount: 72,
+    sourceClass: "GB300 NVL72",
+    gpuClass: "GB300",
+    cloudGpuClassOverridden: false,
+    workingDayHours: 10,
+  });
+
+  expect(saved.gpuClass).toBe("GB300");
+  expect(new URL(page.url()).search).toBe("");
+  await expect(page.getByText(/Cloud alternative priced at AWS GB300/)).toBeVisible();
+
+  await openTier2(page);
+  await expect(page.getByText(/Matched to GB300 NVL72 from GPU Sizing for a like-for-like starting comparison/)).toBeVisible();
+
+  // Query params are consumed on first arrival, so persistence must carry the match.
+  await page.reload({ waitUntil: "domcontentloaded" });
+  const afterReload = await waitForTcoSession(page, {
+    gpuClass: "GB300",
+    sourceClass: "GB300 NVL72",
+    ownSys: "DGX GB300 NVL-72",
+    gpuSizingCount: 72,
+  });
+  expect(afterReload.cloudGpuClassOverridden).toBe(false);
+  await expect(page.getByText(/Cloud alternative priced at AWS GB300/)).toBeVisible();
+});
+''')
+          PY
+
+      - name: Commit patch to fix branch
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/TcoCalculator.jsx tests/e2e/tco-gb300-handoff.spec.js
+          git diff --cached --check
+          git commit -m "Fix GB300 cloud class handoff"
+          git push origin HEAD:fix/gb300-cloud-handoff
