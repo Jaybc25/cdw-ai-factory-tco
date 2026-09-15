@@ -13,6 +13,16 @@ async function waitField(page, key, field, expected) {
   }, { key, field, expected });
 }
 
+async function setRangeValue(locator, value) {
+  await locator.evaluate((el, next) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    if (!setter) throw new Error("HTMLInputElement value setter unavailable");
+    setter.call(el, String(next));
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
+}
+
 test("working-day hours synchronize between TCO and GPU Sizing", async ({ page }) => {
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await page.waitForFunction((key) => !!sessionStorage.getItem(key), GPU_KEY);
@@ -22,7 +32,8 @@ test("working-day hours synchronize between TCO and GPU Sizing", async ({ page }
   const tco = page.getByLabel("Length of working day");
   await expect(tco).toHaveValue("10");
 
-  await tco.evaluate((el) => { el.value = "18"; el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); });
+  await setRangeValue(tco, 18);
+  await expect(tco).toHaveValue("18");
   await waitField(page, TCO_KEY, "workingDayHours", 18);
   await waitField(page, GPU_KEY, "workingDayHours", 18);
 
