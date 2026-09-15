@@ -788,7 +788,7 @@ function migrateLegacyModelState(saved) {
 
 // Normalizes GPU Sizing's class naming to TCO's IDX/rate-table naming, where
 // they differ (B200 -> B200-class, GB200 NVL72 -> GB200). Identity otherwise.
-const GPU_SIZING_CLASS_TO_TCO_CLASS = { "B200": "B200-class", "GB200 NVL72": "GB200", "Rubin NVL8": "Rubin NVL8", "Vera Rubin NVL72": "Vera Rubin NVL72" };
+const GPU_SIZING_CLASS_TO_TCO_CLASS = { "B200": "B200-class", "GB200 NVL72": "GB200", "GB300 NVL72": "GB300", "Rubin NVL8": "Rubin NVL8", "Vera Rubin NVL72": "Vera Rubin NVL72" };
 function normalizeSourceClass(sourceClass) {
   return GPU_SIZING_CLASS_TO_TCO_CLASS[sourceClass] || sourceClass;
 }
