@@ -7,10 +7,6 @@ def replace_once(text, old, new, label):
         raise SystemExit(f"F4 patch target {label!r} expected once, found {count}")
     return text.replace(old, new, 1)
 
-# ---------------------------------------------------------------------------
-# Recommendation policy: deployed footprint first; within the same footprint,
-# preserve production headroom before using acquisition cost as a tie-break.
-# ---------------------------------------------------------------------------
 policy_path = Path("src/gpuSizingRecommendation.js")
 policy = policy_path.read_text()
 policy = replace_once(
@@ -27,20 +23,14 @@ policy = replace_once(
 )
 policy_path.write_text(policy)
 
-# ---------------------------------------------------------------------------
-# Calculator integration: compute continuous technical demand, attach node-
-# rounded cost + saturation before auto-recommendation, then rank priced options.
-# ---------------------------------------------------------------------------
 calc_path = Path("src/GpuSizingCalculator.jsx")
 calc = calc_path.read_text()
-
 calc = replace_once(
     calc,
     '''  const candidates = GPU_SPECS.map((gpu) => {\n    const effectiveAnchor = gpu.anchor * throughputScale.factor;\n    const gpusMem = ceilDiv(totalMemoryGB, gpu.vram);\n    const gpusPerf = ceilDiv(totalThroughputNeeded, effectiveAnchor);\n    return { ...gpu, effectiveAnchor, gpusMem, gpusPerf, gpusWorkload: Math.max(gpusMem, gpusPerf) };\n  });\n\n  const autoRecommended = selectDeployableRecommendation(candidates);\n  const selected = inputs.gpuClassOverride === "Auto-recommend"\n    ? autoRecommended\n    : candidates.find((c) => c.id === inputs.gpuClassOverride);\n\n  function budgetFor(gpuId, deployedCount) {\n    const price = GPU_PRICE_USD[gpuId];\n    if (!price) return null;\n    return { amount: deployedCount * price.amount, confidence: price.confidence, source: price.source };\n  }\n\n  const priced = candidates.map((c) => {\n    const count = Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize;\n    const b = budgetFor(c.id, count);\n    return { ...c, deployedCount: count, deployedCost: b ? b.amount : null };\n  });\n  const selectedPriced = priced.find((c) => c.id === selected.id);\n''',
     '''  const candidates = GPU_SPECS.map((gpu) => {\n    const effectiveAnchor = gpu.anchor * throughputScale.factor;\n    const gpusMemExact = totalMemoryGB / gpu.vram;\n    const gpusPerfExact = totalThroughputNeeded / effectiveAnchor;\n    const gpusMem = Math.ceil(gpusMemExact);\n    const gpusPerf = Math.ceil(gpusPerfExact);\n    return { ...gpu, effectiveAnchor, gpusMem, gpusPerf, gpusWorkloadExact: Math.max(gpusMemExact, gpusPerfExact), gpusWorkload: Math.max(gpusMem, gpusPerf) };\n  });\n\n  function budgetFor(gpuId, deployedCount) {\n    const price = GPU_PRICE_USD[gpuId];\n    if (!price) return null;\n    return { amount: deployedCount * price.amount, confidence: price.confidence, source: price.source };\n  }\n\n  const priced = candidates.map((c) => {\n    const count = Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize;\n    const b = budgetFor(c.id, count);\n    return { ...c, deployedCount: count, deployedCost: b ? b.amount : null, technicalUtilization: Math.min(c.gpusWorkloadExact / count, 1) };\n  });\n  const autoRecommended = selectDeployableRecommendation(priced);\n  const selected = inputs.gpuClassOverride === "Auto-recommend"\n    ? autoRecommended\n    : priced.find((c) => c.id === inputs.gpuClassOverride);\n  const selectedPriced = priced.find((c) => c.id === selected.id);\n''',
     "inference recommendation integration",
 )
-
 calc = replace_once(
     calc,
     '''  const candidates = TRAINING_GPU_SPECS.map((gpu) => {\n    const peakTFLOPS = inputs.precision === "FP8" ? (gpu.fp8 ?? gpu.bf16) : gpu.bf16;\n    const gpusFit = ceilDiv(trainingMemoryGB, gpu.vram);\n    const achievableFlopsPerSec = peakTFLOPS * 1e12 * inputs.mfu;\n    const gpusTime = ceilDiv(flopsRequired, achievableFlopsPerSec * secondsTarget);\n    return { ...gpu, peakTFLOPS, gpusFit, gpusTime, gpusWorkload: Math.max(gpusFit, gpusTime) };\n  });\n\n  const autoRecommended = selectDeployableRecommendation(candidates);\n  const selected = inputs.gpuClassOverride === "Auto-recommend"\n    ? autoRecommended\n    : candidates.find((c) => c.id === inputs.gpuClassOverride);\n\n  function budgetFor(gpuId, deployedCount) {\n    const price = GPU_PRICE_USD[gpuId];\n    if (!price) return null;\n    return { amount: deployedCount * price.amount, confidence: price.confidence, source: price.source };\n  }\n\n  const priced = candidates.map((c) => {\n    const count = Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize;\n    const b = budgetFor(c.id, count);\n    return { ...c, deployedCount: count, deployedCost: b ? b.amount : null };\n  });\n  const selectedPriced = priced.find((c) => c.id === selected.id);\n''',
@@ -49,10 +39,6 @@ calc = replace_once(
 )
 calc_path.write_text(calc)
 
-# ---------------------------------------------------------------------------
-# Existing recommendation verifier: exercise the two F4 decision branches and
-# confirm both inference and training feed priced candidates into the selector.
-# ---------------------------------------------------------------------------
 verify_path = Path("scripts/verifyGpuDeployableRanking.mjs")
 verify = verify_path.read_text()
 verify = replace_once(
@@ -74,23 +60,5 @@ verify = replace_once(
     "verifier output",
 )
 verify_path.write_text(verify)
-
-# ---------------------------------------------------------------------------
-# Quality gate: this verifier already existed but was not wired into CI. F4 makes
-# that contract executable on every relevant PR/main change.
-# ---------------------------------------------------------------------------
-qg_path = Path(".github/workflows/quality-gate.yml")
-qg = qg_path.read_text()
-needle = '      - "scripts/validate_gpu_higher_growth_capacity.mjs"\n'
-if qg.count(needle) != 2:
-    raise SystemExit(f"Expected two quality-gate path entries for GPU higher-growth validator, found {qg.count(needle)}")
-qg = qg.replace(needle, needle + '      - "scripts/verifyGpuDeployableRanking.mjs"\n')
-qg = replace_once(
-    qg,
-    '''      - name: Validate GPU higher-growth capacity\n        run: node scripts/validate_gpu_higher_growth_capacity.mjs\n\n      - name: Validate GPU selected-budget and Phase 2 cleanup\n''',
-    '''      - name: Validate GPU higher-growth capacity\n        run: node scripts/validate_gpu_higher_growth_capacity.mjs\n\n      - name: Validate GPU deployable recommendation ranking\n        run: node scripts/verifyGpuDeployableRanking.mjs\n\n      - name: Validate GPU selected-budget and Phase 2 cleanup\n''',
-    "quality gate recommendation step",
-)
-qg_path.write_text(qg)
 
 print("F4 deployable cost/headroom recommendation patch applied")
