@@ -154,6 +154,7 @@ test("GB300 NVL72 rack-scale recommendation preserves GPU Sizing to TCO handoff"
   await page.goto(href, { waitUntil: "domcontentloaded" });
   const saved = await waitForTcoSession(page, {
     ownSys: "DGX GB300 NVL-72",
+    gpuClass: "GB300",
     gpuSizingCount: 72,
     sourceClass: "GB300 NVL72",
     gpuSizingBasis: "recommended",
