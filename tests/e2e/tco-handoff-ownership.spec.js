@@ -33,8 +33,8 @@ async function openTier2(page) {
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
 }
 
-async function openCapacityAndUnitEconomics(page) {
-  const trigger = page.getByRole("button", { name: /Capacity & unit economics/i });
+async function openCapacitySection(page) {
+  const trigger = page.getByRole("button", { name: /Capacity & unit economics|Workload capacity basis/i });
   await expect(trigger).toBeVisible();
   if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
@@ -226,7 +226,7 @@ test("legacy size-only TCO session migrates deterministically to Custom without 
   expect(saved.modelParamsB).toBe(671);
   expect(saved.quant).toBe("FP8");
 
-  await openCapacityAndUnitEconomics(page);
+  await openCapacitySection(page);
   const modelSelect = page.getByLabel("Model for capacity estimate");
   await expect(modelSelect).toHaveValue("custom");
   await expect(page.getByLabel("Custom model parameters in billions")).toHaveValue("671");
@@ -254,9 +254,10 @@ test("Custom GPU Sizing handoff preserves Custom identity, exact parameter count
   expect(saved.modelParamsB).toBe(123.4);
   expect(saved.quant).toBe("FP4");
 
-  await openCapacityAndUnitEconomics(page);
-  await expect(page.getByLabel("Model for capacity estimate")).toHaveValue("custom");
-  await expect(page.getByLabel("Custom model parameters in billions")).toHaveValue("123.4");
+  await openCapacitySection(page);
+  await expect(page.getByText(/GPU Sizing is the technical capacity authority for this workload/)).toBeVisible();
+  await expect(page.getByLabel("Model for capacity estimate")).toHaveCount(0);
+  await expect(page.getByLabel("Custom model parameters in billions")).toHaveCount(0);
 });
 
 test("Back and Forward do not replay consumed model handoff params or erase persisted edits", async ({ page }) => {
@@ -270,22 +271,24 @@ test("Back and Forward do not replay consumed model handoff params or erase pers
 
   const legacyToggle = page.getByLabel("Include models for existing deployments");
   await legacyToggle.check();
-  await openCapacityAndUnitEconomics(page);
-  const modelSelect = page.getByLabel("Model for capacity estimate");
-  await modelSelect.selectOption("gemma-3-27b");
-  const edited = await waitForTcoSession(page, { modelId: "gemma-3-27b" });
-  expect(edited.modelParamsB).toBe(27);
+  await openCapacitySection(page);
+  await expect(page.getByText(/GPU Sizing is the technical capacity authority for this workload/)).toBeVisible();
+  await expect(page.getByLabel("Model for capacity estimate")).toHaveCount(0);
+  // Workload-mode capacity controls are intentionally suppressed; verify the
+  // handed-off model context persists across navigation instead of editing it here.
+  const edited = await waitForTcoSession(page, { modelId: "muse-glimmer-30b" });
+  expect(edited.modelParamsB).toBe(29.6);
   await legacyToggle.uncheck();
 
   await page.goto("/", { waitUntil: "domcontentloaded" });
   await page.goBack({ waitUntil: "domcontentloaded" });
   expect(new URL(page.url()).search).toBe("");
-  let restored = await waitForTcoSession(page, { modelId: "gemma-3-27b" });
-  expect(restored.modelParamsB).toBe(27);
+  let restored = await waitForTcoSession(page, { modelId: "muse-glimmer-30b" });
+  expect(restored.modelParamsB).toBe(29.6);
 
   await page.goForward({ waitUntil: "domcontentloaded" });
   await page.goBack({ waitUntil: "domcontentloaded" });
   expect(new URL(page.url()).search).toBe("");
-  restored = await waitForTcoSession(page, { modelId: "gemma-3-27b" });
-  expect(restored.modelParamsB).toBe(27);
+  restored = await waitForTcoSession(page, { modelId: "muse-glimmer-30b" });
+  expect(restored.modelParamsB).toBe(29.6);
 });
