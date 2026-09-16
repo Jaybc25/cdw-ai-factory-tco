@@ -959,13 +959,16 @@ function GPUSizingCalculatorInner() {
   const result = mode === "Inference" ? inferenceResult : trainingResult;
   const errors = mode === "Inference" ? infErrors : trainErrors;
   const [tcoSelection, setTcoSelection] = useState("recommended");
+  const sizingScenarioKey = mode === "Inference"
+    ? [mode, infModel.id, quant, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride, customParamsB, customLayers, customKvHeads, customHeadDim].join("|")
+    : [mode, trainModel.id, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride, customParamsB].join("|");
   const effectiveTcoSelection = tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
   const tcoSelectedClass = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
   const tcoSelectedCount = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
   const selectedBudget = effectiveTcoSelection === "higher-growth" ? result?.budget?.higherGrowth : result?.budget?.recommended;
   useEffect(() => {
     setTcoSelection("recommended");
-  }, [mode, result?.selectedClass, result?.recommended, result?.higherGrowth?.class, result?.higherGrowth?.recommended]);
+  }, [sizingScenarioKey, result?.selectedClass, result?.recommended, result?.higherGrowth?.class, result?.higherGrowth?.recommended]);
   const modelLabel = mode === "Inference" ? infModel.label : trainModel.label;
 
   useAutosaveSnapshot(
