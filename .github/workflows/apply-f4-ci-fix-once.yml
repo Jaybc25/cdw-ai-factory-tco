@@ -1,0 +1,30 @@
+name: Apply F4 CI fix once
+
+on:
+  push:
+    branches: [fix/f4-deployable-cost-headroom]
+    paths:
+      - "scripts/apply-f4-ci-fix.py"
+      - ".github/workflows/apply-f4-ci-fix-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/f4-deployable-cost-headroom
+      - name: Apply F4 CI alignment patch
+        run: python3 scripts/apply-f4-ci-fix.py
+      - name: Remove one-shot patch script
+        run: git rm scripts/apply-f4-ci-fix.py
+      - name: Commit F4 CI alignment
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/GpuSizingCalculator.jsx tests/e2e/gpu-sizing-architecture-aware.spec.js
+          git commit -m "F4: align regression expectations and TCO selection reset"
+          git push
