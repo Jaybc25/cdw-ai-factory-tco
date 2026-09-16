@@ -781,6 +781,12 @@ function getInitialWorkingDayHours() {
   return Number.isFinite(n) && n > 0 && n <= 24 ? n : null;
 }
 
+function getInitialGpuSizingDemand(name) {
+  const raw = getIncomingParams()?.get(name);
+  const n = raw ? parseFloat(raw) : NaN;
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 function getInitialModelContext() {
   const params = getIncomingParams();
   const modelId = params?.get("model");
@@ -891,6 +897,11 @@ function AppInner() {
   const [gpuSizingBasis] = useState(() => arrivedFromGpuSizing ? getInitialSizingBasis() : saved?.gpuSizingBasis ?? "recommended");
   const matchedCloudGpuClass = sourceClass ? normalizeSourceClass(sourceClass) : null;
   const [workingDayHours, setWorkingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);
+  // F2: these are technical demand facts owned by GPU Sizing. On a fresh
+  // handoff, absence means the upstream workload did not provide them (for
+  // example training), so do not leak stale inference demand from a prior run.
+  const [gpuSizingConcurrentUsers] = useState(() => arrivedFromGpuSizing ? getInitialGpuSizingDemand("concurrentUsers") : saved?.gpuSizingConcurrentUsers ?? null);
+  const [gpuSizingTargetTokPerUser] = useState(() => arrivedFromGpuSizing ? getInitialGpuSizingDemand("targetTokPerUser") : saved?.gpuSizingTargetTokPerUser ?? null);
   const [incomingModelContext] = useState(getInitialModelContext);
   const [incomingQuant] = useState(getInitialQuantization);
 
@@ -1037,12 +1048,12 @@ function AppInner() {
       // which is the actual root cause of the workload-anchor loss -- see
       // the comment above their useState calls near the top of this
       // component for the full explanation.
-      gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis,
+      gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser,
     });
   }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
       fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
-      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis]);
+      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser]);
 
   async function submitLead() {
     if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
@@ -1109,7 +1120,7 @@ function AppInner() {
   const bulkPB = effectiveStorageAuto ? Math.round(autoPB * 0.75 * 100) / 100 : bulkPBm;
   const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (effectiveStorageAuto) setBulkPBm(bulkPB); };
   const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (effectiveStorageAuto) setFastPBm(fastPB); };
-  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours };
+  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser };
   const r = useMemo(
     () => run(inputsObj, rc),
     [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
@@ -2127,7 +2138,26 @@ function AppInner() {
         </Section>
 
         {/* CAPACITY & UNIT ECONOMICS (v1.9) */}
-        <Section title="Capacity & unit economics" badge="EST" defaultOpen={false}>
+        <Section title={r.isWorkloadMode ? "Workload capacity basis" : "Capacity & unit economics"} badge={r.isWorkloadMode ? "GPU SIZING" : "EST"} defaultOpen={false}>
+          {r.isWorkloadMode ? (
+            <>
+              <div style={{ fontSize: 12, color: C.ink, background: "#F6F8FA", border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 12px", marginBottom: 10, lineHeight: 1.5 }}>
+                <b>GPU Sizing is the technical capacity authority for this workload.</b> TCO prices the handed-off design and does not recalculate serving capacity with its standalone rule-of-thumb model.
+              </div>
+              {gpuSizingConcurrentUsers && gpuSizingTargetTokPerUser ? (
+                <>
+                  <Row label="Peak concurrent request streams" value={gpuSizingConcurrentUsers.toLocaleString()} sub="From GPU Sizing" />
+                  <Row label="Target response speed" value={`${gpuSizingTargetTokPerUser.toLocaleString()} tok/s per stream`} sub="From GPU Sizing" />
+                  <Row label="Peak throughput requirement" value={`${Math.round(gpuSizingConcurrentUsers * gpuSizingTargetTokPerUser).toLocaleString()} tok/s`} sub={`${gpuSizingConcurrentUsers.toLocaleString()} × ${gpuSizingTargetTokPerUser.toLocaleString()} tok/s`} />
+                  <Row label="GPU Sizing design" value={`${gpuSizingCount.toLocaleString()} × ${sourceClass || ownSys}`} sub="Technical configuration handed off to TCO; the economics on this page price this design." />
+                  <div style={{ fontSize: 11, color: C.sub, marginTop: 8, lineHeight: 1.45 }}>Peak concurrency is not assumed to be sustained for every hour of the working day, so TCO does not derive monthly tokens, cost per 1M tokens, or cost per user/month from these peak inputs.</div>
+                </>
+              ) : (
+                <div style={{ fontSize: 11, color: C.sub, lineHeight: 1.45 }}>Technical capacity remains owned by GPU Sizing for workload-mode scenarios. This handoff does not include inference demand fields, so TCO does not generate a separate serving-capacity estimate. Review or refresh the technical design in GPU Sizing; TCO economics continue to use the handed-off GPU count.</div>
+              )}
+            </>
+          ) : (
+            <>
           <TipLabel text="How these estimates work" tip={TIPS.capGroup} style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }} />
           <TipLabel text="Model" tip={TIPS.modelSize} style={{ fontSize: 13 }} />
           <select
@@ -2167,6 +2197,8 @@ function AppInner() {
               <Row label="Token throughput (est.)" value={`${r.cap.monthlyTokM >= 1000 ? (r.cap.monthlyTokM / 1000).toFixed(1) + "B" : Math.round(r.cap.monthlyTokM) + "M"} tokens/mo`} sub="fleet-wide at target utilization" />
               <Row label="Cost per 1M tokens" value={`$${r.cap.perM.toFixed(2)} vs $${r.cap.cloudPerM.toFixed(2)}`} sub="on-prem all-in vs managed-API blended list (editable in Rate card)" />
               <Row label="Cost per user / month" value={`$${Math.round(r.cap.perUserOn).toLocaleString()} vs $${Math.round(r.cap.perUserCloud).toLocaleString()}`} sub="on-prem vs cloud API at the same usage" />
+            </>
+          )}
             </>
           )}
         </Section>
