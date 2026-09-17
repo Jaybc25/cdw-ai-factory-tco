@@ -1,0 +1,30 @@
+name: Apply M3 inference precision fix once
+
+on:
+  push:
+    branches: [fix/m3-inference-precision-anchors]
+    paths:
+      - "scripts/apply-m3-inference-precision.py"
+      - ".github/workflows/apply-m3-inference-precision-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/m3-inference-precision-anchors
+      - name: Apply M3 precision patch
+        run: python3 scripts/apply-m3-inference-precision.py
+      - name: Remove one-shot patch files
+        run: git rm scripts/apply-m3-inference-precision.py .github/workflows/apply-m3-inference-precision-once.yml
+      - name: Commit M3 implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/modelSizingMethodology.js src/GpuSizingCalculator.jsx scripts/validate_model_sizing_methodology.mjs tests/e2e/gpu-sizing-architecture-aware.spec.js
+          git commit -m "Fix M3 inference precision anchor reuse"
+          git push
