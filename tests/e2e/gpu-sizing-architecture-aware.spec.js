@@ -61,12 +61,13 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // Hybrid: Maverick has the same 17B active-per-token concept as Scout but
-  // a 400B resident model. If active parameters were incorrectly substituted
-  // for residency this would collapse toward Scout. Correct behavior remains
-  // memory-bound and selects two B300s before 8-GPU node rounding.
+  // a 400B resident model. Residency still materially increases the memory-bound
+  // technical requirement relative to Scout. Under F4, B200 needs three technical
+  // GPUs but still fits safely within one 8-GPU node, so its lower deployed cost
+  // wins over the two-technical-GPU B300 option with the same deployed footprint.
   await chooseInferenceModel(page, "llama-4-maverick");
-  await expect(resultCard(page, "Minimum technical")).toContainText("2 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B300");
+  await expect(resultCard(page, "Minimum technical")).toContainText("3 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("B200");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 });
 
