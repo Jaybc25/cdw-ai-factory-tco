@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import {
   INFERENCE_REFERENCE_MODEL,
+  FULL_MODEL_TRAINING_STATE_BYTES_PER_PARAM,
   getInferenceThroughputScale,
+  getTrainingMemoryModel,
   getTrainingParameterSemantics,
 } from "../src/modelSizingMethodology.js";
 
@@ -51,6 +53,17 @@ if (sparseTraining.residencyParamsB === sparseTraining.activeComputeParamsB) {
 const denseTraining = getTrainingParameterSemantics(dense70);
 approx(denseTraining.residencyParamsB, 70);
 approx(denseTraining.activeComputeParamsB, 70);
+const bf16FullMemory = getTrainingMemoryModel("Full fine-tune", "BF16");
+const fp8FullMemory = getTrainingMemoryModel("Full fine-tune", "FP8");
+const bf16PretrainMemory = getTrainingMemoryModel("Pretraining", "BF16");
+approx(FULL_MODEL_TRAINING_STATE_BYTES_PER_PARAM, 18);
+approx(bf16FullMemory.bytesPerParam, 18);
+approx(fp8FullMemory.bytesPerParam, 18);
+approx(bf16PretrainMemory.bytesPerParam, 18);
+if (fp8FullMemory.bytesPerParam !== bf16FullMemory.bytesPerParam) {
+  throw new Error("FP8 compute precision must not silently halve full-model resident optimizer/model-state memory.");
+}
+
 
 const unknown = getInferenceThroughputScale({ id: "unknown", status: "CUSTOM" });
 approx(unknown.factor, 1);
@@ -67,13 +80,17 @@ const requiredSourceSnippets = [
   "getInferenceThroughputScale(model, inputs.customParamsB)",
   "gpu.anchor * throughputScale.factor",
   "getTrainingParameterSemantics(model, inputs.customParamsB)",
-  "trainingSemantics.residencyParamsB * precisionBytes * multiplier",
+  "getTrainingMemoryModel(inputs.taskType, inputs.precision, inputs.memMultiplierOverride)",
+  "trainingSemantics.residencyParamsB * memoryModel.bytesPerParam",
   "6 * trainingSemantics.activeComputeParamsB * inputs.datasetTokensB * 1e18",
 ];
 for (const snippet of requiredSourceSnippets) {
   if (!gpuSizingSource.includes(snippet)) {
     throw new Error(`GPU Sizing architecture-aware integration missing required source contract: ${snippet}`);
   }
+}
+if (gpuSizingSource.includes("trainingSemantics.residencyParamsB * precisionBytes * multiplier")) {
+  throw new Error("GPU Sizing still scales the entire full-model training state footprint by selected compute precision.");
 }
 if (gpuSizingSource.includes("const flopsRequired = 6 * model.totalParamsB * inputs.datasetTokensB * 1e18")) {
   throw new Error("GPU Sizing still uses totalParamsB for sparse token-level training FLOPs.");
@@ -84,6 +101,6 @@ if (gpuSizingSource.includes("const gpusPerf = ceilDiv(totalThroughputNeeded, gp
 
 console.log(
   `Model sizing methodology PASS: ${INFERENCE_REFERENCE_MODEL.label} ${INFERENCE_REFERENCE_MODEL.activeParamsB}B reference; ` +
-  "one-sided inference scaling prevents unsupported speedups; training residency and active-compute semantics remain distinct; " +
+  "one-sided inference scaling prevents unsupported speedups; full-model training memory uses an explicit 18 B/param state baseline independent of BF16/FP8 compute precision; training residency and active-compute semantics remain distinct; " +
   "production GPU Sizing is wired to the guarded methodology."
 );

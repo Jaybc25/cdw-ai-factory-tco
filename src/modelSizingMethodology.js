@@ -282,6 +282,47 @@ export function getInferenceSequenceStateMemory(model, tokens, cacheBytesPerElem
   };
 }
 
+// Full-model training memory is modeled as an explicit state-memory baseline,
+// not as compute-precision bytes multiplied by an optimizer-state factor.
+// NVIDIA Megatron Core documents 18 bytes/parameter for the non-distributed
+// BF16-parameter + FP32-gradient optimizer case. NVIDIA Transformer Engine also
+// notes that FP8 compute does not automatically reduce stored weight/optimizer
+// memory because higher-precision/master copies commonly remain resident.
+export const FULL_MODEL_TRAINING_STATE_BYTES_PER_PARAM = 18;
+
+export function getTrainingMemoryModel(taskType, precision, multiplierOverride = null) {
+  const precisionBytes = precision === "FP8" ? 1 : 2;
+  const override = Number(multiplierOverride);
+  if (Number.isFinite(override) && override > 0) {
+    return {
+      bytesPerParam: precisionBytes * override,
+      precisionBytes,
+      multiplier: override,
+      basis: `Explicit memory multiplier override: ${override} × ${precisionBytes} byte/param (${precision}).`,
+      source: "User-supplied override",
+    };
+  }
+
+  if (taskType === "LoRA/PEFT") {
+    const multiplier = 2.5;
+    return {
+      bytesPerParam: precisionBytes * multiplier,
+      precisionBytes,
+      multiplier,
+      basis: `Directional PEFT allowance retained at ${multiplier} × ${precisionBytes} byte/param (${precision}); M2 does not recalibrate PEFT memory.`,
+      source: "Existing GPU Sizing PEFT planning assumption",
+    };
+  }
+
+  return {
+    bytesPerParam: FULL_MODEL_TRAINING_STATE_BYTES_PER_PARAM,
+    precisionBytes,
+    multiplier: null,
+    basis: "NVIDIA Megatron Core mixed-precision Adam baseline: 18 bytes/parameter for resident model + optimizer state. FP8 is treated as compute precision and does not automatically halve stored model/optimizer state. Activation and temporary-workspace memory remains workload-specific and is not separately modeled here.",
+    source: "NVIDIA Megatron Core Distributed Optimizer + NVIDIA Transformer Engine low-precision training guidance",
+  };
+}
+
 // Training separates resident optimizer/model-state memory from token-level
 // compute. Sparse MoE/hybrid models still need the full parameter set resident
 // for full-model training state, while a token executes only its routed/active

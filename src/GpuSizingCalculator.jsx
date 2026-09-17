@@ -7,7 +7,7 @@ import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
 import { GPU_SIZING_PRICE_USD as GPU_PRICE_USD } from "./pricingRegistry.js";
 import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelParamsB } from "./modelRegistry.js";
-import { getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
+import { getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingMemoryModel, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
 import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
 import { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";
 import { getRubinInferenceAdvisory } from "./rubinInferenceAdvisory.js";
@@ -30,7 +30,7 @@ const TIPS = {
   overheadPct: "A safety margin added on top of weights and KV cache for runtime/activation memory. 15% is a conservative default -- lower it only if you know your serving stack is unusually memory-efficient.",
   trainModel: "The model you're training or fine-tuning. This list defaults to current choices; enable existing-deployment models only when modeling an existing environment.",
   taskType: "Full fine-tune updates every weight and needs the most memory; LoRA/PEFT trains a small adapter and needs far less. If you're unsure which you need, LoRA is the cheaper starting point for most use cases.",
-  precision: "The numeric precision used during training. BF16 is the safe, widely-supported default; FP8 roughly halves memory and speeds up training but needs a model/stack that supports it well.",
+  precision: "The compute precision used during training. BF16 is the safe, widely-supported default; FP8 can accelerate supported training, but it does not automatically halve resident model/optimizer-state memory because higher-precision/master state commonly remains in memory.",
   datasetTokensB: "The size of your training dataset, in billions of tokens. If you're not sure, 10-50B tokens is a common range for a domain-specific fine-tune; pretraining runs are far larger (trillions).",
   targetDays: "How quickly the training run needs to finish. Shorter deadlines need more GPUs working in parallel -- if there's no hard deadline, a few weeks is a reasonable default to size against.",
   mfu: "Model FLOPs Utilization -- how much of a GPU's theoretical peak speed your training run actually achieves. 40% is a well-supported real-world default (Meta's Llama 3 paper reports 38-43% at scale).",
@@ -341,10 +341,9 @@ function computeTraining(inputs) {
     ? { id: "custom", totalParamsB: inputs.customParamsB, activeParamsB: inputs.customParamsB, architectureType: "dense", status: "CUSTOM" }
     : inputs.model;
 
-  const precisionBytes = inputs.precision === "FP8" ? 1 : 2;
-  const multiplier = inputs.memMultiplierOverride || (inputs.taskType === "LoRA/PEFT" ? 2.5 : 18);
   const trainingSemantics = getTrainingParameterSemantics(model, inputs.customParamsB);
-  const trainingMemoryGB = trainingSemantics.residencyParamsB * precisionBytes * multiplier;
+  const memoryModel = getTrainingMemoryModel(inputs.taskType, inputs.precision, inputs.memMultiplierOverride);
+  const trainingMemoryGB = trainingSemantics.residencyParamsB * memoryModel.bytesPerParam;
   const flopsRequired = 6 * trainingSemantics.activeComputeParamsB * inputs.datasetTokensB * 1e18;
   const secondsTarget = inputs.targetDays * 86400;
 
@@ -412,7 +411,7 @@ function computeTraining(inputs) {
     confidence,
     budget,
     trainingSemantics,
-    model, precisionBytes, multiplier, secondsTarget,
+    model, precisionBytes: memoryModel.precisionBytes, multiplier: memoryModel.multiplier, memoryModel, secondsTarget,
   };
 }
 
@@ -1176,7 +1175,7 @@ function GPUSizingCalculatorInner() {
             <div className="text-xs text-gray-500 p-4 bg-gray-50 rounded-lg mb-6 leading-relaxed">
               {mode === "Inference"
                 ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
-                : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}
+                : `Resident training-state memory modeled: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; activation and temporary-workspace memory is workload-specific and not separately modeled. Training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit resident state, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}
               {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes. This is a directional sizing estimate, not a final bill of materials -- confirm with a CDW AI Factory specialist before purchasing.
             </div>
             <div className="border-t-2 pt-4 flex justify-between" style={{ borderColor: CHARCOAL }}>
@@ -1266,7 +1265,8 @@ function GPUSizingCalculatorInner() {
             return (
               <>
                 <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>2. How the Technical Requirement Was Calculated</div>
-                <AuditFormula label={`Training memory required (${modelLabel}, ${m.totalParamsB}B resident params)`} formula="trainingMemoryGB = residentParamsB × bytesPerParam(precision) × multiplier" substituted={`= ${result.trainingSemantics.residencyParamsB}B × ${result.precisionBytes} byte/param (${precision}) × ${result.multiplier} (${taskType})`} result={`${result.trainingMemoryGB.toFixed(1)} GB`} />
+                <AuditFormula label={`Resident training-state memory (${modelLabel}, ${m.totalParamsB}B resident params)`} formula={result.memoryModel.multiplier == null ? "trainingMemoryGB = residentParamsB × trainingStateBytesPerParam" : "trainingMemoryGB = residentParamsB × bytesPerParam(precision) × multiplier"} substituted={result.memoryModel.multiplier == null ? `= ${result.trainingSemantics.residencyParamsB}B × ${result.memoryModel.bytesPerParam} bytes/param (${taskType}; ${precision} compute)` : `= ${result.trainingSemantics.residencyParamsB}B × ${result.precisionBytes} byte/param (${precision}) × ${result.multiplier} (${taskType})`} result={`${result.trainingMemoryGB.toFixed(1)} GB`} />
+                <div className="text-xs text-gray-500 mb-3">{result.memoryModel.basis}</div>
                 <AuditFormula label="Total training compute required" formula="flopsRequired = 6 × activeComputeParamsB × datasetTokensB × 1e18" substituted={`= 6 × ${result.trainingSemantics.activeComputeParamsB}B active params × ${datasetTokensB}B tokens × 1e18`} result={`${result.flopsRequired.toExponential(2)} FLOPs`} />
                 <AuditFormula label={`GPUs needed to fit the model (${result.selectedClass}, ${selected.vram} GB VRAM)`} formula="gpusFit = CEILING(trainingMemoryGB ÷ vramPerGPU)" substituted={`= CEILING(${result.trainingMemoryGB.toFixed(1)} ÷ ${selected.vram} GB/GPU)`} result={`${selected.gpusFit} GPUs`} />
                 <AuditFormula label={`GPUs needed to hit the time target (${result.selectedClass}, ${selected.peakTFLOPS.toLocaleString()} ${precision} TFLOPS/GPU)`} formula="gpusTime = CEILING(flopsRequired ÷ (peakTFLOPS × 1e12 × MFU × targetSeconds))" substituted={`= CEILING(${result.flopsRequired.toExponential(2)} ÷ (${selected.peakTFLOPS.toLocaleString()}e12 × ${Math.round(mfu * 100)}% × ${result.secondsTarget.toLocaleString()}s))`} result={`${selected.gpusTime} GPUs`} />
@@ -1450,7 +1450,7 @@ function GPUSizingCalculatorInner() {
               )}
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
-              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Training memory required: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit the model, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "a 72-GPU NVL rack for this class" : "8-GPU DGX-class nodes for this class"}).</div>
+              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Resident training-state memory modeled: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; activation and temporary-workspace memory is workload-specific and not separately modeled. Training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit resident state, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "a 72-GPU NVL rack for this class" : "8-GPU DGX-class nodes for this class"}).</div>
               <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
                 <button onClick={requestReport} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
