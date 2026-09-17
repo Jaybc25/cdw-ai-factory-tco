@@ -107,8 +107,6 @@ test("training sizing uses total parameters for resident state and active parame
   await expect(resultCard(page, "Recommended")).toContainText("56 GPUs");
 });
 
-// The production cards themselves are the TCO-selection controls; there is no
-// duplicate selector lower on the page.
 test("training audit uses training TFLOPS provenance rather than inference benchmark provenance", async ({ page }) => {
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await switchToTraining(page);
