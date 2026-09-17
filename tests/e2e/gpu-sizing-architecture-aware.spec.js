@@ -89,22 +89,22 @@ test("training sizing uses total parameters for resident state and active parame
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // MoE Scout: 109B resident state drives fit memory while only 17B active
-  // parameters drive token-level FLOPs. The result remains 14 technical B300s,
-  // node-rounded to 16. Rubin cannot reduce the 288GB/GPU memory floor here,
-  // and using total params for sparse FLOPs would materially inflate the time-bound requirement.
+  // parameters drive token-level FLOPs. M2 fixes the old BF16 double-scaling
+  // error: 109B × 18 bytes/param = 1,962 GB, which needs 7 B300s and
+  // node-rounds to one 8-GPU system.
   await chooseInferenceModel(page, "llama-4-scout");
-  await expect(resultCard(page, "Minimum technical")).toContainText("14 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("7 GPUs");
   await expect(resultCard(page, "Minimum technical")).toContainText("B300");
-  await expect(resultCard(page, "Recommended")).toContainText("16 GPUs");
+  await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
-  // Hybrid Maverick shares Scout's 17B active-compute concept as Scout but has 400B
-  // resident parameters. The much larger resident state therefore drives a
-  // 50-GPU technical requirement on B300, node-rounded to 56. This pair is a
-  // regression guard against collapsing residency into active parameters.
+  // Hybrid Maverick shares Scout's 17B active-compute concept but has 400B
+  // resident parameters. At the corrected 18 bytes/param full-training baseline,
+  // resident state is 7,200 GB, driving 25 technical B300s and 32 node-rounded.
+  // This pair remains a regression guard against collapsing residency into active parameters.
   await chooseInferenceModel(page, "llama-4-maverick");
-  await expect(resultCard(page, "Minimum technical")).toContainText("50 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("25 GPUs");
   await expect(resultCard(page, "Minimum technical")).toContainText("B300");
-  await expect(resultCard(page, "Recommended")).toContainText("56 GPUs");
+  await expect(resultCard(page, "Recommended")).toContainText("32 GPUs");
 });
 
 test("training audit uses training TFLOPS provenance rather than inference benchmark provenance", async ({ page }) => {
