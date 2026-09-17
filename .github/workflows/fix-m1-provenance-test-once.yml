@@ -1,0 +1,30 @@
+name: Fix M1 provenance browser test once
+
+on:
+  push:
+    branches: [fix/m1-training-provenance]
+    paths:
+      - "scripts/fix-m1-provenance-test.py"
+      - ".github/workflows/fix-m1-provenance-test-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/m1-training-provenance
+      - name: Apply browser test visibility fix
+        run: python3 scripts/fix-m1-provenance-test.py
+      - name: Remove one-shot files
+        run: git rm scripts/fix-m1-provenance-test.py .github/workflows/fix-m1-provenance-test-once.yml
+      - name: Commit test fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/e2e/gpu-sizing-architecture-aware.spec.js
+          git commit -m "Fix M1 provenance browser regression setup"
+          git push
