@@ -1,0 +1,30 @@
+name: Apply M2 training memory fix once
+
+on:
+  push:
+    branches: [fix/m2-training-memory-model]
+    paths:
+      - "scripts/apply-m2-training-memory.py"
+      - ".github/workflows/apply-m2-training-memory-once.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/m2-training-memory-model
+      - name: Apply M2 patch
+        run: python3 scripts/apply-m2-training-memory.py
+      - name: Remove one-shot patch files
+        run: git rm scripts/apply-m2-training-memory.py .github/workflows/apply-m2-training-memory-once.yml
+      - name: Commit M2 implementation
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/modelSizingMethodology.js src/GpuSizingCalculator.jsx scripts/validate_model_sizing_methodology.mjs tests/e2e/gpu-sizing-architecture-aware.spec.js
+          git commit -m "Fix M2 training memory precision accounting"
+          git push
