@@ -111,6 +111,9 @@ test("training audit uses training TFLOPS provenance rather than inference bench
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await switchToTraining(page);
 
+  const deploymentAssumptions = page.locator("details").filter({ hasText: "Deployment assumptions" });
+  await deploymentAssumptions.locator("summary").click();
+
   const gpuSelect = gpuSelectFor(page, "B300");
   await expect(gpuSelect).toBeVisible();
   await gpuSelect.selectOption("B300");
