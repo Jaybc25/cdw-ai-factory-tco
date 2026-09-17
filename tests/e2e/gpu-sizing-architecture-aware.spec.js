@@ -122,6 +122,7 @@ test("training audit uses training TFLOPS provenance rather than inference bench
 
   await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
   await expect(page.getByText("Selected GPU -- B300", { exact: true })).toBeVisible();
+  // The source string is the material provenance assertion; the AuditRow label also contains nested subtext.
   await expect(page.getByText(/NVIDIA Blackwell Ultra \/ DGX B300 published specifications; peak BF16\/FP8 Tensor Core throughput used for training sizing\./)).toBeVisible();
   await expect(page.getByText(/MLPerf Inference/i)).toHaveCount(0);
 });
