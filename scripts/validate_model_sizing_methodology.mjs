@@ -2,6 +2,7 @@ import fs from "node:fs";
 import {
   INFERENCE_REFERENCE_MODEL,
   FULL_MODEL_TRAINING_STATE_BYTES_PER_PARAM,
+  getInferencePrecisionScale,
   getInferenceThroughputScale,
   getTrainingMemoryModel,
   getTrainingParameterSemantics,
@@ -43,6 +44,17 @@ if (getInferenceThroughputScale(sparse120a12).factor > 1) {
   throw new Error("Sparse/small-active models must not receive an unsupported inferred throughput uplift.");
 }
 
+approx(getInferencePrecisionScale("B200", "FP4").factor, 1);
+approx(getInferencePrecisionScale("B200", "FP8").factor, 0.5);
+approx(getInferencePrecisionScale("B200", "FP16").factor, 0.25);
+approx(getInferencePrecisionScale("GB200 NVL72", "FP8").factor, 0.5);
+approx(getInferencePrecisionScale("B300", "FP8").factor, 1 / 3);
+approx(getInferencePrecisionScale("B300", "FP16").factor, 1 / 6);
+approx(getInferencePrecisionScale("GB300 NVL72", "FP8").factor, 1 / 3);
+if (getInferencePrecisionScale("B200", "FP8").factor >= getInferencePrecisionScale("B200", "FP4").factor) {
+  throw new Error("FP8 must not reuse the B200 FP4 benchmark anchor unchanged.");
+}
+
 const sparseTraining = getTrainingParameterSemantics(sparse120a12);
 approx(sparseTraining.residencyParamsB, 120);
 approx(sparseTraining.activeComputeParamsB, 12);
@@ -78,7 +90,8 @@ const gpuSizingSource = fs.readFileSync(
 const requiredSourceSnippets = [
   'from "./modelSizingMethodology.js"',
   "getInferenceThroughputScale(model, inputs.customParamsB)",
-  "gpu.anchor * throughputScale.factor",
+  "getInferencePrecisionScale(gpu.id, inputs.quant)",
+  "gpu.anchor * throughputScale.factor * precisionScale.factor",
   "getTrainingParameterSemantics(model, inputs.customParamsB)",
   "getTrainingMemoryModel(inputs.taskType, inputs.precision, inputs.memMultiplierOverride)",
   "trainingSemantics.residencyParamsB * memoryModel.bytesPerParam",
@@ -88,6 +101,9 @@ for (const snippet of requiredSourceSnippets) {
   if (!gpuSizingSource.includes(snippet)) {
     throw new Error(`GPU Sizing architecture-aware integration missing required source contract: ${snippet}`);
   }
+}
+if (gpuSizingSource.includes("const effectiveAnchor = gpu.anchor * throughputScale.factor;")) {
+  throw new Error("GPU Sizing still reuses the benchmark throughput anchor without a precision guardrail.");
 }
 if (gpuSizingSource.includes("trainingSemantics.residencyParamsB * precisionBytes * multiplier")) {
   throw new Error("GPU Sizing still scales the entire full-model training state footprint by selected compute precision.");
@@ -101,6 +117,6 @@ if (gpuSizingSource.includes("const gpusPerf = ceilDiv(totalThroughputNeeded, gp
 
 console.log(
   `Model sizing methodology PASS: ${INFERENCE_REFERENCE_MODEL.label} ${INFERENCE_REFERENCE_MODEL.activeParamsB}B reference; ` +
-  "one-sided inference scaling prevents unsupported speedups; full-model training memory uses an explicit 18 B/param state baseline independent of BF16/FP8 compute precision; training residency and active-compute semantics remain distinct; " +
+  "one-sided inference scaling prevents unsupported model speedups; FP4 inference anchors receive explicit NVIDIA-spec precision guardrails for FP8/FP16; full-model training memory uses an explicit 18 B/param state baseline independent of BF16/FP8 compute precision; training residency and active-compute semantics remain distinct; " +
   "production GPU Sizing is wired to the guarded methodology."
 );

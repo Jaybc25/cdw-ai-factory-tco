@@ -20,6 +20,69 @@ export const INFERENCE_REFERENCE_MODEL = Object.freeze({
   source: "https://developer.nvidia.com/blog/nvidia-blackwell-delivers-massive-performance-leaps-in-mlperf-inference-v5-0/",
 });
 
+// M3 precision guardrail for inference throughput anchors.
+//
+// Current Blackwell throughput anchors are empirical FP4/NVFP4 MLPerf results.
+// Reusing those token-throughput numbers unchanged for FP8 or FP16 would imply
+// precision-invariant performance that the evidence does not support. Until a
+// precision-matched LLM benchmark is loaded, scale only downward using NVIDIA's
+// published *dense* Tensor Core peak ratios for the corresponding platform.
+// This is intentionally a conservative planning guardrail, not a claim that
+// application token throughput scales linearly with peak FLOPS.
+export const INFERENCE_PRECISION_PROFILES = Object.freeze({
+  B200: Object.freeze({
+    anchorPrecision: "FP4",
+    scales: Object.freeze({ FP4: 1, FP8: 0.5, FP16: 0.25 }),
+    source: "NVIDIA HGX B200 specifications: dense FP4 72 PFLOPS/system; dense FP8 36 PFLOPS/system; dense FP16/BF16 18 PFLOPS/system.",
+  }),
+  "GB200 NVL72": Object.freeze({
+    anchorPrecision: "FP4",
+    scales: Object.freeze({ FP4: 1, FP8: 0.5, FP16: 0.25 }),
+    source: "NVIDIA GB200 NVL72 specifications: dense NVFP4 720 PFLOPS/rack; dense FP8 360 PFLOPS/rack; dense FP16/BF16 180 PFLOPS/rack.",
+  }),
+  B300: Object.freeze({
+    anchorPrecision: "FP4",
+    scales: Object.freeze({ FP4: 1, FP8: 1 / 3, FP16: 1 / 6 }),
+    source: "NVIDIA HGX/DGX B300 specifications: dense FP4 108 PFLOPS/system; dense FP8 36 PFLOPS/system; dense FP16/BF16 18 PFLOPS/system.",
+  }),
+  "GB300 NVL72": Object.freeze({
+    anchorPrecision: "FP4",
+    scales: Object.freeze({ FP4: 1, FP8: 1 / 3, FP16: 1 / 6 }),
+    source: "NVIDIA GB300 NVL72 specifications: dense FP4 1,080 PFLOPS/rack; dense FP8 360 PFLOPS/rack; dense FP16/BF16 180 PFLOPS/rack.",
+  }),
+});
+
+export function getInferencePrecisionScale(gpuId, quant) {
+  const profile = INFERENCE_PRECISION_PROFILES[gpuId];
+  if (!profile) {
+    return {
+      factor: 1,
+      anchorPrecision: null,
+      selectedPrecision: quant,
+      confidence: "LOW",
+      basis: `No precision profile is loaded for ${gpuId}; no precision-specific throughput adjustment is applied.`,
+      source: null,
+    };
+  }
+
+  const factor = profile.scales[quant];
+  if (!Number.isFinite(factor) || factor <= 0 || factor > 1) {
+    throw new Error(`${gpuId} has no valid inference precision scale for ${quant}.`);
+  }
+
+  const matched = quant === profile.anchorPrecision;
+  return {
+    factor,
+    anchorPrecision: profile.anchorPrecision,
+    selectedPrecision: quant,
+    confidence: matched ? "BENCHMARK-MATCHED" : "DERIVED",
+    basis: matched
+      ? `${quant} matches the loaded ${profile.anchorPrecision} benchmark precision; no precision penalty is applied.`
+      : `${quant} differs from the loaded ${profile.anchorPrecision} benchmark precision; throughput is conservatively capped at ${(factor * 100).toFixed(1)}% of the benchmark anchor using NVIDIA published dense Tensor Core peak ratios. This is a guardrail, not a precision-matched token benchmark.`,
+    source: profile.source,
+  };
+}
+
 export const SEQUENCE_STATE_TYPES = Object.freeze([
   "standard-kv",
   "mla",

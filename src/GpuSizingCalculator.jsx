@@ -7,7 +7,7 @@ import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
 import { GPU_SIZING_PRICE_USD as GPU_PRICE_USD } from "./pricingRegistry.js";
 import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelParamsB } from "./modelRegistry.js";
-import { getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingMemoryModel, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
+import { getInferencePrecisionScale, getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingMemoryModel, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
 import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
 import { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";
 import { getRubinInferenceAdvisory } from "./rubinInferenceAdvisory.js";
@@ -231,12 +231,13 @@ function computeInference(inputs) {
   const throughputScale = getInferenceThroughputScale(model, inputs.customParamsB);
 
   const candidates = GPU_SPECS.map((gpu) => {
-    const effectiveAnchor = gpu.anchor * throughputScale.factor;
+    const precisionScale = getInferencePrecisionScale(gpu.id, inputs.quant);
+    const effectiveAnchor = gpu.anchor * throughputScale.factor * precisionScale.factor;
     const gpusMemExact = totalMemoryGB / gpu.vram;
     const gpusPerfExact = totalThroughputNeeded / effectiveAnchor;
     const gpusMem = Math.ceil(gpusMemExact);
     const gpusPerf = Math.ceil(gpusPerfExact);
-    return { ...gpu, effectiveAnchor, gpusMem, gpusPerf, gpusWorkloadExact: Math.max(gpusMemExact, gpusPerfExact), gpusWorkload: Math.max(gpusMem, gpusPerf) };
+    return { ...gpu, precisionScale, effectiveAnchor, gpusMem, gpusPerf, gpusWorkloadExact: Math.max(gpusMemExact, gpusPerfExact), gpusWorkload: Math.max(gpusMem, gpusPerf) };
   });
 
   function budgetFor(gpuId, deployedCount) {
@@ -269,7 +270,7 @@ function computeInference(inputs) {
   const confidence =
     model.status !== "VERIFIED"
       ? { level: "LOW", note: "Model architecture not yet verified (custom entry); hardware reference anchors are not treated as model-specific throughput." }
-      : { level: "MEDIUM", note: `${throughputScale.basis} GPU anchors remain hardware benchmark references rather than universal model-specific throughput.` };
+      : { level: "MEDIUM", note: `${throughputScale.basis} ${selected.precisionScale.basis} GPU anchors remain hardware benchmark references rather than universal model-specific throughput.` };
 
   const rtxEffectiveAnchor = RTX_SPEC.anchor * throughputScale.factor;
   const rtxGpusMem = ceilDiv(totalMemoryGB, RTX_SPEC.vram);
@@ -1174,7 +1175,7 @@ function GPUSizingCalculatorInner() {
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Caveats &amp; methodology</div>
             <div className="text-xs text-gray-500 p-4 bg-gray-50 rounded-lg mb-6 leading-relaxed">
               {mode === "Inference"
-                ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
+                ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are adjusted conservatively for active compute and, when selected precision differs from benchmark precision, by a downward NVIDIA dense Tensor Core peak-ratio guardrail; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
                 : `Resident training-state memory modeled: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; activation and temporary-workspace memory is workload-specific and not separately modeled. Training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit resident state, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}
               {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes. This is a directional sizing estimate, not a final bill of materials -- confirm with a CDW AI Factory specialist before purchasing.
             </div>
@@ -1248,7 +1249,9 @@ function GPUSizingCalculatorInner() {
                 <AuditFormula label="Runtime/activation overhead" formula="runtimeOverheadGB = (weightMemoryGB + kvCacheTotalGB) × overhead%" substituted={`= (${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)}) × ${Math.round(overheadPct * 100)}%`} result={`${result.runtimeOverheadGB.toFixed(1)} GB`} />
                 <AuditFormula label="Total memory required" formula="totalMemoryGB = weightMemoryGB + kvCacheTotalGB + runtimeOverheadGB" substituted={`= ${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)} + ${result.runtimeOverheadGB.toFixed(1)}`} result={`${result.totalMemoryGB.toFixed(1)} GB`} />
                 <AuditFormula label="Total throughput required" formula="totalThroughputNeeded = concurrentUsers × targetTokPerUser" substituted={`= ${concurrentUsers.toLocaleString()} × ${targetTokPerUser}`} result={`${result.totalThroughputNeeded.toLocaleString()} tok/s`} />
-                <AuditFormula label="Model-aware throughput adjustment" formula="effectiveAnchor = hardwareAnchor × min(1, 70B ÷ activeComputeParamsB)" substituted={`= hardware anchor × ${result.throughputScale.factor.toFixed(3)} (${result.throughputScale.activeParamsB ?? "unknown"}B active params)`} result={result.throughputScale.factor < 1 ? "Conservative throughput penalty applied" : "No inferred speedup applied"} />
+                <AuditFormula label="Model-aware throughput scale" formula="modelScale = min(1, 70B ÷ activeComputeParamsB)" substituted={`= ${result.throughputScale.factor.toFixed(3)} (${result.throughputScale.activeParamsB ?? "unknown"}B active params)`} result={result.throughputScale.factor < 1 ? "Conservative model-size penalty applied" : "No inferred model-size speedup applied"} />
+                <AuditFormula label={`Precision throughput guardrail (${quant})`} formula="precisionScale = selectedPrecisionPeak ÷ benchmarkPrecisionPeak (capped at 1.0)" substituted={`= ${selected.precisionScale.factor.toFixed(3)} vs ${selected.precisionScale.anchorPrecision} benchmark`} result={selected.precisionScale.factor < 1 ? "Downward precision guardrail applied" : "Benchmark precision matched"} />
+                <AuditFormula label="Effective throughput anchor" formula="effectiveAnchor = hardwareAnchor × modelScale × precisionScale" substituted={`= ${selected.anchor.toLocaleString()} × ${result.throughputScale.factor.toFixed(3)} × ${selected.precisionScale.factor.toFixed(3)}`} result={`${Math.round(selected.effectiveAnchor).toLocaleString()} tok/s`} />
                 <div className="overflow-x-auto mb-3">
                   <table className="w-full text-xs" style={{ color: CHARCOAL }}>
                     <thead><tr className="text-gray-500 border-b" style={{ borderColor: "#D1D5DB" }}><th className="text-left py-1 pr-2">GPU</th><th className="text-right py-1 pr-2">Memory-bound</th><th className="text-right py-1 pr-2">Perf-bound</th><th className="text-right py-1 pr-2">Technical GPUs</th><th className="text-right py-1">Node-rounded</th></tr></thead>
@@ -1317,7 +1320,8 @@ function GPUSizingCalculatorInner() {
                 {mode === "Inference" ? (
                   <>
                     <AuditRow label="Hardware throughput anchor" value={`${selected.anchor.toLocaleString()} tok/s (${selected.anchorPrecision})`} sub={`Confidence: ${selected.confidence} -- ${selected.source}`} />
-                    <AuditRow label="Model-adjusted effective anchor" value={`${Math.round(selected.effectiveAnchor).toLocaleString()} tok/s`} sub={result.throughputScale.basis} />
+                    <AuditRow label={`Precision guardrail (${quant})`} value={`×${selected.precisionScale.factor.toFixed(3)}`} sub={`${selected.precisionScale.basis} ${selected.precisionScale.source || ""}`.trim()} />
+                    <AuditRow label="Effective throughput anchor" value={`${Math.round(selected.effectiveAnchor).toLocaleString()} tok/s`} sub={result.throughputScale.basis} />
                   </>
                 ) : <AuditRow label={`Peak TFLOPS (${precision})`} value={selected.peakTFLOPS.toLocaleString()} sub={`Confidence: ${selected.confidence || result.confidence.level} -- ${selected.source || "NVIDIA published spec-sheet values"}`} />}
                 <div className="text-xs font-semibold mb-1 mt-3" style={{ color: CHARCOAL }}>Pricing</div>
@@ -1450,7 +1454,7 @@ function GPUSizingCalculatorInner() {
               )}
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
-              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are model-adjusted conservatively for active compute; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Resident training-state memory modeled: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; activation and temporary-workspace memory is workload-specific and not separately modeled. Training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit resident state, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "a 72-GPU NVL rack for this class" : "8-GPU DGX-class nodes for this class"}).</div>
+              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are adjusted conservatively for active compute and, when selected precision differs from benchmark precision, by a downward NVIDIA dense Tensor Core peak-ratio guardrail; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Resident training-state memory modeled: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; activation and temporary-workspace memory is workload-specific and not separately modeled. Training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit resident state, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "a 72-GPU NVL rack for this class" : "8-GPU DGX-class nodes for this class"}).</div>
               <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
                 <button onClick={requestReport} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
