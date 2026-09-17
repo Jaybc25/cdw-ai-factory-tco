@@ -212,15 +212,12 @@ function computeInference(inputs) {
 
   const candidates = GPU_SPECS.map((gpu) => {
     const effectiveAnchor = gpu.anchor * throughputScale.factor;
-    const gpusMem = ceilDiv(totalMemoryGB, gpu.vram);
-    const gpusPerf = ceilDiv(totalThroughputNeeded, effectiveAnchor);
-    return { ...gpu, effectiveAnchor, gpusMem, gpusPerf, gpusWorkload: Math.max(gpusMem, gpusPerf) };
+    const gpusMemExact = totalMemoryGB / gpu.vram;
+    const gpusPerfExact = totalThroughputNeeded / effectiveAnchor;
+    const gpusMem = Math.ceil(gpusMemExact);
+    const gpusPerf = Math.ceil(gpusPerfExact);
+    return { ...gpu, effectiveAnchor, gpusMem, gpusPerf, gpusWorkloadExact: Math.max(gpusMemExact, gpusPerfExact), gpusWorkload: Math.max(gpusMem, gpusPerf) };
   });
-
-  const autoRecommended = selectDeployableRecommendation(candidates);
-  const selected = inputs.gpuClassOverride === "Auto-recommend"
-    ? autoRecommended
-    : candidates.find((c) => c.id === inputs.gpuClassOverride);
 
   function budgetFor(gpuId, deployedCount) {
     const price = GPU_PRICE_USD[gpuId];
@@ -231,8 +228,12 @@ function computeInference(inputs) {
   const priced = candidates.map((c) => {
     const count = Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize;
     const b = budgetFor(c.id, count);
-    return { ...c, deployedCount: count, deployedCost: b ? b.amount : null };
+    return { ...c, deployedCount: count, deployedCost: b ? b.amount : null, technicalUtilization: Math.min(c.gpusWorkloadExact / count, 1) };
   });
+  const autoRecommended = selectDeployableRecommendation(priced);
+  const selected = inputs.gpuClassOverride === "Auto-recommend"
+    ? autoRecommended
+    : priced.find((c) => c.id === inputs.gpuClassOverride);
   const selectedPriced = priced.find((c) => c.id === selected.id);
   const nonRecommended = priced.filter((c) => c.id !== selected.id);
 
@@ -329,16 +330,13 @@ function computeTraining(inputs) {
 
   const candidates = TRAINING_GPU_SPECS.map((gpu) => {
     const peakTFLOPS = inputs.precision === "FP8" ? (gpu.fp8 ?? gpu.bf16) : gpu.bf16;
-    const gpusFit = ceilDiv(trainingMemoryGB, gpu.vram);
+    const gpusFitExact = trainingMemoryGB / gpu.vram;
+    const gpusFit = Math.ceil(gpusFitExact);
     const achievableFlopsPerSec = peakTFLOPS * 1e12 * inputs.mfu;
-    const gpusTime = ceilDiv(flopsRequired, achievableFlopsPerSec * secondsTarget);
-    return { ...gpu, peakTFLOPS, gpusFit, gpusTime, gpusWorkload: Math.max(gpusFit, gpusTime) };
+    const gpusTimeExact = flopsRequired / (achievableFlopsPerSec * secondsTarget);
+    const gpusTime = Math.ceil(gpusTimeExact);
+    return { ...gpu, peakTFLOPS, gpusFit, gpusTime, gpusWorkloadExact: Math.max(gpusFitExact, gpusTimeExact), gpusWorkload: Math.max(gpusFit, gpusTime) };
   });
-
-  const autoRecommended = selectDeployableRecommendation(candidates);
-  const selected = inputs.gpuClassOverride === "Auto-recommend"
-    ? autoRecommended
-    : candidates.find((c) => c.id === inputs.gpuClassOverride);
 
   function budgetFor(gpuId, deployedCount) {
     const price = GPU_PRICE_USD[gpuId];
@@ -349,8 +347,12 @@ function computeTraining(inputs) {
   const priced = candidates.map((c) => {
     const count = Math.ceil(c.gpusWorkload / c.nodeSize) * c.nodeSize;
     const b = budgetFor(c.id, count);
-    return { ...c, deployedCount: count, deployedCost: b ? b.amount : null };
+    return { ...c, deployedCount: count, deployedCost: b ? b.amount : null, technicalUtilization: Math.min(c.gpusWorkloadExact / count, 1) };
   });
+  const autoRecommended = selectDeployableRecommendation(priced);
+  const selected = inputs.gpuClassOverride === "Auto-recommend"
+    ? autoRecommended
+    : priced.find((c) => c.id === inputs.gpuClassOverride);
   const selectedPriced = priced.find((c) => c.id === selected.id);
   const nonRecommended = priced.filter((c) => c.id !== selected.id);
 
@@ -957,13 +959,16 @@ function GPUSizingCalculatorInner() {
   const result = mode === "Inference" ? inferenceResult : trainingResult;
   const errors = mode === "Inference" ? infErrors : trainErrors;
   const [tcoSelection, setTcoSelection] = useState("recommended");
+  const sizingScenarioKey = mode === "Inference"
+    ? [mode, infModel.id, quant, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride, customParamsB, customLayers, customKvHeads, customHeadDim].join("|")
+    : [mode, trainModel.id, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride, customParamsB].join("|");
   const effectiveTcoSelection = tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
   const tcoSelectedClass = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
   const tcoSelectedCount = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
   const selectedBudget = effectiveTcoSelection === "higher-growth" ? result?.budget?.higherGrowth : result?.budget?.recommended;
   useEffect(() => {
     setTcoSelection("recommended");
-  }, [mode, result?.selectedClass, result?.recommended, result?.higherGrowth?.class, result?.higherGrowth?.recommended]);
+  }, [sizingScenarioKey, result?.selectedClass, result?.recommended, result?.higherGrowth?.class, result?.higherGrowth?.recommended]);
   const modelLabel = mode === "Inference" ? infModel.label : trainModel.label;
 
   useAutosaveSnapshot(

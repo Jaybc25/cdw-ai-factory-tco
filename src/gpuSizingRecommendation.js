@@ -6,9 +6,23 @@
 //
 // Ranking order:
 // 1. Fewer node-rounded/deployable GPUs.
-// 2. Lower raw workload GPU requirement.
+// 2. Within the same deployed footprint, avoid >85% technical saturation when
+//    another candidate preserves production headroom.
 // 3. Lower acquisition cost when both candidates have priced configurations.
-// 4. Stable catalog order as final deterministic tie-break.
+// 4. Lower raw workload GPU requirement.
+// 5. Stable catalog order as final deterministic tie-break.
+//
+// The 85% boundary matches the calculator's existing high-utilization band.
+// Unknown utilization is treated conservatively and never outranks a known
+// candidate with adequate headroom.
+
+export const PRODUCTION_HEADROOM_UTILIZATION_LIMIT = 0.85;
+
+function headroomRank(candidate) {
+  const utilization = Number(candidate?.technicalUtilization);
+  if (!Number.isFinite(utilization)) return 1;
+  return utilization > PRODUCTION_HEADROOM_UTILIZATION_LIMIT ? 1 : 0;
+}
 
 export function withDeployableCount(candidate) {
   if (!candidate || !Number.isFinite(candidate.gpusWorkload) || !Number.isFinite(candidate.nodeSize) || candidate.nodeSize <= 0) {
@@ -28,12 +42,15 @@ export function selectDeployableRecommendation(candidates) {
 
   ranked.sort((a, b) => {
     if (a.deployedCount !== b.deployedCount) return a.deployedCount - b.deployedCount;
-    if (a.gpusWorkload !== b.gpusWorkload) return a.gpusWorkload - b.gpusWorkload;
+
+    const headroomDelta = headroomRank(a) - headroomRank(b);
+    if (headroomDelta !== 0) return headroomDelta;
 
     const aCost = Number.isFinite(a.deployedCost) ? a.deployedCost : null;
     const bCost = Number.isFinite(b.deployedCost) ? b.deployedCost : null;
     if (aCost != null && bCost != null && aCost !== bCost) return aCost - bCost;
 
+    if (a.gpusWorkload !== b.gpusWorkload) return a.gpusWorkload - b.gpusWorkload;
     return a.__catalogIndex - b.__catalogIndex;
   });
 

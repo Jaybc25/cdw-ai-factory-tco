@@ -51,21 +51,23 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
 
   // MoE: Scout is only 17B active per token but 109B resident. The one-sided
   // throughput rule gives it no unsupported speedup, while residency still
-  // changes the technical fit. Deployable ranking correctly prefers a 1-GPU
-  // technical B300 requirement rounded to 8 GPUs over a 1-GPU GB200 NVL72
-  // requirement that would force a 72-GPU deployment.
+  // changes the technical fit. F4 now compares the actual 8-GPU purchase: B200
+  // needs two technical GPUs but retains acceptable headroom and is cheaper than
+  // the one-technical-GPU B300, so the production recommendation remains one
+  // 8-GPU node without paying extra for unused technical efficiency.
   await chooseInferenceModel(page, "llama-4-scout");
-  await expect(resultCard(page, "Minimum technical")).toContainText("1 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B300");
+  await expect(resultCard(page, "Minimum technical")).toContainText("2 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("B200");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // Hybrid: Maverick has the same 17B active-per-token concept as Scout but
-  // a 400B resident model. If active parameters were incorrectly substituted
-  // for residency this would collapse toward Scout. Correct behavior remains
-  // memory-bound and selects two B300s before 8-GPU node rounding.
+  // a 400B resident model. Residency still materially increases the memory-bound
+  // technical requirement relative to Scout. Under F4, B200 needs three technical
+  // GPUs but still fits safely within one 8-GPU node, so its lower deployed cost
+  // wins over the two-technical-GPU B300 option with the same deployed footprint.
   await chooseInferenceModel(page, "llama-4-maverick");
-  await expect(resultCard(page, "Minimum technical")).toContainText("2 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B300");
+  await expect(resultCard(page, "Minimum technical")).toContainText("3 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("B200");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 });
 
@@ -126,25 +128,29 @@ test("higher-growth production design is opt-in for TCO and resets after re-sizi
   expect(resetHref).toContain("sizingBasis=recommended");
 });
 
-test("GB300 NVL72 rack-scale recommendation preserves GPU Sizing to TCO handoff", async ({ page }) => {
+test("rack-scale same-footprint recommendation preserves GPU Sizing to TCO handoff", async ({ page }) => {
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await chooseInferenceModel(page, "deepseek-v4-pro-0813");
   await page.getByLabel("Peak concurrent users").fill("20000");
   await page.getByLabel("Target tokens/sec per user").fill("50");
 
-  await expect(resultCard(page, "Minimum technical")).toContainText("64 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("GB300 NVL72");
+  // B300 and GB300 both node-round this scenario to 72 deployed GPUs and
+  // both sit in the high-utilization band. With no same-footprint candidate
+  // below the 85% headroom boundary, F4 correctly uses deployed acquisition
+  // cost before raw technical GPU count, selecting 72 B300s.
+  await expect(resultCard(page, "Minimum technical")).toContainText("71 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("B300");
   await expect(resultCard(page, "Recommended")).toContainText("72 GPUs");
-  await expect(resultCard(page, "Recommended")).toContainText("GB300 NVL72");
+  await expect(resultCard(page, "Recommended")).toContainText("B300");
   await expect(page.getByText("TCO modeling not yet activated", { exact: true })).toHaveCount(0);
 
   const tcoLink = page.getByRole("link", { name: "Compare TCO" });
   await expect(tcoLink).toBeVisible();
   const href = await tcoLink.getAttribute("href");
   const params = new URL(href, "http://local.test").searchParams;
-  expect(params.get("ownSys")).toBe("DGX GB300 NVL-72");
+  expect(params.get("ownSys")).toBe("DGX B300");
   expect(params.get("gpuCount")).toBe("72");
-  expect(params.get("sourceClass")).toBe("GB300 NVL72");
+  expect(params.get("sourceClass")).toBe("B300");
   expect(params.get("sizingBasis")).toBe("recommended");
   expect(params.get("model")).toBe("deepseek-v4-pro-0813");
   expect(params.get("modelParamsB")).toBe("1650");
@@ -153,9 +159,9 @@ test("GB300 NVL72 rack-scale recommendation preserves GPU Sizing to TCO handoff"
 
   await page.goto(href, { waitUntil: "domcontentloaded" });
   const saved = await waitForTcoSession(page, {
-    ownSys: "DGX GB300 NVL-72",
+    ownSys: "DGX B300",
     gpuSizingCount: 72,
-    sourceClass: "GB300 NVL72",
+    sourceClass: "B300",
     gpuSizingBasis: "recommended",
     modelId: "deepseek-v4-pro-0813",
   });

@@ -37,13 +37,31 @@ const costTieBreak = selectDeployableRecommendation([
 ]);
 assert(costTieBreak.id === "B", `Expected lower cost tie-break, got ${costTieBreak.id}`);
 
+// F4: when both options deploy the same node count and both retain adequate
+// headroom, do not spend more just because one has a lower raw GPU requirement.
+const safeCostWins = selectDeployableRecommendation([
+  { id: "EXPENSIVE", gpusWorkload: 4, nodeSize: 8, deployedCost: 900000, technicalUtilization: 0.50 },
+  { id: "CHEAPER", gpusWorkload: 6, nodeSize: 8, deployedCost: 750000, technicalUtilization: 0.75 },
+]);
+assert(safeCostWins.id === "CHEAPER", `Expected lower-cost safe-headroom option, got ${safeCostWins.id}`);
+
+// F4/F5 boundary: cost must not promote a materially saturated option over an
+// equally sized deployed alternative with reasonable production headroom.
+const headroomWins = selectDeployableRecommendation([
+  { id: "CHEAP-SATURATED", gpusWorkload: 8, nodeSize: 8, deployedCost: 700000, technicalUtilization: 0.96 },
+  { id: "HEADROOM", gpusWorkload: 6, nodeSize: 8, deployedCost: 900000, technicalUtilization: 0.75 },
+]);
+assert(headroomWins.id === "HEADROOM", `Expected production-headroom option, got ${headroomWins.id}`);
+
 const source = fs.readFileSync("src/GpuSizingCalculator.jsx", "utf8");
-assert(source.includes('selectDeployableRecommendation'), "GPU Sizing must use deployable recommendation selector");
+assert((source.match(/selectDeployableRecommendation\(priced\)/g) || []).length === 2, "Inference and training must rank priced, node-rounded candidates");
+assert((source.match(/technicalUtilization: Math\.min\(c\.gpusWorkloadExact \/ count, 1\)/g) || []).length === 2, "Inference and training must supply continuous technical utilization before ranking");
 assert(!source.includes('Loaded budget/TCO economics are intentionally not shown yet'), "Stale Rubin TCO-gated report copy must be removed");
 assert(source.includes('Inference candidates remain limited to classes with defensible absolute'), "Rubin inference evidence gate must remain explicit");
 
 console.log("GPU deployable recommendation ranking PASS");
 console.log("- node-rounded deployment beats raw GPU-count ranking");
+console.log("- same-footprint options preserve headroom first, then prefer lower deployed cost");
 console.log("- Rubin NVL8 can win when it reduces actual deployed capacity");
 console.log("- NVL72 does not win when node rounding makes the real deployment larger");
 console.log("- inference Rubin evidence gate remains unchanged");
