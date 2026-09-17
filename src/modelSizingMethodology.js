@@ -318,7 +318,7 @@ export function getTrainingMemoryModel(taskType, precision, multiplierOverride =
     bytesPerParam: FULL_MODEL_TRAINING_STATE_BYTES_PER_PARAM,
     precisionBytes,
     multiplier: null,
-    basis: "NVIDIA Megatron Core mixed-precision Adam baseline: 18 bytes/parameter for resident model + optimizer state. FP8 is treated as compute precision and does not automatically halve stored model/optimizer state.",
+    basis: "NVIDIA Megatron Core mixed-precision Adam baseline: 18 bytes/parameter for resident model + optimizer state. FP8 is treated as compute precision and does not automatically halve stored model/optimizer state. Activation and temporary-workspace memory remains workload-specific and is not separately modeled here.",
     source: "NVIDIA Megatron Core Distributed Optimizer + NVIDIA Transformer Engine low-precision training guidance",
   };
 }
