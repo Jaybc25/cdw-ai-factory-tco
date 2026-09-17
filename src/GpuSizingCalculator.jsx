@@ -111,8 +111,28 @@ const GPU_SPECS = [
   { id: "GB300 NVL72", vram: 288, bf16: 2250, fp8: 5500, anchor: 15651, anchorPrecision: "FP4 (NVFP4)", confidence: "LISTED", source: "NVIDIA MLPerf Inference v6.0, Llama 2 70B Offline: 1,126,850 tok/s on 72x GB300 / 72 = 15,650.7 tok/s/GPU", nodeSize: 72 },
 ].filter((gpu) => GPU_PRICE_USD[gpu.id]);
 
+// Training uses the same hardware capacity fields as inference for the
+// pre-Rubin classes, but it must not inherit inference benchmark provenance.
+// These labels describe the evidence basis for the BF16/FP8 peak-compute fields
+// only; M1 intentionally does not change or re-calibrate any numeric TFLOPS value.
+const TRAINING_GPU_SOURCE = Object.freeze({
+  H200: "NVIDIA H200 Tensor Core GPU published specifications; peak BF16/FP8 Tensor Core throughput used for training sizing.",
+  B200: "NVIDIA Blackwell / DGX B200 published specifications; peak BF16/FP8 Tensor Core throughput used for training sizing.",
+  "GB200 NVL72": "NVIDIA GB200 NVL72 published specifications; peak BF16/FP8 Tensor Core throughput used for training sizing.",
+  B300: "NVIDIA Blackwell Ultra / DGX B300 published specifications; peak BF16/FP8 Tensor Core throughput used for training sizing.",
+  "GB300 NVL72": "NVIDIA GB300 NVL72 published specifications; peak BF16/FP8 Tensor Core throughput used for training sizing.",
+});
+
 const TRAINING_GPU_SPECS = [
-  ...GPU_SPECS,
+  ...GPU_SPECS.map((gpu) => ({
+    id: gpu.id,
+    vram: gpu.vram,
+    bf16: gpu.bf16,
+    fp8: gpu.fp8,
+    nodeSize: gpu.nodeSize,
+    confidence: gpu.confidence,
+    source: TRAINING_GPU_SOURCE[gpu.id],
+  })),
   ...RUBIN_TRAINING_CANDIDATES.map((gpu) => ({
     id: gpu.id,
     vram: gpu.vramGB,

@@ -13,6 +13,10 @@ function resultCard(page, title) {
   return page.getByText(title, { exact: true }).first().locator("..").locator("..");
 }
 
+function gpuSelectFor(page, gpuId) {
+  return page.locator("select").filter({ has: page.locator(`option[value="${gpuId}"]`) }).first();
+}
+
 async function chooseInferenceModel(page, modelId) {
   const select = modelSelectFor(page, modelId);
   await expect(select).toBeVisible();
@@ -101,6 +105,24 @@ test("training sizing uses total parameters for resident state and active parame
   await expect(resultCard(page, "Minimum technical")).toContainText("50 GPUs");
   await expect(resultCard(page, "Minimum technical")).toContainText("B300");
   await expect(resultCard(page, "Recommended")).toContainText("56 GPUs");
+});
+
+// The production cards themselves are the TCO-selection controls; there is no
+// duplicate selector lower on the page.
+test("training audit uses training TFLOPS provenance rather than inference benchmark provenance", async ({ page }) => {
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+  await switchToTraining(page);
+
+  const gpuSelect = gpuSelectFor(page, "B300");
+  await expect(gpuSelect).toBeVisible();
+  await gpuSelect.selectOption("B300");
+  await expect(gpuSelect).toHaveValue("B300");
+
+  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
+  await expect(page.getByText("Selected GPU -- B300", { exact: true })).toBeVisible();
+  await expect(page.getByText("Peak TFLOPS (BF16)", { exact: true })).toBeVisible();
+  await expect(page.getByText(/NVIDIA Blackwell Ultra \/ DGX B300 published specifications; peak BF16\/FP8 Tensor Core throughput used for training sizing\./)).toBeVisible();
+  await expect(page.getByText(/MLPerf Inference/i)).toHaveCount(0);
 });
 
 // The production cards themselves are the TCO-selection controls; there is no
