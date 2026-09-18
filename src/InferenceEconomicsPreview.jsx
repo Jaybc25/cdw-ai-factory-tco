@@ -133,7 +133,7 @@ export default function InferenceEconomicsPreview() {
   return (
     <main style={{maxWidth:1100,margin:"0 auto",padding:"28px 20px 64px",fontFamily:"Inter,system-ui,sans-serif",color:"#232323"}}>
       <div style={{border:"1px solid #f0b7b7",background:"#fff7f7",borderRadius:10,padding:"14px 16px",marginBottom:20}}>
-        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-5.4</div>
+        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-5.5</div>
         <div style={{fontSize:14,fontWeight:700,marginTop:4}}>Inference Economics Preview</div>
         <div style={{fontSize:12,lineHeight:1.55,color:"#555",marginTop:4}}>Experimental cost-per-1M-output-tokens modeling. The connector only carries context from TCO into this Preview; it does not change TCO calculations, reports, or recommendations.</div>
       </div>
@@ -147,7 +147,7 @@ export default function InferenceEconomicsPreview() {
           ) : null}
           {handoff?.fleetGrowthConservative ? (
             <div style={{marginTop:6,color:"#555"}}>
-              <b>Conservative fleet-growth treatment:</b> TCO includes the cost of additional systems across the horizon, but this Preview gives throughput credit only to the initial benchmark-supported deployment. If growing demand exceeds that supported capacity, the result is suppressed rather than assuming multi-system scaling.
+              <b>Conservative fleet-growth treatment:</b> TCO includes the cost of additional systems across the horizon, but this Preview gives throughput credit only to the initial benchmark-supported deployment{handoff?.totalDeployedGpuCount ? ` (${handoff.gpuCount} of ${handoff.totalDeployedGpuCount} GPUs credited)` : ""}. If growing demand exceeds that supported capacity, the result is suppressed rather than assuming multi-system scaling.
             </div>
           ) : null}
           {handoff?.blockers?.length ? (
@@ -164,7 +164,14 @@ export default function InferenceEconomicsPreview() {
           <Field label="Hardware" help="The on-prem GPU system used for this inference workload. If you arrived from TCO, this is inherited and locked so the Preview stays tied to the same scenario.">
             <select value={hardwareClass} onChange={e=>handleHardwareChange(e.target.value)} style={input} disabled={inherited}>{[...new Set([...(hardwareClass ? [hardwareClass] : []), ...HARDWARE])].map(x=><option key={x}>{x}</option>)}</select>
           </Field>
-          <Field label="Deployed GPUs" help="The total GPU count in the modeled deployment. This Preview currently supports only the exact GPU count used by the source benchmark: 8 GPUs for H200/B200/B300 and 72 GPUs for NVL72 systems."><input type="number" min="1" value={deployedGpuCount} onChange={e=>setDeployedGpuCount(e.target.value)} style={input} disabled={inherited}/><div style={subnote}>Preview economics currently require the exact source benchmark configuration: 8 GPUs for H200/B200/B300 and 72 GPUs for NVL72 systems.</div></Field>
+          <Field label="Throughput-credit GPUs" help="The GPU count this Preview is allowed to credit for throughput. For inherited TCO scenarios, this is capped at one source-qualified benchmark configuration even if the paid fleet is larger.">
+            <input type="number" min="1" value={deployedGpuCount} onChange={e=>setDeployedGpuCount(e.target.value)} style={input} disabled={inherited}/>
+            <div style={subnote}>
+              {handoff?.totalDeployedGpuCount && handoff.totalDeployedGpuCount !== deployedGpuCount
+                ? `TCO fleet: ${handoff.totalDeployedGpuCount} GPUs. Preview throughput credit: ${deployedGpuCount} GPUs. Extra fleet cost remains in TCO; extra throughput is not assumed.`
+                : "Preview economics currently require the exact source benchmark configuration: 8 GPUs for H200/B200/B300 and 72 GPUs for NVL72 systems."}
+            </div>
+          </Field>
           <Field label="Model" help="The language model being served. Model size changes expected throughput. If inherited from TCO, keep it locked to preserve the same scenario.">
             <select value={modelId} onChange={e=>setModelId(e.target.value)} style={input} disabled={inherited}>{modelOptions.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select>
           </Field>

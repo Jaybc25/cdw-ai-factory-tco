@@ -81,9 +81,34 @@ const fleetGrowth = buildInferenceEconomicsPreviewHandoff({
 });
 assert.equal(fleetGrowth.blockers.includes("FLEET_GROWTH_NOT_MODELED"), false);
 assert.equal(fleetGrowth.fleetGrowthConservative, true);
+assert.equal(fleetGrowth.gpuCount, 8);
+assert.equal(fleetGrowth.totalDeployedGpuCount, 8);
 assert.equal(fleetGrowth.inferenceShare, 0.5);
 assert.equal(fleetGrowth.attributableTcoUsd, 750_000);
 assert.equal(fleetGrowth.allocationMethod, "WORKLOAD_SHARE_MODELED");
+
+// A current 2-system B200 fleet keeps all 16 GPUs in TCO context but credits
+// only one benchmark-supported 8-GPU system for throughput.
+const twoSystemFleet = buildInferenceEconomicsPreviewHandoff({
+  ownSys: "DGX B200",
+  systemCount: 2,
+  gpusPerSystem: 8,
+  fleetSystemsByYear: [2, 2, 2],
+  modelId: "llama-3.1-70b",
+  quant: "FP8",
+  horizonYears: 3,
+  onPremTcoUsd: 3_547_569,
+  trainShare: 0,
+  growth: 0.25,
+});
+assert.equal(twoSystemFleet.gpuCount, 8);
+assert.equal(twoSystemFleet.totalDeployedGpuCount, 16);
+assert.equal(twoSystemFleet.attributableTcoUsd, 3_547_569);
+const parsedTwoSystem = parseInferenceEconomicsPreviewHandoff(
+  twoSystemFleet.href.slice(twoSystemFleet.href.indexOf("?"))
+);
+assert.equal(parsedTwoSystem.gpuCount, 8);
+assert.equal(parsedTwoSystem.totalDeployedGpuCount, 16);
 
 // Unknown workload mix must stay unknown rather than defaulting to 100% inference.
 const unknownShare = buildInferenceEconomicsPreviewHandoff({
@@ -146,7 +171,7 @@ const ui = fs.readFileSync("src/InferenceEconomicsPreview.jsx", "utf8");
 assert.ok(tco.includes("Open Inference Economics Preview"));
 assert.ok(tco.includes("buildInferenceEconomicsPreviewHandoff"));
 assert.ok(tco.includes("fleetSystemsByYear: r.fleetAdj"));
-assert.ok(ui.includes("PREVIEW — IE-5.4"));
+assert.ok(ui.includes("PREVIEW — IE-5.5"));
 assert.ok(ui.includes("parseInferenceEconomicsPreviewHandoff"));
 assert.ok(ui.includes("Modeled TCO allocation"));
 assert.ok(ui.includes("does not change TCO calculations, reports, or recommendations"));
@@ -163,3 +188,9 @@ assert.ok(ui.includes("Inherited TCO scenario is not yet eligible for token econ
 // IE-5.4: fleet growth is a conservative disclosure, not a blanket blocker.
 assert.ok(ui.includes("Conservative fleet-growth treatment"));
 assert.ok(ui.includes("no throughput credit is given beyond the initial benchmark-supported deployment"));
+
+
+// IE-5.5: total paid fleet and throughput-credit basis are distinct.
+assert.ok(ui.includes("Throughput-credit GPUs"));
+assert.ok(ui.includes("TCO fleet:"));
+assert.ok(ui.includes("extra throughput is not assumed"));

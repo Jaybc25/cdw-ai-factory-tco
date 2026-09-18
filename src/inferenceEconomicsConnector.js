@@ -54,8 +54,14 @@ export function buildInferenceEconomicsPreviewHandoff({
 }) {
   const mappedHardwareClass = TCO_SYSTEM_TO_IE_HARDWARE[ownSys] || null;
   const hardwareClass = mappedHardwareClass || ownSys || null;
-  const gpuCount = finitePositive(systemCount) && finitePositive(gpusPerSystem)
+  const totalDeployedGpuCount = finitePositive(systemCount) && finitePositive(gpusPerSystem)
     ? Number(systemCount) * Number(gpusPerSystem)
+    : null;
+  // Inference Economics gives throughput credit only to one source-qualified
+  // benchmark configuration. The full TCO fleet still remains in the cost
+  // numerator, but additional systems receive no inferred scaling credit.
+  const gpuCount = finitePositive(gpusPerSystem)
+    ? Number(gpusPerSystem)
     : null;
   const horizon = finitePositive(horizonYears);
   const tco = finitePositive(onPremTcoUsd);
@@ -76,7 +82,7 @@ export function buildInferenceEconomicsPreviewHandoff({
 
   const blockers = [];
   if (!mappedHardwareClass) blockers.push("UNSUPPORTED_HARDWARE");
-  if (!gpuCount) blockers.push("INVALID_GPU_COUNT");
+  if (!gpuCount || !totalDeployedGpuCount) blockers.push("INVALID_GPU_COUNT");
   if (!modelId) blockers.push("MISSING_MODEL");
   if (modelId === "custom" && !finitePositive(modelParamsB)) blockers.push("CUSTOM_MODEL_SIZE_MISSING");
   if (!quant) blockers.push("MISSING_PRECISION");
@@ -101,6 +107,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   params.set("source", "tco");
   if (hardwareClass) params.set("hardware", hardwareClass);
   if (gpuCount) params.set("gpuCount", String(gpuCount));
+  if (totalDeployedGpuCount) params.set("totalFleetGpuCount", String(totalDeployedGpuCount));
   if (modelId) params.set("model", modelId);
   if (finitePositive(modelParamsB)) params.set("modelParamsB", String(Number(modelParamsB)));
   if (quant) params.set("quant", quant);
@@ -118,6 +125,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   return {
     hardwareClass,
     gpuCount,
+    totalDeployedGpuCount,
     horizonYears: horizon,
     attributableTcoUsd: allocatedTcoUsd,
     fullTcoUsd: tco,
@@ -138,6 +146,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
 
   const hardwareClass = params.get("hardware");
   const gpuCount = finitePositive(params.get("gpuCount"));
+  const totalDeployedGpuCount = finitePositive(params.get("totalFleetGpuCount"));
   const modelId = params.get("model");
   const modelParamsB = finitePositive(params.get("modelParamsB"));
   const quant = params.get("quant");
@@ -162,6 +171,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     source: "tco",
     hardwareClass,
     gpuCount,
+    totalDeployedGpuCount,
     modelId,
     modelParamsB,
     quant,

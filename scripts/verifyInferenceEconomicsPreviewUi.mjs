@@ -14,7 +14,7 @@ assert.ok(tco.includes("Open Inference Economics Preview"));
 assert.ok(tco.includes("Preview only — does not change TCO calculations or reports"));
 
 // Guardrails that should remain visible in the Preview UI.
-assert.ok(ui.includes("PREVIEW — IE-5.4"));
+assert.ok(ui.includes("PREVIEW — IE-5.5"));
 assert.ok(ui.includes("Capacity is not consumption") === false); // principle lives in methodology, not marketing copy
 assert.ok(ui.includes("Unused capacity does not lower this result."));
 assert.ok(ui.includes("Configuration does not meet stated demand"));
@@ -60,3 +60,9 @@ assert.ok(ui.includes("Inherited TCO scenario is not yet eligible for token econ
 // IE-5.4 conservative fleet-growth disclosure.
 assert.ok(ui.includes("Conservative fleet-growth treatment"));
 assert.ok(ui.includes("Additional fleet cost is counted in TCO"));
+
+
+// IE-5.5 throughput-credit transparency.
+assert.ok(ui.includes("Throughput-credit GPUs"));
+assert.ok(ui.includes("TCO fleet:"));
+assert.ok(ui.includes("Extra fleet cost remains in TCO; extra throughput is not assumed."));
