@@ -12,6 +12,15 @@ import {
   calculateReferenceBlendedRate,
   comparePrivateAndManagedApi,
 } from "../src/managedApiComparison.js";
+import {
+  MANAGED_API_CUSTOM_PROVIDER,
+  MANAGED_API_PRICING_SNAPSHOT,
+  chooseLastKnownGoodPricingSnapshot,
+  getManagedApiPricingFreshness,
+  getManagedApiRate,
+  listManagedApiModels,
+  listManagedApiProviders,
+} from "../src/managedApiPricingRegistry.js";
 
 // 1) A first-party rate can be normalized into the shared contract.
 const firstParty = createManagedApiRateRecord({
@@ -160,5 +169,42 @@ const blockedBenchLmSource = createManagedApiPricingSource({
 const blocked = await blockedBenchLmSource.getRates();
 assert.equal(blocked.ok, false);
 assert.equal(blocked.reason, "COMMERCIAL_USE_UNRESOLVED");
+
+// 8) IE-6.3 last-known-good pricing registry contract.
+assert.ok(MANAGED_API_PRICING_SNAPSHOT.rates.length >= 4);
+assert.deepEqual(listManagedApiProviders(), ["Anthropic", "OpenAI", "xAI"]);
+assert.ok(listManagedApiModels("OpenAI").length >= 3);
+assert.equal(getManagedApiRate("OpenAI", "gpt-5.6-sol")?.inputUsdPerMillion, 4);
+assert.equal(getManagedApiRate("OpenAI", "gpt-5.6-sol")?.outputUsdPerMillion, 20);
+assert.equal(MANAGED_API_CUSTOM_PROVIDER, "CUSTOM");
+
+const fallbackSnapshot = chooseLastKnownGoodPricingSnapshot({
+  currentSnapshot: MANAGED_API_PRICING_SNAPSHOT,
+  candidateSnapshot: { rates: [] },
+  candidateValid: false,
+});
+assert.equal(fallbackSnapshot, MANAGED_API_PRICING_SNAPSHOT);
+
+const validCandidate = { rates: [{ provider: "Example" }] };
+assert.equal(
+  chooseLastKnownGoodPricingSnapshot({
+    currentSnapshot: MANAGED_API_PRICING_SNAPSHOT,
+    candidateSnapshot: validCandidate,
+    candidateValid: true,
+  }),
+  validCandidate,
+);
+
+const fresh = getManagedApiPricingFreshness({
+  asOf: new Date("2026-09-20T00:00:00Z"),
+});
+assert.equal(fresh.status, "CURRENT");
+assert.equal(fresh.stale, false);
+
+const stale = getManagedApiPricingFreshness({
+  asOf: new Date("2026-10-10T00:00:00Z"),
+});
+assert.equal(stale.status, "STALE");
+assert.equal(stale.stale, true);
 
 console.log("IE-6 managed API comparison foundation verified.");
