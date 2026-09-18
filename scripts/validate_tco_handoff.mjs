@@ -1,8 +1,25 @@
 import "./validate_tco_cloud_unit_price_trend.mjs";
 import fs from "node:fs";
 import { BASEPOD_MAX_8_GPU_SYSTEMS, getTcoInfrastructureCoverage } from "../src/tcoInfrastructureCoverage.js";
+import { DEFAULT_SCHEDULING_FACTOR, DEFAULT_NVAIE_FACTOR, maxSchedulingFactorForUtilization, schedulingUtilizationIsValid } from "../src/tcoPerformanceFactorPolicy.js";
 
 const source = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
+
+// M6 methodology guard: scheduling/orchestration is utilization recovery,
+// not raw GPU speed, and NVAIE/NIM defaults to no incremental credit above
+// the already-optimized benchmark/capability basis.
+if (DEFAULT_SCHEDULING_FACTOR !== 1.10) {
+  throw new Error("M6 scheduling default must remain 1.10x unless the policy is explicitly re-reviewed.");
+}
+if (DEFAULT_NVAIE_FACTOR !== 1.00) {
+  throw new Error("M6 NVAIE/NIM incremental default must remain 1.00x to avoid automatic double counting.");
+}
+if (maxSchedulingFactorForUtilization(0.85) !== 1.17) {
+  throw new Error("M6 scheduling cap must floor the 85% utilization ceiling to 1.17x.");
+}
+if (!schedulingUtilizationIsValid(0.85, 1.17) || schedulingUtilizationIsValid(0.85, 1.18)) {
+  throw new Error("M6 scheduling utilization invariant is not enforced at the 85% planning default.");
+}
 
 // M5 methodology guard: do not manufacture a universal storage-per-GPU or
 // linear cluster multiplier. Instead, workload-mode TCO must qualify the
@@ -152,6 +169,27 @@ requireText(
   "Incomplete workload infrastructure coverage must qualify the headline rather than present an unqualified savings verdict",
 );
 
+requireText(
+  'DEFAULT_SCHEDULING_FACTOR',
+  "TCO must source the scheduling default from the M6 policy helper",
+);
+requireText(
+  'DEFAULT_NVAIE_FACTOR',
+  "TCO must source the NVAIE/NIM incremental default from the M6 policy helper",
+);
+requireText(
+  'maxSchedulingFactorForUtilization(util)',
+  "TCO must bind the scheduling slider ceiling to target utilization",
+);
+requireText(
+  'target utilization × scheduling factor can never exceed 100%',
+  "Run:ai / Mission Control tooltip must explain the utilization-recovery guardrail",
+);
+requireText(
+  'default incremental factor is 1.00x because the benchmark/capability basis already reflects an optimized NVIDIA software stack',
+  "NVAIE/NIM tooltip must explain why 1.00x is not a zero-value assumption",
+);
+
 console.log("TCO GPU Sizing handoff ownership guard: PASS");
 console.log("- upstream technical fields follow the fresh GPU Sizing handoff");
 console.log("- cloud GPU class auto-follows unless the user explicitly overrides it");
@@ -160,3 +198,4 @@ console.log("- system-specific on-prem rate edits persist by target system");
 console.log("- GPU-derived on-prem target is locked in TCO");
 console.log("- TCO-owned economic and resilience assumptions remain separate");
 console.log("- workload storage is explicit/confirmable and infrastructure coverage is qualified by deployment scale");
+console.log("- scheduling defaults to 1.10x, NVAIE incremental credit to 1.00x, and scheduling recovery is utilization-bounded");
