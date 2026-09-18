@@ -237,3 +237,17 @@ test("rack-scale same-footprint recommendation preserves GPU Sizing to TCO hando
   expect(saved.quant).toBe("FP8");
   expect(saved.workingDayHours).toBe(10);
 });
+
+
+test("GPU Sizing distinguishes loaded system budget from full deployment TCO", async ({ page }) => {
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByText("Loaded system budget", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/Same pricing basis as the Cloud vs On-Prem TCO Calculator \(system \+ software suite \+ fabrics \+ professional services\)\./).first()).toBeVisible();
+  await expect(page.getByText(/Excludes shared cluster infrastructure, workload storage, racks\/facility costs, ongoing operations, and migration\/transition costs -- not a quote\./).first()).toBeVisible();
+  await expect(page.getByText(/TCO adds the shared infrastructure, storage, facility\/operations, and transition costs required to model the full deployment lifecycle\./).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
+  await expect(page.getByText("Loaded system budget", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Estimated budget", { exact: true })).toHaveCount(0);
+});
