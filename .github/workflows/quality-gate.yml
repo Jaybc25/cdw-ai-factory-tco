@@ -18,7 +18,9 @@ on:
       - "scripts/verifyInferenceEconomicsPreview.mjs"
       - "scripts/verifyInferenceEconomicsPreviewUi.mjs"
       - "scripts/verifyInferenceEconomicsConnector.mjs"
+      - "scripts/verifyManagedApiComparison.mjs"
       - "scripts/verifyInferenceEconomicsConnector.mjs"
+      - "scripts/verifyManagedApiComparison.mjs"
       - "scripts/verifyInferenceEconomicsPreviewUi.mjs"
       - "scripts/verifyInferenceEconomicsPreview.mjs"
       - "scripts/validate_hybrid_sequence_state_methodology.mjs"
@@ -115,6 +117,9 @@ jobs:
 
       - name: Validate Inference Economics Preview TCO connector
         run: node scripts/verifyInferenceEconomicsConnector.mjs
+
+      - name: Validate managed API comparison foundation
+        run: node scripts/verifyManagedApiComparison.mjs
 
       - name: Validate hybrid sequence-state methodology
         run: node scripts/validate_hybrid_sequence_state_methodology.mjs
