@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { getDefaultModel, RECOMMENDED_MODELS } from "./modelRegistry.js";
+import { getDefaultModel, getModelById, RECOMMENDED_MODELS } from "./modelRegistry.js";
+import { parseInferenceEconomicsPreviewHandoff } from "./inferenceEconomicsConnector.js";
 import { deriveInferenceEconomicsThroughput } from "./inferenceEconomicsThroughput.js";
 import {
   OUTPUT_TOKEN_DEMAND_BASIS,
@@ -30,14 +31,25 @@ function compact(v) {
 
 export default function InferenceEconomicsPreview() {
   const defaultModel = getDefaultModel();
-  const [hardwareClass, setHardwareClass] = useState("B200");
-  const [deployedGpuCount, setDeployedGpuCount] = useState(8);
-  const [quant, setQuant] = useState("FP8");
-  const [modelId, setModelId] = useState(defaultModel?.id || RECOMMENDED_MODELS[0]?.id);
-  const [attributableTcoUsd, setAttributableTcoUsd] = useState("");
-  const [horizonYears, setHorizonYears] = useState(3);
+  const handoff = useMemo(
+    () => (typeof window !== "undefined" ? parseInferenceEconomicsPreviewHandoff(window.location.search) : null),
+    []
+  );
+  const initialModel = handoff?.modelId ? getModelById(handoff.modelId) : null;
+  const modelOptions = useMemo(() => {
+    const options = [...RECOMMENDED_MODELS];
+    if (initialModel && !options.some((m) => m.id === initialModel.id)) options.push(initialModel);
+    return options;
+  }, [initialModel]);
+
+  const [hardwareClass, setHardwareClass] = useState(handoff?.hardwareClass || "B200");
+  const [deployedGpuCount, setDeployedGpuCount] = useState(handoff?.gpuCount || 8);
+  const [quant, setQuant] = useState(handoff?.quant || "FP8");
+  const [modelId, setModelId] = useState(handoff?.modelId || defaultModel?.id || RECOMMENDED_MODELS[0]?.id);
+  const [attributableTcoUsd, setAttributableTcoUsd] = useState(handoff?.attributableTcoUsd || "");
+  const [horizonYears, setHorizonYears] = useState(handoff?.horizonYears || 3);
   const [productionServingFactor, setProductionServingFactor] = useState("");
-  const [activeHoursPerDay, setActiveHoursPerDay] = useState(8);
+  const [activeHoursPerDay, setActiveHoursPerDay] = useState(handoff?.activeHoursPerDay || 8);
   const [activeDaysPerYear, setActiveDaysPerYear] = useState(250);
   const [demandBasis, setDemandBasis] = useState(OUTPUT_TOKEN_DEMAND_BASIS.MEASURED_MONTHLY);
   const [monthlyOutputTokens, setMonthlyOutputTokens] = useState("");
@@ -46,8 +58,10 @@ export default function InferenceEconomicsPreview() {
   const [avgOutputTokens, setAvgOutputTokens] = useState("");
   const [avgInputTokens, setAvgInputTokens] = useState("");
 
-  const model = RECOMMENDED_MODELS.find((m) => m.id === modelId) || defaultModel;
-  const availablePrecisions = PRECISIONS_BY_HARDWARE[hardwareClass] || ["FP8"];
+  const model = modelOptions.find((m) => m.id === modelId) || defaultModel;
+  const customParamsB = handoff?.modelId === "custom" ? handoff?.modelParamsB : null;
+  const availablePrecisions = PRECISIONS_BY_HARDWARE[hardwareClass] || (quant ? [quant] : ["FP8"]);
+  const inherited = handoff?.source === "tco";
 
   function handleHardwareChange(nextHardware) {
     setHardwareClass(nextHardware);
@@ -63,6 +77,7 @@ export default function InferenceEconomicsPreview() {
       deployedGpuCount: n(deployedGpuCount),
       quant,
       model,
+      customParamsB,
     });
 
     if (!throughput.ok) return { throughput };
@@ -101,32 +116,42 @@ export default function InferenceEconomicsPreview() {
   return (
     <main style={{maxWidth:1100,margin:"0 auto",padding:"28px 20px 64px",fontFamily:"Inter,system-ui,sans-serif",color:"#232323"}}>
       <div style={{border:"1px solid #f0b7b7",background:"#fff7f7",borderRadius:10,padding:"14px 16px",marginBottom:20}}>
-        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-4.1</div>
+        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-5</div>
         <div style={{fontSize:14,fontWeight:700,marginTop:4}}>Inference Economics Preview</div>
-        <div style={{fontSize:12,lineHeight:1.55,color:"#555",marginTop:4}}>Experimental cost-per-1M-output-tokens modeling. This route is not connected to the production TCO workflow and does not change customer-facing calculations.</div>
+        <div style={{fontSize:12,lineHeight:1.55,color:"#555",marginTop:4}}>Experimental cost-per-1M-output-tokens modeling. The connector only carries context from TCO into this Preview; it does not change TCO calculations, reports, or recommendations.</div>
       </div>
+      {inherited && (
+        <div style={{border:"1px solid #d8d8d8",background:"#f7f7f7",borderRadius:10,padding:"12px 14px",marginBottom:18,fontSize:12,lineHeight:1.55}}>
+          <b>Inherited from TCO:</b> hardware, deployed GPU count, model, precision, horizon{handoff?.activeHoursPerDay ? ", active hours/day" : ""}{handoff?.attributableTcoUsd ? ", and attributable on-prem TCO" : ""}.
+          {handoff?.blockers?.length ? (
+            <div style={{marginTop:6,color:"#7a2d00"}}>
+              <b>Connector guardrail:</b> {handoff.blockers.includes("MIXED_WORKLOAD_TCO") ? "TCO was not inherited because the scenario includes training workload. " : ""}{handoff.blockers.includes("TCO_GROWTH_NOT_MODELED") ? "TCO was not inherited because TCO growth is nonzero while Preview token demand is currently flat across the horizon. " : ""}{handoff.blockers.includes("UNSUPPORTED_HARDWARE") ? "This TCO hardware does not yet have qualifying inference-economics evidence. " : ""}{handoff.blockers.includes("CUSTOM_MODEL_SIZE_MISSING") ? "Custom model size is missing. " : ""}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(310px,1fr))",gap:18}}>
         <section style={card}>
           <h2 style={h2}>1. Infrastructure & model</h2>
           <Field label="Hardware">
-            <select value={hardwareClass} onChange={e=>handleHardwareChange(e.target.value)} style={input}>{HARDWARE.map(x=><option key={x}>{x}</option>)}</select>
+            <select value={hardwareClass} onChange={e=>handleHardwareChange(e.target.value)} style={input} disabled={inherited}>{[...new Set([...(hardwareClass ? [hardwareClass] : []), ...HARDWARE])].map(x=><option key={x}>{x}</option>)}</select>
           </Field>
-          <Field label="Deployed GPUs"><input type="number" min="1" value={deployedGpuCount} onChange={e=>setDeployedGpuCount(e.target.value)} style={input}/><div style={subnote}>Preview economics currently require the exact source benchmark configuration: 8 GPUs for H200/B200/B300 and 72 GPUs for NVL72 systems.</div></Field>
+          <Field label="Deployed GPUs"><input type="number" min="1" value={deployedGpuCount} onChange={e=>setDeployedGpuCount(e.target.value)} style={input} disabled={inherited}/><div style={subnote}>Preview economics currently require the exact source benchmark configuration: 8 GPUs for H200/B200/B300 and 72 GPUs for NVL72 systems.</div></Field>
           <Field label="Model">
-            <select value={modelId} onChange={e=>setModelId(e.target.value)} style={input}>{RECOMMENDED_MODELS.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select>
+            <select value={modelId} onChange={e=>setModelId(e.target.value)} style={input} disabled={inherited}>{modelOptions.map(m=><option key={m.id} value={m.id}>{m.label}</option>)}</select>
           </Field>
           <Field label="Precision">
-            <select value={quant} onChange={e=>setQuant(e.target.value)} style={input}>{availablePrecisions.map(x=><option key={x}>{x}</option>)}</select>
+            <select value={quant} onChange={e=>setQuant(e.target.value)} style={input} disabled={inherited}>{[...new Set([...(quant ? [quant] : []), ...availablePrecisions])].map(x=><option key={x}>{x}</option>)}</select>
           </Field>
           <div style={note}>Throughput uses the same model and precision methodology as GPU Sizing. No separate IE throughput table is maintained.</div>
         </section>
 
         <section style={card}>
           <h2 style={h2}>2. Economics & serving window</h2>
-          <Field label="Attributable TCO ($)"><input type="number" min="1" placeholder="Enter TCO attributable to this workload" value={attributableTcoUsd} onChange={e=>setAttributableTcoUsd(e.target.value)} style={input}/></Field>
-          <Field label="Analysis horizon (years)"><input type="number" min="1" value={horizonYears} onChange={e=>setHorizonYears(e.target.value)} style={input}/></Field>
-          <Field label="Active hours / day"><input type="number" min="1" max="24" value={activeHoursPerDay} onChange={e=>setActiveHoursPerDay(e.target.value)} style={input}/></Field>
+          <Field label="Attributable TCO ($)"><input type="number" min="1" placeholder="Enter TCO attributable to this workload" value={attributableTcoUsd} onChange={e=>setAttributableTcoUsd(e.target.value)} style={input} disabled={Boolean(handoff?.attributableTcoUsd)}/>{handoff?.attributableTcoUsd ? <div style={subnote}>Inherited from the current TCO on-prem total because the connector's attribution guardrails passed.</div> : inherited ? <div style={subnote}>Not inherited. Enter an explicitly attributable inference TCO only if you can defend the allocation.</div> : null}</Field>
+          <Field label="Analysis horizon (years)"><input type="number" min="1" value={horizonYears} onChange={e=>setHorizonYears(e.target.value)} style={input} disabled={inherited}/></Field>
+          <Field label="Active hours / day"><input type="number" min="1" max="24" value={activeHoursPerDay} onChange={e=>setActiveHoursPerDay(e.target.value)} style={input} disabled={Boolean(handoff?.activeHoursPerDay)}/></Field>
           <Field label="Active days / year"><input type="number" min="1" max="366" value={activeDaysPerYear} onChange={e=>setActiveDaysPerYear(e.target.value)} style={input}/></Field>
           <Field label="Production-serving factor">
             <input type="number" min=".01" max="1" step=".05" placeholder="Required: 0.01–1.00" value={productionServingFactor} onChange={e=>setProductionServingFactor(e.target.value)} style={input}/>
