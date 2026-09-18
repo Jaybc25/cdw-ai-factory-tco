@@ -83,7 +83,10 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (!horizon) blockers.push("INVALID_HORIZON");
   if (inferenceShare == null) blockers.push("INFERENCE_SHARE_UNKNOWN");
   if (inferenceShare === 0) blockers.push("NO_INFERENCE_SHARE");
-  if (fleetChanges) blockers.push("FLEET_GROWTH_NOT_MODELED");
+  // Fleet expansion is handled conservatively in Preview: the entire inherited
+  // TCO numerator is counted, but no throughput credit is given beyond the
+  // initial benchmark-supported deployment. Demand feasibility decides whether
+  // the result remains supportable.
 
   const allocationEligible =
     tco && inferenceShare != null && inferenceShare > 0;
@@ -109,6 +112,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (allocatedTcoUsd) params.set("tco", String(Math.round(allocatedTcoUsd)));
   if (allocationMethod) params.set("tcoAllocation", allocationMethod);
   if (horizonFleet.length) params.set("fleetSystems", horizonFleet.join(","));
+  if (fleetChanges) params.set("fleetGrowthConservative", "1");
   if (blockers.length) params.set("connectorBlockers", blockers.join(","));
 
   return {
@@ -121,6 +125,7 @@ export function buildInferenceEconomicsPreviewHandoff({
     allocationMethod,
     demandGrowthRate,
     fleetSystemsByYear: horizonFleet,
+    fleetGrowthConservative: fleetChanges,
     workingDayHours: hours && hours <= 24 ? hours : null,
     blockers,
     href: `/tco/inference-economics-preview?${params.toString()}`,
@@ -147,6 +152,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     .split(",")
     .map(Number)
     .filter(Number.isFinite);
+  const fleetGrowthConservative = params.get("fleetGrowthConservative") === "1";
   const blockers = (params.get("connectorBlockers") || "")
     .split(",")
     .map((x) => x.trim())
@@ -166,6 +172,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     allocationMethod,
     demandGrowthRate,
     fleetSystemsByYear,
+    fleetGrowthConservative,
     activeHoursPerDay:
       activeHoursPerDay && activeHoursPerDay <= 24 ? activeHoursPerDay : null,
     blockers,
