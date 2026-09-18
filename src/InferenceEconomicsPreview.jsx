@@ -270,17 +270,17 @@ function Field({label,help,children}) {
 }
 function HelpDot({open,onClick}) {
   return <button type="button" onClick={onClick} aria-label="What is this?" aria-expanded={open}
-    style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:17,height:17,boxSizing:"border-box",border:\"1.5px solid #CC0000\",borderRadius:"50%",color:open?"#fff":"#CC0000",fontSize:11,fontWeight:900,lineHeight:1,cursor:"pointer",background:open?"#CC0000":"#fff",padding:0}}>?</button>;
+    style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:17,height:17,boxSizing:"border-box",border:"1.5px solid #CC0000",borderRadius:"50%",color:open?"#fff":"#CC0000",fontSize:11,fontWeight:900,lineHeight:1,cursor:"pointer",background:open?"#CC0000":"#fff",padding:0}}>?</button>;
 }
 function TipBox({text}) {
   return <div style={{fontSize:12,color:"#2D2D2D",background:"#fff",border:"1px solid #DCDCDC",borderLeft:"3px solid #CC0000",borderRadius:6,padding:"8px 10px",margin:"6px 0 8px",lineHeight:1.45}}>{text}</div>;
 }
 function InlineHelp({text}) {
   const [open,setOpen] = useState(false);
-  return <span style={{display:"inline-block",fontSize:12,fontWeight:400}}>
+  return <div style={{display:"inline-block",fontSize:12,fontWeight:400}}>
     <HelpDot open={open} onClick={()=>setOpen(!open)} />
-    {open ? <span style={{display:"block",maxWidth:680}}><TipBox text={text} /></span> : null}
-  </span>;
+    {open ? <div style={{maxWidth:680}}><TipBox text={text} /></div> : null}
+  </div>;
 }
 function Metric({label,value,help}) {
   const [open,setOpen] = useState(false);
