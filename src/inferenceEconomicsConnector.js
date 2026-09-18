@@ -11,19 +11,37 @@ function finitePositive(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function validShare(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 && n <= 1 ? n : null;
+}
+
+function validGrowth(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
 /**
  * Builds a one-way Preview connector payload from the current TCO result.
  *
- * Attribution guardrails:
- * - inference GPU-Sizing handoff = attributable workload
- * - standalone TCO = attributable only when training share is explicitly 0%
- * - non-zero TCO growth is not auto-carried into the numerator because IE-3
- *   currently models flat annual useful-token demand over the horizon
+ * IE-5.2 attribution:
+ * - a confirmed inference GPU-Sizing workload is 100% inference-attributable;
+ * - otherwise TCO's workload mix is used as a MODELED allocation basis:
+ *   inference share = 1 - training share;
+ * - the modeled allocation is prefilled but remains overrideable in Preview.
+ *
+ * Growth:
+ * - TCO workload growth is carried into Preview demand growth;
+ * - if TCO's physical fleet changes during the selected horizon, attributable
+ *   TCO is withheld because IE still requires exact benchmark-sized deployment
+ *   evidence and does not infer multi-system scaling efficiency.
  */
 export function buildInferenceEconomicsPreviewHandoff({
   ownSys,
   systemCount,
   gpusPerSystem,
+  fleetSystemsByYear = [],
   modelId,
   modelParamsB = null,
   quant,
@@ -42,11 +60,19 @@ export function buildInferenceEconomicsPreviewHandoff({
   const horizon = finitePositive(horizonYears);
   const tco = finitePositive(onPremTcoUsd);
   const hours = finitePositive(workingDayHours);
+  const trainingShare = validShare(trainShare);
+  const inferenceShare = isInferenceWorkloadHandoff
+    ? 1
+    : trainingShare == null
+      ? null
+      : 1 - trainingShare;
+  const demandGrowthRate = validGrowth(growth);
 
-  const attributionEligible =
-    isInferenceWorkloadHandoff === true || Number(trainShare) === 0;
-  const flatDemandCompatible =
-    Number.isFinite(Number(growth)) && Number(growth) === 0;
+  const horizonFleet = Array.isArray(fleetSystemsByYear)
+    ? fleetSystemsByYear.slice(0, Math.max(1, Math.floor(horizon || 1))).map(Number).filter(Number.isFinite)
+    : [];
+  const fleetChanges =
+    horizonFleet.length > 1 && horizonFleet.some((systems) => systems !== horizonFleet[0]);
 
   const blockers = [];
   if (!mappedHardwareClass) blockers.push("UNSUPPORTED_HARDWARE");
@@ -55,8 +81,18 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (modelId === "custom" && !finitePositive(modelParamsB)) blockers.push("CUSTOM_MODEL_SIZE_MISSING");
   if (!quant) blockers.push("MISSING_PRECISION");
   if (!horizon) blockers.push("INVALID_HORIZON");
-  if (!attributionEligible) blockers.push("MIXED_WORKLOAD_TCO");
-  if (!flatDemandCompatible) blockers.push("TCO_GROWTH_NOT_MODELED");
+  if (inferenceShare == null) blockers.push("INFERENCE_SHARE_UNKNOWN");
+  if (inferenceShare === 0) blockers.push("NO_INFERENCE_SHARE");
+  if (fleetChanges) blockers.push("FLEET_GROWTH_NOT_MODELED");
+
+  const allocationEligible =
+    tco && inferenceShare != null && inferenceShare > 0 && !fleetChanges;
+  const allocatedTcoUsd = allocationEligible ? tco * inferenceShare : null;
+  const allocationMethod = allocatedTcoUsd
+    ? isInferenceWorkloadHandoff
+      ? "DIRECT_INFERENCE_WORKLOAD"
+      : "WORKLOAD_SHARE_MODELED"
+    : null;
 
   const params = new URLSearchParams();
   params.set("source", "tco");
@@ -67,20 +103,24 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (quant) params.set("quant", quant);
   if (horizon) params.set("horizon", String(horizon));
   if (hours && hours <= 24) params.set("activeHours", String(hours));
-
-  // TCO is only inherited when attribution and demand-growth semantics line up.
-  if (tco && attributionEligible && flatDemandCompatible) {
-    params.set("tco", String(Math.round(tco)));
-  }
-
+  params.set("demandGrowth", String(demandGrowthRate));
+  if (inferenceShare != null) params.set("inferenceShare", String(inferenceShare));
+  if (tco) params.set("fullTco", String(Math.round(tco)));
+  if (allocatedTcoUsd) params.set("tco", String(Math.round(allocatedTcoUsd)));
+  if (allocationMethod) params.set("tcoAllocation", allocationMethod);
+  if (horizonFleet.length) params.set("fleetSystems", horizonFleet.join(","));
   if (blockers.length) params.set("connectorBlockers", blockers.join(","));
 
   return {
     hardwareClass,
     gpuCount,
     horizonYears: horizon,
-    attributableTcoUsd:
-      tco && attributionEligible && flatDemandCompatible ? tco : null,
+    attributableTcoUsd: allocatedTcoUsd,
+    fullTcoUsd: tco,
+    inferenceShare,
+    allocationMethod,
+    demandGrowthRate,
+    fleetSystemsByYear: horizonFleet,
     workingDayHours: hours && hours <= 24 ? hours : null,
     blockers,
     href: `/tco/inference-economics-preview?${params.toString()}`,
@@ -98,7 +138,15 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
   const quant = params.get("quant");
   const horizonYears = finitePositive(params.get("horizon"));
   const attributableTcoUsd = finitePositive(params.get("tco"));
+  const fullTcoUsd = finitePositive(params.get("fullTco"));
   const activeHoursPerDay = finitePositive(params.get("activeHours"));
+  const inferenceShare = validShare(params.get("inferenceShare"));
+  const demandGrowthRate = validGrowth(params.get("demandGrowth"));
+  const allocationMethod = params.get("tcoAllocation") || null;
+  const fleetSystemsByYear = (params.get("fleetSystems") || "")
+    .split(",")
+    .map(Number)
+    .filter(Number.isFinite);
   const blockers = (params.get("connectorBlockers") || "")
     .split(",")
     .map((x) => x.trim())
@@ -113,6 +161,11 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     quant,
     horizonYears,
     attributableTcoUsd,
+    fullTcoUsd,
+    inferenceShare,
+    allocationMethod,
+    demandGrowthRate,
+    fleetSystemsByYear,
     activeHoursPerDay:
       activeHoursPerDay && activeHoursPerDay <= 24 ? activeHoursPerDay : null,
     blockers,

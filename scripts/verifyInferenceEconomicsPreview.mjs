@@ -261,6 +261,30 @@ assert.equal(demandBound.horizonUsefulOutputTokens, 36_000_000_000);
 assert.equal(demandBound.costPerMillionOutputTokens, (1_200_000 / 36_000_000_000) * 1_000_000);
 assert.ok(demandBound.annualUnusedCapacityTokens > 0);
 
+// 12b) Growth-aware denominator: useful demand grows across the horizon rather
+// than staying flat when TCO carries an annual workload-growth assumption.
+const growthAware = calculateDemandBoundInferenceEconomics({
+  attributableTcoUsd: 1_200_000,
+  horizonYears: 3,
+  demand: measuredDemand,
+  servingCapacity,
+  demandGrowthRate: 0.25,
+  evidenceStatus: "MODELED",
+});
+assert.equal(growthAware.ok, true);
+assert.deepEqual(growthAware.demandByYear, [
+  12_000_000_000,
+  15_000_000_000,
+  18_750_000_000,
+]);
+assert.equal(growthAware.horizonUsefulOutputTokens, 45_750_000_000);
+assert.equal(growthAware.finalYearDemandOutputTokens, 18_750_000_000);
+assert.equal(growthAware.demandGrowthRate, 0.25);
+assert.equal(
+  growthAware.costPerMillionOutputTokens,
+  (1_200_000 / 45_750_000_000) * 1_000_000,
+);
+
 // 13) An undersized design must not win with an artificially cheap token cost.
 const tooSmallCapacity = calculateAnnualServingCapacity({
   effectiveOutputThroughputTokPerSec: 1_000,
