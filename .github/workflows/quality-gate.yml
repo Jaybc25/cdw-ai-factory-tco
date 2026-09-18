@@ -17,6 +17,8 @@ on:
       - "scripts/validate_model_sizing_methodology.mjs"
       - "scripts/verifyInferenceEconomicsPreview.mjs"
       - "scripts/verifyInferenceEconomicsPreviewUi.mjs"
+      - "scripts/verifyInferenceEconomicsConnector.mjs"
+      - "scripts/verifyInferenceEconomicsConnector.mjs"
       - "scripts/verifyInferenceEconomicsPreviewUi.mjs"
       - "scripts/verifyInferenceEconomicsPreview.mjs"
       - "scripts/validate_hybrid_sequence_state_methodology.mjs"
@@ -110,6 +112,9 @@ jobs:
 
       - name: Validate Inference Economics Preview UI contract
         run: node scripts/verifyInferenceEconomicsPreviewUi.mjs
+
+      - name: Validate Inference Economics Preview TCO connector
+        run: node scripts/verifyInferenceEconomicsConnector.mjs
 
       - name: Validate hybrid sequence-state methodology
         run: node scripts/validate_hybrid_sequence_state_methodology.mjs
