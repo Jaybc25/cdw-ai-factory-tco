@@ -2,7 +2,9 @@ import fs from "node:fs";
 import {
   INFERENCE_REFERENCE_MODEL,
   FULL_MODEL_TRAINING_STATE_BYTES_PER_PARAM,
+  INFERENCE_SERVING_ANCHOR_SEMANTICS,
   getInferencePrecisionScale,
+  getInferenceServingDemand,
   getInferenceThroughputScale,
   getTrainingMemoryModel,
   getTrainingParameterSemantics,
@@ -55,6 +57,15 @@ if (getInferencePrecisionScale("B200", "FP8").factor >= getInferencePrecisionSca
   throw new Error("FP8 must not reuse the B200 FP4 benchmark anchor unchanged.");
 }
 
+const servingDemand = getInferenceServingDemand(100, 30);
+approx(servingDemand.aggregateTokensPerSecond, 3000);
+if (INFERENCE_SERVING_ANCHOR_SEMANTICS.benchmarkScenario !== "MLPerf Offline") {
+  throw new Error("Inference capacity anchors must remain explicitly labeled as MLPerf Offline.");
+}
+if (INFERENCE_SERVING_ANCHOR_SEMANTICS.validatesPerRequestLatency !== false) {
+  throw new Error("Offline throughput must not be represented as validating per-request latency.");
+}
+
 const sparseTraining = getTrainingParameterSemantics(sparse120a12);
 approx(sparseTraining.residencyParamsB, 120);
 approx(sparseTraining.activeComputeParamsB, 12);
@@ -90,6 +101,8 @@ const gpuSizingSource = fs.readFileSync(
 const requiredSourceSnippets = [
   'from "./modelSizingMethodology.js"',
   "getInferenceThroughputScale(model, inputs.customParamsB)",
+  "getInferenceServingDemand(inputs.concurrentUsers, inputs.targetTokPerUser)",
+  "servingDemand.aggregateTokensPerSecond",
   "getInferencePrecisionScale(gpu.id, inputs.quant)",
   "gpu.anchor * throughputScale.factor * precisionScale.factor",
   "getTrainingParameterSemantics(model, inputs.customParamsB)",
@@ -117,6 +130,6 @@ if (gpuSizingSource.includes("const gpusPerf = ceilDiv(totalThroughputNeeded, gp
 
 console.log(
   `Model sizing methodology PASS: ${INFERENCE_REFERENCE_MODEL.label} ${INFERENCE_REFERENCE_MODEL.activeParamsB}B reference; ` +
-  "one-sided inference scaling prevents unsupported model speedups; FP4 inference anchors receive explicit NVIDIA-spec precision guardrails for FP8/FP16; full-model training memory uses an explicit 18 B/param state baseline independent of BF16/FP8 compute precision; training residency and active-compute semantics remain distinct; " +
+  "one-sided inference scaling prevents unsupported model speedups; FP4 inference anchors receive explicit NVIDIA-spec precision guardrails for FP8/FP16; MLPerf Offline anchors are explicitly limited to aggregate capacity planning and do not claim per-request TTFT/TPOT validation; full-model training memory uses an explicit 18 B/param state baseline independent of BF16/FP8 compute precision; training residency and active-compute semantics remain distinct; " +
   "production GPU Sizing is wired to the guarded methodology."
 );
