@@ -1,7 +1,9 @@
-// ROI Calculator engine — ported line-for-line from roi-calculator-model-v1.3.xlsx's
+// ROI Calculator engine — formulas ported line-for-line from roi-calculator-model-v1.3.xlsx's
 // Engine tab. This is the single source of truth: RoiCalculator.jsx and the Node
 // cross-check script both import this file, so there is no second hand-copy of the
-// formulas to drift out of sync. Cell references from the workbook are noted inline.
+// formulas to drift out of sync. Product-policy defaults may evolve independently
+// while the calculation formulas remain parity-checked. Cell references from the
+// workbook are noted inline.
 
 // Excel's ROUND() rounds half away from zero; JS Math.round rounds half up, which
 // only differs from Excel for negative halves. Every value we ROUND() in the
