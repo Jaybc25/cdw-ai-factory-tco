@@ -129,8 +129,17 @@ export function calculateInferenceEconomics({
     };
   }
 
+  const evidenceAdjustment =
+    evidence && Number.isFinite(Number(evidence.adjustmentFactor)) && Number(evidence.adjustmentFactor) > 0
+      ? Number(evidence.adjustmentFactor)
+      : 1;
+  const adjustedThroughputTokPerSec =
+    finitePositive(throughputTokPerSec) == null
+      ? throughputTokPerSec
+      : Number(throughputTokPerSec) * evidenceAdjustment;
+
   const production = calculateUsefulTokenProduction({
-    throughputTokPerSec,
+    throughputTokPerSec: adjustedThroughputTokPerSec,
     throughputUtilization,
     activeHoursPerDay,
     activeDaysPerYear,
@@ -166,7 +175,11 @@ export function calculateInferenceEconomics({
     costPerMillionTokens,
     annualUsefulTokens: production.annualUsefulTokens,
     horizonUsefulTokens: production.horizonUsefulTokens,
-    productionAssumptions: production.assumptions,
+    productionAssumptions: {
+      ...production.assumptions,
+      sourceThroughputTokPerSec: Number(throughputTokPerSec),
+      evidenceAdjustmentFactor: evidenceAdjustment,
+    },
     evidence,
   };
 }
