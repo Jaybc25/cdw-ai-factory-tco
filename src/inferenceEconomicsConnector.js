@@ -86,7 +86,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (fleetChanges) blockers.push("FLEET_GROWTH_NOT_MODELED");
 
   const allocationEligible =
-    tco && inferenceShare != null && inferenceShare > 0 && !fleetChanges;
+    tco && inferenceShare != null && inferenceShare > 0;
   const allocatedTcoUsd = allocationEligible ? tco * inferenceShare : null;
   const allocationMethod = allocatedTcoUsd
     ? isInferenceWorkloadHandoff
