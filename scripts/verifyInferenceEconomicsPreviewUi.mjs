@@ -14,7 +14,7 @@ assert.ok(tco.includes("Open Inference Economics Preview"));
 assert.ok(tco.includes("Preview only — does not change TCO calculations or reports"));
 
 // Guardrails that should remain visible in the Preview UI.
-assert.ok(ui.includes("PREVIEW — IE-5.2"));
+assert.ok(ui.includes("PREVIEW — IE-5.3"));
 assert.ok(ui.includes("Capacity is not consumption") === false); // principle lives in methodology, not marketing copy
 assert.ok(ui.includes("Unused capacity does not lower this result."));
 assert.ok(ui.includes("Configuration does not meet stated demand"));
@@ -49,3 +49,9 @@ assert.ok(ui.includes("MODELED ?"));
 assert.ok(ui.includes("Modeled TCO allocation"));
 assert.ok(ui.includes("Annual demand growth"));
 assert.ok(ui.includes("demandGrowthRate"));
+
+
+// IE-5.3 handoff transparency contract.
+assert.ok(ui.includes("inheritedScenarioBlocked"));
+assert.ok(ui.includes("INHERITED_SCENARIO_UNSUPPORTED"));
+assert.ok(ui.includes("Inherited TCO scenario is not yet eligible for token economics"));
