@@ -176,6 +176,7 @@ export function calculateDemandBoundInferenceEconomics({
   horizonYears,
   demand,
   servingCapacity,
+  demandGrowthRate = 0,
   evidenceStatus = "MODELED",
 }) {
   const tco = positive(attributableTcoUsd);
@@ -194,29 +195,44 @@ export function calculateDemandBoundInferenceEconomics({
     return { ok: false, errors: servingCapacity?.errors || ["Valid serving capacity is required."] };
   }
 
-  const annualDemand = demand.annualOutputTokens;
+  const firstYearDemand = demand.annualOutputTokens;
   const annualCapacity = servingCapacity.annualCapacityOutputTokens;
-  const meetsDemand = annualCapacity >= annualDemand;
-  const demandCoverage = annualCapacity / annualDemand;
-  const demandUtilizationOfCapacity = annualDemand / annualCapacity;
-  const annualUnusedCapacityTokens = Math.max(0, annualCapacity - annualDemand);
-  const annualShortfallTokens = Math.max(0, annualDemand - annualCapacity);
+  const growth = Number(demandGrowthRate);
+  const normalizedGrowth = Number.isFinite(growth) && growth >= 0 ? growth : 0;
+  const wholeYears = Math.max(1, Math.floor(years));
+  const demandByYear = Array.from({ length: wholeYears }, (_, i) =>
+    firstYearDemand * Math.pow(1 + normalizedGrowth, i)
+  );
+  const peakAnnualDemand = Math.max(...demandByYear);
+  const finalYearDemandOutputTokens = demandByYear[demandByYear.length - 1];
+  const meetsDemand = peakAnnualDemand <= annualCapacity;
+  const demandCoverage = annualCapacity / firstYearDemand;
+  const demandUtilizationOfCapacity = firstYearDemand / annualCapacity;
+  const peakDemandUtilizationOfCapacity = peakAnnualDemand / annualCapacity;
+  const annualUnusedCapacityTokens = Math.max(0, annualCapacity - firstYearDemand);
+  const annualShortfallTokens = Math.max(0, peakAnnualDemand - annualCapacity);
 
   if (!meetsDemand) {
     return {
       ok: false,
       reason: "UNDERSIZED_FOR_DEMAND",
-      errors: ["The modeled production-serving capacity does not meet stated output-token demand."],
+      errors: ["The modeled production-serving capacity does not meet stated output-token demand across the selected growth horizon."],
       evidenceStatus,
-      annualDemandOutputTokens: annualDemand,
+      annualDemandOutputTokens: firstYearDemand,
+      finalYearDemandOutputTokens,
+      peakAnnualDemandOutputTokens: peakAnnualDemand,
       annualCapacityOutputTokens: annualCapacity,
       annualShortfallTokens,
       demandCoverage,
+      demandUtilizationOfCapacity,
+      peakDemandUtilizationOfCapacity,
+      demandGrowthRate: normalizedGrowth,
+      demandByYear,
       costPerMillionOutputTokens: null,
     };
   }
 
-  const horizonUsefulOutputTokens = annualDemand * years;
+  const horizonUsefulOutputTokens = demandByYear.reduce((sum, value) => sum + value, 0);
   const costPerMillionOutputTokens =
     (tco / horizonUsefulOutputTokens) * 1_000_000;
 
@@ -225,13 +241,18 @@ export function calculateDemandBoundInferenceEconomics({
     evidenceStatus,
     attributableTcoUsd: tco,
     horizonYears: years,
-    annualDemandOutputTokens: annualDemand,
+    annualDemandOutputTokens: firstYearDemand,
+    finalYearDemandOutputTokens,
+    peakAnnualDemandOutputTokens: peakAnnualDemand,
     annualCapacityOutputTokens: annualCapacity,
     horizonUsefulOutputTokens,
     annualUnusedCapacityTokens,
     annualShortfallTokens: 0,
     demandCoverage,
     demandUtilizationOfCapacity,
+    peakDemandUtilizationOfCapacity,
+    demandGrowthRate: normalizedGrowth,
+    demandByYear,
     costPerMillionOutputTokens,
     demandBasis: demand.basis,
     demandProvenance: demand.provenance,
