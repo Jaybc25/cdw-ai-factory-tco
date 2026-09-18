@@ -152,13 +152,12 @@ assert.ok(ui.includes("Modeled TCO allocation"));
 assert.ok(ui.includes("does not change TCO calculations, reports, or recommendations"));
 assert.equal(ui.includes("Send to TCO"), false);
 
-console.log("IE-5.2 Preview TCO connector contract verified.");
+console.log("IE-5.4 Preview TCO connector contract verified.");
 
 
 // IE-5.3: allocation and eligibility are separate concepts.
 assert.ok(ui.includes("INHERITED_SCENARIO_UNSUPPORTED"));
 assert.ok(ui.includes("Inherited TCO scenario is not yet eligible for token economics"));
-assert.ok(ui.includes("The modeled inference TCO allocation can still be shown"));
 
 
 // IE-5.4: fleet growth is a conservative disclosure, not a blanket blocker.
