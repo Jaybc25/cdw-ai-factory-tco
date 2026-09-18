@@ -30,7 +30,9 @@ test("M6 scheduling factor cannot imply more than 100 percent useful utilization
 
   await openSection(page, "Refine when known");
   const utilization = page.getByLabel("Target on-prem utilization");
-  await utilization.evaluate((el) => { el.value = "1"; el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); });
+  await utilization.focus();
+  await utilization.press("End");
+  await expect(utilization).toHaveValue("1");
 
   await openSection(page, "Performance factors");
   const scheduling = page.getByLabel("Scheduling / orchestration (Run:ai / Mission Control)");
