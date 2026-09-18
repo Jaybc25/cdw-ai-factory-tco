@@ -1162,6 +1162,7 @@ function AppInner() {
     isInferenceWorkloadHandoff: r.isWorkloadMode && workingDayHours != null,
     trainShare,
     growth,
+    fleetSystemsByYear: r.fleetAdj,
   });
 
 
