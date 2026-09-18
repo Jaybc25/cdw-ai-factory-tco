@@ -170,7 +170,8 @@ assert.equal(
   integrated.effectiveThroughputTokPerSec,
 );
 
-// 7) Scaling beyond the exact benchmark configuration is explicit and modeled.
+// 7) Scaling beyond the exact benchmark configuration is suppressed until
+// qualified scaling-efficiency evidence is available.
 const scaled16 = deriveInferenceEconomicsThroughput({
   hardwareClass: "B200",
   deployedGpuCount: 16,
@@ -182,11 +183,19 @@ const scaled16 = deriveInferenceEconomicsThroughput({
     status: "VERIFIED",
   },
 });
-assert.equal(scaled16.ok, true);
-assert.equal(scaled16.deploymentMatch, false);
-assert.equal(scaled16.deploymentScale, 2);
-assert.equal(scaled16.effectiveThroughputTokPerSec, scaled16.sourceThroughputTokPerSec * 2);
-assert.equal(scaled16.evidence.workloadScenarioMatch, false);
+assert.equal(scaled16.ok, false);
+assert.equal(scaled16.reason, "UNSUPPORTED_DEPLOYMENT_SCALING");
+
+// H200 currently has qualified evidence only at FP8; unsupported precision must
+// be suppressed rather than silently reusing the FP8 anchor.
+const unsupportedH200Precision = deriveInferenceEconomicsThroughput({
+  hardwareClass: "H200",
+  deployedGpuCount: 8,
+  quant: "FP16",
+  model: modeled140B,
+});
+assert.equal(unsupportedH200Precision.ok, false);
+assert.equal(unsupportedH200Precision.reason, "UNSUPPORTED_PRECISION");
 
 // 8) Unsupported hardware remains suppressed rather than guessed.
 const unsupported = deriveInferenceEconomicsThroughput({
