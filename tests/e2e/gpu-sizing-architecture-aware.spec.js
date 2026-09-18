@@ -99,6 +99,7 @@ test("inference throughput anchor is precision-aware instead of reusing FP4 unch
   await expect(resultCard(page, "Recommended")).toContainText("96 GPUs");
 
   await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
+  // Keep the regression aligned to the production AuditFormula label, not a shortened paraphrase.
   await expect(page.getByText("Precision throughput guardrail (FP16)", { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/Downward precision guardrail applied/)).toBeVisible();
 });
