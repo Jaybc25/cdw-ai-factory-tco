@@ -7,7 +7,7 @@ import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { ONPREM_PRICING_VERIFIED_AT, stalenessOf, fmtVerifiedDate } from "./pricingProvenance.js";
 import { GPU_SIZING_PRICE_USD as GPU_PRICE_USD } from "./pricingRegistry.js";
 import { GPU_SIZING_MODELS as MODELS, getDefaultModel, getModelById, getModelParamsB } from "./modelRegistry.js";
-import { getInferencePrecisionScale, getInferenceSequenceStateMemory, getInferenceThroughputScale, getTrainingMemoryModel, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
+import { INFERENCE_SERVING_ANCHOR_SEMANTICS, getInferencePrecisionScale, getInferenceSequenceStateMemory, getInferenceServingDemand, getInferenceThroughputScale, getTrainingMemoryModel, getTrainingParameterSemantics } from "./modelSizingMethodology.js";
 import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
 import { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";
 import { getRubinInferenceAdvisory } from "./rubinInferenceAdvisory.js";
@@ -21,7 +21,7 @@ const TIPS = {
   infModel: "The model you plan to run. This list defaults to current choices; enable existing-deployment models only when sizing something you already run. If you're not sure which current model fits, start in Model Advisor.",
   quant: "How compressed the model's weights are in memory. FP8 is the safe default for H200-class hardware and up; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300/GB300) and roughly halves memory again.",
   concurrentUsers: "The maximum number of simultaneous active request streams during your busiest period. Include human users, AI agents, copilots, automations, and parallel sub-agents that may be generating model requests at the same time.",
-  targetTokPerUser: "How fast each user's response should stream in. 20-30 tokens/sec feels roughly like natural reading speed for a chat experience; lower it for batch/offline jobs where speed matters less.",
+  targetTokPerUser: "The desired output rate for each simultaneously active request, used to convert concurrency into aggregate token demand for capacity planning. The hardware anchors are MLPerf Offline throughput, so this input does not guarantee per-request streaming speed or validate TTFT/TPOT.",
   environment: "Whether this is a real production deployment or something lighter-weight. Dev/Test/POC unlocks a note about cheaper workstation-class GPUs, since production reliability requirements don't apply yet.",
   infGpuOverride: "Leave this on Auto-recommend to let the tool pick the most efficient class for your workload. Only override it if you already own a specific GPU class and want to see how it performs.",
   avgInputTokens: "The typical length of what a user sends in, in tokens (~4 characters per token). 2,000 is a reasonable default for a chat-style prompt with some context; raise it for document-heavy use cases.",
@@ -191,7 +191,7 @@ function validateInference(inputs) {
     if (!(inputs.customHeadDim > 0)) errors.push("Custom model head dim must be greater than 0.");
   }
   if (!(inputs.concurrentUsers > 0)) errors.push("Peak concurrent users must be greater than 0.");
-  if (!(inputs.targetTokPerUser > 0)) errors.push("Target tokens/sec per user must be greater than 0.");
+  if (!(inputs.targetTokPerUser > 0)) errors.push("Desired output tokens/sec per active request must be greater than 0.");
   if (!(inputs.avgInputTokens >= 0)) errors.push("Avg input tokens can't be negative.");
   if (!(inputs.avgOutputTokens >= 0)) errors.push("Avg output tokens can't be negative.");
   if (inputs.avgInputTokens + inputs.avgOutputTokens <= 0) errors.push("Avg input + output tokens must add up to more than 0.");
@@ -227,7 +227,8 @@ function computeInference(inputs) {
   const kvCacheTotalGB = kvCacheGBPerSeq * inputs.concurrentUsers;
   const runtimeOverheadGB = (weightMemoryGB + kvCacheTotalGB) * inputs.overheadPct;
   const totalMemoryGB = weightMemoryGB + kvCacheTotalGB + runtimeOverheadGB;
-  const totalThroughputNeeded = inputs.concurrentUsers * inputs.targetTokPerUser;
+  const servingDemand = getInferenceServingDemand(inputs.concurrentUsers, inputs.targetTokPerUser);
+  const totalThroughputNeeded = servingDemand.aggregateTokensPerSecond;
   const throughputScale = getInferenceThroughputScale(model, inputs.customParamsB);
 
   const candidates = GPU_SPECS.map((gpu) => {
@@ -270,7 +271,7 @@ function computeInference(inputs) {
   const confidence =
     model.status !== "VERIFIED"
       ? { level: "LOW", note: "Model architecture not yet verified (custom entry); hardware reference anchors are not treated as model-specific throughput." }
-      : { level: "MEDIUM", note: `${throughputScale.basis} ${selected.precisionScale.basis} GPU anchors remain hardware benchmark references rather than universal model-specific throughput.` };
+      : { level: "MEDIUM", note: `${throughputScale.basis} ${selected.precisionScale.basis} ${INFERENCE_SERVING_ANCHOR_SEMANTICS.basis} GPU anchors remain hardware benchmark references rather than universal model-specific throughput.` };
 
   const rtxEffectiveAnchor = RTX_SPEC.anchor * throughputScale.factor;
   const rtxGpusMem = ceilDiv(totalMemoryGB, RTX_SPEC.vram);
@@ -316,6 +317,7 @@ function computeInference(inputs) {
   return {
     totalMemoryGB,
     totalThroughputNeeded,
+    servingDemand,
     candidates,
     selectedClass: selected.id,
     selectedNodeSize: selected.nodeSize,
@@ -494,7 +496,7 @@ function SampleOutputPreview({ tokPerSec }) {
     <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
       <style>{`@keyframes sopBlink { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }`}</style>
       <div className="flex items-center justify-between mb-1.5">
-        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Sample output preview</span>
+        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Desired output-rate preview</span>
         <span className="text-xs font-semibold" style={{ color: RED }}>
           {rate > 0 ? `at ${rate} tok/s` : "set a rate above"}
         </span>
@@ -1141,7 +1143,7 @@ function GPUSizingCalculatorInner() {
                   <>
                     <div className="text-gray-500">Quantization</div><div>{quant}</div>
                     <div className="text-gray-500">Peak concurrent users</div><div>{concurrentUsers.toLocaleString()}</div>
-                    <div className="text-gray-500">Target tokens/sec per user</div><div>{targetTokPerUser}</div>
+                    <div className="text-gray-500">Desired output tokens/sec per active request</div><div>{targetTokPerUser}</div>
                     <div className="text-gray-500">Environment</div><div>{environment}</div>
                     <div className="text-gray-500">Avg input / output tokens</div><div>{avgInputTokens.toLocaleString()} / {avgOutputTokens.toLocaleString()}</div>
                     <div className="text-gray-500">Attention/KV cache precision</div><div>{kvBytesPerElement} bytes/element</div>
@@ -1175,7 +1177,7 @@ function GPUSizingCalculatorInner() {
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Caveats &amp; methodology</div>
             <div className="text-xs text-gray-500 p-4 bg-gray-50 rounded-lg mb-6 leading-relaxed">
               {mode === "Inference"
-                ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are adjusted conservatively for active compute and, when selected precision differs from benchmark precision, by a downward NVIDIA dense Tensor Core peak-ratio guardrail; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
+                ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Aggregate throughput demand: ${result.totalThroughputNeeded.toLocaleString()} tok/s. This converts concurrent active requests × desired output rate into capacity demand; because the hardware anchors are MLPerf Offline throughput, it does not validate per-request TTFT/TPOT or guarantee the desired streaming rate. Hardware benchmark anchors are adjusted conservatively for active compute and, when selected precision differs from benchmark precision, by a downward NVIDIA dense Tensor Core peak-ratio guardrail; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.`
                 : `Resident training-state memory modeled: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; activation and temporary-workspace memory is workload-specific and not separately modeled. Training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit resident state, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}
               {" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes. This is a directional sizing estimate, not a final bill of materials -- confirm with a CDW AI Factory specialist before purchasing.
             </div>
@@ -1204,7 +1206,7 @@ function GPUSizingCalculatorInner() {
             <>
               <AuditRow label="Quantization" value={quant} />
               <AuditRow label="Peak concurrent users" value={concurrentUsers.toLocaleString()} />
-              <AuditRow label="Target tokens/sec per user" value={targetTokPerUser} />
+              <AuditRow label="Desired output tokens/sec per active request" value={targetTokPerUser} />
               <AuditRow label="Environment" value={environment} />
               <AuditRow label="Avg input / output tokens" value={`${avgInputTokens.toLocaleString()} / ${avgOutputTokens.toLocaleString()}`} />
               <AuditRow label="Attention/KV cache precision" value={`${kvBytesPerElement} bytes/element`} />
@@ -1248,7 +1250,8 @@ function GPUSizingCalculatorInner() {
                 <AuditFormula label={isMLA || isStandardKv ? "Total KV cache" : "Total inference sequence state"} formula="sequenceStateTotalGB = stateGBPerSeq × concurrentUsers" substituted={`= ${result.kvCacheGBPerSeq.toFixed(4)} × ${concurrentUsers.toLocaleString()}`} result={`${result.kvCacheTotalGB.toFixed(1)} GB`} />
                 <AuditFormula label="Runtime/activation overhead" formula="runtimeOverheadGB = (weightMemoryGB + kvCacheTotalGB) × overhead%" substituted={`= (${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)}) × ${Math.round(overheadPct * 100)}%`} result={`${result.runtimeOverheadGB.toFixed(1)} GB`} />
                 <AuditFormula label="Total memory required" formula="totalMemoryGB = weightMemoryGB + kvCacheTotalGB + runtimeOverheadGB" substituted={`= ${result.weightMemoryGB.toFixed(1)} + ${result.kvCacheTotalGB.toFixed(1)} + ${result.runtimeOverheadGB.toFixed(1)}`} result={`${result.totalMemoryGB.toFixed(1)} GB`} />
-                <AuditFormula label="Total throughput required" formula="totalThroughputNeeded = concurrentUsers × targetTokPerUser" substituted={`= ${concurrentUsers.toLocaleString()} × ${targetTokPerUser}`} result={`${result.totalThroughputNeeded.toLocaleString()} tok/s`} />
+                <AuditFormula label="Aggregate throughput demand" formula="aggregateThroughputDemand = activeRequests × desiredOutputTokPerRequest" substituted={`= ${concurrentUsers.toLocaleString()} × ${targetTokPerUser}`} result={`${result.totalThroughputNeeded.toLocaleString()} tok/s`} />
+                <AuditRow label="Serving benchmark semantics" value={`${INFERENCE_SERVING_ANCHOR_SEMANTICS.benchmarkScenario} — ${INFERENCE_SERVING_ANCHOR_SEMANTICS.planningPurpose}`} sub={INFERENCE_SERVING_ANCHOR_SEMANTICS.basis} />
                 <AuditFormula label="Model-aware throughput scale" formula="modelScale = min(1, 70B ÷ activeComputeParamsB)" substituted={`= ${result.throughputScale.factor.toFixed(3)} (${result.throughputScale.activeParamsB ?? "unknown"}B active params)`} result={result.throughputScale.factor < 1 ? "Conservative model-size penalty applied" : "No inferred model-size speedup applied"} />
                 <AuditFormula label={`Precision throughput guardrail (${quant})`} formula="precisionScale = selectedPrecisionPeak ÷ benchmarkPrecisionPeak (capped at 1.0)" substituted={`= ${selected.precisionScale.factor.toFixed(3)} vs ${selected.precisionScale.anchorPrecision} benchmark`} result={selected.precisionScale.factor < 1 ? "Downward precision guardrail applied" : "Benchmark precision matched"} />
                 <AuditFormula label="Effective throughput anchor" formula="effectiveAnchor = hardwareAnchor × modelScale × precisionScale" substituted={`= ${selected.anchor.toLocaleString()} × ${result.throughputScale.factor.toFixed(3)} × ${selected.precisionScale.factor.toFixed(3)}`} result={`${Math.round(selected.effectiveAnchor).toLocaleString()} tok/s`} />
@@ -1319,7 +1322,7 @@ function GPUSizingCalculatorInner() {
                 <AuditRow label="VRAM" value={`${selected.vram} GB`} />
                 {mode === "Inference" ? (
                   <>
-                    <AuditRow label="Hardware throughput anchor" value={`${selected.anchor.toLocaleString()} tok/s (${selected.anchorPrecision})`} sub={`Confidence: ${selected.confidence} -- ${selected.source}`} />
+                    <AuditRow label="MLPerf Offline throughput anchor" value={`${selected.anchor.toLocaleString()} tok/s (${selected.anchorPrecision})`} sub={`Confidence: ${selected.confidence} -- ${selected.source}`} />
                     <AuditRow label={`Precision guardrail (${quant})`} value={`×${selected.precisionScale.factor.toFixed(3)}`} sub={`${selected.precisionScale.basis} ${selected.precisionScale.source || ""}`.trim()} />
                     <AuditRow label="Effective throughput anchor" value={`${Math.round(selected.effectiveAnchor).toLocaleString()} tok/s`} sub={result.throughputScale.basis} />
                   </>
@@ -1360,7 +1363,7 @@ function GPUSizingCalculatorInner() {
                 <Field label="Model" tipKey="infModel"><Select value={infModel.id} onChange={(id) => setInfModel(MODELS.find((m) => m.id === id))} options={MODELS.map((m) => m.id)} /><div className="text-xs text-gray-500 mt-1">{infModel.label}</div></Field>
                 {infModel.id === "custom" && <div className="grid grid-cols-2 gap-3 mb-4 p-3 bg-amber-50 rounded-lg border border-amber-200"><Field label="Params (B)"><NumberInput value={customParamsB} onChange={setCustomParamsB} /></Field><Field label="Layers"><NumberInput value={customLayers} onChange={setCustomLayers} /></Field><Field label="KV heads"><NumberInput value={customKvHeads} onChange={setCustomKvHeads} /></Field><Field label="Head dim"><NumberInput value={customHeadDim} onChange={setCustomHeadDim} /></Field></div>}
                 <Field label="Peak concurrent users" tipKey="concurrentUsers" hint="Concurrent generating sessions, not total licensed users"><NumberInput value={concurrentUsers} onChange={setConcurrentUsers} ariaLabel="Peak concurrent users" /></Field>
-                <Field label="Target response speed (tokens/sec per user)" tipKey="targetTokPerUser"><NumberInput value={targetTokPerUser} onChange={setTargetTokPerUser} ariaLabel="Target tokens/sec per user" /></Field>
+                <Field label="Desired output rate (tokens/sec per active request)" tipKey="targetTokPerUser"><NumberInput value={targetTokPerUser} onChange={setTargetTokPerUser} ariaLabel="Desired output tokens/sec per active request" /></Field>
                 <SampleOutputPreview tokPerSec={targetTokPerUser} />
                 <Field label="Environment" tipKey="environment"><Select value={environment} onChange={setEnvironment} options={["Production", "Dev/Test/POC"]} /></Field>
                 <details className="rounded-xl border border-gray-200 bg-white mb-4">
@@ -1454,7 +1457,7 @@ function GPUSizingCalculatorInner() {
               )}
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
-              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Total throughput needed: ${result.totalThroughputNeeded.toLocaleString()} tok/s. Hardware benchmark anchors are adjusted conservatively for active compute and, when selected precision differs from benchmark precision, by a downward NVIDIA dense Tensor Core peak-ratio guardrail; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Resident training-state memory modeled: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; activation and temporary-workspace memory is workload-specific and not separately modeled. Training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit resident state, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "a 72-GPU NVL rack for this class" : "8-GPU DGX-class nodes for this class"}).</div>
+              <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Aggregate throughput demand: ${result.totalThroughputNeeded.toLocaleString()} tok/s. This converts concurrent active requests × desired output rate into capacity demand; because the hardware anchors are MLPerf Offline throughput, it does not validate per-request TTFT/TPOT or guarantee the desired streaming rate. Hardware benchmark anchors are adjusted conservatively for active compute and, when selected precision differs from benchmark precision, by a downward NVIDIA dense Tensor Core peak-ratio guardrail; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Resident training-state memory modeled: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; activation and temporary-workspace memory is workload-specific and not separately modeled. Training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit resident state, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "a 72-GPU NVL rack for this class" : "8-GPU DGX-class nodes for this class"}).</div>
               <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
                 <button onClick={requestReport} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>

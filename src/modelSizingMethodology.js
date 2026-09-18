@@ -20,6 +20,25 @@ export const INFERENCE_REFERENCE_MODEL = Object.freeze({
   source: "https://developer.nvidia.com/blog/nvidia-blackwell-delivers-massive-performance-leaps-in-mlperf-inference-v5-0/",
 });
 
+export const INFERENCE_SERVING_ANCHOR_SEMANTICS = Object.freeze({
+  benchmarkScenario: "MLPerf Offline",
+  planningPurpose: "aggregate output-throughput capacity planning",
+  validatesPerRequestLatency: false,
+  latencyMetrics: Object.freeze(["TTFT", "TPOT"]),
+  basis: "MLPerf Offline measures throughput with requests available for throughput-oriented scheduling. It does not enforce the latency constraints used by MLPerf Server/Interactive scenarios, so it cannot by itself validate per-request streaming speed, time to first token (TTFT), or time per output token (TPOT).",
+  source: "https://mlcommons.org/2024/03/mlperf-llama2-70b/",
+});
+
+export function getInferenceServingDemand(concurrentRequests, desiredTokensPerActiveRequest) {
+  const aggregateTokensPerSecond = concurrentRequests * desiredTokensPerActiveRequest;
+  return {
+    concurrentRequests,
+    desiredTokensPerActiveRequest,
+    aggregateTokensPerSecond,
+    basis: `Aggregate capacity demand = ${concurrentRequests} active requests × ${desiredTokensPerActiveRequest} desired output tok/s per request. This is a capacity-planning demand, not a guarantee that each request will achieve that streaming rate.`,
+  };
+}
+
 // M3 precision guardrail for inference throughput anchors.
 //
 // Current Blackwell throughput anchors are empirical FP4/NVFP4 MLPerf results.

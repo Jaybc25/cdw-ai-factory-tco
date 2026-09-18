@@ -75,6 +75,20 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 });
 
+test("offline throughput sizing does not claim to validate interactive response speed", async ({ page }) => {
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByLabel("Desired output tokens/sec per active request")).toBeVisible();
+  await expect(page.getByText("Desired output-rate preview", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
+  // AuditRow nests source/basis text under its label, so assert the material
+  // semantics rather than relying on exact text for the composite label node.
+  await expect(page.getByText("MLPerf Offline — aggregate output-throughput capacity planning", { exact: true })).toBeVisible();
+  await expect(page.getByText(/does not enforce the latency constraints.*TTFT.*TPOT/)).toBeVisible();
+  await expect(page.getByText(/MLPerf Offline throughput anchor/).first()).toBeVisible();
+});
+
 test("inference throughput anchor is precision-aware instead of reusing FP4 unchanged", async ({ page }) => {
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await chooseInferenceModel(page, "muse-glimmer-30b");
@@ -185,7 +199,7 @@ test("rack-scale same-footprint recommendation preserves GPU Sizing to TCO hando
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await chooseInferenceModel(page, "deepseek-v4-pro-0813");
   await page.getByLabel("Peak concurrent users").fill("20000");
-  await page.getByLabel("Target tokens/sec per user").fill("50");
+  await page.getByLabel("Desired output tokens/sec per active request").fill("50");
 
   // M3 no longer reuses FP4 Blackwell benchmark throughput unchanged for
   // this FP8 workload. B200's FP8 guardrail halves its loaded FP4 anchor, so
