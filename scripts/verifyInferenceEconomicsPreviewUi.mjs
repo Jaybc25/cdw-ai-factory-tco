@@ -8,12 +8,13 @@ assert.ok(app.includes('path="/tco/inference-economics-preview"'));
 assert.ok(app.includes('title="Inference Economics Preview"'));
 assert.ok(app.includes('backHref="/tco"'));
 
-// Preview must stay isolated from normal TCO navigation in IE-4.
+// Preview stays a separate route; IE-5 adds only an explicit one-way Preview link from TCO.
 const tco = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
-assert.equal(tco.includes("/tco/inference-economics-preview"), false);
+assert.ok(tco.includes("Open Inference Economics Preview"));
+assert.ok(tco.includes("Preview only — does not change TCO calculations or reports"));
 
 // Guardrails that should remain visible in the Preview UI.
-assert.ok(ui.includes("PREVIEW — IE-4.1"));
+assert.ok(ui.includes("PREVIEW — IE-5"));
 assert.ok(ui.includes("Capacity is not consumption") === false); // principle lives in methodology, not marketing copy
 assert.ok(ui.includes("Unused capacity does not lower this result."));
 assert.ok(ui.includes("Configuration does not meet stated demand"));
