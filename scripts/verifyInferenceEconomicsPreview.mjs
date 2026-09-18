@@ -63,6 +63,35 @@ const modeled = calculateInferenceEconomics({
 assert.equal(modeled.ok, true);
 assert.equal(modeled.status, INFERENCE_ECONOMICS_STATUS.MODELED);
 
+
+// 3b) Evidence adjustment factors must change usable throughput and economics,
+// not exist as audit-only metadata.
+const adjustedEvidence = qualifyInferenceEconomicsEvidence(b200, {
+  modelMatch: false,
+  hardwareMatch: true,
+  precisionMatch: false,
+  workloadScenarioMatch: false,
+  adjustmentFactor: 0.5,
+  adjustmentBasis: "Preview guardrail test",
+});
+const adjusted = calculateInferenceEconomics({
+  attributableTcoUsd: 1000000,
+  throughputTokPerSec: b200.throughputTokPerSec,
+  throughputUtilization: 0.5,
+  activeHoursPerDay: 8,
+  activeDaysPerYear: 250,
+  horizonYears: 3,
+  evidence: adjustedEvidence,
+});
+assert.equal(adjusted.ok, true);
+assert.equal(adjusted.status, INFERENCE_ECONOMICS_STATUS.MODELED);
+assert.equal(
+  adjusted.productionAssumptions.throughputTokPerSec,
+  b200.throughputTokPerSec * 0.5,
+);
+assert.equal(adjusted.productionAssumptions.evidenceAdjustmentFactor, 0.5);
+assert.ok(adjusted.costPerMillionTokens > modeled.costPerMillionTokens);
+
 // 4) Missing qualified evidence must suppress the result.
 const blocked = calculateInferenceEconomics({
   attributableTcoUsd: 1000000,
