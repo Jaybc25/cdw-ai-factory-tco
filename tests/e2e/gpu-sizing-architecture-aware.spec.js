@@ -75,6 +75,35 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 });
 
+test("inference throughput anchor is precision-aware instead of reusing FP4 unchanged", async ({ page }) => {
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+  await chooseInferenceModel(page, "muse-glimmer-30b");
+  await page.getByLabel("Peak concurrent users").fill("10000");
+
+  const deploymentAssumptions = page.locator("details").filter({ hasText: "Deployment assumptions" });
+  await deploymentAssumptions.locator("summary").click();
+  const gpuSelect = gpuSelectFor(page, "B200");
+  await gpuSelect.selectOption("B200");
+
+  const quantSelect = page.locator("select").filter({ has: page.locator('option[value="FP4"]') }).first();
+  await quantSelect.selectOption("FP4");
+  await expect(resultCard(page, "Minimum technical")).toContainText("23 GPUs");
+  await expect(resultCard(page, "Recommended")).toContainText("24 GPUs");
+
+  await quantSelect.selectOption("FP8");
+  await expect(resultCard(page, "Minimum technical")).toContainText("46 GPUs");
+  await expect(resultCard(page, "Recommended")).toContainText("48 GPUs");
+
+  await quantSelect.selectOption("FP16");
+  await expect(resultCard(page, "Minimum technical")).toContainText("92 GPUs");
+  await expect(resultCard(page, "Recommended")).toContainText("96 GPUs");
+
+  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
+  // Keep the regression aligned to the production AuditFormula label, not a shortened paraphrase.
+  await expect(page.getByText("Precision throughput guardrail (FP16)", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText(/Downward precision guardrail applied/)).toBeVisible();
+});
+
 test("training sizing uses total parameters for resident state and active parameters for sparse FLOPs", async ({ page }) => {
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await switchToTraining(page);
@@ -158,23 +187,24 @@ test("rack-scale same-footprint recommendation preserves GPU Sizing to TCO hando
   await page.getByLabel("Peak concurrent users").fill("20000");
   await page.getByLabel("Target tokens/sec per user").fill("50");
 
-  // B300 and GB300 both node-round this scenario to 72 deployed GPUs and
-  // both sit in the high-utilization band. With no same-footprint candidate
-  // below the 85% headroom boundary, F4 correctly uses deployed acquisition
-  // cost before raw technical GPU count, selecting 72 B300s.
-  await expect(resultCard(page, "Minimum technical")).toContainText("71 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B300");
-  await expect(resultCard(page, "Recommended")).toContainText("72 GPUs");
-  await expect(resultCard(page, "Recommended")).toContainText("B300");
+  // M3 no longer reuses FP4 Blackwell benchmark throughput unchanged for
+  // this FP8 workload. B200's FP8 guardrail halves its loaded FP4 anchor, so
+  // the workload needs 153 technical GPUs and node-rounds to 160 B200s. The
+  // other current Blackwell classes require at least 216 deployed GPUs here,
+  // so deployable footprint remains the first recommendation criterion.
+  await expect(resultCard(page, "Minimum technical")).toContainText("153 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("B200");
+  await expect(resultCard(page, "Recommended")).toContainText("160 GPUs");
+  await expect(resultCard(page, "Recommended")).toContainText("B200");
   await expect(page.getByText("TCO modeling not yet activated", { exact: true })).toHaveCount(0);
 
   const tcoLink = page.getByRole("link", { name: "Compare TCO" });
   await expect(tcoLink).toBeVisible();
   const href = await tcoLink.getAttribute("href");
   const params = new URL(href, "http://local.test").searchParams;
-  expect(params.get("ownSys")).toBe("DGX B300");
-  expect(params.get("gpuCount")).toBe("72");
-  expect(params.get("sourceClass")).toBe("B300");
+  expect(params.get("ownSys")).toBe("DGX B200");
+  expect(params.get("gpuCount")).toBe("160");
+  expect(params.get("sourceClass")).toBe("B200");
   expect(params.get("sizingBasis")).toBe("recommended");
   expect(params.get("model")).toBe("deepseek-v4-pro-0813");
   expect(params.get("modelParamsB")).toBe("1650");
@@ -183,9 +213,9 @@ test("rack-scale same-footprint recommendation preserves GPU Sizing to TCO hando
 
   await page.goto(href, { waitUntil: "domcontentloaded" });
   const saved = await waitForTcoSession(page, {
-    ownSys: "DGX B300",
-    gpuSizingCount: 72,
-    sourceClass: "B300",
+    ownSys: "DGX B200",
+    gpuSizingCount: 160,
+    sourceClass: "B200",
     gpuSizingBasis: "recommended",
     modelId: "deepseek-v4-pro-0813",
   });
