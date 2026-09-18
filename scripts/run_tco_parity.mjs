@@ -24,6 +24,7 @@ import { CLOUD_GPU_RATES, ONPREM_SYSTEMS } from "../src/pricingRegistry.js";
 import { getDefaultModel } from "../src/modelRegistry.js";
 import { trendCloudGpuCompute } from "../src/cloudUnitPriceTrend.js";
 import { isRubinPhase1TcoSystem } from "../src/rubinTcoActivationRegistry.js";
+import { getTcoInfrastructureCoverage } from "../src/tcoInfrastructureCoverage.js";
 
 const SOURCE_PATH = "src/TcoCalculator.jsx";
 const SNAPSHOT_PATH = "tests/tco-parity/workbook_snapshot.json";
@@ -191,6 +192,7 @@ const sandbox = {
   SYSTEMS: ONPREM_SYSTEMS,
   trendCloudGpuCompute,
   isRubinPhase1TcoSystem,
+  getTcoInfrastructureCoverage,
   __fixture: fixture,
   __result: null,
 };

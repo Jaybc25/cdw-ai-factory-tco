@@ -10,6 +10,7 @@ import { TCO_MODEL_OPTIONS, getDefaultModel, getModelById, formatModelContext } 
 import BestValueGpuAasPanel from "./BestValueGpuAasPanel.jsx";
 import { GPUAAS_CONFIDENCE, rankSameClassGpuAas, topGpuAasValues } from "./bestValueGpuaas.js";
 import { trendCloudGpuCompute } from "./cloudUnitPriceTrend.js";
+import { getTcoInfrastructureCoverage } from "./tcoInfrastructureCoverage.js";
 import { buildInferenceEconomicsPreviewHandoff } from "./inferenceEconomicsConnector.js";
 
 const OWN_TARGETS = Object.keys(SYSTEMS);
@@ -63,8 +64,8 @@ const TIPS = {
   spend: `Your approximate total monthly bill for cloud AI: GPU compute, AI platform services (SageMaker, Azure ML, Vertex), and the storage supporting those workloads. When unsure whether something counts, include it. A rough number is fine, and if you only know the annual figure, divide by 12.`,
   provider: `Where that spend currently goes: AWS, Azure, Google Cloud, Oracle, or CoreWeave. This matters because each provider charges different GPU rates, so it determines how much compute your dollars are actually buying. If spend is split across providers, pick the largest one.`,
   gpuClass: `The generation of NVIDIA GPU behind your cloud instances: A100 (older), H100 (most common today), H200, or B200 (newest). Not sure? H100 is the safe assumption for most workloads running in 2026; it's the default. Your cloud bill or instance names (like p5, ND H100) reveal it if you want to check.`,
-  fastStorage: `High-performance storage feeding your GPUs during training and inference: your active datasets, model checkpoints, and working files. If unsure, leave the default; it's scaled to be typical for your spend level, and most teams overestimate how much of their data is truly 'fast.'`,
-  bulkStorage: `Everything else: archived datasets, older model versions, raw data waiting to be processed. It's far cheaper per terabyte than fast storage in both cloud and on-prem. If unsure, leave the default.`,
+  fastStorage: `High-performance storage feeding your GPUs during training and inference: active datasets, model checkpoints, and working files. In Existing Cloud Spend mode the auto default is scaled from the bill; in Workload Requirement mode storage is an explicit planning input and must be adjusted or confirmed for that workload.`,
+  bulkStorage: `Everything else: archived datasets, older model versions, and raw data waiting to be processed. In Workload Requirement mode this capacity is not inferred from GPU count, model size, or training tokens; adjust or confirm it before treating the TCO result as client-ready.`,
   egress: `The share of your stored data that leaves the cloud each month, going to users, other systems, or your own facilities. Cloud providers charge for every gigabyte out; on-prem doesn't. The industry-typical default is 5% monthly, so leave it unless you know you're a heavy data mover.`,
   facility: `Where the equipment would physically live. 'AI-ready' means you have a data center with power and cooling for high-density racks today. 'Retrofit' means you have space but it needs upgrades, which adds a one-time buildout cost. 'Equinix' means renting space in a ready facility with cooling and management bundled in. If unsure, Equinix is the conservative pick since it requires nothing from your building.`,
   redundancy: `Adds one spare system beyond what the workload needs, so a hardware failure never stops your work. Cloud gives you this implicitly; buying it on-prem is a real cost this toggle makes visible. Turn it on if your AI workloads are production-critical, off if they're research and development that can tolerate a pause.`,
@@ -316,6 +317,18 @@ function run(inp, RC) {
 
   const sysAdj = adjT[0].sys;
   const sysFloor = flrT[0].sys;
+  const infrastructureCoverage = getTcoInfrastructureCoverage({
+    isWorkloadMode,
+    isRubinPhase1,
+    system: S,
+    systemName: inp.ownSys,
+    systemCount: sysAdj,
+    rackCount: adjT[0].racks,
+    fastPB: fast,
+    bulkPB: bulk,
+    workloadStorageConfirmed: inp.workloadStorageConfirmed,
+    clusterAllowance: RC.cluster,
+  });
   const prodSys = Math.max(1, sysAdj - nPlus); // productive systems: the N+1 spare is failover, not growth capacity (audit round 4)
   const headroom = isWorkloadMode
     ? (sysAdj > 0 ? 1 - gpuHrs / (prodSys * perSysHrs) : 0) // already target-class hours -- no capability conversion needed
@@ -405,7 +418,7 @@ function run(inp, RC) {
     return pts;
   })();
   return { blended, gpuHrs, gpuHrsCloud, genPF, npf, sysAdj, sysFloor, headroom, adj, flr, cloudStorage, storageBudget, oneTime, exitEgress, tot, payback, crossoverMo, exhaustYrs, perSysHrs, cap,
-    isWorkloadMode, isRubinPhase1, technicalSystems, monthlyCloudBaseline, sourceConversion, cloudYear1, cumulativeByYear,
+    isWorkloadMode, isRubinPhase1, technicalSystems, monthlyCloudBaseline, sourceConversion, cloudYear1, cumulativeByYear, infrastructureCoverage,
     fleetAdj: adjT.map((r2) => r2.sys), fleetFlr: flrT.map((r2) => r2.sys),
     year0CapexBreakdown: adjT[0].capexBreakdown, year0OpexBreakdown: adjT[0].opexBreakdown };
 }
@@ -985,6 +998,10 @@ function AppInner() {
   const [trainShare, setTrainShare] = useState(saved?.trainShare ?? 0.5);
   const [odShare, setOdShare] = useState(saved?.odShare ?? 0);
   const [storageAuto, setStorageAuto] = useState(saved?.storageAuto ?? true); // v2.3: Tier 1 derives storage from the bill; manual entry = Tier 2/3
+  // M5: workload storage is not derivable from GPU count/model metadata. A new
+  // GPU Sizing handoff therefore resets confirmation instead of silently
+  // carrying a prior workload's accepted storage assumptions forward.
+  const [workloadStorageConfirmed, setWorkloadStorageConfirmed] = useState(() => arrivedFromGpuSizing ? false : saved?.workloadStorageConfirmed ?? false);
   const [fastPBm, setFastPBm] = useState(saved?.fastPBm ?? 0.25);
   const [bulkPBm, setBulkPBm] = useState(saved?.bulkPBm ?? 0.75);
   const [egressPct, setEgressPct] = useState(saved?.egressPct ?? 0.05);
@@ -1041,7 +1058,7 @@ function AppInner() {
   // tab left off, instead of resetting to defaults on every full page load.
   useEffect(() => {
     saveSessionState("tco", {
-      ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
+      ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto, workloadStorageConfirmed,
       fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
       residPct, modelId, modelParamsB, quant,
@@ -1051,7 +1068,7 @@ function AppInner() {
       // component for the full explanation.
       gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser,
     });
-  }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto,
+  }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto, workloadStorageConfirmed,
       fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
       residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser]);
@@ -1119,12 +1136,12 @@ function AppInner() {
   const autoPB = perPBCost > 0 ? Math.max(0, (bill * (1 - computeShare)) / perPBCost) : 0;
   const fastPB = effectiveStorageAuto ? Math.round(autoPB * 0.25 * 100) / 100 : fastPBm;
   const bulkPB = effectiveStorageAuto ? Math.round(autoPB * 0.75 * 100) / 100 : bulkPBm;
-  const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (effectiveStorageAuto) setBulkPBm(bulkPB); };
-  const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (effectiveStorageAuto) setFastPBm(fastPB); };
-  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser };
+  const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (mode === "workload") setWorkloadStorageConfirmed(true); if (effectiveStorageAuto) setBulkPBm(bulkPB); };
+  const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (mode === "workload") setWorkloadStorageConfirmed(true); if (effectiveStorageAuto) setFastPBm(fastPB); };
+  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, workloadStorageConfirmed };
   const r = useMemo(
     () => run(inputsObj, rc),
-    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
+    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, workloadStorageConfirmed, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
   );
   const t = r.tot(horizon);
 
@@ -1232,7 +1249,8 @@ function AppInner() {
     }
     return null;
   }, [gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, retrofit, migration, dualRun, redundancy, residPct, computeShare, odShare, provider, ov, horizon, mode, cloudUnitPriceTrend]);
-  const tier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
+  const baseTier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
+  const tier = r.isWorkloadMode && !r.infrastructureCoverage.clientReady ? "DIRECTIONAL" : baseTier;
   const maxBar = Math.max(t.cloud, t.cloudFloor, t.onAdj, t.onFlr, 1);
   const isSelf = facility !== "Equinix";
 
@@ -1397,7 +1415,7 @@ function AppInner() {
             <div style={{ fontSize: 12, color: C.sub, marginBottom: 12 }}>{new Date().toLocaleDateString()} · Confidence: {tier} · {provider} · {gpuClass} workloads</div>
             {t.saveAdj > 0 ? (
               <div style={{ background: C.greenSoft, borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
-                <div style={{ ...mono, fontSize: 11, color: C.green }}>{horizon}-YEAR PROJECTED SAVINGS</div>
+                <div style={{ ...mono, fontSize: 11, color: C.green }}>{r.isWorkloadMode && !r.infrastructureCoverage.clientReady ? `${horizon}-YEAR MODELED DELTA — INFRASTRUCTURE INPUTS NOT YET QUALIFIED` : `${horizon}-YEAR PROJECTED SAVINGS`}</div>
                 <div style={{ ...mono, fontSize: 32, fontWeight: 600, color: C.green }}>{fmtM(t.saveAdj)}</div>
                 <div style={{ fontSize: 12, color: C.ink }}>vs. staying in cloud ({fmtM(t.cloud)}) · even with zero performance credit (floor case): {fmtM(t.saveFlr)}</div>
               </div>
@@ -1410,6 +1428,13 @@ function AppInner() {
               </div>
             )}
             <Row label="Planning basis" value={r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend"} sub={r.isWorkloadMode ? "both sides costed from the GPU Sizing technical requirement" : "on-prem sized from your reported cloud spend"} />
+            {r.isWorkloadMode && (
+              <Row
+                label="Infrastructure coverage"
+                value={!r.infrastructureCoverage.storageConfirmed ? "Needs storage confirmation" : r.infrastructureCoverage.requiresArchitectureReview ? "Architecture review required" : "Planning basis confirmed"}
+                sub={`${r.infrastructureCoverage.storageNote} ${r.infrastructureCoverage.architectureNote}`}
+              />
+            )}
             <Row label={`Recommended build`} value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`} sub={r.isWorkloadMode ? `fixed to the workload's technical requirement · ${facility}` : `${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
             <Row label="Cloud GPU unit-price trend" value={`${cloudUnitPriceTrend > 0 ? "+" : ""}${cloudUnitPriceTrend}%/yr`} sub="applies to modeled cloud GPU compute rates only; workload growth remains separate" />
             <Row label="Total capex + one-time transition" value={fmtM(r.adj.capex + r.oneTime)} sub={`incl. ${fmtM(r.oneTime)} migration, dual-run, and exit costs`} />
@@ -1500,7 +1525,7 @@ function AppInner() {
                   ["Cloud storage fast / bulk $/GB-mo", `$${rc.fastGB} / $${rc.bulkGB}`],
                   ["Egress $/GB · API $/1M tok", `$${rc.egressGB} · $${rc.cloudTok}`],
                   ["System loaded cost / kW", `${fmt(rc.perSysCost)} / ${rc.sysKw} kW`],
-                  ["Cluster fixed / Equinix bundle", `${fmt(rc.cluster)} / ${fmt(rc.equinixMo)}/sys/mo`],
+                  ["Shared cluster planning allowance / Equinix bundle", `${fmt(rc.cluster)} / ${fmt(rc.equinixMo)}/sys/mo`],
                   ["On-prem storage fast / bulk $/PB", `${fmt(rc.fastPB)} / ${fmt(rc.bulkPB)}`],
                   ["Admin ratio / FTE / ops growth", `${rc.adminRatio}/FTE · ${fmt(rc.opFTE)} · ${Math.round(rc.opsGrowth * 100)}%/yr`],
                   ["Suite baseline", "AI Factory Suite 2026.09 baseline; current source may include Unreleased maintenance. TCO parity remains enforced against the audited reference workbook in CI."],
@@ -1574,7 +1599,7 @@ function AppInner() {
                 instRes: "Cloud $/GPU-hr, 1-yr reserved", nvaieRes: "NVAIE support $/GPU-hr, reserved",
                 nvaieOD: "NVAIE support $/GPU-hr, on-demand", fastGB: "Fast storage $/GB/mo",
                 bulkGB: "Bulk storage $/GB/mo", cloudTok: "Managed API blended $/1M tokens",
-                egressGB: "Egress $/GB", cluster: "Cluster mgmt nodes $ (fixed per cluster)",
+                egressGB: "Egress $/GB", cluster: "Shared cluster infrastructure planning allowance $",
                 fastPB: "Fast storage $/PB", bulkPB: "Bulk storage $/PB",
                 sysKw: `Power kW per ${ownSys}`, equinixMo: "Equinix bundle $/system/mo",
                 adminRatio: "Systems per admin FTE", opFTE: "Admin FTE loaded $/yr",
@@ -1677,10 +1702,19 @@ function AppInner() {
             />
             <AuditFormula
               label="Initial infrastructure capital (Year 1)"
-              formula="capital = fixed cluster infrastructure + storage capacity + (systems purchased × loaded system cost) + (racks added × rack cost)"
-              substituted={`${fmt(r.year0CapexBreakdown.clusterAndStorage)} (cluster + storage) + ${fmt(r.year0CapexBreakdown.systems)} (systems) + ${fmt(r.year0CapexBreakdown.racks)} (racks)`}
+              formula="capital = shared cluster planning allowance + explicit storage capacity + (systems purchased × loaded system cost) + (modeled racks added × rack cost)"
+              substituted={`${fmt(r.year0CapexBreakdown.clusterAndStorage)} (shared cluster allowance + explicit storage) + ${fmt(r.year0CapexBreakdown.systems)} (systems) + ${fmt(r.year0CapexBreakdown.racks)} (modeled racks)`}
               result={fmt(r.adj.capex)}
             />
+            {r.isWorkloadMode && (
+              <AuditSourceRow
+                label="Infrastructure coverage"
+                value={r.infrastructureCoverage.clientReady ? "Planning basis confirmed" : "DIRECTIONAL — validation required"}
+                source="Current TCO planning allowances + NVIDIA reference-architecture scale boundaries"
+                basis={`${r.infrastructureCoverage.summary}. ${r.infrastructureCoverage.storageNote} ${r.infrastructureCoverage.architectureNote}`}
+                confidence={r.infrastructureCoverage.clientReady ? "REFINED" : "DIRECTIONAL"}
+              />
+            )}
             <AuditFormula
               label="One-time transition"
               formula={`migration${facility === "Self-hosted (retrofit)" ? " + facility retrofit" : ""} + (dual-run months × comparable monthly cloud cost) + exit egress`}
@@ -1877,7 +1911,7 @@ function AppInner() {
         <div style={{ background: C.ink, borderRadius: 14, padding: "16px 16px 12px", marginBottom: 14, color: "#FFFFFF" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: "#ABABAB" }}>
-              {horizon}-YEAR SAVINGS · {tier}{editedCount > 0 ? ` · ${editedCount} RATE${editedCount > 1 ? "S" : ""} EDITED` : ""}
+              {r.isWorkloadMode && !r.infrastructureCoverage.clientReady ? `${horizon}-YEAR MODELED DELTA · ${tier}` : `${horizon}-YEAR SAVINGS · ${tier}`}{editedCount > 0 ? ` · ${editedCount} RATE${editedCount > 1 ? "S" : ""} EDITED` : ""}
             </span>
             <div style={{ display: "flex", gap: 4 }}>
               {[1, 3, 5].map((h) => (
@@ -1904,6 +1938,12 @@ function AppInner() {
                 At these settings, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by {fmtM(-t.saveAdj)} — the fixed cluster overhead and transition costs outweigh the ownership advantage at this scale and horizon. A longer horizon may still cross — check the 3yr and 5yr views.{r.crossoverMo && r.crossoverMo > horizon * 12 ? ` Cumulative cash flows project crossover around month ${r.crossoverMo}.` : ""}
                 {minViable && minViable > bill ? ` On-prem starts to pencil around ${fmtM(minViable)}/mo at these settings.` : ""} An honest tool says so.
               </div>
+            </div>
+          )}
+          {r.isWorkloadMode && !r.infrastructureCoverage.clientReady && (
+            <div style={{ fontSize: 11.5, color: "#F1F1F1", background: "#3A3A3A", borderLeft: "3px solid #E8CE8A", borderRadius: 6, padding: "8px 10px", marginBottom: 10 }}>
+              <b>{!r.infrastructureCoverage.storageConfirmed ? "Storage assumption unconfirmed." : "Infrastructure architecture review required."}</b>{" "}
+              {r.infrastructureCoverage.architectureNote}
             </div>
           )}
           <div style={{ background: "#1F1F1F", borderRadius: 8, padding: "10px 12px" }}>
@@ -2065,7 +2105,7 @@ function AppInner() {
             onChange={setOdShare} display={`${Math.round(odShare * 100)}% OD`} tip={TIPS.odShare} />
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
             <span style={{ ...mono, fontSize: 9, letterSpacing: 1, color: effectiveStorageAuto ? "#CC0000" : C.sub, border: `1px solid ${effectiveStorageAuto ? "#CC0000" : C.line}`, borderRadius: 3, padding: "1px 6px" }}>
-              {effectiveStorageAuto ? "STORAGE: AUTO (scaled to bill)" : mode === "workload" ? "STORAGE: MANUAL (workload mode — no bill to scale from)" : "STORAGE: MANUAL"}
+              {effectiveStorageAuto ? "STORAGE: AUTO (scaled to bill)" : mode === "workload" ? (workloadStorageConfirmed ? "STORAGE: WORKLOAD INPUT CONFIRMED" : "STORAGE: WORKLOAD INPUT — CONFIRM") : "STORAGE: MANUAL"}
             </span>
             {!effectiveStorageAuto && mode !== "workload" && (
               <button onClick={() => setStorageAuto(true)} style={{ border: `1px solid ${C.line}`, background: "transparent", color: C.sub, borderRadius: 4, padding: "1px 8px", fontSize: 11, cursor: "pointer" }}>
@@ -2077,6 +2117,14 @@ function AppInner() {
             onChange={setFastPB} display={`${fastPB.toFixed(2)} PB`} tip={TIPS.fastStorage} />
           <Slider label="Bulk storage" value={bulkPB} min={0} max={10} step={0.25}
             onChange={setBulkPB} display={`${bulkPB.toFixed(2)} PB`} tip={TIPS.bulkStorage} />
+          {mode === "workload" && !workloadStorageConfirmed && (
+            <div style={{ fontSize: 12, color: C.ink, background: "#FFF8E6", border: "1px solid #E8CE8A", borderRadius: 6, padding: "8px 10px", margin: "4px 0 8px" }}>
+              <b>Confirm workload storage.</b> GPU count and model metadata do not determine storage capacity. The current {fastPB.toFixed(2)} PB fast + {bulkPB.toFixed(2)} PB bulk are planning inputs; adjust the sliders or{" "}
+              <button onClick={() => setWorkloadStorageConfirmed(true)} style={{ border: "1px solid #8A6D1D", background: "transparent", color: "#6B5515", borderRadius: 4, padding: "1px 8px", fontSize: 11, cursor: "pointer" }}>
+                use these storage assumptions
+              </button>
+            </div>
+          )}
           <Slider label="Egress" value={egressPct} min={0} max={0.3} step={0.01}
             onChange={setEgressPct} display={`${Math.round(egressPct * 100)}% /mo`} tip={TIPS.egress} />
           {mode !== "workload" && !storageAuto && r.cloudStorage > r.storageBudget * 1.02 && (
@@ -2254,7 +2302,7 @@ function AppInner() {
           <RateField k="egressGB" label="Egress $/GB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>ON-PREM HARDWARE · {isRubinPhase1 ? "NVIDIA commercial evidence + Phase 1 planning assumptions" : "NVIDIA TCO reference"}</div>
           <RateField k="perSysCost" label={isRubinPhase1 ? `${ownSys} loaded planning cost $ (hardware + EST fabric + EST install/PS; optional software & quoted high-density infrastructure excluded)` : `${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`} eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={1000} fmt={fmt} />
-          <RateField k="cluster" label="Cluster mgmt nodes $ (fixed per cluster — amortizes across fleet)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
+          <RateField k="cluster" label="Shared cluster infrastructure planning allowance $ (validate at scale)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="fastPB" label="Fast storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <RateField k="bulkPB" label="Bulk storage $/PB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={10000} fmt={fmt} />
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>OPERATIONS · NVIDIA TCO tool, {ONPREM_ASOF} (Equinix bundle Aug 2026)</div>
