@@ -79,7 +79,9 @@ const fleetGrowth = buildInferenceEconomicsPreviewHandoff({
   growth: 0.25,
 });
 assert.ok(fleetGrowth.blockers.includes("FLEET_GROWTH_NOT_MODELED"));
-assert.equal(fleetGrowth.attributableTcoUsd, null);
+assert.equal(fleetGrowth.inferenceShare, 0.5);
+assert.equal(fleetGrowth.attributableTcoUsd, 750_000);
+assert.equal(fleetGrowth.allocationMethod, "WORKLOAD_SHARE_MODELED");
 
 // Unknown workload mix must stay unknown rather than defaulting to 100% inference.
 const unknownShare = buildInferenceEconomicsPreviewHandoff({
@@ -142,10 +144,16 @@ const ui = fs.readFileSync("src/InferenceEconomicsPreview.jsx", "utf8");
 assert.ok(tco.includes("Open Inference Economics Preview"));
 assert.ok(tco.includes("buildInferenceEconomicsPreviewHandoff"));
 assert.ok(tco.includes("fleetSystemsByYear: r.fleetAdj"));
-assert.ok(ui.includes("PREVIEW — IE-5.2"));
+assert.ok(ui.includes("PREVIEW — IE-5.3"));
 assert.ok(ui.includes("parseInferenceEconomicsPreviewHandoff"));
 assert.ok(ui.includes("Modeled TCO allocation"));
 assert.ok(ui.includes("does not change TCO calculations, reports, or recommendations"));
 assert.equal(ui.includes("Send to TCO"), false);
 
 console.log("IE-5.2 Preview TCO connector contract verified.");
+
+
+// IE-5.3: allocation and eligibility are separate concepts.
+assert.ok(ui.includes("INHERITED_SCENARIO_UNSUPPORTED"));
+assert.ok(ui.includes("Inherited TCO scenario is not yet eligible for token economics"));
+assert.ok(ui.includes("The modeled inference TCO allocation can still be shown"));
