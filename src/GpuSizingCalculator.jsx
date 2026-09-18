@@ -593,7 +593,7 @@ function BudgetPanel({ budget }) {
   return (
     <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-gray-50">
       <div className="flex items-center justify-between mb-1">
-        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Estimated budget</span>
+        <span className="text-xs font-bold uppercase tracking-wide text-gray-500">Loaded system budget</span>
         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">{budget.recommended.confidence}</span>
       </div>
       <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>
@@ -603,7 +603,7 @@ function BudgetPanel({ budget }) {
         {legacyClass
           ? "Rough estimate only -- this class isn't part of CDW's current DGX purchase line, so there's no matching TCO Calculator figure to anchor to."
           : "Same pricing basis as the Cloud vs On-Prem TCO Calculator (system + software suite + fabrics + professional services)."}{" "}
-        Excludes cluster management nodes, racks, power/cooling, and ongoing operations -- not a quote. See the
+        Excludes shared cluster infrastructure, workload storage, racks/facility costs, ongoing operations, and migration/transition costs -- not a quote. See the
         TCO Calculator for full lifecycle cost, or confirm with a CDW AI Factory specialist.
       </p>
       <p className="text-xs" style={{ color: onpremBudgetStaleness.level === "stale" ? "#B91C1C" : onpremBudgetStaleness.level === "review" ? "#B45309" : "#6B7280", marginTop: 4 }}>
@@ -757,7 +757,7 @@ function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", m
       <div>
         <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Next: Cost comparison</div>
         <div className="text-xs text-gray-500">
-          Compare the cost of owning this {sizingBasis === "higher-growth" ? "user-selected higher-growth" : "recommended"} GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator.
+          Compare the cost of owning this {sizingBasis === "higher-growth" ? "user-selected higher-growth" : "recommended"} GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator. TCO adds the shared infrastructure, storage, facility/operations, and transition costs required to model the full deployment lifecycle.
         </div>
       </div>
       <a
@@ -1284,7 +1284,7 @@ function GPUSizingCalculatorInner() {
 
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. Node Rounding, Budget &amp; Alternatives</div>
           <AuditFormula label="Recommended (node-rounded) configuration" formula="recommended = CEILING(minTechnical ÷ nodeSize) × nodeSize" substituted={`= CEILING(${result.minTechnical} ÷ ${result.selectedNodeSize}) × ${result.selectedNodeSize}`} result={`${result.recommended} × ${result.selectedClass}`} />
-          <AuditFormula label="Estimated budget" formula="budget = recommended × loadedCostPerGPU" substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`} result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : isRubinClass(result.selectedClass) ? "See Phase 1 TCO" : "—"} />
+          <AuditFormula label="Loaded system budget" formula="budget = recommended × loadedCostPerGPU" substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`} result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : isRubinClass(result.selectedClass) ? "See Phase 1 TCO" : "—"} />
           <div className="text-xs text-gray-500 mb-2 mt-2"><b>Lower-cost alternative:</b> {result.lowerCost.class ? `${result.lowerCost.class}, the cheapest other class in the catalog that is genuinely cheaper as a deployed (node-rounded) solution than the recommendation.` : "none -- the recommendation is already the cheapest deployed option in the current catalog or the selected class does not yet have loaded-cost economics."}</div>
           <div className="text-xs text-gray-500 mb-4"><b>Higher-growth alternative:</b> {getHigherGrowthAuditText(result.higherGrowth, mode)}</div>
 
@@ -1300,7 +1300,7 @@ function GPUSizingCalculatorInner() {
               <>
                 <ReconCheck label="Minimum technical requirement" parts={mode === "Inference" ? [{ label: "Memory-bound GPUs", value: selected.gpusMem.toLocaleString() }, { label: "Performance-bound GPUs", value: selected.gpusPerf.toLocaleString() }] : [{ label: "GPUs to fit the model", value: selected.gpusFit.toLocaleString() }, { label: "GPUs to hit the time target", value: selected.gpusTime.toLocaleString() }]} calculated={minTechCalc} engineValue={result.minTechnical} format="count" />
                 <ReconCheck label="Recommended (node-rounded) count" parts={[{ label: "Minimum technical requirement", value: result.minTechnical.toLocaleString() }, { label: `Node size (${result.selectedClass})`, value: result.selectedNodeSize.toLocaleString() }]} calculated={recommendedCalc} engineValue={result.recommended} format="count" />
-                <ReconCheck label="Estimated budget" parts={[{ label: "Recommended GPU count", value: result.recommended.toLocaleString() }, { label: `Catalog price per GPU (${result.selectedClass})`, value: unitPrice != null ? fmtUsdPrecise(unitPrice) : isRubinClass(result.selectedClass) ? "System-level Phase 1 TCO" : "—" }]} calculated={budgetCalc} engineValue={result.budget.recommended ? result.budget.recommended.amount : null} format="currency" />
+                <ReconCheck label="Loaded system budget" parts={[{ label: "Recommended GPU count", value: result.recommended.toLocaleString() }, { label: `Catalog price per GPU (${result.selectedClass})`, value: unitPrice != null ? fmtUsdPrecise(unitPrice) : isRubinClass(result.selectedClass) ? "System-level Phase 1 TCO" : "—" }]} calculated={budgetCalc} engineValue={result.budget.recommended ? result.budget.recommended.amount : null} format="currency" />
               </>
             );
           })()}
