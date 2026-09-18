@@ -23,10 +23,10 @@ function normalizedLabel(value) {
  * used by GPU Sizing after M3. No independent precision table or model scaling
  * is maintained here.
  *
- * Benchmark-system throughput is scaled to the requested deployed GPU count
- * only within the same hardware class. Any deployment-count mismatch is marked
- * as modeled rather than benchmark-validated because cross-node/rack scaling
- * efficiency is not assumed to be perfect evidence.
+ * Benchmark-system throughput is only used at the exact benchmark deployment
+ * count. IE-4.1 deliberately blocks arbitrary count scaling because no default
+ * cross-node/rack scaling efficiency is defensible enough for cost-per-token
+ * economics. A later evidence-backed scaling model may relax this guardrail.
  */
 export function deriveInferenceEconomicsThroughput({
   hardwareClass,
@@ -53,14 +53,41 @@ export function deriveInferenceEconomicsThroughput({
     };
   }
 
+  if (count !== record.benchmarkGpuCount) {
+    return {
+      ok: false,
+      reason: "UNSUPPORTED_DEPLOYMENT_SCALING",
+      errors: [
+        `Inference economics is currently limited to the source benchmark configuration: ${record.benchmarkGpuCount} × ${hardwareClass}. Scaling to ${count} GPUs is suppressed until qualified scaling-efficiency evidence is available.`,
+      ],
+      hardwareClass,
+      deployedGpuCount: count,
+      benchmarkGpuCount: record.benchmarkGpuCount,
+    };
+  }
+
   const modelScale = getInferenceThroughputScale(model, customParamsB);
   const precisionScale = getInferencePrecisionScale(hardwareClass, quant);
-  const deploymentScale = count / record.benchmarkGpuCount;
+
+  if (!precisionScale.anchorPrecision) {
+    const benchmarkPrecision = normalizedLabel(record.precision);
+    const selectedPrecision = normalizedLabel(quant);
+    if (!benchmarkPrecision.startsWith(selectedPrecision)) {
+      return {
+        ok: false,
+        reason: "UNSUPPORTED_PRECISION",
+        errors: [
+          `${hardwareClass} currently has qualified inference evidence at ${record.precision}; ${quant} economics are suppressed until precision-specific evidence is loaded.`,
+        ],
+      };
+    }
+  }
+
+  const deploymentScale = 1;
 
   const adjustmentFactor =
     modelScale.factor *
-    precisionScale.factor *
-    deploymentScale;
+    precisionScale.factor;
 
   const effectiveThroughputTokPerSec =
     record.throughputTokPerSec * adjustmentFactor;
@@ -88,9 +115,7 @@ export function deriveInferenceEconomicsThroughput({
     adjustmentBasis: [
       `GPU Sizing model factor ${modelScale.factor.toFixed(4)}x: ${modelScale.basis}`,
       `GPU Sizing precision factor ${precisionScale.factor.toFixed(4)}x: ${precisionScale.basis}`,
-      deploymentMatch
-        ? `Deployment count matches the ${record.benchmarkGpuCount}-GPU benchmark configuration.`
-        : `Deployment factor ${deploymentScale.toFixed(4)}x scales the ${record.benchmarkGpuCount}-GPU benchmark to ${count} deployed GPUs; scaling efficiency is modeled, not directly benchmarked.`,
+`Deployment count matches the ${record.benchmarkGpuCount}-GPU benchmark configuration; no cross-node/rack scaling is inferred.`,
     ].join(" "),
   });
 
