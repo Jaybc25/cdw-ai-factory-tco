@@ -75,6 +75,19 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 });
 
+test("offline throughput sizing does not claim to validate interactive response speed", async ({ page }) => {
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByLabel("Desired output tokens/sec per active request")).toBeVisible();
+  await expect(page.getByText("Desired output-rate preview", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
+  await expect(page.getByText("Serving benchmark semantics", { exact: true })).toBeVisible();
+  await expect(page.getByText(/MLPerf Offline.*aggregate output-throughput capacity planning/)).toBeVisible();
+  await expect(page.getByText(/does not enforce the latency constraints.*TTFT.*TPOT/)).toBeVisible();
+  await expect(page.getByText("MLPerf Offline throughput anchor", { exact: true })).toBeVisible();
+});
+
 test("inference throughput anchor is precision-aware instead of reusing FP4 unchanged", async ({ page }) => {
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await chooseInferenceModel(page, "muse-glimmer-30b");
