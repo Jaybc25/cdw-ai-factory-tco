@@ -5,12 +5,12 @@ import {
   parseInferenceEconomicsPreviewHandoff,
 } from "../src/inferenceEconomicsConnector.js";
 
-// Clean inference workload handoff: attributable TCO may be inherited only when
-// growth semantics also match the Preview's current flat-demand horizon.
+// Clean inference workload: full TCO can be attributed when fleet stays fixed.
 const clean = buildInferenceEconomicsPreviewHandoff({
   ownSys: "DGX B200",
   systemCount: 1,
   gpusPerSystem: 8,
+  fleetSystemsByYear: [1, 1, 1],
   modelId: "llama-3.1-70b",
   modelParamsB: 70.6,
   quant: "FP8",
@@ -19,12 +19,15 @@ const clean = buildInferenceEconomicsPreviewHandoff({
   workingDayHours: 8,
   isInferenceWorkloadHandoff: true,
   trainShare: 0,
-  growth: 0,
+  growth: 0.25,
 });
 assert.deepEqual(clean.blockers, []);
 assert.equal(clean.hardwareClass, "B200");
 assert.equal(clean.gpuCount, 8);
 assert.equal(clean.attributableTcoUsd, 1_250_000);
+assert.equal(clean.inferenceShare, 1);
+assert.equal(clean.demandGrowthRate, 0.25);
+assert.equal(clean.allocationMethod, "DIRECT_INFERENCE_WORKLOAD");
 assert.ok(clean.href.includes("source=tco"));
 assert.ok(clean.href.includes("tco=1250000"));
 
@@ -38,44 +41,52 @@ assert.equal(parsedClean.quant, "FP8");
 assert.equal(parsedClean.horizonYears, 3);
 assert.equal(parsedClean.attributableTcoUsd, 1_250_000);
 assert.equal(parsedClean.activeHoursPerDay, 8);
+assert.equal(parsedClean.demandGrowthRate, 0.25);
+assert.deepEqual(parsedClean.fleetSystemsByYear, [1, 1, 1]);
 
-// Mixed workload: preserve context, suppress inherited TCO.
+// Mixed workload: use TCO's known inference share as a MODELED allocation.
 const mixed = buildInferenceEconomicsPreviewHandoff({
   ownSys: "DGX B200",
   systemCount: 1,
   gpusPerSystem: 8,
+  fleetSystemsByYear: [1, 1, 1],
   modelId: "llama-3.1-70b",
   quant: "FP8",
   horizonYears: 3,
   onPremTcoUsd: 1_250_000,
   trainShare: 0.5,
-  growth: 0,
+  growth: 0.25,
 });
-assert.ok(mixed.blockers.includes("MIXED_WORKLOAD_TCO"));
-assert.equal(mixed.attributableTcoUsd, null);
-assert.equal(mixed.href.includes("tco=1250000"), false);
+assert.deepEqual(mixed.blockers, []);
+assert.equal(mixed.inferenceShare, 0.5);
+assert.equal(mixed.attributableTcoUsd, 625_000);
+assert.equal(mixed.allocationMethod, "WORKLOAD_SHARE_MODELED");
+assert.equal(mixed.demandGrowthRate, 0.25);
+assert.ok(mixed.href.includes("tco=625000"));
+assert.ok(mixed.href.includes("inferenceShare=0.5"));
 
-// Nonzero TCO growth: do not pair a growth-loaded numerator with flat demand.
-const growthMismatch = buildInferenceEconomicsPreviewHandoff({
+// Physical fleet growth remains blocked until multi-system scaling is qualified.
+const fleetGrowth = buildInferenceEconomicsPreviewHandoff({
   ownSys: "DGX B200",
   systemCount: 1,
   gpusPerSystem: 8,
+  fleetSystemsByYear: [1, 2, 2],
   modelId: "llama-3.1-70b",
   quant: "FP8",
   horizonYears: 3,
   onPremTcoUsd: 1_500_000,
-  isInferenceWorkloadHandoff: true,
-  trainShare: 0,
+  trainShare: 0.5,
   growth: 0.25,
 });
-assert.ok(growthMismatch.blockers.includes("TCO_GROWTH_NOT_MODELED"));
-assert.equal(growthMismatch.attributableTcoUsd, null);
+assert.ok(fleetGrowth.blockers.includes("FLEET_GROWTH_NOT_MODELED"));
+assert.equal(fleetGrowth.attributableTcoUsd, null);
 
 // Unsupported hardware identity is preserved so Preview fails honestly.
 const rubin = buildInferenceEconomicsPreviewHandoff({
   ownSys: "DGX Rubin NVL8",
   systemCount: 1,
   gpusPerSystem: 8,
+  fleetSystemsByYear: [1, 1, 1],
   modelId: "llama-3.1-70b",
   quant: "FP8",
   horizonYears: 3,
@@ -93,6 +104,7 @@ const custom = buildInferenceEconomicsPreviewHandoff({
   ownSys: "DGX H200",
   systemCount: 1,
   gpusPerSystem: 8,
+  fleetSystemsByYear: [1],
   modelId: "custom",
   modelParamsB: 42,
   quant: "FP8",
@@ -113,10 +125,11 @@ const tco = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
 const ui = fs.readFileSync("src/InferenceEconomicsPreview.jsx", "utf8");
 assert.ok(tco.includes("Open Inference Economics Preview"));
 assert.ok(tco.includes("buildInferenceEconomicsPreviewHandoff"));
-assert.ok(ui.includes("PREVIEW — IE-5.1"));
+assert.ok(tco.includes("fleetSystemsByYear: r.fleetAdj"));
+assert.ok(ui.includes("PREVIEW — IE-5.2"));
 assert.ok(ui.includes("parseInferenceEconomicsPreviewHandoff"));
-assert.ok(ui.includes("Inherited from TCO"));
+assert.ok(ui.includes("Modeled TCO allocation"));
 assert.ok(ui.includes("does not change TCO calculations, reports, or recommendations"));
 assert.equal(ui.includes("Send to TCO"), false);
 
-console.log("IE-5 Preview TCO connector contract verified.");
+console.log("IE-5.2 Preview TCO connector contract verified.");
