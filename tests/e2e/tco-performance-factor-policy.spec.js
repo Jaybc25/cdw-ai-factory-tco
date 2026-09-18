@@ -28,9 +28,9 @@ test("M6 defaults use modest scheduling credit and neutral incremental NVAIE cre
 test("M6 scheduling factor cannot imply more than 100 percent useful utilization", async ({ page }) => {
   await page.goto("/tco", { waitUntil: "domcontentloaded" });
 
-  await openSection(page, "Infrastructure & operations");
+  await openSection(page, "Refine when known");
   const utilization = page.getByLabel("Target on-prem utilization");
-  await utilization.fill("1");
+  await utilization.evaluate((el) => { el.value = "1"; el.dispatchEvent(new Event("input", { bubbles: true })); el.dispatchEvent(new Event("change", { bubbles: true })); });
 
   await openSection(page, "Performance factors");
   const scheduling = page.getByLabel("Scheduling / orchestration (Run:ai / Mission Control)");
