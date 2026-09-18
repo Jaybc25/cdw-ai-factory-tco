@@ -10,6 +10,7 @@ import { TCO_MODEL_OPTIONS, getDefaultModel, getModelById, formatModelContext } 
 import BestValueGpuAasPanel from "./BestValueGpuAasPanel.jsx";
 import { GPUAAS_CONFIDENCE, rankSameClassGpuAas, topGpuAasValues } from "./bestValueGpuaas.js";
 import { trendCloudGpuCompute } from "./cloudUnitPriceTrend.js";
+import { buildInferenceEconomicsPreviewHandoff } from "./inferenceEconomicsConnector.js";
 
 const OWN_TARGETS = Object.keys(SYSTEMS);
 /* Per-GPU capability indices (B200 = 1.0). Established classes derived from MLPerf pairs;
@@ -1126,6 +1127,25 @@ function AppInner() {
     [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
   );
   const t = r.tot(horizon);
+
+  // IE-5 Preview-only connector. The Preview receives the current TCO context
+  // but remains a separate route and calculation surface. Full on-prem TCO is
+  // inherited only when it is defensibly attributable to inference and the
+  // current flat-demand Preview semantics are compatible with TCO growth.
+  const inferenceEconomicsPreview = buildInferenceEconomicsPreviewHandoff({
+    ownSys,
+    systemCount: r.sysAdj,
+    gpusPerSystem: SYSTEMS[ownSys]?.gpus,
+    modelId,
+    modelParamsB,
+    quant,
+    horizonYears: horizon,
+    onPremTcoUsd: t.onAdj,
+    workingDayHours,
+    isInferenceWorkloadHandoff: r.isWorkloadMode && workingDayHours != null,
+    trainShare,
+    growth,
+  });
 
 
   // Best-Value GPUaaS v1: Workload Requirement mode only. GPU Sizing owns
@@ -2286,6 +2306,13 @@ function AppInner() {
             style={{ ...disp, fontSize: 12, fontWeight: 700, padding: "9px 14px", borderRadius: 8, background: C.green, color: "#fff", textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap" }}
           >
             Send to ROI Calculator
+          </a>
+          <a
+            href={inferenceEconomicsPreview.href}
+            style={{ ...disp, fontSize: 12, fontWeight: 700, padding: "9px 14px", borderRadius: 8, background: "#fff", color: C.green, border: "1px solid " + C.green, textDecoration: "none", flexShrink: 0, whiteSpace: "nowrap" }}
+            title="Preview only — does not change TCO calculations or reports"
+          >
+            Open Inference Economics Preview
           </a>
         </div>
 
