@@ -7,7 +7,9 @@ import {
   createManagedApiRateRecord,
 } from "../src/managedApiPricingSource.js";
 import {
+  REFERENCE_BLEND_PROFILE,
   calculateManagedApiWorkloadEconomics,
+  calculateReferenceBlendedRate,
   comparePrivateAndManagedApi,
 } from "../src/managedApiComparison.js";
 
@@ -26,6 +28,37 @@ const firstParty = createManagedApiRateRecord({
   commercialUseStatus: COMMERCIAL_USE_STATUS.NOT_APPLICABLE,
 });
 assert.equal(firstParty.ok, true);
+
+// 1b) Published reference blends are explicit and cache-free.
+const blend7030 = calculateReferenceBlendedRate({
+  inputUsdPerMillion: 2,
+  outputUsdPerMillion: 10,
+  profile: REFERENCE_BLEND_PROFILE.INPUT_70_OUTPUT_30,
+});
+assert.equal(blend7030.ok, true);
+assert.equal(blend7030.blendedUsdPerMillion, 4.4);
+assert.equal(blend7030.inputShare, 0.70);
+assert.equal(blend7030.outputShare, 0.30);
+assert.equal(blend7030.cacheIncluded, false);
+
+const blend7525 = calculateReferenceBlendedRate({
+  inputUsdPerMillion: 2,
+  outputUsdPerMillion: 10,
+  profile: REFERENCE_BLEND_PROFILE.INPUT_75_OUTPUT_25,
+});
+assert.equal(blend7525.ok, true);
+assert.equal(blend7525.blendedUsdPerMillion, 4);
+assert.equal(blend7525.inputShare, 0.75);
+assert.equal(blend7525.outputShare, 0.25);
+assert.equal(blend7525.cacheIncluded, false);
+
+// A cached-input rate is deliberately irrelevant to the reference blend.
+const blendWithCacheIrrelevant = calculateReferenceBlendedRate({
+  inputUsdPerMillion: firstParty.rate.inputUsdPerMillion,
+  outputUsdPerMillion: firstParty.rate.outputUsdPerMillion,
+  profile: "INPUT_70_OUTPUT_30",
+});
+assert.equal(blendWithCacheIrrelevant.blendedUsdPerMillion, 4.4);
 
 // 2) Workload economics use full input + cached input + output billing, while
 // normalizing the final comparison back to useful OUTPUT tokens.
