@@ -10,6 +10,12 @@ import {
   qualifyInferenceEconomicsEvidence,
 } from "../src/inferenceEconomicsEvidence.js";
 import { deriveInferenceEconomicsThroughput } from "../src/inferenceEconomicsThroughput.js";
+import {
+  OUTPUT_TOKEN_DEMAND_BASIS,
+  calculateAnnualOutputTokenDemand,
+  calculateAnnualServingCapacity,
+  calculateDemandBoundInferenceEconomics,
+} from "../src/inferenceEconomicsWorkload.js";
 
 // 1) Peak concurrency alone is intentionally insufficient: there is no API in
 // this module that converts concurrent users × target tok/s directly to monthly
@@ -192,4 +198,77 @@ const unsupported = deriveInferenceEconomicsThroughput({
 assert.equal(unsupported.ok, false);
 assert.equal(unsupported.reason, "INSUFFICIENT_EVIDENCE");
 
-console.log("Inference economics preview methodology integration verified.");
+
+// 9) Measured demand, not theoretical capacity, defines useful output tokens.
+const measuredDemand = calculateAnnualOutputTokenDemand({
+  basis: OUTPUT_TOKEN_DEMAND_BASIS.MEASURED_MONTHLY,
+  measuredMonthlyOutputTokens: 1_000_000_000,
+  activeDaysPerYear: 365,
+});
+assert.equal(measuredDemand.ok, true);
+assert.equal(measuredDemand.annualOutputTokens, 12_000_000_000);
+assert.equal(measuredDemand.provenance, "MEASURED");
+
+// 10) Request forecasting derives output-token demand explicitly.
+const forecastDemand = calculateAnnualOutputTokenDemand({
+  basis: OUTPUT_TOKEN_DEMAND_BASIS.REQUEST_FORECAST,
+  requestsPerDay: 100_000,
+  averageOutputTokensPerRequest: 500,
+  averageInputTokensPerRequest: 2_000,
+  activeDaysPerYear: 250,
+});
+assert.equal(forecastDemand.ok, true);
+assert.equal(forecastDemand.annualOutputTokens, 12_500_000_000);
+assert.equal(forecastDemand.assumptions.averageInputTokensPerRequest, 2_000);
+
+// 11) Production-serving factor is mandatory; no silent Offline -> Server default.
+const missingServingFactor = calculateAnnualServingCapacity({
+  effectiveOutputThroughputTokPerSec: 10_000,
+  activeHoursPerDay: 8,
+  activeDaysPerYear: 250,
+});
+assert.equal(missingServingFactor.ok, false);
+
+const servingCapacity = calculateAnnualServingCapacity({
+  effectiveOutputThroughputTokPerSec: 10_000,
+  productionServingFactor: 0.6,
+  activeHoursPerDay: 8,
+  activeDaysPerYear: 250,
+});
+assert.equal(servingCapacity.ok, true);
+assert.equal(servingCapacity.productionOutputTokPerSec, 6_000);
+assert.equal(servingCapacity.annualCapacityOutputTokens, 43_200_000_000);
+
+// 12) Idle capacity stays idle: denominator is demand, not maximum capacity.
+const demandBound = calculateDemandBoundInferenceEconomics({
+  attributableTcoUsd: 1_200_000,
+  horizonYears: 3,
+  demand: measuredDemand,
+  servingCapacity,
+  evidenceStatus: "MODELED",
+});
+assert.equal(demandBound.ok, true);
+assert.equal(demandBound.horizonUsefulOutputTokens, 36_000_000_000);
+assert.equal(demandBound.costPerMillionOutputTokens, (1_200_000 / 36_000_000_000) * 1_000_000);
+assert.ok(demandBound.annualUnusedCapacityTokens > 0);
+
+// 13) An undersized design must not win with an artificially cheap token cost.
+const tooSmallCapacity = calculateAnnualServingCapacity({
+  effectiveOutputThroughputTokPerSec: 1_000,
+  productionServingFactor: 0.5,
+  activeHoursPerDay: 8,
+  activeDaysPerYear: 250,
+});
+const undersized = calculateDemandBoundInferenceEconomics({
+  attributableTcoUsd: 100_000,
+  horizonYears: 3,
+  demand: measuredDemand,
+  servingCapacity: tooSmallCapacity,
+  evidenceStatus: "MODELED",
+});
+assert.equal(undersized.ok, false);
+assert.equal(undersized.reason, "UNDERSIZED_FOR_DEMAND");
+assert.equal(undersized.costPerMillionOutputTokens, null);
+assert.ok(undersized.annualShortfallTokens > 0);
+
+console.log("Inference economics preview serving methodology verified.");
