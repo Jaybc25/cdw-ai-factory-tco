@@ -28,6 +28,22 @@ assert.ok(ui.includes("It does not automatically recalculate the TCO numerator")
 assert.ok(ui.includes('H200: ["FP8"]'));
 assert.ok(ui.includes("Cost/token currently uses generated output tokens"));
 
+
+
+// IE-6.2 managed API comparison UI contract.
+assert.ok(ui.includes("PREVIEW — IE-6.2"));
+assert.ok(ui.includes("Managed API economics"));
+assert.ok(ui.includes("WORKLOAD-SPECIFIC COMPARISON"));
+assert.ok(ui.includes("70/30 reference blend"));
+assert.ok(ui.includes("75/25 reference blend"));
+assert.ok(ui.includes("Input tokens per output token"));
+assert.ok(ui.includes("Cached share of input"));
+assert.ok(ui.includes("Managed API effective cost"));
+assert.ok(ui.includes("API minus private"));
+assert.ok(ui.includes("No external pricing feed is active."));
+assert.ok(ui.includes("Model capability equivalence is not asserted."));
+assert.ok(ui.includes("Reference blends deliberately exclude cache discounts."));
+
 console.log("Inference economics preview UI contract verified.");
 
 
