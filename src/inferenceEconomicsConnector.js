@@ -34,7 +34,8 @@ export function buildInferenceEconomicsPreviewHandoff({
   trainShare = null,
   growth = null,
 }) {
-  const hardwareClass = TCO_SYSTEM_TO_IE_HARDWARE[ownSys] || null;
+  const mappedHardwareClass = TCO_SYSTEM_TO_IE_HARDWARE[ownSys] || null;
+  const hardwareClass = mappedHardwareClass || ownSys || null;
   const gpuCount = finitePositive(systemCount) && finitePositive(gpusPerSystem)
     ? Number(systemCount) * Number(gpusPerSystem)
     : null;
@@ -48,7 +49,7 @@ export function buildInferenceEconomicsPreviewHandoff({
     Number.isFinite(Number(growth)) && Number(growth) === 0;
 
   const blockers = [];
-  if (!hardwareClass) blockers.push("UNSUPPORTED_HARDWARE");
+  if (!mappedHardwareClass) blockers.push("UNSUPPORTED_HARDWARE");
   if (!gpuCount) blockers.push("INVALID_GPU_COUNT");
   if (!modelId) blockers.push("MISSING_MODEL");
   if (modelId === "custom" && !finitePositive(modelParamsB)) blockers.push("CUSTOM_MODEL_SIZE_MISSING");
