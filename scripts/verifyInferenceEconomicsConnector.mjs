@@ -65,7 +65,8 @@ assert.equal(mixed.demandGrowthRate, 0.25);
 assert.ok(mixed.href.includes("tco=625000"));
 assert.ok(mixed.href.includes("inferenceShare=0.5"));
 
-// Physical fleet growth remains blocked until multi-system scaling is qualified.
+// Physical fleet growth is handled conservatively: full TCO cost is retained,
+ // but no extra throughput credit is assumed beyond the initial benchmark-sized deployment.
 const fleetGrowth = buildInferenceEconomicsPreviewHandoff({
   ownSys: "DGX B200",
   systemCount: 1,
@@ -78,7 +79,8 @@ const fleetGrowth = buildInferenceEconomicsPreviewHandoff({
   trainShare: 0.5,
   growth: 0.25,
 });
-assert.ok(fleetGrowth.blockers.includes("FLEET_GROWTH_NOT_MODELED"));
+assert.equal(fleetGrowth.blockers.includes("FLEET_GROWTH_NOT_MODELED"), false);
+assert.equal(fleetGrowth.fleetGrowthConservative, true);
 assert.equal(fleetGrowth.inferenceShare, 0.5);
 assert.equal(fleetGrowth.attributableTcoUsd, 750_000);
 assert.equal(fleetGrowth.allocationMethod, "WORKLOAD_SHARE_MODELED");
@@ -144,16 +146,20 @@ const ui = fs.readFileSync("src/InferenceEconomicsPreview.jsx", "utf8");
 assert.ok(tco.includes("Open Inference Economics Preview"));
 assert.ok(tco.includes("buildInferenceEconomicsPreviewHandoff"));
 assert.ok(tco.includes("fleetSystemsByYear: r.fleetAdj"));
-assert.ok(ui.includes("PREVIEW — IE-5.3"));
+assert.ok(ui.includes("PREVIEW — IE-5.4"));
 assert.ok(ui.includes("parseInferenceEconomicsPreviewHandoff"));
 assert.ok(ui.includes("Modeled TCO allocation"));
 assert.ok(ui.includes("does not change TCO calculations, reports, or recommendations"));
 assert.equal(ui.includes("Send to TCO"), false);
 
-console.log("IE-5.2 Preview TCO connector contract verified.");
+console.log("IE-5.4 Preview TCO connector contract verified.");
 
 
 // IE-5.3: allocation and eligibility are separate concepts.
 assert.ok(ui.includes("INHERITED_SCENARIO_UNSUPPORTED"));
 assert.ok(ui.includes("Inherited TCO scenario is not yet eligible for token economics"));
-assert.ok(ui.includes("The modeled inference TCO allocation can still be shown"));
+
+
+// IE-5.4: fleet growth is a conservative disclosure, not a blanket blocker.
+assert.ok(ui.includes("Conservative fleet-growth treatment"));
+assert.ok(ui.includes("no throughput credit is given beyond the initial benchmark-supported deployment"));

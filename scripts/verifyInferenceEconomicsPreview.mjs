@@ -285,6 +285,24 @@ assert.equal(
   (1_200_000 / 45_750_000_000) * 1_000_000,
 );
 
+// 12c) Growth is allowed only while peak demand stays inside the one-system
+// benchmark-supported serving capacity. No extra throughput is inferred.
+const growthExceedsSupportedCapacity = calculateDemandBoundInferenceEconomics({
+  attributableTcoUsd: 2_000_000,
+  horizonYears: 3,
+  demand: {
+    ...measuredDemand,
+    annualOutputTokens: 30_000_000_000,
+  },
+  servingCapacity,
+  demandGrowthRate: 0.25,
+  evidenceStatus: "MODELED",
+});
+assert.equal(growthExceedsSupportedCapacity.ok, false);
+assert.equal(growthExceedsSupportedCapacity.reason, "UNDERSIZED_FOR_DEMAND");
+assert.equal(growthExceedsSupportedCapacity.costPerMillionOutputTokens, null);
+assert.ok(growthExceedsSupportedCapacity.annualShortfallTokens > 0);
+
 // 13) An undersized design must not win with an artificially cheap token cost.
 const tooSmallCapacity = calculateAnnualServingCapacity({
   effectiveOutputThroughputTokPerSec: 1_000,

@@ -65,7 +65,7 @@ export default function InferenceEconomicsPreview() {
   const availablePrecisions = PRECISIONS_BY_HARDWARE[hardwareClass] || (quant ? [quant] : ["FP8"]);
   const inherited = handoff?.source === "tco";
   const inheritedBlockingReasons = (handoff?.blockers || []).filter((code) =>
-    ["FLEET_GROWTH_NOT_MODELED", "UNSUPPORTED_HARDWARE", "CUSTOM_MODEL_SIZE_MISSING", "INFERENCE_SHARE_UNKNOWN", "NO_INFERENCE_SHARE"].includes(code)
+    ["UNSUPPORTED_HARDWARE", "CUSTOM_MODEL_SIZE_MISSING", "INFERENCE_SHARE_UNKNOWN", "NO_INFERENCE_SHARE"].includes(code)
   );
   const inheritedScenarioBlocked = inherited && inheritedBlockingReasons.length > 0;
 
@@ -133,7 +133,7 @@ export default function InferenceEconomicsPreview() {
   return (
     <main style={{maxWidth:1100,margin:"0 auto",padding:"28px 20px 64px",fontFamily:"Inter,system-ui,sans-serif",color:"#232323"}}>
       <div style={{border:"1px solid #f0b7b7",background:"#fff7f7",borderRadius:10,padding:"14px 16px",marginBottom:20}}>
-        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-5.3</div>
+        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-5.4</div>
         <div style={{fontSize:14,fontWeight:700,marginTop:4}}>Inference Economics Preview</div>
         <div style={{fontSize:12,lineHeight:1.55,color:"#555",marginTop:4}}>Experimental cost-per-1M-output-tokens modeling. The connector only carries context from TCO into this Preview; it does not change TCO calculations, reports, or recommendations.</div>
       </div>
@@ -145,9 +145,14 @@ export default function InferenceEconomicsPreview() {
               <b>Modeled TCO allocation:</b> {money(handoff.attributableTcoUsd)} = {money(handoff.fullTcoUsd)} × {Math.round((handoff.inferenceShare || 0) * 100)}% inference share from the TCO workload mix. Override only if you have a better defensible allocation basis.
             </div>
           ) : null}
+          {handoff?.fleetGrowthConservative ? (
+            <div style={{marginTop:6,color:"#555"}}>
+              <b>Conservative fleet-growth treatment:</b> TCO includes the cost of additional systems across the horizon, but this Preview gives throughput credit only to the initial benchmark-supported deployment. If growing demand exceeds that supported capacity, the result is suppressed rather than assuming multi-system scaling.
+            </div>
+          ) : null}
           {handoff?.blockers?.length ? (
             <div style={{marginTop:6,color:"#7a2d00"}}>
-              <b>Connector guardrail:</b> {handoff.blockers.includes("FLEET_GROWTH_NOT_MODELED") ? "TCO adds systems during the selected horizon. The modeled inference TCO allocation can still be shown, but $/1M output-token economics are suppressed because multi-system inference scaling is not yet qualified. " : ""}{handoff.blockers.includes("UNSUPPORTED_HARDWARE") ? "This TCO hardware does not yet have qualifying inference-economics evidence. " : ""}{handoff.blockers.includes("CUSTOM_MODEL_SIZE_MISSING") ? "Custom model size is missing. " : ""}{handoff.blockers.includes("INFERENCE_SHARE_UNKNOWN") ? "The TCO workload mix does not provide a usable inference share for allocation. " : ""}{handoff.blockers.includes("NO_INFERENCE_SHARE") ? "The TCO workload mix contains no inference share to allocate. " : ""}
+              <b>Connector guardrail:</b> {handoff.blockers.includes("UNSUPPORTED_HARDWARE") ? "This TCO hardware does not yet have qualifying inference-economics evidence. " : ""}{handoff.blockers.includes("CUSTOM_MODEL_SIZE_MISSING") ? "Custom model size is missing. " : ""}{handoff.blockers.includes("INFERENCE_SHARE_UNKNOWN") ? "The TCO workload mix does not provide a usable inference share for allocation. " : ""}{handoff.blockers.includes("NO_INFERENCE_SHARE") ? "The TCO workload mix contains no inference share to allocate. " : ""}
             </div>
           ) : null}
         </div>
@@ -245,7 +250,7 @@ export default function InferenceEconomicsPreview() {
             <Metric label="Year 1 demand / serving capacity" value={(e.demandUtilizationOfCapacity*100).toFixed(1)+"%"} help="Year 1 useful demand divided by modeled annual serving capacity. This is a capacity-consumption ratio, not measured GPU utilization. The remaining percentage is modeled Year 1 serving headroom." />
             <Metric label="Benchmark-adjusted throughput ceiling" value={compact(t?.effectiveThroughputTokPerSec)+" tok/s"} help="Benchmark output-token throughput after model and precision adjustments, before the production-serving factor de-rates it for real production. This is a modeled ceiling, not an observed workload rate." />
           </div>
-          <div style={note}>Unused capacity does not lower this result. The denominator is useful demand actually served, not every token the hardware could theoretically produce.{e.demandGrowthRate > 0 ? ` Demand grows ${Math.round(e.demandGrowthRate*100)}%/yr; final-year demand is ${compact(e.finalYearDemandOutputTokens)} and peak modeled capacity use is ${(e.peakDemandUtilizationOfCapacity*100).toFixed(1)}%.` : ""}</div>
+          <div style={note}>Unused capacity does not lower this result. The denominator is useful demand actually served, not every token the hardware could theoretically produce.{e.demandGrowthRate > 0 ? ` Demand grows ${Math.round(e.demandGrowthRate*100)}%/yr; final-year demand is ${compact(e.finalYearDemandOutputTokens)} and peak modeled capacity use is ${(e.peakDemandUtilizationOfCapacity*100).toFixed(1)}%.` : ""}{handoff?.fleetGrowthConservative ? " Additional fleet cost is counted in TCO, but no throughput credit is given beyond the initial benchmark-supported deployment." : ""}</div>
         </> : <>
           <div style={{fontSize:24,fontWeight:850,marginTop:14,color:"#8a1c1c"}}>{e?.reason==="UNDERSIZED_FOR_DEMAND" ? "Configuration does not meet stated demand" : e?.reason==="INHERITED_SCENARIO_UNSUPPORTED" ? "Inherited TCO scenario is not yet eligible for token economics" : "Result unavailable"}</div>
           <div style={{fontSize:13,color:"#555",marginTop:8}}>{e?.errors?.join(" ") || result.demand?.errors?.join(" ") || result.capacity?.errors?.join(" ") || result.throughput?.errors?.join(" ")}</div>
