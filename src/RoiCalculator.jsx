@@ -5,7 +5,8 @@ import { AuthProvider, useAuth, useAutosaveSnapshot } from "./AuthContext";
 import AuthWidget from "./AuthWidget";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
 import {
-  DEFAULT_INPUTS, BOUNDS, validateInputs, computeEngine,
+  DEFAULT_INPUTS, DEFAULT_YEAR1_RAMP_PCT, ROI_RAMP_POLICY_VERSION,
+  BOUNDS, validateInputs, computeEngine,
   PAYBACK_GUARD_TEXT, NA_TEXT, excelRound,
 } from "./engine";
 
@@ -415,11 +416,23 @@ function parseHandoffNumber(raw) {
   return Number.isFinite(n) ? n : null;
 }
 
-function getInitialInputs(savedInputs) {
+function getInitialInputs(savedInputs, rampPolicyIsCurrent) {
   const params = getIncomingParams();
   const initialCost = parseHandoffNumber(params?.get("initialCost"));
   const recurringCost = parseHandoffNumber(params?.get("recurringCost"));
-  const base = savedInputs ?? DEFAULT_INPUTS;
+
+  // M7 changes only the default Year-1 ramp assumption. Preserve an explicit
+  // prior user choice, but migrate the old 100% default once so historical
+  // session state cannot silently defeat the new 75% planning default.
+  const savedBase = savedInputs
+    ? {
+        ...savedInputs,
+        ...(!rampPolicyIsCurrent && savedInputs.rampPct === 1
+          ? { rampPct: DEFAULT_YEAR1_RAMP_PCT }
+          : {}),
+      }
+    : null;
+  const base = savedBase ?? DEFAULT_INPUTS;
   if (initialCost == null && recurringCost == null) return base;
   return {
     ...base,
@@ -513,6 +526,7 @@ function RoiCalculatorInner() {
   // (workforce assumptions, ramp, horizon, etc.) was never part of any
   // handoff, so it keeps restoring from the last saved session either way.
   const saved = loadSessionState("roi");
+  const rampPolicyIsCurrent = saved?.roiRampPolicyVersion === ROI_RAMP_POLICY_VERSION;
 
   // Fix (Bug Group 1b/1d): these three previously read ONLY from the URL,
   // with no saved-state fallback. That caused two distinct symptoms after
@@ -568,7 +582,7 @@ function RoiCalculatorInner() {
   // Field-level, not one collapsed flag: only one of the two costs may have
   // been touched, and callers that need that distinction can see it.
 
-  const [inputs, setInputs] = useState(() => getInitialInputs(saved?.inputs));
+  const [inputs, setInputs] = useState(() => getInitialInputs(saved?.inputs, rampPolicyIsCurrent));
   const [openTipId, setOpenTipId] = useState(null);
   const [showFte, setShowFte] = useState(saved?.showFte ?? false);
   const [showUpside, setShowUpside] = useState(saved?.showUpside ?? false);
@@ -587,6 +601,7 @@ function RoiCalculatorInner() {
   // routing, so the whole page reloads and every component remounts fresh).
   useEffect(() => {
     saveSessionState("roi", {
+      roiRampPolicyVersion: ROI_RAMP_POLICY_VERSION,
       inputs, showFte, showUpside,
       // Fix (Bug Group 1b/1d): persist handoff provenance, not just the
       // cost values themselves -- see the Fix comment above these three
@@ -875,7 +890,7 @@ function RoiCalculatorInner() {
           <AuditRow label="Task time reduction" value={fmtPercent(inputs.reductionPct)} sub="how much of each task's time is eliminated" />
           <AuditRow label="Adoption" value={fmtPercent(inputs.adoptionPct)} sub="share of eligible work actually using the new approach" />
           <AuditRow label="Realization" value={fmtPercent(inputs.realizationPct)} sub="share of freed time actually captured as productive redeployment, not lost to friction" />
-          <AuditRow label="Year 1 ramp" value={fmtPercent(inputs.rampPct)} sub="Year 1 value as a share of full steady-state (100% = no ramp)" />
+          <AuditRow label="Year 1 ramp" value={fmtPercent(inputs.rampPct)} sub="Year 1 value as a share of full steady-state (75% planning default; 100% = no ramp)" />
           {inputs.upliftPerHr > 0 && <AuditRow label="Illustrative uplift per hour" value={fmtCurrency(inputs.upliftPerHr)} sub="a separate, illustrative-only figure -- not included in the horizon net benefit or ROI below" />}
 
           <div style={{ fontSize: 11, fontWeight: 700, color: GRAY_TEXT, marginTop: 12, marginBottom: 2 }}>Investment assumptions</div>
@@ -884,7 +899,7 @@ function RoiCalculatorInner() {
           <AuditRow label="Analysis horizon" value={`${inputs.horizonYears} years`} />
 
           <div style={{ fontSize: 11, color: CHARCOAL, marginTop: 12, marginBottom: 14, background: "#F7F7F7", borderRadius: 8, padding: "10px 12px" }}>
-            <b>Key assumptions worth stress-testing:</b> realization (the gap between time freed and value actually captured), adoption, the loaded cost per hour, and the recurring cost, since it repeats every year of the horizon while the initial cost is paid once.
+            <b>Key assumptions worth stress-testing:</b> realization (the gap between time freed and value actually captured), adoption, Year 1 ramp timing, the loaded cost per hour, and the recurring cost, since it repeats every year of the horizon while the initial cost is paid once.
           </div>
 
           {/* SECTION 2: CAPACITY CALCULATION */}
@@ -1081,7 +1096,7 @@ function RoiCalculatorInner() {
               tip="Of the capacity created, the % expected to be productively used elsewhere (vs. absorbed as slack). One combined field by design." />
             <Field id="rampPct" openTipId={openTipId} setOpenTipId={setOpenTipId} label="Year 1 benefit realization / ramp" unit="%" isPercent
               value={inputs.rampPct} onChange={set("rampPct")} error={errors.rampPct}
-              tip="Share of steady-state benefit actually realized in Year 1, to account for implementation and rollout time. Default 100% = no ramp assumed. Years 2+ are always full steady state." />
+              tip="Share of steady-state benefit actually realized during the first analysis year, after allowing for implementation, rollout, adoption, and change-management timing. The 75% default is a planning assumption, not an industry benchmark. Use 100% when the analysis starts after the solution is effectively live and operating at steady state; use about 50% for a roughly linear ramp from near-zero to full benefit across the year; use lower values for longer or phased rollouts. Years 2+ are modeled at full steady state." />
           </div>
 
           <div style={styles.section}>
