@@ -11,6 +11,7 @@ import BestValueGpuAasPanel from "./BestValueGpuAasPanel.jsx";
 import { GPUAAS_CONFIDENCE, rankSameClassGpuAas, topGpuAasValues } from "./bestValueGpuaas.js";
 import { trendCloudGpuCompute } from "./cloudUnitPriceTrend.js";
 import { getTcoInfrastructureCoverage } from "./tcoInfrastructureCoverage.js";
+import { TCO_PERFORMANCE_FACTOR_POLICY_VERSION, DEFAULT_SCHEDULING_FACTOR, DEFAULT_NVAIE_FACTOR, maxSchedulingFactorForUtilization, clampSchedulingFactor } from "./tcoPerformanceFactorPolicy.js";
 import { buildInferenceEconomicsPreviewHandoff } from "./inferenceEconomicsConnector.js";
 
 const OWN_TARGETS = Object.keys(SYSTEMS);
@@ -72,17 +73,17 @@ const TIPS = {
   migration: `One-time cost of the engineering work to move workloads from cloud to your own systems: replatforming, testing, and cutover. The default of $100K represents a typical mid-size migration; complex environments with many custom pipelines run higher. If unsure, leave the default.`,
   dualRun: `How many months you'd pay for both cloud and on-prem while migrating, since you can't switch off the cloud the day hardware arrives. Each month adds one full cloud bill to the transition cost. Typical is 2 to 3 months; leave the default unless you know your cutover will be unusually fast or slow.`,
   exitEgress: `The one-time cost of downloading your data out of the cloud when you leave, charged per gigabyte by most providers. It's calculated automatically from your storage inputs at roughly $50K per petabyte. Note: some providers now waive exit fees entirely, which the tool reflects where applicable.`,
-  factorsGroup: `These factors adjust for on-prem hardware doing more work per hour than the cloud instances you're renting. They're the reason the adjusted estimate beats the floor case. Defaults are NVIDIA's published 'reasonable' values; drag any slider to 1.0 to assume zero benefit and stress-test the savings yourself.`,
-  genSpeedup: `How much faster a current DGX system runs your workloads than the cloud GPUs you're on today, mostly reflecting generation gap: if you're renting A100s, new B200s deliver several times the work per hour. The default of 3x is NVIDIA's typical cross-generation figure; set it near 1.2x if your cloud instances are already latest-generation.`,
-  network: `Gain from the purpose-built networking inside a DGX cluster versus general-purpose cloud networking, which matters most when training runs span multiple GPUs and they wait on each other. Default 1.5x is NVIDIA's reference figure; use 1.05x if your workloads are mostly single-GPU jobs that rarely talk to each other.`,
-  runai: `How much more of your GPUs' time does useful work when jobs are packed efficiently instead of sitting idle between tasks. Cloud GPU utilization is notoriously low; scheduling software recovers those wasted hours. Default 1.3x is conservative; teams with poor current utilization see far more.`,
-  nvaie: `Gain from optimized inference engines and libraries that squeeze more throughput from the same GPU than off-the-shelf frameworks. Default 1.3x; most relevant if you run heavy inference workloads, closer to 1.1x if you're purely training with already-tuned code.`,
+  factorsGroup: `These are incremental efficiency assumptions used only in Existing Cloud Spend mode. The generational factor comes from the hardware capability lookup; network stays neutral by default; scheduling/orchestration defaults to a modest 1.10x utilization-recovery credit; and NVAIE/NIM defaults to 1.00x incremental credit because the optimized NVIDIA software stack is already represented in the benchmark/capability basis. Move a factor above its default only when discovery, benchmarking, or observed utilization supports the additional benefit. Set any editable factor to 1.00x to remove that incremental credit.`,
+  genSpeedup: `Hardware-generation capability difference between the cloud GPU class and the selected on-prem system, weighted by workload mix. This value is looked up from the tool's benchmark-derived capability model rather than chosen as a generic default. Treat it as directional: the closer the cloud and on-prem GPU generations are, the closer this factor should be to 1.00x.`,
+  network: `Potential incremental benefit from purpose-built scale-up/scale-out networking when distributed jobs are communication-bound. The tool defaults this factor to 1.00x, so no network advantage is assumed automatically. Increase it only when the current environment is demonstrably constrained by inter-GPU or inter-node communication; keep it at 1.00x for primarily single-GPU or non-network-bound workloads.`,
+  runai: `Models additional useful GPU capacity recovered through orchestration and scheduling: queueing, job placement, resource sharing, and reducing idle or fragmented GPU capacity. This is utilization recovery, not a claim that each GPU runs faster. The default 1.10x is a modest planning credit. Use 1.00x for a dedicated or already well-packed environment; increase only when discovery shows meaningful recoverable idle/fragmented capacity. The tool caps this factor so target utilization × scheduling factor can never exceed 100%.`,
+  nvaie: `NVIDIA AI Enterprise provides the supported software stack used to operate and optimize AI workloads, including inference tooling such as NIM/TensorRT-LLM where applicable. Its software/support cost remains included in the on-prem solution. The default incremental factor is 1.00x because the benchmark/capability basis already reflects an optimized NVIDIA software stack; this avoids counting the same optimization twice. Increase only when the proposed on-prem stack will add a measurable optimization that is not already represented in the customer's current environment or in the benchmark basis.`,
   trainShare: `Roughly what percent of your GPU hours go to training models versus running them (inference). Training benefits most from new-generation hardware, so this gates the speedup math. If unsure, leave the default; most production shops are inference-heavy.`,
   odShare: `What portion of your cloud GPUs are billed at on-demand rates versus cheaper 1-year reserved pricing. On-demand costs roughly 40 to 60% more per hour. Check your bill if you can; otherwise the default assumes mostly reserved, which is the conservative choice.`,
   computeShare: `How much of your total monthly AI spend is GPU compute, as opposed to storage, networking, and platform fees. The 50% default is a typical decomposition; leave it unless you have your actual bill breakdown handy.`,
   growth: `How fast your AI usage is growing year over year. This matters because owned hardware absorbs growth for free until you fill it, while cloud bills scale with every added hour. 25% is a moderate default; AI-first teams often run 50% or higher.`,
   powerRate: `What you pay per kilowatt-month for data center power, including cooling overhead, not just the utility rate. The default reflects a typical enterprise fully-loaded cost; leave it unless your facilities team has given you a real number. NVIDIA's default is $300 (~$0.41/kWh); SLED and municipal power often lands $150–200.`,
-  util: `What percent of your owned systems' capacity you realistically expect to use, accounting for maintenance windows, scheduling gaps, and uneven demand. NVIDIA's math implicitly assumes 100%, which nobody hits; the 85% default is an honest de-rate. Lower it if your workloads are bursty; raising it above 90% is optimistic.`,
+  util: `Baseline useful utilization expected from the owned fleet before any additional Run:ai / Mission Control scheduling-recovery credit. It reflects maintenance, workload shape, demand gaps, and normal operational derating. The 85% default is already strong; the separate scheduling factor may recover some otherwise idle or fragmented capacity, but the tool will not allow the combination to imply more than 100% useful utilization.`,
   tier3: `If you have a real invoice showing GPU-hours consumed, enter it here and the tool uses your actual number instead of estimating it from spend, making everything downstream more accurate. This is optional; leave it at 'not provided' and the spend-based estimate stands. Ask your cloud admin for a usage report if you want this precision.`,
   modelSize: `The largest AI model you plan to serve, in parameters. Bigger models need more GPU memory per copy and produce fewer tokens per second, so this drives the capacity estimates below. If unsure, 70B is the common enterprise workhorse.`,
   quant: `The numeric precision the model runs at. Lower precision (FP8, FP4) halves memory and boosts speed with modest quality trade-offs; most 2026 production serving runs FP8. If unsure, leave FP8.`,
@@ -1016,9 +1017,17 @@ function AppInner() {
   }, [isRubinPhase1, facility]);
   const [powerRate, setPowerRate] = useState(saved?.powerRate ?? 300);
   const [util, setUtil] = useState(saved?.util ?? 0.85);
+  const factorPolicyIsCurrent = saved?.performanceFactorPolicyVersion === TCO_PERFORMANCE_FACTOR_POLICY_VERSION;
   const [fNet, setFNet] = useState(saved?.fNet ?? 1.0);
-  const [fSw, setFSw] = useState(saved?.fSw ?? 1.3);
-  const [fNvaie, setFNvaie] = useState(saved?.fNvaie ?? 1.3);
+  // M6 changes the meaning of these defaults, so legacy saved values are reset
+  // once rather than silently carrying the old 1.30x/1.30x policy forward.
+  const [fSw, setFSw] = useState(() => clampSchedulingFactor(factorPolicyIsCurrent ? saved?.fSw ?? DEFAULT_SCHEDULING_FACTOR : DEFAULT_SCHEDULING_FACTOR, saved?.util ?? 0.85));
+  const [fNvaie, setFNvaie] = useState(() => factorPolicyIsCurrent ? saved?.fNvaie ?? DEFAULT_NVAIE_FACTOR : DEFAULT_NVAIE_FACTOR);
+  const schedulingFactorMax = maxSchedulingFactorForUtilization(util);
+  useEffect(() => {
+    const bounded = clampSchedulingFactor(fSw, util);
+    if (Math.abs(bounded - fSw) > 1e-9) setFSw(bounded);
+  }, [util, fSw]);
   const [tier3Hrs, setTier3Hrs] = useState(saved?.tier3Hrs ?? 0);
   const [horizon, setHorizon] = useState(saved?.horizon ?? 3);
   const [retrofit, setRetrofit] = useState(saved?.retrofit ?? 300000);
@@ -1058,6 +1067,7 @@ function AppInner() {
   // tab left off, instead of resetting to defaults on every full page load.
   useEffect(() => {
     saveSessionState("tco", {
+      performanceFactorPolicyVersion: TCO_PERFORMANCE_FACTOR_POLICY_VERSION,
       ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto, workloadStorageConfirmed,
       fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
@@ -2178,7 +2188,7 @@ function AppInner() {
         </Section>
 
         {/* FACTORS */}
-        <Section title="Performance factors" badge="RANGE · DEFAULT · BREAKEVEN" defaultOpen={false}>
+        <Section title="Performance factors" badge="CONSERVATIVE · EDITABLE" defaultOpen={false}>
           <TipLabel text="What these factors are" tip={TIPS.factorsGroup} style={{ fontSize: 12, color: "#6B6B6B", marginBottom: 4 }} />
           {isRubinPhase1 && (
             <div style={{ fontSize: 11, color: C.ink, background: "#FFF8E6", borderRadius: 6, padding: "6px 9px", marginBottom: 6 }}>Rubin Phase 1 holds all performance credit at 1.00x. The controls below remain visible for methodology continuity but do not change Rubin economics until qualifying inference evidence is activated.</div>
@@ -2194,10 +2204,12 @@ function AppInner() {
             sub={isRubinPhase1 ? `${gpuClass} → ${ownSys} · held at 1.00x; qualifying absolute Rubin inference throughput benchmark not yet available` : `${gpuClass} → ${ownSys}, weighted by workload mix · ${EST_IDX.includes(SYS_CLASS[ownSys]) || EST_IDX.includes(gpuClass) ? "provisional (EST) pending NVIDIA-sourced factors" : "MLPerf-derived"} · benchmark-derived, directional -- not a universal physical conversion constant`} tip={TIPS.genSpeedup} />
           <Slider label="Reference-architecture network" value={fNet} min={1} max={2.5} step={0.05}
             onChange={setFNet} display={`${fNet.toFixed(2)}x`} tip={TIPS.network} />
-          <Slider label="AI Factory software (Run:ai / Mission Control)" value={fSw} min={1} max={3} step={0.05}
-            onChange={setFSw} display={`${fSw.toFixed(2)}x`} tip={TIPS.runai} />
-          <Slider label="NVAIE / NIMs" value={fNvaie} min={1} max={5} step={0.05}
-            onChange={setFNvaie} display={`${fNvaie.toFixed(2)}x`} tip={TIPS.nvaie} />
+          <Slider label="Scheduling / orchestration (Run:ai / Mission Control)" value={fSw} min={1} max={schedulingFactorMax} step={0.01}
+            onChange={(v) => setFSw(clampSchedulingFactor(v, util))} display={`${fSw.toFixed(2)}x`} tip={TIPS.runai}
+            hint={`At ${Math.round(util * 100)}% baseline utilization, scheduling recovery is capped at ${schedulingFactorMax.toFixed(2)}x so modeled useful utilization cannot exceed 100%.`} />
+          <Slider label="NVAIE / NIM incremental optimization" value={fNvaie} min={1} max={5} step={0.05}
+            onChange={setFNvaie} display={`${fNvaie.toFixed(2)}x`} tip={TIPS.nvaie}
+            hint="1.00x means no additional credit beyond the optimized benchmark/capability basis; NVAIE software/support cost remains included." />
           {r.isWorkloadMode ? (
             <Row label="Net Performance Factor" value="not used in this mode" sub="workload mode uses the generational factor alone -- see methodology" />
           ) : (
