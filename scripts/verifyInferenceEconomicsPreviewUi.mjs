@@ -40,7 +40,7 @@ assert.ok(ui.includes("Input tokens per output token"));
 assert.ok(ui.includes("Cached share of input"));
 assert.ok(ui.includes("Managed API effective cost"));
 assert.ok(ui.includes("API minus private"));
-assert.ok(ui.includes("No external pricing feed is active."));
+assert.ok(ui.includes("Pricing snapshot:"));
 assert.ok(ui.includes("Model capability equivalence is not asserted."));
 assert.ok(ui.includes("Reference blends deliberately exclude cache discounts."));
 
