@@ -12,6 +12,7 @@ function finitePositive(value) {
 }
 
 function validShare(value) {
+  if (value == null || value === "") return null;
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 && n <= 1 ? n : null;
 }
