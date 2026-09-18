@@ -113,7 +113,7 @@ const tco = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
 const ui = fs.readFileSync("src/InferenceEconomicsPreview.jsx", "utf8");
 assert.ok(tco.includes("Open Inference Economics Preview"));
 assert.ok(tco.includes("buildInferenceEconomicsPreviewHandoff"));
-assert.ok(ui.includes("PREVIEW — IE-5"));
+assert.ok(ui.includes("PREVIEW — IE-5.1"));
 assert.ok(ui.includes("parseInferenceEconomicsPreviewHandoff"));
 assert.ok(ui.includes("Inherited from TCO"));
 assert.ok(ui.includes("does not change TCO calculations, reports, or recommendations"));
