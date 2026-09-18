@@ -52,6 +52,7 @@ export default function InferenceEconomicsPreview() {
   const [measuredSustainedOutputTokPerSec, setMeasuredSustainedOutputTokPerSec] = useState("");
   const [activeHoursPerDay, setActiveHoursPerDay] = useState(handoff?.activeHoursPerDay || 8);
   const [activeDaysPerYear, setActiveDaysPerYear] = useState(250);
+  const [demandGrowthRate, setDemandGrowthRate] = useState(handoff?.demandGrowthRate ?? 0);
   const [demandBasis, setDemandBasis] = useState(OUTPUT_TOKEN_DEMAND_BASIS.MEASURED_MONTHLY);
   const [monthlyOutputTokens, setMonthlyOutputTokens] = useState("");
   const [annualOutputTokens, setAnnualOutputTokens] = useState("");
@@ -105,11 +106,12 @@ export default function InferenceEconomicsPreview() {
       horizonYears: n(horizonYears),
       demand,
       servingCapacity: capacity,
+      demandGrowthRate: n(demandGrowthRate),
       evidenceStatus: "MODELED",
     });
 
     return { throughput, demand, capacity, economics };
-  }, [hardwareClass,deployedGpuCount,quant,model,attributableTcoUsd,horizonYears,productionServingFactor,activeHoursPerDay,activeDaysPerYear,demandBasis,monthlyOutputTokens,annualOutputTokens,requestsPerDay,avgOutputTokens,avgInputTokens]);
+  }, [hardwareClass,deployedGpuCount,quant,model,attributableTcoUsd,horizonYears,productionServingFactor,activeHoursPerDay,activeDaysPerYear,demandGrowthRate,demandBasis,monthlyOutputTokens,annualOutputTokens,requestsPerDay,avgOutputTokens,avgInputTokens]);
 
   const e = result.economics;
   const t = result.throughput;
@@ -121,16 +123,21 @@ export default function InferenceEconomicsPreview() {
   return (
     <main style={{maxWidth:1100,margin:"0 auto",padding:"28px 20px 64px",fontFamily:"Inter,system-ui,sans-serif",color:"#232323"}}>
       <div style={{border:"1px solid #f0b7b7",background:"#fff7f7",borderRadius:10,padding:"14px 16px",marginBottom:20}}>
-        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-5.1</div>
+        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-5.2</div>
         <div style={{fontSize:14,fontWeight:700,marginTop:4}}>Inference Economics Preview</div>
         <div style={{fontSize:12,lineHeight:1.55,color:"#555",marginTop:4}}>Experimental cost-per-1M-output-tokens modeling. The connector only carries context from TCO into this Preview; it does not change TCO calculations, reports, or recommendations.</div>
       </div>
       {inherited && (
         <div style={{border:"1px solid #d8d8d8",background:"#f7f7f7",borderRadius:10,padding:"12px 14px",marginBottom:18,fontSize:12,lineHeight:1.55}}>
-          <b>Inherited from TCO:</b> hardware, deployed GPU count, model, precision, horizon{handoff?.activeHoursPerDay ? ", active hours/day" : ""}{handoff?.attributableTcoUsd ? ", and attributable on-prem TCO" : ""}.
+          <b>Inherited from TCO:</b> hardware, deployed GPU count, model, precision, horizon, workload growth{handoff?.activeHoursPerDay ? ", active hours/day" : ""}{handoff?.attributableTcoUsd ? ", and a modeled inference-attributable TCO allocation" : ""}.
+          {handoff?.attributableTcoUsd && handoff?.allocationMethod === "WORKLOAD_SHARE_MODELED" ? (
+            <div style={{marginTop:6,color:"#555"}}>
+              <b>Modeled TCO allocation:</b> {money(handoff.attributableTcoUsd)} = {money(handoff.fullTcoUsd)} × {Math.round((handoff.inferenceShare || 0) * 100)}% inference share from the TCO workload mix. Override only if you have a better defensible allocation basis.
+            </div>
+          ) : null}
           {handoff?.blockers?.length ? (
             <div style={{marginTop:6,color:"#7a2d00"}}>
-              <b>Connector guardrail:</b> {handoff.blockers.includes("MIXED_WORKLOAD_TCO") ? "TCO was not inherited because the scenario includes training workload. " : ""}{handoff.blockers.includes("TCO_GROWTH_NOT_MODELED") ? "TCO was not inherited because TCO growth is nonzero while Preview token demand is currently flat across the horizon. " : ""}{handoff.blockers.includes("UNSUPPORTED_HARDWARE") ? "This TCO hardware does not yet have qualifying inference-economics evidence. " : ""}{handoff.blockers.includes("CUSTOM_MODEL_SIZE_MISSING") ? "Custom model size is missing. " : ""}
+              <b>Connector guardrail:</b> {handoff.blockers.includes("FLEET_GROWTH_NOT_MODELED") ? "TCO adds systems during the selected horizon; the Preview will not infer multi-system inference scaling without qualified evidence. " : ""}{handoff.blockers.includes("UNSUPPORTED_HARDWARE") ? "This TCO hardware does not yet have qualifying inference-economics evidence. " : ""}{handoff.blockers.includes("CUSTOM_MODEL_SIZE_MISSING") ? "Custom model size is missing. " : ""}{handoff.blockers.includes("NO_INFERENCE_SHARE") ? "The TCO workload mix contains no inference share to allocate. " : ""}
             </div>
           ) : null}
         </div>
@@ -154,7 +161,7 @@ export default function InferenceEconomicsPreview() {
 
         <section style={card}>
           <h2 style={h2}>2. Economics & serving window</h2>
-          <Field label="Attributable TCO ($)" help="The portion of on-prem total cost that belongs to this inference workload. Do not enter the entire infrastructure TCO if the same environment also performs training or unrelated workloads unless you can defend that allocation."><input type="number" min="1" placeholder="Enter TCO attributable to this workload" value={attributableTcoUsd} onChange={e=>setAttributableTcoUsd(e.target.value)} style={input} disabled={Boolean(handoff?.attributableTcoUsd)}/>{handoff?.attributableTcoUsd ? <div style={subnote}>Inherited from the current TCO on-prem total because the connector's attribution guardrails passed.</div> : inherited ? <div style={subnote}>Not inherited. Enter an explicitly attributable inference TCO only if you can defend the allocation.</div> : null}</Field>
+          <Field label="Attributable TCO ($)" help="The portion of on-prem total cost assigned to this inference workload. For mixed workloads, the connector can prefill a modeled allocation using the TCO inference share. Shared and fixed costs may not scale perfectly with workload share, so override the modeled allocation only when you have a better defensible basis."><input type="number" min="1" placeholder="Enter TCO attributable to this workload" value={attributableTcoUsd} onChange={e=>setAttributableTcoUsd(e.target.value)} style={input} disabled={handoff?.allocationMethod === "DIRECT_INFERENCE_WORKLOAD"}/>{handoff?.allocationMethod === "WORKLOAD_SHARE_MODELED" ? <div style={subnote}>Prefilled as a MODELED allocation from the TCO workload mix and intentionally overrideable.</div> : handoff?.attributableTcoUsd ? <div style={subnote}>Inherited from an inference-specific TCO workload and locked to that scenario.</div> : inherited ? <div style={subnote}>Not inherited. Enter an explicitly attributable inference TCO only if you can defend the allocation.</div> : null}</Field>
           <Field label="Analysis horizon (years)" help="The number of years over which the TCO numerator and useful token demand are compared. When inherited from TCO, this remains locked to the same horizon."><input type="number" min="1" value={horizonYears} onChange={e=>setHorizonYears(e.target.value)} style={input} disabled={inherited}/></Field>
           <Field label="Active hours / day" help="How many hours in a typical day this inference service is expected to accept production demand. This limits serving capacity; it does not reduce ownership cost."><input type="number" min="1" max="24" value={activeHoursPerDay} onChange={e=>setActiveHoursPerDay(e.target.value)} style={input} disabled={Boolean(handoff?.activeHoursPerDay)}/></Field>
           <Field label="Active days / year" help="How many days each year this workload is expected to operate. Use the real operating calendar if known; for a business-hours service this may be closer to working days than 365."><input type="number" min="1" max="366" value={activeDaysPerYear} onChange={e=>setActiveDaysPerYear(e.target.value)} style={input}/></Field>
@@ -195,6 +202,12 @@ export default function InferenceEconomicsPreview() {
             [OUTPUT_TOKEN_DEMAND_BASIS.ANNUAL_FORECAST,"Annual forecast"],
           ].map(([v,l])=><button key={v} onClick={()=>setDemandBasis(v)} style={{...chip,background:demandBasis===v?"#232323":"#fff",color:demandBasis===v?"#fff":"#232323"}}>{l}</button>)}
         </div>
+        <Field label="Annual demand growth" help="Expected year-over-year growth in useful output-token demand. When inherited from TCO, this uses the same workload-growth assumption so the token denominator and TCO horizon stay aligned.">
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <input type="number" min="0" max="5" step=".05" value={demandGrowthRate} onChange={e=>setDemandGrowthRate(e.target.value)} style={input} disabled={inherited}/>
+            <span style={{fontSize:12,fontWeight:800,whiteSpace:"nowrap"}}>{Math.round(n(demandGrowthRate)*100)}% / yr</span>
+          </div>
+        </Field>
         {demandBasis===OUTPUT_TOKEN_DEMAND_BASIS.MEASURED_MONTHLY && <Field label="Measured output tokens / month" help="Generated/output tokens actually served in a typical month. Best source: inference gateway, API, observability, or serving logs. If you do not have this measurement, use Request forecast instead."><input type="number" min="1" placeholder="Enter measured monthly output tokens" value={monthlyOutputTokens} onChange={e=>setMonthlyOutputTokens(e.target.value)} style={input}/></Field>}
         {demandBasis===OUTPUT_TOKEN_DEMAND_BASIS.ANNUAL_FORECAST && <Field label="Forecast output tokens / year" help="Expected generated/output tokens for a full year. Use this only when you already have a defensible annual token forecast."><input type="number" min="1" placeholder="Enter forecast annual output tokens" value={annualOutputTokens} onChange={e=>setAnnualOutputTokens(e.target.value)} style={input}/></Field>}
         {demandBasis===OUTPUT_TOKEN_DEMAND_BASIS.REQUEST_FORECAST && <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12}}>
@@ -211,18 +224,18 @@ export default function InferenceEconomicsPreview() {
             <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".1em"}}>RESULT</div>
             <h2 style={{margin:"5px 0 2px",fontSize:24}}>Effective private-AI cost</h2>
           </div>
-          <span style={{fontSize:11,fontWeight:800,padding:"7px 10px",borderRadius:999,background:"#fff3cd",border:"1px solid #f2d98b"}}>MODELED</span>
+          <ConfidenceBadge />
         </div>
 
         {e?.ok ? <>
-          <div style={{fontSize:42,fontWeight:900,marginTop:14}}>{money(e.costPerMillionOutputTokens)} <span style={{fontSize:16,fontWeight:700}}>/ 1M output tokens</span></div>
+          <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap",fontSize:42,fontWeight:900,marginTop:14}}>{money(e.costPerMillionOutputTokens)} <span style={{fontSize:16,fontWeight:700}}>/ 1M output tokens</span><InlineHelp text="Inference-attributable TCO divided by useful output tokens expected to be served across the selected horizon. The denominator follows your demand forecast and inherited growth—not theoretical maximum GPU output." /></div>
           <div style={metrics}>
-            <Metric label="Annual useful demand" value={compact(e.annualDemandOutputTokens)} />
-            <Metric label="Annual serving capacity" value={compact(e.annualCapacityOutputTokens)} />
-            <Metric label="Demand / modeled serving capacity" value={(e.demandUtilizationOfCapacity*100).toFixed(1)+"%"} />
-            <Metric label="Modeled output throughput" value={compact(t?.effectiveThroughputTokPerSec)+" tok/s"} />
+            <Metric label="Year 1 useful demand" value={compact(e.annualDemandOutputTokens)} help="Useful output tokens the workload is expected to require in Year 1. Later years grow by the annual demand-growth assumption shown above." />
+            <Metric label="Annual serving capacity" value={compact(e.annualCapacityOutputTokens)} help="Maximum useful output-token volume this configuration is modeled to serve in one year during the selected operating window, after applying the production-serving factor." />
+            <Metric label="Year 1 demand / serving capacity" value={(e.demandUtilizationOfCapacity*100).toFixed(1)+"%"} help="Year 1 useful demand divided by modeled annual serving capacity. This is a capacity-consumption ratio, not measured GPU utilization. The remaining percentage is modeled Year 1 serving headroom." />
+            <Metric label="Benchmark-adjusted throughput ceiling" value={compact(t?.effectiveThroughputTokPerSec)+" tok/s"} help="Benchmark output-token throughput after model and precision adjustments, before the production-serving factor de-rates it for real production. This is a modeled ceiling, not an observed workload rate." />
           </div>
-          <div style={note}>Unused capacity does not lower this result. The denominator is useful demand actually served, not every token the hardware could theoretically produce.</div>
+          <div style={note}>Unused capacity does not lower this result. The denominator is useful demand actually served, not every token the hardware could theoretically produce.{e.demandGrowthRate > 0 ? ` Demand grows ${Math.round(e.demandGrowthRate*100)}%/yr; final-year demand is ${compact(e.finalYearDemandOutputTokens)} and peak modeled capacity use is ${(e.peakDemandUtilizationOfCapacity*100).toFixed(1)}%.` : ""}</div>
         </> : <>
           <div style={{fontSize:24,fontWeight:850,marginTop:14,color:"#8a1c1c"}}>{e?.reason==="UNDERSIZED_FOR_DEMAND" ? "Configuration does not meet stated demand" : "Result unavailable"}</div>
           <div style={{fontSize:13,color:"#555",marginTop:8}}>{e?.errors?.join(" ") || result.demand?.errors?.join(" ") || result.capacity?.errors?.join(" ") || result.throughput?.errors?.join(" ")}</div>
@@ -245,24 +258,44 @@ export default function InferenceEconomicsPreview() {
 }
 
 function Field({label,help,children}) {
-  return <label style={{display:"block",marginBottom:12}}>
-    <span style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:800,marginBottom:5}}>
+  const [open,setOpen] = useState(false);
+  return <div style={{display:"block",marginBottom:12}}>
+    <div style={{display:"flex",alignItems:"center",gap:6,fontSize:12,fontWeight:800,marginBottom:5}}>
       <span>{label}</span>
-      {help ? <HelpDot text={help} /> : null}
-    </span>
+      {help ? <HelpDot open={open} onClick={()=>setOpen(!open)} /> : null}
+    </div>
+    {open && help ? <TipBox text={help} /> : null}
     {children}
-  </label>;
+  </div>;
 }
-function HelpDot({text}) {
-  return <span
-    title={text}
-    aria-label={text}
-    tabIndex={0}
-    style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:17,height:17,border:"1px solid #CC0000",borderRadius:"50%",color:"#CC0000",fontSize:11,fontWeight:900,lineHeight:1,cursor:"help",background:"#fff"}}
-  >?</span>;
+function HelpDot({open,onClick}) {
+  return <button type="button" onClick={onClick} aria-label="What is this?" aria-expanded={open}
+    style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:17,height:17,boxSizing:"border-box",border:\"1.5px solid #CC0000\",borderRadius:"50%",color:open?"#fff":"#CC0000",fontSize:11,fontWeight:900,lineHeight:1,cursor:"pointer",background:open?"#CC0000":"#fff",padding:0}}>?</button>;
 }
-function Metric({label,value}) {
-  return <div><div style={{fontSize:11,color:"#666",fontWeight:700}}>{label}</div><div style={{fontSize:18,fontWeight:850,marginTop:3}}>{value}</div></div>;
+function TipBox({text}) {
+  return <div style={{fontSize:12,color:"#2D2D2D",background:"#fff",border:"1px solid #DCDCDC",borderLeft:"3px solid #CC0000",borderRadius:6,padding:"8px 10px",margin:"6px 0 8px",lineHeight:1.45}}>{text}</div>;
+}
+function InlineHelp({text}) {
+  const [open,setOpen] = useState(false);
+  return <span style={{display:"inline-block",fontSize:12,fontWeight:400}}>
+    <HelpDot open={open} onClick={()=>setOpen(!open)} />
+    {open ? <span style={{display:"block",maxWidth:680}}><TipBox text={text} /></span> : null}
+  </span>;
+}
+function Metric({label,value,help}) {
+  const [open,setOpen] = useState(false);
+  return <div>
+    <div style={{display:"flex",alignItems:"center",gap:5,fontSize:11,color:"#666",fontWeight:700}}><span>{label}</span>{help ? <HelpDot open={open} onClick={()=>setOpen(!open)} /> : null}</div>
+    {open && help ? <TipBox text={help} /> : null}
+    <div style={{fontSize:18,fontWeight:850,marginTop:3}}>{value}</div>
+  </div>;
+}
+function ConfidenceBadge() {
+  const [open,setOpen] = useState(false);
+  return <div>
+    <button type="button" onClick={()=>setOpen(!open)} aria-expanded={open} style={{fontSize:11,fontWeight:800,padding:"7px 10px",borderRadius:999,background:"#fff3cd",border:"1px solid #f2d98b",cursor:"pointer"}}>MODELED ?</button>
+    {open ? <div style={{maxWidth:360}}><TipBox text="This result combines qualified benchmark evidence with explicit workload and serving assumptions. It is not a measured, workload-specific production result." /></div> : null}
+  </div>;
 }
 const card={border:"1px solid #e4e4e4",borderRadius:12,padding:18,background:"#fff",boxShadow:"0 1px 2px rgba(0,0,0,.03)"};
 const h2={fontSize:16,margin:"0 0 14px",fontWeight:850};
