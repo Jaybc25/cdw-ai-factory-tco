@@ -19,6 +19,9 @@ export function excelRound(value, decimals) {
   return Math.round(scaled + epsilon) / factor;
 }
 
+export const ROI_RAMP_POLICY_VERSION = 1;
+export const DEFAULT_YEAR1_RAMP_PCT = 0.75;
+
 export const DEFAULT_INPUTS = {
   people: 250,
   tasksPerDay: 12,
@@ -28,7 +31,7 @@ export const DEFAULT_INPUTS = {
   reductionPct: 0.40,
   adoptionPct: 0.80,
   realizationPct: 0.60,
-  rampPct: 1.00,
+  rampPct: DEFAULT_YEAR1_RAMP_PCT,
   initialCost: 750000,
   recurringCost: 400000,
   upliftPerHr: 0,
