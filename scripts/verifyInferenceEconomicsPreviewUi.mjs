@@ -13,12 +13,18 @@ const tco = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
 assert.equal(tco.includes("/tco/inference-economics-preview"), false);
 
 // Guardrails that should remain visible in the Preview UI.
-assert.ok(ui.includes("PREVIEW — IE-4"));
+assert.ok(ui.includes("PREVIEW — IE-4.1"));
 assert.ok(ui.includes("Capacity is not consumption") === false); // principle lives in methodology, not marketing copy
 assert.ok(ui.includes("Unused capacity does not lower this result."));
 assert.ok(ui.includes("Configuration does not meet stated demand"));
 assert.ok(ui.includes("MODELED"));
 assert.ok(ui.includes("Production-serving factor"));
+assert.ok(ui.includes('useState("")'));
+assert.ok(ui.includes("No universal MLPerf Offline → production-serving conversion is assumed."));
+assert.ok(ui.includes("Demand / modeled serving capacity"));
+assert.ok(ui.includes("exact source benchmark configuration"));
+assert.ok(ui.includes("It does not automatically recalculate the TCO numerator"));
+assert.ok(ui.includes('H200: ["FP8"]'));
 assert.ok(ui.includes("Cost/token currently uses generated output tokens"));
 
 console.log("Inference economics preview UI contract verified.");
