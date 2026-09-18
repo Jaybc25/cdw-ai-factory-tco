@@ -62,7 +62,7 @@ export function deriveInferenceEconomicsThroughput({
     precisionScale.factor *
     deploymentScale;
 
-  const throughputTokPerSec =
+  const effectiveThroughputTokPerSec =
     record.throughputTokPerSec * adjustmentFactor;
 
   const modelLabel = model?.label || model?.name || model?.id || null;
@@ -100,7 +100,13 @@ export function deriveInferenceEconomicsThroughput({
     deployedGpuCount: count,
     benchmarkGpuCount: record.benchmarkGpuCount,
     sourceThroughputTokPerSec: record.throughputTokPerSec,
-    throughputTokPerSec,
+    effectiveThroughputTokPerSec,
+    // Safe direct input contract for calculateInferenceEconomics(): the engine
+    // receives the unadjusted benchmark throughput and applies evidence.adjustmentFactor once.
+    economicsInput: {
+      throughputTokPerSec: record.throughputTokPerSec,
+      evidence,
+    },
     modelScale,
     precisionScale,
     deploymentScale,
