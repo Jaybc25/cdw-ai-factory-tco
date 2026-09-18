@@ -9,6 +9,7 @@ import {
   getInferenceEconomicsEvidence,
   qualifyInferenceEconomicsEvidence,
 } from "../src/inferenceEconomicsEvidence.js";
+import { deriveInferenceEconomicsThroughput } from "../src/inferenceEconomicsThroughput.js";
 
 // 1) Peak concurrency alone is intentionally insufficient: there is no API in
 // this module that converts concurrent users × target tok/s directly to monthly
@@ -123,4 +124,72 @@ const badMix = calculateManagedApiBlendedCost({
 });
 assert.equal(badMix.ok, false);
 
-console.log("Inference economics preview foundation verified.");
+
+// 6) IE-2 must consume the same model + precision methodology as GPU Sizing.
+// B200 FP8 = 0.5x of its FP4 benchmark anchor after M3. A 140B-active model
+// adds a separate 0.5x model penalty vs the 70B reference.
+const modeled140B = {
+  id: "ie2-test-140b",
+  label: "IE2 Test 140B",
+  activeParamsB: 140,
+  status: "VERIFIED",
+};
+const integrated = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 8,
+  quant: "FP8",
+  model: modeled140B,
+});
+assert.equal(integrated.ok, true);
+assert.equal(integrated.modelScale.factor, 0.5);
+assert.equal(integrated.precisionScale.factor, 0.5);
+assert.equal(integrated.deploymentScale, 1);
+assert.equal(integrated.evidence.adjustmentFactor, 0.25);
+assert.equal(
+  integrated.effectiveThroughputTokPerSec,
+  integrated.sourceThroughputTokPerSec * 0.25,
+);
+
+const integratedEconomics = calculateInferenceEconomics({
+  attributableTcoUsd: 1000000,
+  ...integrated.economicsInput,
+  throughputUtilization: 0.5,
+  activeHoursPerDay: 8,
+  activeDaysPerYear: 250,
+  horizonYears: 3,
+});
+assert.equal(integratedEconomics.ok, true);
+assert.equal(
+  integratedEconomics.productionAssumptions.throughputTokPerSec,
+  integrated.effectiveThroughputTokPerSec,
+);
+
+// 7) Scaling beyond the exact benchmark configuration is explicit and modeled.
+const scaled16 = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 16,
+  quant: "FP4",
+  model: {
+    id: "llama2-70b-reference",
+    label: "Llama 2 70B",
+    activeParamsB: 70,
+    status: "VERIFIED",
+  },
+});
+assert.equal(scaled16.ok, true);
+assert.equal(scaled16.deploymentMatch, false);
+assert.equal(scaled16.deploymentScale, 2);
+assert.equal(scaled16.effectiveThroughputTokPerSec, scaled16.sourceThroughputTokPerSec * 2);
+assert.equal(scaled16.evidence.workloadScenarioMatch, false);
+
+// 8) Unsupported hardware remains suppressed rather than guessed.
+const unsupported = deriveInferenceEconomicsThroughput({
+  hardwareClass: "DGX Rubin NVL8",
+  deployedGpuCount: 8,
+  quant: "FP8",
+  model: modeled140B,
+});
+assert.equal(unsupported.ok, false);
+assert.equal(unsupported.reason, "INSUFFICIENT_EVIDENCE");
+
+console.log("Inference economics preview methodology integration verified.");

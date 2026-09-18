@@ -15,6 +15,8 @@ on:
       - "scripts/validate_model_registry.mjs"
       - "scripts/validate_model_tranche_1.mjs"
       - "scripts/validate_model_sizing_methodology.mjs"
+      - "scripts/verifyInferenceEconomicsPreview.mjs"
+      - "scripts/verifyInferenceEconomicsPreview.mjs"
       - "scripts/validate_hybrid_sequence_state_methodology.mjs"
       - "scripts/validate_gpu_sequence_state_integration.mjs"
       - "scripts/validate_model_advisor_semantics.mjs"
@@ -100,6 +102,9 @@ jobs:
 
       - name: Validate architecture-aware model sizing methodology
         run: node scripts/validate_model_sizing_methodology.mjs
+
+      - name: Validate Inference Economics Preview methodology
+        run: node scripts/verifyInferenceEconomicsPreview.mjs
 
       - name: Validate hybrid sequence-state methodology
         run: node scripts/validate_hybrid_sequence_state_methodology.mjs
