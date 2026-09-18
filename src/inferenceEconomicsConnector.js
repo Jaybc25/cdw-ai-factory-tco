@@ -25,6 +25,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   systemCount,
   gpusPerSystem,
   modelId,
+  modelParamsB = null,
   quant,
   horizonYears,
   onPremTcoUsd,
@@ -50,6 +51,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (!hardwareClass) blockers.push("UNSUPPORTED_HARDWARE");
   if (!gpuCount) blockers.push("INVALID_GPU_COUNT");
   if (!modelId) blockers.push("MISSING_MODEL");
+  if (modelId === "custom" && !finitePositive(modelParamsB)) blockers.push("CUSTOM_MODEL_SIZE_MISSING");
   if (!quant) blockers.push("MISSING_PRECISION");
   if (!horizon) blockers.push("INVALID_HORIZON");
   if (!attributionEligible) blockers.push("MIXED_WORKLOAD_TCO");
@@ -60,6 +62,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (hardwareClass) params.set("hardware", hardwareClass);
   if (gpuCount) params.set("gpuCount", String(gpuCount));
   if (modelId) params.set("model", modelId);
+  if (finitePositive(modelParamsB)) params.set("modelParamsB", String(Number(modelParamsB)));
   if (quant) params.set("quant", quant);
   if (horizon) params.set("horizon", String(horizon));
   if (hours && hours <= 24) params.set("activeHours", String(hours));
@@ -90,6 +93,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
   const hardwareClass = params.get("hardware");
   const gpuCount = finitePositive(params.get("gpuCount"));
   const modelId = params.get("model");
+  const modelParamsB = finitePositive(params.get("modelParamsB"));
   const quant = params.get("quant");
   const horizonYears = finitePositive(params.get("horizon"));
   const attributableTcoUsd = finitePositive(params.get("tco"));
@@ -104,6 +108,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     hardwareClass,
     gpuCount,
     modelId,
+    modelParamsB,
     quant,
     horizonYears,
     attributableTcoUsd,
