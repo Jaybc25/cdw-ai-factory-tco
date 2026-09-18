@@ -81,6 +81,22 @@ const fleetGrowth = buildInferenceEconomicsPreviewHandoff({
 assert.ok(fleetGrowth.blockers.includes("FLEET_GROWTH_NOT_MODELED"));
 assert.equal(fleetGrowth.attributableTcoUsd, null);
 
+// Unknown workload mix must stay unknown rather than defaulting to 100% inference.
+const unknownShare = buildInferenceEconomicsPreviewHandoff({
+  ownSys: "DGX B200",
+  systemCount: 1,
+  gpusPerSystem: 8,
+  fleetSystemsByYear: [1, 1, 1],
+  modelId: "llama-3.1-70b",
+  quant: "FP8",
+  horizonYears: 3,
+  onPremTcoUsd: 1_000_000,
+  trainShare: null,
+  growth: 0,
+});
+assert.ok(unknownShare.blockers.includes("INFERENCE_SHARE_UNKNOWN"));
+assert.equal(unknownShare.attributableTcoUsd, null);
+
 // Unsupported hardware identity is preserved so Preview fails honestly.
 const rubin = buildInferenceEconomicsPreviewHandoff({
   ownSys: "DGX Rubin NVL8",
