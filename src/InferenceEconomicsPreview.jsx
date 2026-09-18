@@ -19,6 +19,13 @@ import {
   MANAGED_API_SOURCE_TYPE,
   createManagedApiRateRecord,
 } from "./managedApiPricingSource.js";
+import {
+  MANAGED_API_CUSTOM_PROVIDER,
+  getManagedApiPricingFreshness,
+  getManagedApiRate,
+  listManagedApiModels,
+  listManagedApiProviders,
+} from "./managedApiPricingRegistry.js";
 
 const HARDWARE = ["H200", "B200", "GB200 NVL72", "B300", "GB300 NVL72"];
 const PRECISIONS_BY_HARDWARE = {
@@ -71,12 +78,57 @@ export default function InferenceEconomicsPreview() {
   const [avgOutputTokens, setAvgOutputTokens] = useState("");
   const [avgInputTokens, setAvgInputTokens] = useState("");
   const [apiProvider, setApiProvider] = useState("");
+  const [apiModelId, setApiModelId] = useState("");
   const [apiModelLabel, setApiModelLabel] = useState("");
+  const [apiCustomProvider, setApiCustomProvider] = useState("");
   const [apiInputUsdPerMillion, setApiInputUsdPerMillion] = useState("");
   const [apiOutputUsdPerMillion, setApiOutputUsdPerMillion] = useState("");
   const [apiCachedInputUsdPerMillion, setApiCachedInputUsdPerMillion] = useState("");
   const [apiInputTokensPerOutputToken, setApiInputTokensPerOutputToken] = useState("");
   const [apiCachedInputShare, setApiCachedInputShare] = useState(0);
+
+  const apiProviders = useMemo(() => listManagedApiProviders(), []);
+  const apiModelOptions = useMemo(
+    () => apiProvider && apiProvider !== MANAGED_API_CUSTOM_PROVIDER ? listManagedApiModels(apiProvider) : [],
+    [apiProvider]
+  );
+  const selectedRegistryRate = useMemo(
+    () => apiProvider && apiModelId ? getManagedApiRate(apiProvider, apiModelId) : null,
+    [apiProvider, apiModelId]
+  );
+  const pricingFreshness = useMemo(() => getManagedApiPricingFreshness(), []);
+
+  function applyRegistryRate(rate) {
+    if (!rate) return;
+    setApiModelId(rate.modelId);
+    setApiModelLabel(rate.modelLabel);
+    setApiInputUsdPerMillion(String(rate.inputUsdPerMillion));
+    setApiOutputUsdPerMillion(String(rate.outputUsdPerMillion));
+    setApiCachedInputUsdPerMillion(rate.cachedInputUsdPerMillion == null ? "" : String(rate.cachedInputUsdPerMillion));
+  }
+
+  function handleApiProviderChange(nextProvider) {
+    setApiProvider(nextProvider);
+    if (!nextProvider) {
+      setApiModelId("");
+      return;
+    }
+    if (nextProvider === MANAGED_API_CUSTOM_PROVIDER) {
+      setApiModelId("");
+      setApiModelLabel("");
+      setApiInputUsdPerMillion("");
+      setApiOutputUsdPerMillion("");
+      setApiCachedInputUsdPerMillion("");
+      return;
+    }
+    const firstModel = listManagedApiModels(nextProvider)[0] || null;
+    applyRegistryRate(firstModel);
+  }
+
+  function handleApiModelChange(nextModelId) {
+    const rate = getManagedApiRate(apiProvider, nextModelId);
+    applyRegistryRate(rate);
+  }
 
   const model = modelOptions.find((m) => m.id === modelId) || defaultModel;
   const customParamsB = handoff?.modelId === "custom" ? handoff?.modelParamsB : null;
@@ -152,18 +204,31 @@ export default function InferenceEconomicsPreview() {
     const inputPrice = n(apiInputUsdPerMillion);
     const outputPrice = n(apiOutputUsdPerMillion);
     const cachedPrice = apiCachedInputUsdPerMillion === "" ? null : n(apiCachedInputUsdPerMillion);
-    const rateRecord = createManagedApiRateRecord({
-      sourceId: "manual-preview",
-      sourceType: MANAGED_API_SOURCE_TYPE.USER_OVERRIDE,
-      provider: apiProvider || "Manual comparison",
-      modelId: (apiModelLabel || "manual-api-rate").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-      modelLabel: apiModelLabel || "Manual API rate",
-      inputUsdPerMillion: inputPrice,
-      outputUsdPerMillion: outputPrice,
-      cachedInputUsdPerMillion: cachedPrice,
-      commercialUseStatus: COMMERCIAL_USE_STATUS.NOT_APPLICABLE,
-      provenanceNote: "Preview-only manual rate entry; verify against the provider or customer contract before relying on it.",
-    });
+    const selectedCached = selectedRegistryRate?.cachedInputUsdPerMillion ?? null;
+    const registryRateUnchanged =
+      selectedRegistryRate &&
+      inputPrice === selectedRegistryRate.inputUsdPerMillion &&
+      outputPrice === selectedRegistryRate.outputUsdPerMillion &&
+      cachedPrice === selectedCached;
+
+    const rateRecord = registryRateUnchanged
+      ? { ok: true, rate: selectedRegistryRate }
+      : createManagedApiRateRecord({
+          sourceId: selectedRegistryRate ? "registry-user-override" : "manual-preview",
+          sourceType: MANAGED_API_SOURCE_TYPE.USER_OVERRIDE,
+          provider: apiProvider === MANAGED_API_CUSTOM_PROVIDER
+            ? (apiCustomProvider || "Custom / negotiated")
+            : (apiProvider || "Manual comparison"),
+          modelId: (apiModelId || apiModelLabel || "manual-api-rate").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+          modelLabel: apiModelLabel || "Manual API rate",
+          inputUsdPerMillion: inputPrice,
+          outputUsdPerMillion: outputPrice,
+          cachedInputUsdPerMillion: cachedPrice,
+          commercialUseStatus: COMMERCIAL_USE_STATUS.NOT_APPLICABLE,
+          provenanceNote: selectedRegistryRate
+            ? "User-edited override of the last-known-good registry default."
+            : "Preview-only manual rate entry; verify against the provider or customer contract before relying on it.",
+        });
 
     const blend7030 = calculateReferenceBlendedRate({
       inputUsdPerMillion: inputPrice,
@@ -199,7 +264,10 @@ export default function InferenceEconomicsPreview() {
     return { rateRecord, blend7030, blend7525, managed, comparison };
   }, [
     apiProvider,
+    apiModelId,
     apiModelLabel,
+    apiCustomProvider,
+    selectedRegistryRate,
     apiInputUsdPerMillion,
     apiOutputUsdPerMillion,
     apiCachedInputUsdPerMillion,
@@ -214,7 +282,7 @@ export default function InferenceEconomicsPreview() {
   return (
     <main style={{maxWidth:1100,margin:"0 auto",padding:"28px 20px 64px",fontFamily:"Inter,system-ui,sans-serif",color:"#232323"}}>
       <div style={{border:"1px solid #f0b7b7",background:"#fff7f7",borderRadius:10,padding:"14px 16px",marginBottom:20}}>
-        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-6.2</div>
+        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-6.3</div>
         <div style={{fontSize:14,fontWeight:700,marginTop:4}}>Inference Economics Preview</div>
         <div style={{fontSize:12,lineHeight:1.55,color:"#555",marginTop:4}}>Experimental cost-per-1M-output-tokens modeling. The connector only carries context from TCO into this Preview; it does not change TCO calculations, reports, or recommendations.</div>
       </div>
@@ -370,12 +438,30 @@ export default function InferenceEconomicsPreview() {
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:18}}>
-          <Field label="API provider" help="Optional label for the provider or contract whose rates you are testing. No live pricing source is connected in this Preview.">
-            <input value={apiProvider} onChange={e=>setApiProvider(e.target.value)} placeholder="e.g. provider or contract" style={input}/>
+          <Field label="API provider" help="Choose a provider with a last-known-good public pricing snapshot, or select Custom / negotiated rate when you have customer-specific pricing.">
+            <select value={apiProvider} onChange={e=>handleApiProviderChange(e.target.value)} style={input}>
+              <option value="">Select provider</option>
+              {apiProviders.map(provider=><option key={provider} value={provider}>{provider}</option>)}
+              <option value={MANAGED_API_CUSTOM_PROVIDER}>Custom / negotiated rate</option>
+            </select>
           </Field>
-          <Field label="API model / rate label" help="Optional model or rate-card label so the comparison is auditable. Entering a name does not imply capability equivalence to the private model.">
-            <input value={apiModelLabel} onChange={e=>setApiModelLabel(e.target.value)} placeholder="e.g. selected API model" style={input}/>
-          </Field>
+          {apiProvider === MANAGED_API_CUSTOM_PROVIDER ? (
+            <>
+              <Field label="Custom provider / contract" help="Optional customer, provider, or contract label for an override rate.">
+                <input value={apiCustomProvider} onChange={e=>setApiCustomProvider(e.target.value)} placeholder="e.g. negotiated enterprise contract" style={input}/>
+              </Field>
+              <Field label="API model / rate label" help="Optional model or rate-card label so the comparison is auditable. Entering a name does not imply capability equivalence to the private model.">
+                <input value={apiModelLabel} onChange={e=>setApiModelLabel(e.target.value)} placeholder="e.g. selected API model" style={input}/>
+              </Field>
+            </>
+          ) : (
+            <Field label="API model" help="Models shown here have a last-known-good public/list pricing record. Selecting a model auto-fills its current snapshot rates; those rates remain editable.">
+              <select value={apiModelId} onChange={e=>handleApiModelChange(e.target.value)} style={input} disabled={!apiProvider}>
+                <option value="">{apiProvider ? "Select model" : "Select provider first"}</option>
+                {apiModelOptions.map(rate=><option key={rate.modelId} value={rate.modelId}>{rate.modelLabel}</option>)}
+              </select>
+            </Field>
+          )}
           <Field label="Input $ / 1M tokens" help="Public list or customer-negotiated price for uncached input tokens. Verify the rate source before using the comparison externally.">
             <input type="number" min="0" step=".01" value={apiInputUsdPerMillion} onChange={e=>setApiInputUsdPerMillion(e.target.value)} placeholder="Enter input rate" style={input}/>
           </Field>
@@ -397,7 +483,8 @@ export default function InferenceEconomicsPreview() {
         </div>
 
         <div style={note}>
-          No external pricing feed is active. BenchLM remains a future provider candidate only; this Preview uses rates you enter manually. Reference blends deliberately exclude cache discounts.
+          <b>Pricing snapshot:</b> last-known-good first-party public/list rates, verified {pricingFreshness.verifiedAt || "—"} ({pricingFreshness.status === "STALE" ? "stale — verify before customer use" : "current"}). A future refresh source can update this registry, but a failed refresh will not erase the last successful values. BenchLM remains disconnected/HOLD. Rates are editable; any edited value is treated as a user override. Reference blends deliberately exclude cache discounts.
+          {selectedRegistryRate ? <div style={{marginTop:5}}><b>Selected source:</b> {selectedRegistryRate.provider} first-party pricing · {selectedRegistryRate.sourceUrl ? "source recorded" : "source unavailable"}.</div> : null}
         </div>
 
         {(apiComparison.blend7030?.ok || apiComparison.blend7525?.ok) && (
