@@ -13,7 +13,8 @@
     "verify:rubin-activation": "node scripts/verifyRubinTcoActivation.mjs",
     "verify:gpu-ranking": "node scripts/verifyGpuDeployableRanking.mjs",
     "verify:blackwell-inference": "node scripts/verifyBlackwellInferenceAnchors.mjs",
-    "verify:rubin-inference-advisory": "node scripts/verifyRubinInferenceAdvisory.mjs"
+    "verify:rubin-inference-advisory": "node scripts/verifyRubinInferenceAdvisory.mjs",
+    "verify:inference-economics-preview": "node scripts/verifyInferenceEconomicsPreview.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
