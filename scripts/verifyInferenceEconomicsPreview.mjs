@@ -10,6 +10,7 @@ import {
   qualifyInferenceEconomicsEvidence,
 } from "../src/inferenceEconomicsEvidence.js";
 import { deriveInferenceEconomicsThroughput } from "../src/inferenceEconomicsThroughput.js";
+import { getModelById } from "../src/modelRegistry.js";
 import {
   OUTPUT_TOKEN_DEMAND_BASIS,
   calculateAnnualOutputTokenDemand,
@@ -185,6 +186,35 @@ const scaled16 = deriveInferenceEconomicsThroughput({
 });
 assert.equal(scaled16.ok, false);
 assert.equal(scaled16.reason, "UNSUPPORTED_DEPLOYMENT_SCALING");
+
+
+// 7b) F1 residency guardrail: a model whose weights alone exceed aggregate HBM
+// must be suppressed before benchmark throughput is credited. This is a
+// necessary-condition check only; full workload memory remains GPU Sizing's job.
+const deepSeekV4Pro = getModelById("deepseek-v4-pro-0813");
+const impossibleResidency = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 8,
+  quant: "FP8",
+  model: deepSeekV4Pro,
+});
+assert.equal(impossibleResidency.ok, false);
+assert.equal(impossibleResidency.reason, "MODEL_DOES_NOT_FIT_BENCHMARK_CONFIG");
+assert.equal(impossibleResidency.weightMemoryGB, 1650);
+assert.equal(impossibleResidency.aggregateMemoryGB, 1440);
+
+// Do not import hidden GPU-Sizing workload assumptions into standalone Guided.
+// Mistral Large 3 weights fit within 8xB200 HBM at FP8, so residency alone must
+// not suppress it; any larger requirement belongs to a full GPU Sizing run.
+const mistralLarge3 = getModelById("mistral-large-3");
+const residencyNecessaryConditionPasses = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 8,
+  quant: "FP8",
+  model: mistralLarge3,
+});
+assert.equal(residencyNecessaryConditionPasses.ok, true);
+assert.ok(residencyNecessaryConditionPasses.evidence.adjustmentBasis.includes("necessary-condition residency check"));
 
 // H200 currently has qualified evidence only at FP8; unsupported precision must
 // be suppressed rather than silently reusing the FP8 anchor.
