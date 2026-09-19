@@ -204,7 +204,13 @@ export function calculateDemandBoundInferenceEconomics({
   const firstYearDemand = demand.annualOutputTokens;
   const annualCapacity = servingCapacity.annualCapacityOutputTokens;
   const growth = Number(demandGrowthRate);
-  const normalizedGrowth = Number.isFinite(growth) && growth >= 0 ? growth : 0;
+  if (!Number.isFinite(growth) || growth < 0) {
+    return {
+      ok: false,
+      errors: ["demandGrowthRate must be >= 0."],
+    };
+  }
+  const normalizedGrowth = growth;
   const wholeYears = years;
   const demandByYear = Array.from({ length: wholeYears }, (_, i) =>
     firstYearDemand * Math.pow(1 + normalizedGrowth, i)
