@@ -311,7 +311,7 @@ export default function InferenceEconomicsGuidedPreview() {
               <input style={input} type="number" min="1" value={attributableTcoUsd} onChange={(ev) => setAttributableTcoUsd(ev.target.value)} placeholder="e.g. 1200000" />
             </Field>
             <Field label="Analysis period" help="Use the same period as the TCO scenario when possible.">
-              <input style={input} type="number" min="1" value={horizonYears} onChange={(ev) => setHorizonYears(ev.target.value)} />
+              <input style={input} type="number" min="1" step="1" value={horizonYears} onChange={(ev) => setHorizonYears(ev.target.value)} />
             </Field>
           </div>
         )}
