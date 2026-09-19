@@ -1579,7 +1579,7 @@ function AppInner() {
             <div style={{ fontSize: 11, fontWeight: 700, color: C.sub, marginTop: 6, marginBottom: 2 }}>What you told us</div>
             <Row label="Planning basis" value={r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend"} />
             {r.isWorkloadMode ? (
-              <Row label="Technical GPU requirement" value={`${gpuSizingCount} × ${sourceClass || gpuClass} (from GPU Sizing)`} />
+              <Row label="Technical GPU requirement" value={`${gpuSizingCount} × ${sourceClass || gpuClass} (from GPU Sizing)`} sub={gpuSizingBasis === "higher-growth" ? "User-selected higher-growth alternative, not the base GPU Sizing recommendation" : "GPU Sizing recommended configuration"} />
             ) : (
               <Row label="Reported monthly cloud bill" value={fmt(bill)} />
             )}
@@ -1878,7 +1878,7 @@ function AppInner() {
             </div>
             {mode === "workload" ? (
               <>
-                Comparing <strong>{r.sysAdj} x {ownSys}</strong> ({gpuSizingCount} {sourceClass || ownSys}-class GPUs, your GPU Sizing recommendation)
+                Comparing <strong>{r.sysAdj} x {ownSys}</strong> ({gpuSizingCount} {sourceClass || ownSys}-class GPUs, {gpuSizingBasis === "higher-growth" ? "your higher-growth configuration selected in GPU Sizing" : "your GPU Sizing recommendation"})
                 for <strong>{modelDisplay}</strong>{incomingQuant ? ` at ${quant}` : ""}
                 against the estimated cloud cost of running that <em>same workload</em>, not your entered spend. Storage is
                 now a direct input below (no bill to auto-derive it from). Switch to "Existing Cloud Spend" above for the
@@ -2180,7 +2180,7 @@ function AppInner() {
           <Seg options={["Off", "On (+1 system)"]} value={redundancy ? "On (+1 system)" : "Off"}
             onChange={(v) => setRedundancy(v !== "Off")} />
           <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
-            <strong>TCO resilience assumption:</strong> N+1 adds one spare system beyond the GPU Sizing base requirement. It does not change what GPU Sizing recommended; it changes the fleet being economically evaluated here. A 1-system base fleet otherwise has zero failover.
+            <strong>TCO resilience assumption:</strong> N+1 adds one spare system beyond the selected GPU Sizing design. It does not change that handed-off design; it changes the fleet being economically evaluated here. A 1-system base fleet otherwise has zero failover.
           </div>
           <Row label="Cloud exit egress (auto)" value={fmt(r.exitEgress)} sub="computed from your storage inputs" tip={TIPS.exitEgress} />
           <Slider label="Residual value at horizon" value={residPct} min={0} max={0.4} step={0.05}
