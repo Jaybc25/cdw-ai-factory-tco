@@ -347,7 +347,7 @@ export default function InferenceEconomicsGuidedPreview() {
           <InlineHelp text="This assumption is used to confirm the private configuration can meet expected demand. It does not continuously change the $/1M result. If the resulting production capacity falls below demand, the economics result is suppressed instead of quoting an undersized design." />
         </div>
 
-        <details style={details}>
+        <details style={details} open={!productionServingFactor}>
           <summary style={summaryLink}>Technical assumptions</summary>
           <div style={{ ...twoCol, marginTop: 14 }}>
             <Field label="GPUs used for this estimate" help="Throughput is only credited when the GPU count matches the supported benchmark configuration.">
