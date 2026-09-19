@@ -158,6 +158,12 @@ export default function InferenceEconomicsGuidedPreview() {
 
   const e = result.economics;
   const t = result.throughput;
+  const coveredYearsBeforeCapacityCliff =
+    e?.reason === "UNDERSIZED_FOR_DEMAND" && Array.isArray(e.demandByYear)
+      ? e.demandByYear.filter((annualDemand) => annualDemand <= e.annualCapacityOutputTokens).length
+      : null;
+  const firstShortfallYear =
+    coveredYearsBeforeCapacityCliff != null ? coveredYearsBeforeCapacityCliff + 1 : null;
 
   const apiProviders = useMemo(() => listManagedApiProviders(), []);
   const apiModelOptions = useMemo(
@@ -436,7 +442,22 @@ export default function InferenceEconomicsGuidedPreview() {
             <div style={{ marginTop: 6 }}>
               {!productionServingFactor
                 ? "Set the production throughput assumption under Technical assumptions to complete the capacity check."
-                : e?.errors?.join(" ") || result.demand?.errors?.join(" ") || result.capacity?.errors?.join(" ") || result.throughput?.errors?.join(" ")}
+                : e?.reason === "UNDERSIZED_FOR_DEMAND"
+                  ? (
+                    <>
+                      <div>
+                        {coveredYearsBeforeCapacityCliff > 0
+                          ? `Capacity covers through Year ${coveredYearsBeforeCapacityCliff}. `
+                          : "Capacity is below stated demand in Year 1. "}
+                        {firstShortfallYear && firstShortfallYear <= n(horizonYears)
+                          ? `Year ${firstShortfallYear} is the first year above modeled capacity. `
+                          : ""}
+                        Peak annual shortfall: {compact(e.annualShortfallTokens)} output tokens.
+                      </div>
+                      <div style={{ marginTop: 5 }}>{e.errors?.join(" ")}</div>
+                    </>
+                  )
+                  : e?.errors?.join(" ") || result.demand?.errors?.join(" ") || result.capacity?.errors?.join(" ") || result.throughput?.errors?.join(" ")}
             </div>
           </div>
         )}
