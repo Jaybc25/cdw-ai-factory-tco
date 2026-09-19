@@ -360,6 +360,32 @@ const fractionalApiHorizon = calculateManagedApiWorkloadEconomics({
 assert.equal(fractionalApiHorizon.ok, false);
 assert.ok(fractionalApiHorizon.errors.includes("horizonYears must be a whole number of years."));
 
+// 12e) F8: negative demand growth is rejected consistently on both private and API sides.
+const negativePrivateGrowth = calculateDemandBoundInferenceEconomics({
+  attributableTcoUsd: 1_200_000,
+  horizonYears: 3,
+  demand: measuredDemand,
+  servingCapacity,
+  demandGrowthRate: -0.1,
+  evidenceStatus: "MODELED",
+});
+assert.equal(negativePrivateGrowth.ok, false);
+assert.ok(negativePrivateGrowth.errors.includes("demandGrowthRate must be >= 0."));
+
+const negativeApiGrowth = calculateManagedApiWorkloadEconomics({
+  annualOutputTokens: 12_000_000_000,
+  horizonYears: 3,
+  demandGrowthRate: -0.1,
+  inputTokensPerOutputToken: 0.70 / 0.30,
+  cachedInputShare: 0,
+  rate: {
+    inputUsdPerMillion: 5,
+    outputUsdPerMillion: 25,
+  },
+});
+assert.equal(negativeApiGrowth.ok, false);
+assert.ok(negativeApiGrowth.errors.includes("demandGrowthRate must be >= 0."));
+
 // 13) An undersized design must not win with an artificially cheap token cost.
 const tooSmallCapacity = calculateAnnualServingCapacity({
   effectiveOutputThroughputTokPerSec: 1_000,
