@@ -566,7 +566,7 @@ function ResultCard({ icon: Icon, title, gpuClass, gpus, subtitle, accent, empty
           {selected ? "Selected for TCO" : "Tap to select for TCO"}
         </div>
       )}
-      <div className="text-3xl font-bold mb-1">{gpus} <span className="text-base font-normal">GPUs</span></div>
+      <div className="text-3xl font-bold mb-1">{gpus} <span className="text-base font-normal">{Number(gpus) === 1 ? "GPU" : "GPUs"}</span></div>
       <div className="text-sm font-semibold" style={{ color: accent ? "white" : CHARCOAL }}>{gpuClass}</div>
       {subtitle && <div className="text-xs mt-1" style={{ opacity: 0.7 }}>{subtitle}</div>}
     </>
