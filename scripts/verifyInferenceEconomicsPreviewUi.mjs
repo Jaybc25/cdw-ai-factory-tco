@@ -84,7 +84,7 @@ assert.ok(ui.includes("TCO fleet:"));
 assert.ok(ui.includes("Extra fleet cost remains in TCO; extra throughput is not assumed."));
 
 assert.ok(ui.includes("PUBLIC + CUSTOM RATES"));
-assert.ok(ui.includes("Compare managed-API pricing against the same useful output-token demand used above."));
+assert.ok(ui.includes("Start with a simple public-pricing comparison, or switch to Advanced"));
 
 assert.ok(ui.includes('setApiMode("DEFAULT")'));
 
