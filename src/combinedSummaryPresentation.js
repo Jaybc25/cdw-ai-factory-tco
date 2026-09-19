@@ -12,7 +12,7 @@ export const TOOL_ORDER = ["tco", "gpu-sizing", "model-advisor", "roi", "readine
 
 const money = (value) => {
   const rounded = Math.round(Number(value));
-  return rounded < 0 ? `-${Math.abs(rounded).toLocaleString()}` : `${rounded.toLocaleString()}`;
+  return rounded < 0 ? "-$" + Math.abs(rounded).toLocaleString() : "$" + rounded.toLocaleString();
 };
 const count = (value) => Number(value).toLocaleString();
 const months = (value) => `${Number(value).toFixed(1)} months`;
