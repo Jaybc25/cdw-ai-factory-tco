@@ -81,6 +81,10 @@ test("GPU Sizing handoff preserves explicit higher-growth selection provenance",
   });
   expect(saved.gpuSizingBasis).toBe("higher-growth");
   await expect(page.getByText("Higher-growth alternative selected in GPU Sizing", { exact: true })).toBeVisible();
+  await expect(page.getByText(/your higher-growth configuration selected in GPU Sizing/)).toBeVisible();
+
+  await openCapacitySection(page);
+  await expect(page.getByText("User-selected higher-growth alternative, not the base GPU Sizing recommendation", { exact: true })).toBeVisible();
 });
 
 test("GPU Sizing handoff defaults sizing provenance to recommended", async ({ page }) => {
