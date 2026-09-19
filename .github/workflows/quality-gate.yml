@@ -19,6 +19,9 @@ on:
       - "scripts/verifyInferenceEconomicsPreviewUi.mjs"
       - "scripts/verifyInferenceEconomicsConnector.mjs"
       - "scripts/verifyManagedApiComparison.mjs"
+      - "scripts/verifyManagedApiPricingRefresh.mjs"
+      - "scripts/auditManagedApiPricingFreshness.mjs"
+      - ".github/workflows/managed-api-pricing-freshness.yml"
       - "scripts/verifyInferenceEconomicsConnector.mjs"
       - "scripts/verifyManagedApiComparison.mjs"
       - "scripts/verifyInferenceEconomicsPreviewUi.mjs"
@@ -38,6 +41,9 @@ on:
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
       - "scripts/validate_global_reset.mjs"
+      - "scripts/verifyManagedApiPricingRefresh.mjs"
+      - "scripts/auditManagedApiPricingFreshness.mjs"
+      - ".github/workflows/managed-api-pricing-freshness.yml"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -120,6 +126,9 @@ jobs:
 
       - name: Validate managed API comparison foundation
         run: node scripts/verifyManagedApiComparison.mjs
+
+      - name: Validate managed API pricing refresh architecture
+        run: node scripts/verifyManagedApiPricingRefresh.mjs
 
       - name: Validate hybrid sequence-state methodology
         run: node scripts/validate_hybrid_sequence_state_methodology.mjs
