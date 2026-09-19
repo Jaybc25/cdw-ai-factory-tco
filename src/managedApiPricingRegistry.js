@@ -247,6 +247,30 @@ export const MANAGED_API_PRICING_SNAPSHOT = Object.freeze({
   rates: Object.freeze(normalizedRates),
 });
 
+export function validateManagedApiPricingSnapshotMetadata(snapshot = MANAGED_API_PRICING_SNAPSHOT) {
+  const errors = [];
+  const snapshotDateMatch = String(snapshot?.snapshotId || "").match(/(\d{4}-\d{2}-\d{2})$/);
+  const snapshotDate = snapshotDateMatch?.[1] || null;
+  const refreshDate = String(snapshot?.lastSuccessfulRefreshAt || "").slice(0, 10);
+
+  if (!snapshot?.verifiedAt) errors.push("Pricing snapshot verifiedAt is required.");
+  if (!snapshotDate) errors.push("Pricing snapshotId must end with YYYY-MM-DD.");
+  if (snapshotDate && snapshot.verifiedAt !== snapshotDate) {
+    errors.push("Pricing snapshotId date must match verifiedAt.");
+  }
+  if (refreshDate && snapshot?.verifiedAt && refreshDate !== snapshot.verifiedAt) {
+    errors.push("lastSuccessfulRefreshAt date must match verifiedAt.");
+  }
+
+  for (const rate of snapshot?.rates || []) {
+    if (rate.sourceType === MANAGED_API_SOURCE_TYPE.FIRST_PARTY && rate.verifiedAt !== snapshot?.verifiedAt) {
+      errors.push(`${rate.provider}/${rate.modelId} verifiedAt must match snapshot verifiedAt.`);
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
 export function listManagedApiProviders(snapshot = MANAGED_API_PRICING_SNAPSHOT) {
   return [...new Set(snapshot.rates.map((rate) => rate.provider))].sort((a, b) => a.localeCompare(b));
 }

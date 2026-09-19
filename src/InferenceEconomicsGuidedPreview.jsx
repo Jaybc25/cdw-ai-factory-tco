@@ -488,10 +488,17 @@ export default function InferenceEconomicsGuidedPreview() {
         </div>
 
         {selectedRegistryRate && (
-          <div style={sourceLine}>
-            <span><b>Pricing source:</b> {selectedRegistryRate.provider} · verified {pricingFreshness.verifiedAt || "—"}{pricingFreshness.status === "STALE" ? " · STALE" : ""}</span>
-            <InlineHelp text="The guided comparison uses the last-known-good first-party pricing snapshot. The default comparison assumes a 70/30 input/output token mix and no cache discount. Model capability equivalence is not asserted." />
-          </div>
+          <>
+            <div style={sourceLine}>
+              <span><b>Pricing source:</b> {selectedRegistryRate.provider} · verified {pricingFreshness.verifiedAt || "—"}{pricingFreshness.status === "STALE" ? " · STALE" : ""}</span>
+              <InlineHelp text="The guided comparison uses the last-known-good first-party pricing snapshot. The default comparison assumes a 70/30 input/output token mix and no cache discount. Model capability equivalence is not asserted." />
+            </div>
+            {pricingFreshness.status === "STALE" ? (
+              <div style={capacityWarning}>
+                <b>Pricing refresh recommended:</b> this managed-API snapshot is {pricingFreshness.ageDays} days old, beyond the {pricingFreshness.staleAfterDays}-day freshness window. Re-verify first-party pricing before treating the comparison as client-ready.
+              </div>
+            ) : null}
+          </>
         )}
 
         {apiResult?.managed?.ok && e?.ok ? (
