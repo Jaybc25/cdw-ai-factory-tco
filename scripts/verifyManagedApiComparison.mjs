@@ -118,6 +118,26 @@ const cacheMissing = calculateManagedApiWorkloadEconomics({
 });
 assert.equal(cacheMissing.ok, false);
 
+// 3b) Missing or zero input/output ratio must not silently become output-only API economics.
+const missingInputRatio = calculateManagedApiWorkloadEconomics({
+  annualOutputTokens: 1_000_000_000,
+  horizonYears: 1,
+  inputTokensPerOutputToken: null,
+  cachedInputShare: 0,
+  rate: firstParty.rate,
+});
+assert.equal(missingInputRatio.ok, false);
+assert.ok(missingInputRatio.errors.includes("inputTokensPerOutputToken must be > 0."));
+
+const zeroInputRatio = calculateManagedApiWorkloadEconomics({
+  annualOutputTokens: 1_000_000_000,
+  horizonYears: 1,
+  inputTokensPerOutputToken: 0,
+  cachedInputShare: 0,
+  rate: firstParty.rate,
+});
+assert.equal(zeroInputRatio.ok, false);
+
 // 4) Comparison is descriptive only; engine returns deltas/ratios, not a winner.
 const comparison = comparePrivateAndManagedApi({
   privateCostPerMillionOutputTokens: 20.17,
