@@ -34,5 +34,7 @@ assert.ok(guided.includes("comparePrivateAndManagedApi"));
 assert.ok(guided.includes("getManagedApiRate"));
 assert.ok(guided.includes("0.70 / 0.30"));
 assert.ok(guided.includes("does not assert equivalent model capability"));
+assert.ok(guided.includes('"Private AI · " + (model?.label || "Selected model")'));
+assert.ok(guided.includes("Reference mix: 70% input / 30% output · no cache discount"));
 
 console.log("Guided inference economics Preview contract verified.");
