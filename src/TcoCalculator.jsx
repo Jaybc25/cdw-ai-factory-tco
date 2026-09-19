@@ -1890,12 +1890,12 @@ function AppInner() {
                     count was computed for. </>
                   ) : null}
                   {workingDayHours ? (
-                    {workingDayHours === 24 ? (
-                    <>Cloud side priced for a full 24-hour/day duty cycle shared with GPU Sizing. </>
-                  ) : (
-                    <>Cloud side priced for a {workingDayHours}-hour/day duty cycle shared with GPU Sizing, not 24/7 -- a business-hours
-                    workload shouldn't be priced as continuous rental. </>
-                  )}
+                    workingDayHours === 24 ? (
+                      <>Cloud side priced for a full 24-hour/day duty cycle shared with GPU Sizing. </>
+                    ) : (
+                      <>Cloud side priced for a {workingDayHours}-hour/day duty cycle shared with GPU Sizing, not 24/7 -- a business-hours
+                      workload shouldn't be priced as continuous rental. </>
+                    )
                   ) : (
                     <>No duty-cycle data came through from GPU Sizing (training handoff, or an older link), so the cloud side
                     assumes the same utilization as the on-prem target ({Math.round(util * 100)}% of all hours) -- likely an
