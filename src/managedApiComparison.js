@@ -78,14 +78,14 @@ export function calculateManagedApiWorkloadEconomics({
 }) {
   const outputY1 = positive(annualOutputTokens);
   const years = positive(horizonYears);
-  const inputRatio = nonNegative(inputTokensPerOutputToken);
+  const inputRatio = positive(inputTokensPerOutputToken);
   const cacheShare = fraction(cachedInputShare);
   const growth = nonNegative(demandGrowthRate);
 
   const errors = [];
   if (!outputY1) errors.push("annualOutputTokens must be > 0.");
   if (!years) errors.push("horizonYears must be > 0.");
-  if (inputRatio == null) errors.push("inputTokensPerOutputToken must be >= 0.");
+  if (inputRatio == null) errors.push("inputTokensPerOutputToken must be > 0.");
   if (cacheShare == null) errors.push("cachedInputShare must be between 0 and 1.");
   if (growth == null) errors.push("demandGrowthRate must be >= 0.");
   if (!rate?.inputUsdPerMillion || !rate?.outputUsdPerMillion) {
