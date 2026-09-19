@@ -48,6 +48,16 @@ function compact(v) {
     ? new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 2 }).format(v)
     : "—";
 }
+function compactMoney(v) {
+  return Number.isFinite(v)
+    ? new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        notation: "compact",
+        maximumFractionDigits: 2,
+      }).format(v)
+    : "—";
+}
 
 export default function InferenceEconomicsGuidedPreview() {
   const defaultModel = getDefaultModel();
@@ -286,9 +296,8 @@ export default function InferenceEconomicsGuidedPreview() {
   return (
     <main style={page}>
       <div style={previewBanner}>
-        <div style={eyebrow}>ALTERNATIVE PREVIEW</div>
-        <div style={{ fontSize: 18, fontWeight: 850, marginTop: 4 }}>Guided Inference Economics</div>
-        <div style={muted}>A simpler presales flow using the same economics and pricing engines as the existing technical Preview.</div>
+        <div style={{ fontSize: 18, fontWeight: 850 }}>Guided Inference Economics</div>
+        <div style={muted}>Estimate effective private-AI inference cost and compare it with managed-API token pricing.</div>
       </div>
 
       <Step number="1" title="Your private AI scenario" subtitle="Start with the environment and cost you want to evaluate.">
@@ -298,7 +307,7 @@ export default function InferenceEconomicsGuidedPreview() {
             <Summary label="GPUs used for this estimate" value={deployedGpuCount} />
             <Summary label="Model" value={model?.label || "—"} />
             <Summary label="Precision" value={quant} />
-            <Summary label="Private AI cost assigned to this workload" value={attributableTcoUsd ? money(n(attributableTcoUsd), 0) : "Not available"} />
+            <Summary label="Private AI cost assigned to this workload" value={attributableTcoUsd ? compactMoney(n(attributableTcoUsd)) : "Not available"} />
             <Summary label="Analysis period" value={horizonYears + " years"} />
             {handoff?.inferenceShare != null ? (
               <Summary
@@ -504,13 +513,13 @@ export default function InferenceEconomicsGuidedPreview() {
         {apiResult?.managed?.ok && e?.ok ? (
           <>
             <div style={compareGrid}>
-              <CompareCard title={"Private AI · " + (model?.label || "Selected model")} value={money(e.costPerMillionOutputTokens)} subtitle="/ 1M output tokens" secondary={"Assigned " + horizonYears + "-year private cost: " + money(n(attributableTcoUsd), 0)} />
+              <CompareCard title={"Private AI · " + (model?.label || "Selected model")} value={money(e.costPerMillionOutputTokens)} subtitle="/ 1M output tokens" secondary={"Assigned " + horizonYears + "-year private cost: " + compactMoney(n(attributableTcoUsd))} />
               <CompareCard
                 title={apiModelLabel || "Managed API"}
                 value={money(apiResult.managed.effectiveUsdPerMillionOutputTokens)}
                 subtitle="/ 1M output tokens"
                 secondary={
-                  horizonYears + "-year modeled API cost: " + money(apiResult.managed.horizonApiCostUsd, 0)
+                  horizonYears + "-year modeled API cost: " + compactMoney(apiResult.managed.horizonApiCostUsd)
                   + (apiResult.basis === "REFERENCE" ? " · Reference mix: 70% input / 30% output · no cache discount" : "")
                 }
               />
