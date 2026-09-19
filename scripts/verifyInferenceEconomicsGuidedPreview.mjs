@@ -53,5 +53,11 @@ assert.ok(!guided.includes("existing technical Preview"));
 assert.ok(guided.includes("Estimate effective private-AI inference cost and compare it with managed-API token pricing."));
 assert.ok(guided.includes("function compactMoney(v)"));
 assert.ok(guided.includes('notation: "compact"'));
+assert.ok(guided.includes("What this means"));
+assert.ok(guided.includes("Modeled cost difference"));
+assert.ok(guided.includes("cost per 1M output tokens"));
+assert.ok(guided.includes("Comparison basis:"));
+assert.ok(guided.includes("This is a cost comparison only and does not assert equivalent model capability."));
+assert.ok(!guided.includes("API minus private"));
 
 console.log("Guided inference economics Preview contract verified.");
