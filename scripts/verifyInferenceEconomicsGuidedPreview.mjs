@@ -20,8 +20,9 @@ for (const title of [
 
 assert.ok(guided.includes("Customize API assumptions"));
 assert.ok(guided.includes("Technical assumptions"));
-assert.ok(guided.includes("Real-world serving efficiency (required)"));
-assert.ok(guided.includes("Enter a real-world serving efficiency above to continue."));
+assert.ok(guided.includes("Capacity check:"));
+assert.ok(guided.includes("Production throughput assumption"));
+assert.ok(guided.includes("complete the capacity check"));
 assert.ok(guided.includes("Evidence & methodology"));
 assert.ok(guided.includes("calculateDemandBoundInferenceEconomics"));
 assert.ok(guided.includes("calculateManagedApiWorkloadEconomics"));
