@@ -458,8 +458,16 @@ export default function InferenceEconomicsGuidedPreview() {
         {apiResult?.managed?.ok && e?.ok ? (
           <>
             <div style={compareGrid}>
-              <CompareCard title="Private AI" value={money(e.costPerMillionOutputTokens)} subtitle="/ 1M output tokens" secondary={"Assigned " + horizonYears + "-year private cost: " + money(n(attributableTcoUsd), 0)} />
-              <CompareCard title={apiModelLabel || "Managed API"} value={money(apiResult.managed.effectiveUsdPerMillionOutputTokens)} subtitle="/ 1M output tokens" secondary={horizonYears + "-year modeled API cost: " + money(apiResult.managed.horizonApiCostUsd, 0)} />
+              <CompareCard title={"Private AI · " + (model?.label || "Selected model")} value={money(e.costPerMillionOutputTokens)} subtitle="/ 1M output tokens" secondary={"Assigned " + horizonYears + "-year private cost: " + money(n(attributableTcoUsd), 0)} />
+              <CompareCard
+                title={apiModelLabel || "Managed API"}
+                value={money(apiResult.managed.effectiveUsdPerMillionOutputTokens)}
+                subtitle="/ 1M output tokens"
+                secondary={
+                  horizonYears + "-year modeled API cost: " + money(apiResult.managed.horizonApiCostUsd, 0)
+                  + (apiResult.basis === "REFERENCE" ? " · Reference mix: 70% input / 30% output · no cache discount" : "")
+                }
+              />
             </div>
             <div style={differenceBox}>
               <div style={{ fontSize: 12, fontWeight: 800, color: "#666" }}>API minus private</div>
