@@ -282,7 +282,7 @@ export default function InferenceEconomicsPreview() {
   return (
     <main style={{maxWidth:1100,margin:"0 auto",padding:"28px 20px 64px",fontFamily:"Inter,system-ui,sans-serif",color:"#232323"}}>
       <div style={{border:"1px solid #f0b7b7",background:"#fff7f7",borderRadius:10,padding:"14px 16px",marginBottom:20}}>
-        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-6.3</div>
+        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-6.4</div>
         <div style={{fontSize:14,fontWeight:700,marginTop:4}}>Inference Economics Preview</div>
         <div style={{fontSize:12,lineHeight:1.55,color:"#555",marginTop:4}}>Experimental cost-per-1M-output-tokens modeling. The connector only carries context from TCO into this Preview; it does not change TCO calculations, reports, or recommendations.</div>
       </div>
@@ -431,10 +431,10 @@ export default function InferenceEconomicsPreview() {
             <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".1em"}}>PREVIEW COMPARISON</div>
             <h2 style={{margin:"5px 0 2px",fontSize:24}}>Managed API economics</h2>
             <div style={{fontSize:12,color:"#666",lineHeight:1.5,maxWidth:760}}>
-              Compare the same useful output-token demand against a manually entered managed-API rate. Workload-specific economics use explicit input/output volume and optional cache assumptions; the 70/30 and 75/25 rates are reference blends only.
+              Compare managed-API pricing against the same useful output-token demand used above. Choose a public rate or enter a negotiated rate.
             </div>
           </div>
-          <div style={{fontSize:11,fontWeight:800,padding:"7px 10px",borderRadius:999,background:"#f5f5f5",border:"1px solid #ddd"}}>MANUAL RATES</div>
+          <div style={{fontSize:11,fontWeight:800,padding:"7px 10px",borderRadius:999,background:"#f5f5f5",border:"1px solid #ddd"}}>PUBLIC + CUSTOM RATES</div>
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:18}}>
@@ -482,9 +482,9 @@ export default function InferenceEconomicsPreview() {
           </Field>
         </div>
 
-        <div style={note}>
-          <b>Pricing snapshot:</b> last-known-good first-party public/list rates, verified {pricingFreshness.verifiedAt || "—"} ({pricingFreshness.status === "STALE" ? "stale — verify before customer use" : "current"}). A future refresh source can update this registry, but a failed refresh will not erase the last successful values. BenchLM remains disconnected/HOLD. Rates are editable; any edited value is treated as a user override. Reference blends deliberately exclude cache discounts.
-          {selectedRegistryRate ? <div style={{marginTop:5}}><b>Selected source:</b> {selectedRegistryRate.provider} first-party pricing · {selectedRegistryRate.sourceUrl ? "source recorded" : "source unavailable"}.</div> : null}
+        <div style={{...note,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+          <span><b>Pricing source:</b> {selectedRegistryRate ? selectedRegistryRate.provider : apiProvider === MANAGED_API_CUSTOM_PROVIDER ? "Custom / negotiated" : "Select a provider"} · verified {pricingFreshness.verifiedAt || "—"}{pricingFreshness.status === "STALE" ? " · STALE" : ""}</span>
+          <InlineHelp text={`Public/list rates come from the last-known-good first-party pricing snapshot. A failed future refresh will not erase the last successful values. BenchLM remains disconnected/HOLD. If you edit an auto-filled rate, the tool treats it as a user override rather than first-party pricing. Reference blends exclude cache discounts. ${selectedRegistryRate?.sourceUrl ? "A first-party source URL is recorded for the selected model." : ""}`} />
         </div>
 
         {(apiComparison.blend7030?.ok || apiComparison.blend7525?.ok) && (
