@@ -10,6 +10,7 @@ import {
   qualifyInferenceEconomicsEvidence,
 } from "../src/inferenceEconomicsEvidence.js";
 import { deriveInferenceEconomicsThroughput } from "../src/inferenceEconomicsThroughput.js";
+import { calculateManagedApiWorkloadEconomics } from "../src/managedApiComparison.js";
 import { getModelById } from "../src/modelRegistry.js";
 import {
   OUTPUT_TOKEN_DEMAND_BASIS,
@@ -333,6 +334,31 @@ assert.equal(growthExceedsSupportedCapacity.ok, false);
 assert.equal(growthExceedsSupportedCapacity.reason, "UNDERSIZED_FOR_DEMAND");
 assert.equal(growthExceedsSupportedCapacity.costPerMillionOutputTokens, null);
 assert.ok(growthExceedsSupportedCapacity.annualShortfallTokens > 0);
+
+// 12d) F4: non-integer horizons must be rejected rather than silently floored.
+const fractionalPrivateHorizon = calculateDemandBoundInferenceEconomics({
+  attributableTcoUsd: 1_200_000,
+  horizonYears: 2.5,
+  demand: measuredDemand,
+  servingCapacity,
+  evidenceStatus: "MODELED",
+});
+assert.equal(fractionalPrivateHorizon.ok, false);
+assert.ok(fractionalPrivateHorizon.errors.includes("horizonYears must be a whole number of years."));
+
+const fractionalApiHorizon = calculateManagedApiWorkloadEconomics({
+  annualOutputTokens: 12_000_000_000,
+  horizonYears: 2.5,
+  demandGrowthRate: 0,
+  inputTokensPerOutputToken: 0.70 / 0.30,
+  cachedInputShare: 0,
+  rate: {
+    inputUsdPerMillion: 5,
+    outputUsdPerMillion: 25,
+  },
+});
+assert.equal(fractionalApiHorizon.ok, false);
+assert.ok(fractionalApiHorizon.errors.includes("horizonYears must be a whole number of years."));
 
 // 13) An undersized design must not win with an artificially cheap token cost.
 const tooSmallCapacity = calculateAnnualServingCapacity({
