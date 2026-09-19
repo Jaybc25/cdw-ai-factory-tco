@@ -44,6 +44,7 @@ assert.ok(guided.includes("coveredYearsBeforeCapacityCliff"));
 assert.ok(guided.includes("Capacity covers through Year"));
 assert.ok(guided.includes("is the first year above modeled capacity"));
 assert.ok(guided.includes("Peak annual shortfall:"));
+assert.ok(guided.includes('<details style={details} open={!productionServingFactor}>'));
 assert.ok(guided.includes("evidenceStatus: throughput.evidence?.status"));
 assert.ok(guided.includes('<b>Evidence status:</b> {e.evidenceStatus || "—"}'));
 assert.ok(!guided.includes("<b>Evidence status:</b> MODELED"));
