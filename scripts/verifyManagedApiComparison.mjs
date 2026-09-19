@@ -192,10 +192,19 @@ assert.equal(blocked.reason, "COMMERCIAL_USE_UNRESOLVED");
 
 // 8) IE-6.3 last-known-good pricing registry contract.
 assert.ok(MANAGED_API_PRICING_SNAPSHOT.rates.length >= 4);
-assert.deepEqual(listManagedApiProviders(), ["Anthropic", "OpenAI", "xAI"]);
-assert.ok(listManagedApiModels("OpenAI").length >= 3);
+assert.deepEqual(listManagedApiProviders(), ["Anthropic", "Google", "OpenAI", "xAI"]);
+assert.ok(listManagedApiModels("OpenAI").length >= 4);
+assert.ok(listManagedApiModels("Anthropic").length >= 4);
+assert.ok(listManagedApiModels("Google").length >= 4);
+assert.ok(listManagedApiModels("xAI").length >= 3);
 assert.equal(getManagedApiRate("OpenAI", "gpt-5.6-sol")?.inputUsdPerMillion, 4);
 assert.equal(getManagedApiRate("OpenAI", "gpt-5.6-sol")?.outputUsdPerMillion, 20);
+assert.equal(getManagedApiRate("OpenAI", "gpt-6-astra")?.cachedInputUsdPerMillion, 1);
+assert.equal(getManagedApiRate("Anthropic", "claude-sonnet-5")?.cachedInputUsdPerMillion, 0.2);
+assert.equal(getManagedApiRate("Anthropic", "claude-fable-5-1")?.outputUsdPerMillion, 50);
+assert.equal(getManagedApiRate("Google", "gemini-3.8-flash")?.inputUsdPerMillion, 0.75);
+assert.equal(getManagedApiRate("Google", "gemini-3.1-flash-lite")?.cachedInputUsdPerMillion, 0.025);
+assert.equal(getManagedApiRate("xAI", "grok-4.3")?.outputUsdPerMillion, 2.5);
 assert.equal(MANAGED_API_CUSTOM_PROVIDER, "CUSTOM");
 
 const fallbackSnapshot = chooseLastKnownGoodPricingSnapshot({
