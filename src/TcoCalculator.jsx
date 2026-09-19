@@ -2370,16 +2370,16 @@ function AppInner() {
           </div>
 
           <div style={{ borderRadius: 10, border: "1px solid #F0B7B7", background: "#FFF8F8", padding: "12px 16px" }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, color: C.green, textTransform: "uppercase", marginBottom: 4 }}>Preview: inference unit economics</div>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, color: C.green, textTransform: "uppercase", marginBottom: 4 }}>Inference unit economics</div>
             <div style={{ fontSize: 12, color: "#444", lineHeight: 1.5, marginBottom: 10 }}>
-              Explore an experimental estimate of effective private-AI cost per 1M output tokens using this TCO scenario. Additional workload inputs are required in Preview.
+              Compare effective private-AI inference cost per 1M output tokens with managed-API pricing using this TCO scenario. A few workload inputs are still required.
             </div>
             <a
               href={inferenceEconomicsPreview.href}
               style={{ ...disp, display: "inline-block", fontSize: 12, fontWeight: 700, padding: "9px 14px", borderRadius: 8, background: "#fff", color: C.green, border: "1px solid " + C.green, textDecoration: "none", whiteSpace: "nowrap" }}
-              title="Preview only — does not change TCO calculations or reports"
+              title="Opens Guided Inference Economics — does not change TCO calculations or reports"
             >
-              Open Inference Economics Preview
+              Open Guided Inference Economics
             </a>
           </div>
         </div>
