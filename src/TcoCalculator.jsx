@@ -1879,7 +1879,7 @@ function AppInner() {
             {mode === "workload" ? (
               <>
                 Comparing <strong>{r.sysAdj} x {ownSys}</strong> ({gpuSizingCount} {sourceClass || ownSys}-class GPUs, {gpuSizingBasis === "higher-growth" ? "your higher-growth configuration selected in GPU Sizing" : "your GPU Sizing recommendation"})
-                for <strong>{modelDisplay}</strong>{incomingQuant ? ` at ${quant}` : ""}
+                for <strong>{modelDisplay}</strong>{incomingQuant ? ` at ${quant}` : ""}{" "}
                 against the estimated cloud cost of running that <em>same workload</em>, not your entered spend. Storage is
                 now a direct input below (no bill to auto-derive it from). Switch to "Existing Cloud Spend" above for the
                 original bake-off against what you're paying today.
