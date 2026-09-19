@@ -294,6 +294,17 @@ export default function InferenceEconomicsGuidedPreview() {
             <Summary label="Precision" value={quant} />
             <Summary label="Private AI cost assigned to this workload" value={attributableTcoUsd ? money(n(attributableTcoUsd), 0) : "Not available"} />
             <Summary label="Analysis period" value={horizonYears + " years"} />
+            {handoff?.inferenceShare != null ? (
+              <Summary
+                label="Inference cost allocation"
+                value={Math.round(n(handoff.inferenceShare) * 100) + "% of TCO"}
+                help={
+                  handoff?.allocationMethod === "DIRECT_INFERENCE_WORKLOAD"
+                    ? "This came from a GPU Sizing → TCO workload identified as inference, so the inherited TCO is treated as 100% inference-attributable."
+                    : "This comes from TCO's workload mix: inference share = 1 − training share. It is a modeled allocation basis, not a measured accounting split."
+                }
+              />
+            ) : null}
           </div>
         ) : (
           <div style={twoCol}>
@@ -315,6 +326,13 @@ export default function InferenceEconomicsGuidedPreview() {
             </Field>
           </div>
         )}
+
+        {inherited && handoff?.allocationMethod === "WORKLOAD_SHARE_MODELED" ? (
+          <div style={{ ...sourceLine, marginTop: 16 }}>
+            <span><b>TCO attribution basis:</b> {Math.round(n(handoff.inferenceShare) * 100)}% of total TCO is assigned to inference from the TCO workload mix.</span>
+            <InlineHelp text="This proportional split is a planning assumption. Shared and fixed infrastructure costs may not fall in direct proportion to workload share, so treat the attributed TCO as a modeled allocation rather than a measured marginal cost." />
+          </div>
+        ) : null}
 
         <div style={{ ...sourceLine, marginTop: 16 }}>
           <span>
