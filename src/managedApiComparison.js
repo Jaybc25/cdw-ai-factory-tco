@@ -85,6 +85,7 @@ export function calculateManagedApiWorkloadEconomics({
   const errors = [];
   if (!outputY1) errors.push("annualOutputTokens must be > 0.");
   if (!years) errors.push("horizonYears must be > 0.");
+  else if (!Number.isInteger(years)) errors.push("horizonYears must be a whole number of years.");
   if (inputRatio == null) errors.push("inputTokensPerOutputToken must be > 0.");
   if (cacheShare == null) errors.push("cachedInputShare must be between 0 and 1.");
   if (growth == null) errors.push("demandGrowthRate must be >= 0.");
@@ -96,7 +97,7 @@ export function calculateManagedApiWorkloadEconomics({
   }
   if (errors.length) return { ok: false, errors };
 
-  const wholeYears = Math.max(1, Math.floor(years));
+  const wholeYears = years;
   const rows = Array.from({ length: wholeYears }, (_, index) => {
     const annualOutput = outputY1 * Math.pow(1 + growth, index);
     const annualInput = annualOutput * inputRatio;
