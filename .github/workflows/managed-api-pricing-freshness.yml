@@ -1,0 +1,30 @@
+name: Managed API pricing freshness
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "0 13 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  pricing-freshness:
+    name: Check managed API pricing freshness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install application dependencies
+        run: npm ci
+
+      - name: Verify refresh architecture
+        run: node scripts/verifyManagedApiPricingRefresh.mjs
+
+      - name: Audit current pricing freshness
+        run: node scripts/auditManagedApiPricingFreshness.mjs
