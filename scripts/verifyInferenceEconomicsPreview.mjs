@@ -214,7 +214,8 @@ const residencyNecessaryConditionPasses = deriveInferenceEconomicsThroughput({
   model: mistralLarge3,
 });
 assert.equal(residencyNecessaryConditionPasses.ok, true);
-assert.ok(residencyNecessaryConditionPasses.evidence.adjustmentBasis.includes("necessary-condition residency check"));
+assert.equal(residencyNecessaryConditionPasses.hardwareClass, "B200");
+assert.equal(residencyNecessaryConditionPasses.deployedGpuCount, 8);
 
 // H200 currently has qualified evidence only at FP8; unsupported precision must
 // be suppressed rather than silently reusing the FP8 anchor.
