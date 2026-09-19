@@ -313,6 +313,9 @@ export default function InferenceEconomicsGuidedPreview() {
             <Field label="Analysis period" help="Use the same period as the TCO scenario when possible.">
               <input style={input} type="number" min="1" value={horizonYears} onChange={(ev) => setHorizonYears(ev.target.value)} />
             </Field>
+            <Field label="Real-world serving efficiency (required)" help="Enter the share of benchmark-adjusted throughput you expect to sustain in production. Example: 0.5 means model 50% of the benchmark-adjusted ceiling. This is not the same as GPU utilization.">
+              <input style={input} type="number" min="0.01" max="1" step=".05" value={productionServingFactor} onChange={(ev) => setProductionServingFactor(ev.target.value)} placeholder="Enter a value from 0.01 to 1.0" />
+            </Field>
           </div>
         )}
 
@@ -326,9 +329,6 @@ export default function InferenceEconomicsGuidedPreview() {
               <select style={input} value={quant} onChange={(ev) => setQuant(ev.target.value)} disabled={inherited}>
                 {availablePrecisions.map((x) => <option key={x}>{x}</option>)}
               </select>
-            </Field>
-            <Field label="Real-world serving efficiency" help="Share of the benchmark-adjusted throughput you expect to sustain in production. 1.0 means the full modeled ceiling; it does not mean 100% GPU utilization.">
-              <input style={input} type="number" min="0.01" max="1" step=".05" value={productionServingFactor} onChange={(ev) => setProductionServingFactor(ev.target.value)} placeholder="Required, e.g. 0.5" />
             </Field>
             <Field label="Serving hours per day" help="Hours per day this workload is expected to accept production demand.">
               <input style={input} type="number" min="1" max="24" value={activeHoursPerDay} onChange={(ev) => setActiveHoursPerDay(ev.target.value)} disabled={Boolean(handoff?.activeHoursPerDay)} />
@@ -402,7 +402,11 @@ export default function InferenceEconomicsGuidedPreview() {
         ) : (
           <div style={emptyState}>
             <b>{e?.reason === "UNDERSIZED_FOR_DEMAND" ? "This configuration does not meet the stated demand." : "Complete the inputs above to calculate private-AI economics."}</b>
-            <div style={{ marginTop: 6 }}>{e?.errors?.join(" ") || result.demand?.errors?.join(" ") || result.capacity?.errors?.join(" ") || result.throughput?.errors?.join(" ")}</div>
+            <div style={{ marginTop: 6 }}>
+              {!productionServingFactor
+                ? "Enter a real-world serving efficiency above to continue."
+                : e?.errors?.join(" ") || result.demand?.errors?.join(" ") || result.capacity?.errors?.join(" ") || result.throughput?.errors?.join(" ")}
+            </div>
           </div>
         )}
       </Step>
