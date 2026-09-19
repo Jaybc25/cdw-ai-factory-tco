@@ -145,7 +145,7 @@ export default function InferenceEconomicsGuidedPreview() {
           demand,
           servingCapacity: capacity,
           demandGrowthRate: n(demandGrowthRate),
-          evidenceStatus: "MODELED",
+          evidenceStatus: throughput.evidence?.status,
         });
 
     return { throughput, demand, capacity, economics };
@@ -432,7 +432,7 @@ export default function InferenceEconomicsGuidedPreview() {
               <div style={methodText}>
                 <div><b>Benchmark-adjusted output ceiling:</b> {compact(t?.effectiveThroughputTokPerSec)} tok/s</div>
                 <div><b>Evidence source:</b> {t?.evidence?.sourceLabel || "—"}</div>
-                <div><b>Evidence status:</b> MODELED</div>
+                <div><b>Evidence status:</b> {e.evidenceStatus || "—"}</div>
               </div>
             </details>
           </>
