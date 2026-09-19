@@ -396,7 +396,13 @@ export default function InferenceEconomicsGuidedPreview() {
               <Summary label="Year 1 AI usage" value={compact(e.annualDemandOutputTokens)} help="Useful output-token demand in Year 1." />
               <Summary label="Modeled annual capacity" value={compact(e.annualCapacityOutputTokens)} help="Modeled annual output capacity after the serving-efficiency assumption." />
               <Summary label="Capacity used in Year 1" value={(e.demandUtilizationOfCapacity * 100).toFixed(1) + "%"} help="Expected Year 1 demand divided by modeled annual serving capacity." />
+              <Summary label="Peak capacity used" value={(e.peakDemandUtilizationOfCapacity * 100).toFixed(1) + "%"} help="Highest modeled annual demand divided by annual serving capacity across the selected analysis period. This is the binding capacity check used to decide whether the configuration can meet demand." />
             </div>
+            {e.peakDemandUtilizationOfCapacity >= 0.85 ? (
+              <div style={capacityWarning}>
+                <b>Limited production headroom:</b> peak modeled demand uses {(e.peakDemandUtilizationOfCapacity * 100).toFixed(1)}% of annual serving capacity over the analysis period. Small demand or throughput changes could make this configuration undersized.
+              </div>
+            ) : null}
             <details style={details}>
               <summary style={summaryLink}>Evidence & methodology</summary>
               <div style={methodText}>
@@ -594,6 +600,7 @@ const activeChip = { background: "#232323", color: "#fff" };
 const heroValue = { fontSize: 44, fontWeight: 950, margin: "6px 0 18px", letterSpacing: "-.03em" };
 const heroUnit = { fontSize: 16, fontWeight: 800, letterSpacing: 0 };
 const emptyState = { border: "1px dashed #ccc", borderRadius: 10, padding: 14, fontSize: 12, lineHeight: 1.5, color: "#666", background: "#fafafa" };
+const capacityWarning = { border: "1px solid #d7a83a", borderRadius: 10, padding: "11px 12px", marginTop: 12, fontSize: 12, lineHeight: 1.5, background: "#fffaf0", color: "#5f4a16" };
 const sourceLine = { display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", fontSize: 12, color: "#666", background: "#f7f7f7", borderRadius: 8, padding: "10px 12px", marginTop: 14 };
 const compareGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14, marginTop: 18 };
 const compareCard = { border: "1px solid #ddd", borderRadius: 12, padding: 16, background: "#fff" };
