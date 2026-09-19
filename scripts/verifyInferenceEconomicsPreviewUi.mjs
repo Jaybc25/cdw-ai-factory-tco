@@ -42,7 +42,7 @@ assert.ok(ui.includes("Managed API effective cost"));
 assert.ok(ui.includes("API minus private"));
 assert.ok(ui.includes("Pricing source:"));
 assert.ok(ui.includes("Model capability equivalence is not asserted."));
-assert.ok(ui.includes("Reference blends deliberately exclude cache discounts."));
+assert.ok(ui.includes("Reference blends exclude cache discounts."));
 
 console.log("Inference economics preview UI contract verified.");
 
