@@ -171,7 +171,7 @@ const ui = fs.readFileSync("src/InferenceEconomicsPreview.jsx", "utf8");
 assert.ok(tco.includes("Open Inference Economics Preview"));
 assert.ok(tco.includes("buildInferenceEconomicsPreviewHandoff"));
 assert.ok(tco.includes("fleetSystemsByYear: r.fleetAdj"));
-assert.ok(ui.includes("PREVIEW — IE-6.5"));
+assert.ok(ui.includes("PREVIEW — IE-6.6"));
 assert.ok(ui.includes("parseInferenceEconomicsPreviewHandoff"));
 assert.ok(ui.includes("Modeled TCO allocation"));
 assert.ok(ui.includes("does not change TCO calculations, reports, or recommendations"));

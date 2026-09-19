@@ -86,6 +86,7 @@ export default function InferenceEconomicsPreview() {
   const [apiCachedInputUsdPerMillion, setApiCachedInputUsdPerMillion] = useState("");
   const [apiInputTokensPerOutputToken, setApiInputTokensPerOutputToken] = useState("");
   const [apiCachedInputShare, setApiCachedInputShare] = useState(0);
+  const [apiMode, setApiMode] = useState("DEFAULT");
 
   const apiProviders = useMemo(() => listManagedApiProviders(), []);
   const apiModelOptions = useMemo(
@@ -279,10 +280,32 @@ export default function InferenceEconomicsPreview() {
     e,
   ]);
 
+
+  const defaultApiComparison = useMemo(() => {
+    if (!selectedRegistryRate || !result.demand?.ok) return null;
+    const inputTokensPerOutputToken = 0.70 / 0.30;
+    const managed = calculateManagedApiWorkloadEconomics({
+      annualOutputTokens: result.demand.annualOutputTokens,
+      horizonYears: n(horizonYears),
+      demandGrowthRate: n(demandGrowthRate),
+      inputTokensPerOutputToken,
+      cachedInputShare: 0,
+      rate: selectedRegistryRate,
+    });
+    if (!managed.ok) return { managed, comparison: null };
+    const comparison = e?.ok
+      ? comparePrivateAndManagedApi({
+          privateCostPerMillionOutputTokens: e.costPerMillionOutputTokens,
+          managedApiEconomics: managed,
+        })
+      : null;
+    return { managed, comparison };
+  }, [selectedRegistryRate, result.demand, horizonYears, demandGrowthRate, e]);
+
   return (
     <main style={{maxWidth:1100,margin:"0 auto",padding:"28px 20px 64px",fontFamily:"Inter,system-ui,sans-serif",color:"#232323"}}>
       <div style={{border:"1px solid #f0b7b7",background:"#fff7f7",borderRadius:10,padding:"14px 16px",marginBottom:20}}>
-        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-6.5</div>
+        <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".12em"}}>PREVIEW — IE-6.6</div>
         <div style={{fontSize:14,fontWeight:700,marginTop:4}}>Inference Economics Preview</div>
         <div style={{fontSize:12,lineHeight:1.55,color:"#555",marginTop:4}}>Experimental cost-per-1M-output-tokens modeling. The connector only carries context from TCO into this Preview; it does not change TCO calculations, reports, or recommendations.</div>
       </div>
@@ -431,21 +454,27 @@ export default function InferenceEconomicsPreview() {
             <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".1em"}}>PREVIEW COMPARISON</div>
             <h2 style={{margin:"5px 0 2px",fontSize:24}}>Managed API economics</h2>
             <div style={{fontSize:12,color:"#666",lineHeight:1.5,maxWidth:760}}>
-              Compare managed-API pricing against the same useful output-token demand used above. Choose a public rate or enter a negotiated rate.
+              Start with a simple public-pricing comparison, or switch to Advanced when you know the workload-specific token mix, cache behavior, or negotiated rates.
             </div>
           </div>
           <div style={{fontSize:11,fontWeight:800,padding:"7px 10px",borderRadius:999,background:"#f5f5f5",border:"1px solid #ddd"}}>PUBLIC + CUSTOM RATES</div>
         </div>
 
+        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:16}}>
+          <button type="button" onClick={()=>setApiMode("DEFAULT")} style={{...chip,background:apiMode==="DEFAULT"?"#232323":"#fff",color:apiMode==="DEFAULT"?"#fff":"#232323"}}>Default</button>
+          <button type="button" onClick={()=>setApiMode("ADVANCED")} style={{...chip,background:apiMode==="ADVANCED"?"#232323":"#fff",color:apiMode==="ADVANCED"?"#fff":"#232323"}}>Advanced</button>
+          <InlineHelp text="Default uses current public/list pricing with a 70/30 input/output token-mix convention (about 2.33 input tokens per output token) and assumes no cache discount. Advanced lets you enter the actual token ratio, cache share, or negotiated rates." />
+        </div>
+
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:18}}>
-          <Field label="API provider" help="Choose a provider with a last-known-good public pricing snapshot, or select Custom / negotiated rate when you have customer-specific pricing.">
+          <Field label="API provider" help={apiMode==="DEFAULT" ? "Choose a provider from the current first-party pricing registry." : "Choose a provider with a last-known-good public pricing snapshot, or select Custom / negotiated rate when you have customer-specific pricing."}>
             <select value={apiProvider} onChange={e=>handleApiProviderChange(e.target.value)} style={input}>
               <option value="">Select provider</option>
               {apiProviders.map(provider=><option key={provider} value={provider}>{provider}</option>)}
-              <option value={MANAGED_API_CUSTOM_PROVIDER}>Custom / negotiated rate</option>
+              {apiMode==="ADVANCED" ? <option value={MANAGED_API_CUSTOM_PROVIDER}>Custom / negotiated rate</option> : null}
             </select>
           </Field>
-          {apiProvider === MANAGED_API_CUSTOM_PROVIDER ? (
+          {apiProvider === MANAGED_API_CUSTOM_PROVIDER && apiMode==="ADVANCED" ? (
             <>
               <Field label="Custom provider / contract" help="Optional customer, provider, or contract label for an override rate.">
                 <input value={apiCustomProvider} onChange={e=>setApiCustomProvider(e.target.value)} placeholder="e.g. negotiated enterprise contract" style={input}/>
@@ -455,63 +484,88 @@ export default function InferenceEconomicsPreview() {
               </Field>
             </>
           ) : (
-            <Field label="API model" help="Models shown here have a last-known-good public/list pricing record. Selecting a model auto-fills its current snapshot rates; those rates remain editable.">
-              <select value={apiModelId} onChange={e=>handleApiModelChange(e.target.value)} style={input} disabled={!apiProvider}>
+            <Field label="API model" help="Models shown here have a last-known-good public/list pricing record. Selecting a model loads its current pricing snapshot.">
+              <select value={apiModelId} onChange={e=>handleApiModelChange(e.target.value)} style={input} disabled={!apiProvider || apiProvider===MANAGED_API_CUSTOM_PROVIDER}>
                 <option value="">{apiProvider ? "Select model" : "Select provider first"}</option>
                 {apiModelOptions.map(rate=><option key={rate.modelId} value={rate.modelId}>{rate.modelLabel}</option>)}
               </select>
             </Field>
           )}
-          <Field label="Input $ / 1M tokens" help="Public list or customer-negotiated price for uncached input tokens. Verify the rate source before using the comparison externally.">
-            <input type="number" min="0" step=".01" value={apiInputUsdPerMillion} onChange={e=>setApiInputUsdPerMillion(e.target.value)} placeholder="Enter input rate" style={input}/>
-          </Field>
-          <Field label="Output $ / 1M tokens" help="Public list or customer-negotiated price for generated output tokens.">
-            <input type="number" min="0" step=".01" value={apiOutputUsdPerMillion} onChange={e=>setApiOutputUsdPerMillion(e.target.value)} placeholder="Enter output rate" style={input}/>
-          </Field>
-          <Field label="Cached input $ / 1M tokens" help="Optional discounted cached-input rate. Leave blank when the provider has no separate cache rate or when you do not want to assume cache savings.">
-            <input type="number" min="0" step=".01" value={apiCachedInputUsdPerMillion} onChange={e=>setApiCachedInputUsdPerMillion(e.target.value)} placeholder="Optional" style={input}/>
-          </Field>
-          <Field label="Input tokens per output token" help="The workload-specific input/output volume ratio. Example: 3 means three input tokens for every generated output token. This drives the rigorous API comparison and is separate from the reference blends.">
-            <input type="number" min="0" step=".1" value={apiInputTokensPerOutputToken} onChange={e=>setApiInputTokensPerOutputToken(e.target.value)} placeholder="Required for workload comparison" style={input}/>
-          </Field>
-          <Field label="Cached share of input" help="Share of input tokens expected to receive the provider's cached-input price. Use 0 when you do not have a defensible cache-hit assumption.">
-            <div style={{display:"flex",alignItems:"center",gap:8}}>
-              <input type="number" min="0" max="1" step=".05" value={apiCachedInputShare} onChange={e=>setApiCachedInputShare(e.target.value)} style={input}/>
-              <span style={{fontSize:12,fontWeight:800,whiteSpace:"nowrap"}}>{Math.round(n(apiCachedInputShare)*100)}%</span>
-            </div>
-          </Field>
         </div>
 
         <div style={{...note,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
           <span><b>Pricing source:</b> {selectedRegistryRate ? selectedRegistryRate.provider : apiProvider === MANAGED_API_CUSTOM_PROVIDER ? "Custom / negotiated" : "Select a provider"} · verified {pricingFreshness.verifiedAt || "—"}{pricingFreshness.status === "STALE" ? " · STALE" : ""}</span>
-          <InlineHelp text={`Public/list rates come from the last-known-good first-party pricing snapshot. A failed future refresh will not erase the last successful values. BenchLM remains disconnected/HOLD. If you edit an auto-filled rate, the tool treats it as a user override rather than first-party pricing. Reference blends exclude cache discounts. ${selectedRegistryRate?.sourceUrl ? "A first-party source URL is recorded for the selected model." : ""}`} />
+          <InlineHelp text={`Public/list rates come from the last-known-good first-party pricing snapshot. A failed future refresh will not erase the last successful values. BenchLM remains disconnected/HOLD. If you edit an auto-filled rate in Advanced mode, the tool treats it as a user override rather than first-party pricing. ${selectedRegistryRate?.sourceUrl ? "A first-party source URL is recorded for the selected model." : ""}`} />
         </div>
 
-        {(apiComparison.blend7030?.ok || apiComparison.blend7525?.ok) && (
-          <div style={{...metrics,gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))"}}>
-            {apiComparison.blend7030?.ok ? <Metric label="70/30 reference blend" value={money(apiComparison.blend7030.blendedUsdPerMillion)+" / 1M"} help="Reference shorthand only: 70% input rate + 30% output rate. Cached-input discounts are intentionally excluded." /> : null}
-            {apiComparison.blend7525?.ok ? <Metric label="75/25 reference blend" value={money(apiComparison.blend7525.blendedUsdPerMillion)+" / 1M"} help="Reference shorthand only: 75% input rate + 25% output rate (3:1 input/output). Cached-input discounts are intentionally excluded." /> : null}
-          </div>
-        )}
-
-        {apiComparison.managed?.ok ? (
-          <div style={{marginTop:20,paddingTop:18,borderTop:"1px solid #eee"}}>
-            <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".08em"}}>WORKLOAD-SPECIFIC COMPARISON</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:16,marginTop:12}}>
-              <Metric label="Managed API effective cost" value={money(apiComparison.managed.effectiveUsdPerMillionOutputTokens)+" / 1M output"} help="Full managed-API bill across input, cached input, and output, normalized back to the same useful output-token denominator used by private AI." />
-              <Metric label="Managed API horizon cost" value={money(apiComparison.managed.horizonApiCostUsd)} help="Total modeled managed-API token charges across the selected analysis horizon and inherited demand growth." />
-              <Metric label="Private AI effective cost" value={e?.ok ? money(e.costPerMillionOutputTokens)+" / 1M output" : "—"} help="The existing demand-bound private-AI result above. This comparison does not alter that calculation." />
-              <Metric label="API minus private" value={apiComparison.comparison?.ok ? money(apiComparison.comparison.managedApiMinusPrivateUsdPerMillionOutputTokens)+" / 1M" : "—"} help="Arithmetic difference only: managed API effective cost minus private-AI effective cost. Positive means the modeled API rate is higher; negative means it is lower. This is not a recommendation." />
-            </div>
-            <div style={note}>
-              The comparison uses the same Year 1 output-token demand, horizon, and annual demand growth as the private-AI scenario. API billing additionally models input tokens and optional cache pricing. Model capability equivalence is not asserted.
-            </div>
-          </div>
+        {apiMode==="DEFAULT" ? (
+          <>
+            {defaultApiComparison?.managed?.ok ? (
+              <div style={{marginTop:20,paddingTop:18,borderTop:"1px solid #eee"}}>
+                <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".08em"}}>DEFAULT REFERENCE COMPARISON</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:16,marginTop:12}}>
+                  <Metric label="Managed API effective cost" value={money(defaultApiComparison.managed.effectiveUsdPerMillionOutputTokens)+" / 1M output"} help="Public/list API pricing normalized to 1M output tokens using the Default 70/30 input/output token-mix convention and no cache discount." />
+                  <Metric label="Managed API horizon cost" value={money(defaultApiComparison.managed.horizonApiCostUsd)} help="Total modeled API token charges across the same output-token demand, horizon, and annual growth used by the private-AI scenario." />
+                  <Metric label="Private AI effective cost" value={e?.ok ? money(e.costPerMillionOutputTokens)+" / 1M output" : "—"} help="The existing demand-bound private-AI result above. Default mode does not change that calculation." />
+                  <Metric label="API minus private" value={defaultApiComparison.comparison?.ok ? money(defaultApiComparison.comparison.managedApiMinusPrivateUsdPerMillionOutputTokens)+" / 1M" : "—"} help="Arithmetic difference only: managed API effective cost minus private-AI effective cost. Positive means the modeled API cost is higher; negative means it is lower. This is not a recommendation." />
+                </div>
+                <div style={{...note,display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                  <span><b>Default assumption:</b> 70/30 input/output token mix · no cache discount</span>
+                  <InlineHelp text="The 70/30 convention is used as a broad reference when the customer does not know the actual token mix. It corresponds to about 2.33 input tokens per output token. Switch to Advanced for workload-specific inputs. Model capability equivalence is not asserted." />
+                </div>
+              </div>
+            ) : (
+              <div style={{marginTop:16,fontSize:12,color:"#666"}}>Select a provider and model to calculate the default managed-API reference economics.</div>
+            )}
+          </>
         ) : (
-          <div style={{marginTop:16,fontSize:12,color:"#666"}}>
-            Enter input and output rates plus a workload-specific input/output ratio to calculate managed-API economics.
-            {apiComparison.managed?.errors?.length ? " "+apiComparison.managed.errors.join(" ") : ""}
-          </div>
+          <>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:12,marginTop:18}}>
+              <Field label="Input $ / 1M tokens" help="Public list or customer-negotiated price for uncached input tokens. Editing an auto-filled rate creates a user override.">
+                <input type="number" min="0" step=".01" value={apiInputUsdPerMillion} onChange={e=>setApiInputUsdPerMillion(e.target.value)} placeholder="Enter input rate" style={input}/>
+              </Field>
+              <Field label="Output $ / 1M tokens" help="Public list or customer-negotiated price for generated output tokens.">
+                <input type="number" min="0" step=".01" value={apiOutputUsdPerMillion} onChange={e=>setApiOutputUsdPerMillion(e.target.value)} placeholder="Enter output rate" style={input}/>
+              </Field>
+              <Field label="Cached input $ / 1M tokens" help="Optional discounted cached-input rate. Leave blank when the provider has no separate cache rate or when you do not want to assume cache savings.">
+                <input type="number" min="0" step=".01" value={apiCachedInputUsdPerMillion} onChange={e=>setApiCachedInputUsdPerMillion(e.target.value)} placeholder="Optional" style={input}/>
+              </Field>
+              <Field label="Input tokens per output token" help="The workload-specific input/output volume ratio. Example: 3 means three input tokens for every generated output token.">
+                <input type="number" min="0" step=".1" value={apiInputTokensPerOutputToken} onChange={e=>setApiInputTokensPerOutputToken(e.target.value)} placeholder="Required for workload comparison" style={input}/>
+              </Field>
+              <Field label="Cached share of input" help="Share of input tokens expected to receive the provider's cached-input price. Use 0 when you do not have a defensible cache-hit assumption.">
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <input type="number" min="0" max="1" step=".05" value={apiCachedInputShare} onChange={e=>setApiCachedInputShare(e.target.value)} style={input}/>
+                  <span style={{fontSize:12,fontWeight:800,whiteSpace:"nowrap"}}>{Math.round(n(apiCachedInputShare)*100)}%</span>
+                </div>
+              </Field>
+            </div>
+
+            {(apiComparison.blend7030?.ok || apiComparison.blend7525?.ok) && (
+              <div style={{...metrics,gridTemplateColumns:"repeat(auto-fit,minmax(210px,1fr))"}}>
+                {apiComparison.blend7030?.ok ? <Metric label="70/30 reference blend" value={money(apiComparison.blend7030.blendedUsdPerMillion)+" / 1M"} help="Reference shorthand only: 70% input rate + 30% output rate. This blended-rate metric is not directly compared to private $/1M output." /> : null}
+                {apiComparison.blend7525?.ok ? <Metric label="75/25 reference blend" value={money(apiComparison.blend7525.blendedUsdPerMillion)+" / 1M"} help="Reference shorthand only: 75% input rate + 25% output rate (3:1 input/output). This blended-rate metric is not directly compared to private $/1M output." /> : null}
+              </div>
+            )}
+
+            {apiComparison.managed?.ok ? (
+              <div style={{marginTop:20,paddingTop:18,borderTop:"1px solid #eee"}}>
+                <div style={{fontSize:11,fontWeight:900,color:"#CC0000",letterSpacing:".08em"}}>WORKLOAD-SPECIFIC COMPARISON</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(190px,1fr))",gap:16,marginTop:12}}>
+                  <Metric label="Managed API effective cost" value={money(apiComparison.managed.effectiveUsdPerMillionOutputTokens)+" / 1M output"} help="Full managed-API bill across input, cached input, and output, normalized back to the same useful output-token denominator used by private AI." />
+                  <Metric label="Managed API horizon cost" value={money(apiComparison.managed.horizonApiCostUsd)} help="Total modeled managed-API token charges across the selected analysis horizon and inherited demand growth." />
+                  <Metric label="Private AI effective cost" value={e?.ok ? money(e.costPerMillionOutputTokens)+" / 1M output" : "—"} help="The existing demand-bound private-AI result above. This comparison does not alter that calculation." />
+                  <Metric label="API minus private" value={apiComparison.comparison?.ok ? money(apiComparison.comparison.managedApiMinusPrivateUsdPerMillionOutputTokens)+" / 1M" : "—"} help="Arithmetic difference only: managed API effective cost minus private-AI effective cost. Positive means the modeled API rate is higher; negative means it is lower. This is not a recommendation." />
+                </div>
+                <div style={note}>The comparison uses the same Year 1 output-token demand, horizon, and annual demand growth as the private-AI scenario. API billing additionally models input tokens and optional cache pricing. Model capability equivalence is not asserted.</div>
+              </div>
+            ) : (
+              <div style={{marginTop:16,fontSize:12,color:"#666"}}>
+                Enter input and output rates plus a workload-specific input/output ratio to calculate managed-API economics.
+                {apiComparison.managed?.errors?.length ? " "+apiComparison.managed.errors.join(" ") : ""}
+              </div>
+            )}
+          </>
         )}
       </section>
     </main>

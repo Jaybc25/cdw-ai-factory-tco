@@ -14,7 +14,7 @@ assert.ok(tco.includes("Open Inference Economics Preview"));
 assert.ok(tco.includes("Preview only — does not change TCO calculations or reports"));
 
 // Guardrails that should remain visible in the Preview UI.
-assert.ok(ui.includes("PREVIEW — IE-6.5"));
+assert.ok(ui.includes("PREVIEW — IE-6.6"));
 assert.ok(ui.includes("Capacity is not consumption") === false); // principle lives in methodology, not marketing copy
 assert.ok(ui.includes("Unused capacity does not lower this result."));
 assert.ok(ui.includes("Configuration does not meet stated demand"));
@@ -31,7 +31,7 @@ assert.ok(ui.includes("Cost/token currently uses generated output tokens"));
 
 
 // IE-6.2 managed API comparison UI contract.
-assert.ok(ui.includes("PREVIEW — IE-6.5"));
+assert.ok(ui.includes("PREVIEW — IE-6.6"));
 assert.ok(ui.includes("Managed API economics"));
 assert.ok(ui.includes("WORKLOAD-SPECIFIC COMPARISON"));
 assert.ok(ui.includes("70/30 reference blend"));
@@ -42,7 +42,7 @@ assert.ok(ui.includes("Managed API effective cost"));
 assert.ok(ui.includes("API minus private"));
 assert.ok(ui.includes("Pricing source:"));
 assert.ok(ui.includes("Model capability equivalence is not asserted."));
-assert.ok(ui.includes("Reference blends exclude cache discounts."));
+assert.ok(ui.includes("Default uses current public/list pricing with a 70/30 input/output token-mix convention"));
 
 console.log("Inference economics preview UI contract verified.");
 
@@ -84,4 +84,16 @@ assert.ok(ui.includes("TCO fleet:"));
 assert.ok(ui.includes("Extra fleet cost remains in TCO; extra throughput is not assumed."));
 
 assert.ok(ui.includes("PUBLIC + CUSTOM RATES"));
-assert.ok(ui.includes("Compare managed-API pricing against the same useful output-token demand used above."));
+assert.ok(ui.includes("Start with a simple public-pricing comparison, or switch to Advanced"));
+
+assert.ok(ui.includes('setApiMode("DEFAULT")'));
+
+assert.ok(ui.includes("Start with a simple public-pricing comparison"));
+assert.ok(ui.includes(">Default</button>"));
+assert.ok(ui.includes(">Advanced</button>"));
+assert.ok(ui.includes("DEFAULT REFERENCE COMPARISON"));
+assert.ok(ui.includes("Default assumption:"));
+assert.ok(ui.includes("0.70 / 0.30"));
+assert.ok(ui.includes("Custom / negotiated rate"));
+assert.ok(ui.includes('apiMode==="ADVANCED"'));
+assert.ok(ui.includes("This blended-rate metric is not directly compared to private $/1M output."));
