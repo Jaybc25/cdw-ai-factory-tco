@@ -49,7 +49,7 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
   // 100-user, 30 tok/s scenario, all supported 8-GPU classes fit in one
   // deployable node; deterministic tie-breaking selects B200.
   await chooseInferenceModel(page, "muse-glimmer-30b");
-  await expect(resultCard(page, "Minimum technical")).toContainText("1 GPUs");
+  await expect(resultCard(page, "Minimum technical")).toContainText("1 GPU");
   await expect(resultCard(page, "Minimum technical")).toContainText("B200");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 

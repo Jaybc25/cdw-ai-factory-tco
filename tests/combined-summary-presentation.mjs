@@ -87,6 +87,7 @@ assert.equal(tcoFields.find((f) => f.key === "gpuClass")?.label, "Cloud GPU Clas
 assert.equal(tcoFields.find((f) => f.key === "gpuSizingFleet")?.label, "GPU Sizing Base Fleet");
 assert.equal(tcoFields.some((f) => f.key === "recommendedFleet"), false, "duplicate evaluated fleet should be hidden when it matches the base fleet");
 assert.equal(tcoFields.find((f) => f.key === "onPremYear1Capital")?.label, "Year 1 On-Prem Capital");
+assert.equal(presentSummary("tco", { savings: -600792 }).find((f) => f.key === "savings")?.value, "-$600,792");
 assert.equal(tcoFields.some((f) => f.label === "On Prem Year1Capital"), false);
 
 const gpuFields = presentSummary("gpu-sizing", specimen[1].summary);

@@ -95,6 +95,7 @@ test("GPU Sizing handoff defaults sizing provenance to recommended", async ({ pa
   );
   const saved = await waitForTcoSession(page, { gpuSizingBasis: "recommended" });
   expect(saved.gpuSizingBasis).toBe("recommended");
+  await expect(page.locator("main")).toContainText("FP8 against the estimated cloud cost");
 });
 
 test("fresh GPU Sizing handoff replaces upstream technical facts but preserves TCO-owned assumptions", async ({ page }) => {

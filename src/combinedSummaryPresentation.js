@@ -10,7 +10,10 @@ export const TOOL_LABELS = {
 
 export const TOOL_ORDER = ["tco", "gpu-sizing", "model-advisor", "roi", "readiness"];
 
-const money = (value) => `$${Math.round(Number(value)).toLocaleString()}`;
+const money = (value) => {
+  const rounded = Math.round(Number(value));
+  return rounded < 0 ? "-$" + Math.abs(rounded).toLocaleString() : "$" + rounded.toLocaleString();
+};
 const count = (value) => Number(value).toLocaleString();
 const months = (value) => `${Number(value).toFixed(1)} months`;
 const percentRatio = (value) => `${(Number(value) * 100).toFixed(1)}%`;
