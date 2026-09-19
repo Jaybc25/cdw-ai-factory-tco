@@ -799,6 +799,12 @@ function RoiCalculatorInner() {
             </div>
           </div>
 
+          <div style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 10, padding: "10px 14px", marginBottom: 16, fontSize: 11, color: GRAY_TEXT, lineHeight: 1.5 }}>
+            <div style={{ fontWeight: 700, color: CHARCOAL, textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 2 }}>Key assumptions</div>
+            <div>Time reduction {fmtPercent(inputs.reductionPct)} &middot; Adoption {fmtPercent(inputs.adoptionPct)} &middot; Realization {fmtPercent(inputs.realizationPct)} &middot; Year 1 ramp {fmtPercent(inputs.rampPct)} &middot; Horizon {inputs.horizonYears} years</div>
+            <div>AI cost {fmtCurrency(inputs.initialCost)} initial + {fmtCurrency(inputs.recurringCost)}/yr recurring</div>
+          </div>
+
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: GRAY_TEXT, textTransform: "uppercase", marginBottom: 8 }}>Capacity created</div>
           <div style={{ border: `1px solid ${GRAY_BORDER}`, borderRadius: 10, padding: 14, marginBottom: 16, fontSize: 13, color: CHARCOAL }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", rowGap: 6, columnGap: 12 }}>

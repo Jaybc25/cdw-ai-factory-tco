@@ -65,3 +65,30 @@ test("M7 migrates the legacy 100 percent default once but preserves an explicit 
   expect(saved.roiRampPolicyVersion).toBe(1);
   expect(saved.inputs.rampPct).toBe(0.82);
 });
+
+
+test("U4 ROI report carries compact key assumptions with the saved result", async ({ page }) => {
+  await page.goto("/roi", { waitUntil: "domcontentloaded" });
+
+  await page.getByLabel("AI time reduction").fill("45");
+  await page.getByLabel("Adoption rate").fill("70");
+  await page.getByLabel("Productive redeployment realization").fill("65");
+  await page.getByLabel("Year 1 benefit realization / ramp").fill("80");
+  await page.getByLabel("Initial implementation cost").fill("250000");
+  await page.getByLabel("Annual recurring AI cost").fill("120000");
+  await page.getByLabel("Analysis horizon").fill("4");
+
+  await page.getByRole("button", { name: "Get the full report (PDF)" }).click();
+
+  const reportGate = page.getByRole("button", { name: "View my report" });
+  if (await reportGate.isVisible().catch(() => false)) {
+    await page.getByLabel("Full name").fill("Regression User");
+    await page.getByLabel("Company").fill("CDW");
+    await page.getByLabel("Work email").fill("regression@example.com");
+    await reportGate.click();
+  }
+
+  await expect(page.getByText("Key assumptions", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Time reduction 45\.0% · Adoption 70\.0% · Realization 65\.0% · Year 1 ramp 80\.0% · Horizon 4 years/)).toBeVisible();
+  await expect(page.getByText(/AI cost \$250,000 initial \+ \$120,000\/yr recurring/)).toBeVisible();
+});
