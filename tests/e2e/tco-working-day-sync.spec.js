@@ -48,3 +48,30 @@ test("working-day hours synchronize between TCO and GPU Sizing", async ({ page }
   await waitField(page, GPU_KEY, "workingDayHours", 12);
   await expect(page.getByRole("link", { name: "Compare TCO" }).first()).toHaveAttribute("href", /workingDayHours=12/);
 });
+
+
+test("24-hour duty cycle does not say not 24/7", async ({ page }) => {
+  const params = new URLSearchParams({
+    ownSys: "DGX B200",
+    gpuCount: "8",
+    sourceClass: "B200",
+    sizingBasis: "recommended",
+    workingDayHours: "24",
+  });
+  await page.goto(`/tco?${params}`, { waitUntil: "domcontentloaded" });
+
+  await expect(page.getByText(/full 24-hour\/day duty cycle shared with GPU Sizing/i)).toBeVisible();
+  await expect(page.getByText(/not 24\/7/i)).toHaveCount(0);
+
+  await page.getByRole("button", { name: /Get the full report/i }).click();
+  const reportGate = page.getByRole("button", { name: "View my report" });
+  if (await reportGate.isVisible().catch(() => false)) {
+    await page.getByLabel("Full name").fill("Regression User");
+    await page.getByLabel("Company").fill("CDW");
+    await page.getByLabel("Work email").fill("regression@example.com");
+    await reportGate.click();
+  }
+
+  await expect(page.getByText("24 hrs/day duty cycle shared with GPU Sizing (full-day operation)", { exact: true })).toBeVisible();
+  await expect(page.getByText(/24 hrs\/day duty cycle shared with GPU Sizing \(not 24\/7\)/i)).toHaveCount(0);
+});
