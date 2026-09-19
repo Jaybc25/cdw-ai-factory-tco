@@ -34,6 +34,10 @@ assert.ok(guided.includes("comparePrivateAndManagedApi"));
 assert.ok(guided.includes("getManagedApiRate"));
 assert.ok(guided.includes("0.70 / 0.30"));
 assert.ok(guided.includes("does not assert equivalent model capability"));
+assert.ok(guided.includes("Inference cost allocation"));
+assert.ok(guided.includes("inference share = 1 − training share"));
+assert.ok(guided.includes("TCO attribution basis:"));
+assert.ok(guided.includes("Shared and fixed infrastructure costs may not fall in direct proportion to workload share"));
 assert.ok(guided.includes('"Private AI · " + (model?.label || "Selected model")'));
 assert.ok(guided.includes("Reference mix: 70% input / 30% output · no cache discount"));
 
