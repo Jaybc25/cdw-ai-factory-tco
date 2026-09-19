@@ -1,6 +1,7 @@
 import {
   getInferencePrecisionScale,
   getInferenceThroughputScale,
+  getResidencyParamsB,
 } from "./modelSizingMethodology.js";
 import {
   getInferenceEconomicsEvidence,
@@ -15,6 +16,8 @@ function positiveNumber(value) {
 function normalizedLabel(value) {
   return String(value || "").trim().toLowerCase().replace(/\s+/g, " ");
 }
+
+const WEIGHT_BYTES_BY_PRECISION = Object.freeze({ FP16: 2, FP8: 1, FP4: 0.5 });
 
 /**
  * Shared throughput adapter for Inference Economics Preview.
@@ -63,6 +66,38 @@ export function deriveInferenceEconomicsThroughput({
       hardwareClass,
       deployedGpuCount: count,
       benchmarkGpuCount: record.benchmarkGpuCount,
+    };
+  }
+
+  // Necessary-condition residency guardrail. The Preview does not collect the
+  // full concurrency/context inputs used by GPU Sizing, so it must not recreate
+  // a hidden sizing model here. It can, however, reject a configuration when
+  // the selected model's weights alone cannot physically reside in the exact
+  // benchmark configuration being credited.
+  const residencyParamsB = getResidencyParamsB(model, customParamsB);
+  const weightBytesPerParam = WEIGHT_BYTES_BY_PRECISION[quant];
+  const aggregateMemoryGB =
+    positiveNumber(record.memoryGBPerGpu) != null
+      ? record.memoryGBPerGpu * count
+      : null;
+  const weightMemoryGB =
+    residencyParamsB && weightBytesPerParam
+      ? residencyParamsB * weightBytesPerParam
+      : null;
+
+  if (weightMemoryGB != null && aggregateMemoryGB != null && weightMemoryGB > aggregateMemoryGB) {
+    return {
+      ok: false,
+      reason: "MODEL_DOES_NOT_FIT_BENCHMARK_CONFIG",
+      errors: [
+        `${model?.label || model?.name || model?.id || "Selected model"} requires at least ${weightMemoryGB.toFixed(1)} GB for model weights at ${quant}, which exceeds the ${aggregateMemoryGB.toFixed(1)} GB aggregate HBM in the credited ${count} × ${hardwareClass} benchmark configuration. Use GPU Sizing to determine a deployable configuration before calculating inference economics.`,
+      ],
+      hardwareClass,
+      deployedGpuCount: count,
+      benchmarkGpuCount: record.benchmarkGpuCount,
+      weightMemoryGB,
+      aggregateMemoryGB,
+      residencyBasis: "model-weights-only necessary-condition check",
     };
   }
 
