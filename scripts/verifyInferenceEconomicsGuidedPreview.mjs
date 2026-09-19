@@ -40,5 +40,9 @@ assert.ok(guided.includes("TCO attribution basis:"));
 assert.ok(guided.includes("Shared and fixed infrastructure costs may not fall in direct proportion to workload share"));
 assert.ok(guided.includes('"Private AI · " + (model?.label || "Selected model")'));
 assert.ok(guided.includes("Reference mix: 70% input / 30% output · no cache discount"));
+assert.ok(guided.includes("coveredYearsBeforeCapacityCliff"));
+assert.ok(guided.includes("Capacity covers through Year"));
+assert.ok(guided.includes("is the first year above modeled capacity"));
+assert.ok(guided.includes("Peak annual shortfall:"));
 
 console.log("Guided inference economics Preview contract verified.");
