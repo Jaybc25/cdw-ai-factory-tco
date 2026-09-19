@@ -20,6 +20,7 @@ import {
   getManagedApiRate,
   listManagedApiModels,
   listManagedApiProviders,
+  validateManagedApiPricingSnapshotMetadata,
 } from "../src/managedApiPricingRegistry.js";
 
 // 1) A first-party rate can be normalized into the shared contract.
@@ -206,6 +207,17 @@ assert.equal(getManagedApiRate("Google", "gemini-3.8-flash")?.inputUsdPerMillion
 assert.equal(getManagedApiRate("Google", "gemini-3.1-flash-lite")?.cachedInputUsdPerMillion, 0.025);
 assert.equal(getManagedApiRate("xAI", "grok-4.3")?.outputUsdPerMillion, 2.5);
 assert.equal(MANAGED_API_CUSTOM_PROVIDER, "CUSTOM");
+
+const snapshotMetadata = validateManagedApiPricingSnapshotMetadata();
+assert.equal(snapshotMetadata.ok, true);
+assert.deepEqual(snapshotMetadata.errors, []);
+
+const mismatchedSnapshotMetadata = validateManagedApiPricingSnapshotMetadata({
+  ...MANAGED_API_PRICING_SNAPSHOT,
+  snapshotId: "first-party-2026-09-19",
+});
+assert.equal(mismatchedSnapshotMetadata.ok, false);
+assert.ok(mismatchedSnapshotMetadata.errors.includes("Pricing snapshotId date must match verifiedAt."));
 
 const fallbackSnapshot = chooseLastKnownGoodPricingSnapshot({
   currentSnapshot: MANAGED_API_PRICING_SNAPSHOT,
