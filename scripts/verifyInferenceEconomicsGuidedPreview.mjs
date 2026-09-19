@@ -48,5 +48,10 @@ assert.ok(guided.includes('<details style={details} open={!productionServingFact
 assert.ok(guided.includes("evidenceStatus: throughput.evidence?.status"));
 assert.ok(guided.includes('<b>Evidence status:</b> {e.evidenceStatus || "—"}'));
 assert.ok(!guided.includes("<b>Evidence status:</b> MODELED"));
+assert.ok(!guided.includes("ALTERNATIVE PREVIEW"));
+assert.ok(!guided.includes("existing technical Preview"));
+assert.ok(guided.includes("Estimate effective private-AI inference cost and compare it with managed-API token pricing."));
+assert.ok(guided.includes("function compactMoney(v)"));
+assert.ok(guided.includes('notation: "compact"'));
 
 console.log("Guided inference economics Preview contract verified.");
