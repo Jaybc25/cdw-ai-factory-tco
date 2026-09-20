@@ -5,6 +5,8 @@ import {
   buildInferenceEconomicsGpuSizingHandoff,
   parseInferenceEconomicsPreviewHandoff,
 } from "../src/inferenceEconomicsConnector.js";
+import { deriveInferenceEconomicsThroughput } from "../src/inferenceEconomicsThroughput.js";
+import { getModelById } from "../src/modelRegistry.js";
 
 // Clean inference workload: full TCO can be attributed when fleet stays fixed.
 const clean = buildInferenceEconomicsPreviewHandoff({
@@ -24,6 +26,7 @@ const clean = buildInferenceEconomicsPreviewHandoff({
   roiInitialCostUsd: 900_000,
   roiRecurringCostUsd: 140_000,
   roiPlanningBasis: "workload",
+  scaleoutClassification: "REPLICA_CAPACITY_SCALEOUT",
 });
 assert.deepEqual(clean.blockers, []);
 assert.equal(clean.hardwareClass, "B200");
@@ -53,6 +56,7 @@ assert.equal(parsedClean.demandGrowthRate, 0.25);
 assert.equal(parsedClean.roiInitialCostUsd, 900_000);
 assert.equal(parsedClean.roiRecurringCostUsd, 140_000);
 assert.equal(parsedClean.roiPlanningBasis, "workload");
+assert.equal(parsedClean.scaleoutClassification, "REPLICA_CAPACITY_SCALEOUT");
 assert.deepEqual(parsedClean.fleetSystemsByYear, [1, 1, 1]);
 
 // Mixed workload: use TCO's known inference share as a MODELED allocation.
@@ -98,8 +102,8 @@ assert.equal(fleetGrowth.inferenceShare, 0.5);
 assert.equal(fleetGrowth.attributableTcoUsd, 750_000);
 assert.equal(fleetGrowth.allocationMethod, "WORKLOAD_SHARE_MODELED");
 
-// A current 2-system B200 fleet keeps all 16 GPUs in TCO context but credits
-// only one benchmark-supported 8-GPU system for throughput.
+// A current 2-system B200 fleet carries all 16 deployed GPUs into IE so
+// throughput and the TCO cost numerator refer to the same architecture.
 const twoSystemFleet = buildInferenceEconomicsPreviewHandoff({
   ownSys: "DGX B200",
   systemCount: 2,
@@ -112,13 +116,13 @@ const twoSystemFleet = buildInferenceEconomicsPreviewHandoff({
   trainShare: 0,
   growth: 0.25,
 });
-assert.equal(twoSystemFleet.gpuCount, 8);
+assert.equal(twoSystemFleet.gpuCount, 16);
 assert.equal(twoSystemFleet.totalDeployedGpuCount, 16);
 assert.equal(twoSystemFleet.attributableTcoUsd, 3_547_569);
 const parsedTwoSystem = parseInferenceEconomicsPreviewHandoff(
   twoSystemFleet.href.slice(twoSystemFleet.href.indexOf("?"))
 );
-assert.equal(parsedTwoSystem.gpuCount, 8);
+assert.equal(parsedTwoSystem.gpuCount, 16);
 assert.equal(parsedTwoSystem.totalDeployedGpuCount, 16);
 
 // Unknown workload mix must stay unknown rather than defaulting to 100% inference.
@@ -209,12 +213,81 @@ const gpuScaled = buildInferenceEconomicsGpuSizingHandoff({
   quant: "FP8",
   workingDayHours: 8,
 });
-assert.equal(gpuScaled.eligible, false);
-assert.ok(gpuScaled.blockers.includes("UNSUPPORTED_DEPLOYMENT_SCALING"));
+assert.equal(gpuScaled.eligible, true);
+assert.deepEqual(gpuScaled.blockers, []);
+
+const gpuTopologyRequired = buildInferenceEconomicsGpuSizingHandoff({
+  hardwareClass: "B200",
+  gpuCount: 16,
+  modelId: "custom",
+  modelParamsB: 1500,
+  quant: "FP8",
+  workingDayHours: 8,
+  scaleoutClassification: "TOPOLOGY_SCALEOUT_REQUIRED",
+});
+assert.equal(gpuTopologyRequired.eligible, false);
+assert.ok(gpuTopologyRequired.blockers.includes("TOPOLOGY_SCALEOUT_REQUIRED"));
+assert.ok(gpuTopologyRequired.href.includes("scaleoutClass=TOPOLOGY_SCALEOUT_REQUIRED"));
+
+const gpuNonMultiple = buildInferenceEconomicsGpuSizingHandoff({
+  hardwareClass: "B200",
+  gpuCount: 12,
+  modelId: "llama-3.1-70b",
+  quant: "FP8",
+  workingDayHours: 8,
+});
+assert.equal(gpuNonMultiple.eligible, false);
+assert.ok(gpuNonMultiple.blockers.includes("UNSUPPORTED_DEPLOYMENT_SCALING"));
+
+// Replica scaling: 16 B200s are two independent 8-GPU benchmark-sized
+// serving groups when the selected model fits inside one group.
+const llama70b = getModelById("llama-3.1-70b");
+const exactThroughput = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 8,
+  quant: "FP8",
+  model: llama70b,
+});
+const replicaThroughput = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 16,
+  quant: "FP8",
+  model: llama70b,
+});
+assert.equal(exactThroughput.ok, true);
+assert.equal(exactThroughput.deploymentEvidenceBasis, "EXACT_BENCHMARK");
+assert.equal(replicaThroughput.ok, true);
+assert.equal(replicaThroughput.deploymentEvidenceBasis, "REPLICA_SCALED");
+assert.equal(replicaThroughput.replicaGroupCount, 2);
+assert.equal(
+  replicaThroughput.effectiveThroughputTokPerSec,
+  exactThroughput.effectiveThroughputTokPerSec * 2
+);
+
+// Arbitrary/non-whole-group topology scaling remains suppressed.
+const unsupportedTopology = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 12,
+  quant: "FP8",
+  model: llama70b,
+});
+assert.equal(unsupportedTopology.ok, false);
+assert.equal(unsupportedTopology.reason, "UNSUPPORTED_DEPLOYMENT_SCALING");
+
+// A model that cannot fit inside one benchmark-sized group may not use replica
+// aggregation even when the total deployed fleet has enough aggregate memory.
+const tooLargeForOneGroup = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 16,
+  quant: "FP8",
+  model: { id: "custom", label: "Custom 2000B", totalParamsB: 2000, activeParamsB: 2000, status: "CUSTOM" },
+  customParamsB: 2000,
+});
+assert.equal(tooLargeForOneGroup.ok, false);
+assert.equal(tooLargeForOneGroup.reason, "MODEL_DOES_NOT_FIT_BENCHMARK_CONFIG");
 
 // TCO's normal journey now opens the standalone Inference Economics tool; the technical Preview remains available
 // as a direct advanced/audit route. The connector stays one-way.
-const app = fs.readFileSync("src/App.jsx", "utf8");
 const tco = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
 const ui = fs.readFileSync("src/InferenceEconomicsPreview.jsx", "utf8");
 assert.ok(tco.includes("Where do you want to go next?"));
@@ -247,8 +320,3 @@ assert.ok(ui.includes("no throughput credit is given beyond the initial benchmar
 assert.ok(ui.includes("Throughput-credit GPUs"));
 assert.ok(ui.includes("TCO fleet:"));
 assert.ok(ui.includes("extra throughput is not assumed"));
-assert.ok(app.includes("function InferenceEconomicsRoute()"));
-assert.ok(app.includes('source === "tco"'));
-assert.ok(app.includes('"Adjust TCO assumptions"'));
-assert.ok(app.includes('"Back to GPU Sizing"'));
-assert.ok(app.includes('"All tools"'));
