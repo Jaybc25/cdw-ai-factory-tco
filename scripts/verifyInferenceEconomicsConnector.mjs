@@ -21,6 +21,9 @@ const clean = buildInferenceEconomicsPreviewHandoff({
   isInferenceWorkloadHandoff: true,
   trainShare: 0,
   growth: 0.25,
+  roiInitialCostUsd: 900_000,
+  roiRecurringCostUsd: 140_000,
+  roiPlanningBasis: "workload",
 });
 assert.deepEqual(clean.blockers, []);
 assert.equal(clean.hardwareClass, "B200");
@@ -32,6 +35,9 @@ assert.equal(clean.allocationMethod, "DIRECT_INFERENCE_WORKLOAD");
 assert.ok(clean.href.startsWith("/inference-economics?"));
 assert.ok(clean.href.includes("source=tco"));
 assert.ok(clean.href.includes("tco=1250000"));
+assert.ok(clean.href.includes("roiInitialCost=900000"));
+assert.ok(clean.href.includes("roiRecurringCost=140000"));
+assert.ok(clean.href.includes("roiPlanningBasis=workload"));
 
 const parsedClean = parseInferenceEconomicsPreviewHandoff(
   clean.href.slice(clean.href.indexOf("?"))
@@ -44,6 +50,9 @@ assert.equal(parsedClean.horizonYears, 3);
 assert.equal(parsedClean.attributableTcoUsd, 1_250_000);
 assert.equal(parsedClean.activeHoursPerDay, 8);
 assert.equal(parsedClean.demandGrowthRate, 0.25);
+assert.equal(parsedClean.roiInitialCostUsd, 900_000);
+assert.equal(parsedClean.roiRecurringCostUsd, 140_000);
+assert.equal(parsedClean.roiPlanningBasis, "workload");
 assert.deepEqual(parsedClean.fleetSystemsByYear, [1, 1, 1]);
 
 // Mixed workload: use TCO's known inference share as a MODELED allocation.

@@ -1173,6 +1173,9 @@ function AppInner() {
     trainShare,
     growth,
     fleetSystemsByYear: r.fleetAdj,
+    roiInitialCostUsd: r.adj.capex + r.oneTime,
+    roiRecurringCostUsd: r.adj.opex * 12,
+    roiPlanningBasis: r.isWorkloadMode ? "workload" : "spend",
   });
 
 

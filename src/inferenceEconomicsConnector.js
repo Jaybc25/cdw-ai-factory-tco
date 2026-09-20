@@ -13,6 +13,12 @@ function finitePositive(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function finiteNonNegative(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 function validShare(value) {
   if (value == null || value === "") return null;
   const n = Number(value);
@@ -53,6 +59,9 @@ export function buildInferenceEconomicsPreviewHandoff({
   isInferenceWorkloadHandoff = false,
   trainShare = null,
   growth = null,
+  roiInitialCostUsd = null,
+  roiRecurringCostUsd = null,
+  roiPlanningBasis = null,
 }) {
   const mappedHardwareClass = TCO_SYSTEM_TO_IE_HARDWARE[ownSys] || null;
   const hardwareClass = mappedHardwareClass || ownSys || null;
@@ -75,6 +84,12 @@ export function buildInferenceEconomicsPreviewHandoff({
       ? null
       : 1 - trainingShare;
   const demandGrowthRate = validGrowth(growth);
+
+  const roiInitialCost = finiteNonNegative(roiInitialCostUsd);
+  const roiRecurringCost = finiteNonNegative(roiRecurringCostUsd);
+  const planningBasis = roiPlanningBasis === "workload" || roiPlanningBasis === "spend"
+    ? roiPlanningBasis
+    : null;
 
   const horizonFleet = Array.isArray(fleetSystemsByYear)
     ? fleetSystemsByYear.slice(0, Math.max(1, Math.floor(horizon || 1))).map(Number).filter(Number.isFinite)
@@ -120,6 +135,9 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (tco) params.set("fullTco", String(Math.round(tco)));
   if (allocatedTcoUsd) params.set("tco", String(Math.round(allocatedTcoUsd)));
   if (allocationMethod) params.set("tcoAllocation", allocationMethod);
+  if (roiInitialCost != null) params.set("roiInitialCost", String(Math.round(roiInitialCost)));
+  if (roiRecurringCost != null) params.set("roiRecurringCost", String(Math.round(roiRecurringCost)));
+  if (planningBasis) params.set("roiPlanningBasis", planningBasis);
   if (horizonFleet.length) params.set("fleetSystems", horizonFleet.join(","));
   if (fleetChanges) params.set("fleetGrowthConservative", "1");
   if (blockers.length) params.set("connectorBlockers", blockers.join(","));
@@ -133,6 +151,9 @@ export function buildInferenceEconomicsPreviewHandoff({
     fullTcoUsd: tco,
     inferenceShare,
     allocationMethod,
+    roiInitialCostUsd: roiInitialCost,
+    roiRecurringCostUsd: roiRecurringCost,
+    roiPlanningBasis: planningBasis,
     demandGrowthRate,
     fleetSystemsByYear: horizonFleet,
     fleetGrowthConservative: fleetChanges,
@@ -198,6 +219,12 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
   const inferenceShare = validShare(params.get("inferenceShare"));
   const demandGrowthRate = validGrowth(params.get("demandGrowth"));
   const allocationMethod = params.get("tcoAllocation") || null;
+  const roiInitialCostUsd = finiteNonNegative(params.get("roiInitialCost"));
+  const roiRecurringCostUsd = finiteNonNegative(params.get("roiRecurringCost"));
+  const roiPlanningBasisRaw = params.get("roiPlanningBasis");
+  const roiPlanningBasis = roiPlanningBasisRaw === "workload" || roiPlanningBasisRaw === "spend"
+    ? roiPlanningBasisRaw
+    : null;
   const fleetSystemsByYear = (params.get("fleetSystems") || "")
     .split(",")
     .map(Number)
@@ -221,6 +248,9 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     fullTcoUsd,
     inferenceShare,
     allocationMethod,
+    roiInitialCostUsd,
+    roiRecurringCostUsd,
+    roiPlanningBasis,
     demandGrowthRate,
     fleetSystemsByYear,
     fleetGrowthConservative,
