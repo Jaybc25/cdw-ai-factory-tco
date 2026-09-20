@@ -71,7 +71,7 @@ test("live TCO renders the canonical Excel parity fixture and hands it to ROI", 
 
   // Exercise the actual production navigation rather than constructing the ROI
   // query manually. ROI should capture, consume, and persist TCO provenance.
-  await page.getByRole("link", { name: /Send to ROI Calculator/i }).click();
+  await page.getByRole("link", { name: /Open ROI Calculator/i }).click();
   await expect(page).toHaveURL(/\/roi$/);
   await page.waitForFunction((key) => !!sessionStorage.getItem(key), ROI_SESSION_KEY);
 
