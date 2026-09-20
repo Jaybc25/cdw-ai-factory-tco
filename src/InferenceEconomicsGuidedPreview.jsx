@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import cdwLogo from "./cdw-logo.png";
 import { getDefaultModel, getModelById, RECOMMENDED_MODELS } from "./modelRegistry.js";
 import { parseInferenceEconomicsPreviewHandoff } from "./inferenceEconomicsConnector.js";
 import { deriveInferenceEconomicsThroughput } from "./inferenceEconomicsThroughput.js";
@@ -736,7 +737,7 @@ function InferenceEconomicsReportView({
           <button type="button" style={actionButton} onClick={onBack}>Back to calculator</button>
         </div>
 
-        <div style={reportEyebrow}>AI FACTORY · INFERENCE ECONOMICS REPORT</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><img src={cdwLogo} alt="CDW" style={{ height: 32, width: "auto" }} /><div style={reportEyebrow}>AI FACTORY · INFERENCE ECONOMICS REPORT</div></div>
         <h1 style={reportTitle}>Inference Economics Summary</h1>
         <div style={muted}>Effective private-AI inference cost compared with managed-API token pricing.</div>
 
@@ -848,7 +849,7 @@ function InferenceEconomicsAuditView({
           <button type="button" style={actionButton} onClick={onBack}>Back to report</button>
         </div>
 
-        <div style={reportEyebrow}>AI FACTORY · CALCULATION METHODOLOGY & AUDIT TRAIL</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><img src={cdwLogo} alt="CDW" style={{ height: 32, width: "auto" }} /><div style={reportEyebrow}>AI FACTORY · CALCULATION METHODOLOGY & AUDIT TRAIL</div></div>
         <h1 style={reportTitle}>Inference Economics Audit Trail</h1>
         <div style={muted}>Reproducible derivation of the material calculations supporting the report result.</div>
         <div style={{ ...muted, marginTop: 5, fontStyle: "italic" }}>
