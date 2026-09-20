@@ -214,6 +214,7 @@ assert.ok(gpuScaled.blockers.includes("UNSUPPORTED_DEPLOYMENT_SCALING"));
 
 // TCO's normal journey now opens the standalone Inference Economics tool; the technical Preview remains available
 // as a direct advanced/audit route. The connector stays one-way.
+const app = fs.readFileSync("src/App.jsx", "utf8");
 const tco = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
 const ui = fs.readFileSync("src/InferenceEconomicsPreview.jsx", "utf8");
 assert.ok(tco.includes("Where do you want to go next?"));
@@ -246,3 +247,8 @@ assert.ok(ui.includes("no throughput credit is given beyond the initial benchmar
 assert.ok(ui.includes("Throughput-credit GPUs"));
 assert.ok(ui.includes("TCO fleet:"));
 assert.ok(ui.includes("extra throughput is not assumed"));
+assert.ok(app.includes("function InferenceEconomicsRoute()"));
+assert.ok(app.includes('source === "tco"'));
+assert.ok(app.includes('"Adjust TCO assumptions"'));
+assert.ok(app.includes('"Back to GPU Sizing"'));
+assert.ok(app.includes('"All tools"'));
