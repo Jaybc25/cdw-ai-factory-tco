@@ -89,13 +89,15 @@ function LandingPageInner() {
     <div className="afl-wrap">
       <style>{`
         .afl-wrap, .afl-wrap * { box-sizing: border-box; }
-        .afl-wrap { --red:#CC0000; --red-dark:#A30000; --charcoal:#2D2D2D; --gray:#6B6B6B; font-family:'Inter',sans-serif; max-width:1000px; margin:0 auto; padding:32px 32px 100px; color:var(--charcoal); }
-        .afl-header { display:flex; align-items:center; justify-content:space-between; gap:20px; padding-bottom:16px; border-bottom:1px solid #E7E7E7; }
-        .afl-brand { display:flex; align-items:center; gap:14px; flex-shrink:0; }
-        .afl-account { display:flex; align-items:center; justify-content:flex-end; min-width:0; }
+        html, body, #root { max-width:100%; overflow-x:hidden; }
+        .afl-wrap { --red:#CC0000; --red-dark:#A30000; --charcoal:#2D2D2D; --gray:#6B6B6B; font-family:'Inter',sans-serif; width:100%; max-width:1000px; min-width:0; margin:0 auto; padding:32px 32px 100px; color:var(--charcoal); overflow-x:hidden; }
+        .afl-header { display:flex; align-items:center; justify-content:space-between; gap:20px; min-width:0; max-width:100%; padding-bottom:16px; border-bottom:1px solid #E7E7E7; }
+        .afl-brand { display:flex; align-items:center; gap:14px; flex-shrink:1; min-width:0; }
+        .afl-account { display:flex; align-items:center; justify-content:flex-end; min-width:0; max-width:100%; overflow-wrap:anywhere; }
+        .afl-account > * { min-width:0; max-width:100%; }
         .afl-logo { height:42px; width:auto; flex-shrink:0; }
         .afl-eyebrow { font-size:12px; font-weight:700; color:var(--red); letter-spacing:.1em; text-transform:uppercase; }
-        .afl-hero { margin:32px 0 18px; max-width:720px; }
+        .afl-hero { margin:32px 0 18px; width:100%; max-width:720px; min-width:0; }
         .afl-hero h1 { margin:0 0 14px; font-weight:800; font-size:clamp(26px,3.6vw,34px); line-height:1.28; letter-spacing:-.01em; }
         .afl-hero h1 span { color:var(--red); }
         .afl-hero p { margin:0; color:var(--gray); font-size:15px; line-height:1.6; max-width:620px; }
@@ -104,14 +106,14 @@ function LandingPageInner() {
         .afl-reset-btn:hover:not(:disabled) { border-color:var(--red); color:var(--red); background:#FFF8F8; }
         .afl-reset-btn:disabled { cursor:default; opacity:.5; }
         .afl-reset-note { color:#8A8A8A; font-size:11px; }
-        .afl-bubbles { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
-        .afl-bubble { background:var(--red); border-radius:26px; padding:30px 24px; min-height:168px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; cursor:pointer; text-decoration:none; transition:transform .18s ease,box-shadow .18s ease,background .18s ease; box-shadow:0 10px 22px rgba(0,0,0,.06); position:relative; border:none; }
+        .afl-bubbles { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:22px; width:100%; min-width:0; }
+        .afl-bubble { width:100%; min-width:0; background:var(--red); border-radius:26px; padding:30px 24px; min-height:168px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; cursor:pointer; text-decoration:none; transition:transform .18s ease,box-shadow .18s ease,background .18s ease; box-shadow:0 10px 22px rgba(0,0,0,.06); position:relative; border:none; }
         .afl-bubble:hover { transform:translateY(-3px); box-shadow:0 16px 32px rgba(204,0,0,.18); background:var(--red-dark); }
         .afl-badge { position:absolute; top:14px; right:16px; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.85); display:flex; align-items:center; gap:5px; }
         .afl-badge .dot { width:6px; height:6px; border-radius:50%; background:#6EE7A0; }
         .afl-name { color:#fff; font-weight:700; font-size:19px; line-height:1.25; margin-bottom:8px; white-space:pre-line; }
         .afl-desc { color:rgba(255,255,255,.88); font-size:13px; line-height:1.5; max-width:220px; }
-        .afl-readiness { margin-top:22px; min-height:78px; border:2px solid var(--red); border-radius:18px; background:#fff; color:var(--red); text-decoration:none; display:flex; align-items:center; justify-content:space-between; gap:24px; padding:16px 22px; transition:transform .18s ease,box-shadow .18s ease,background .18s ease; box-shadow:0 8px 20px rgba(0,0,0,.04); }
+        .afl-readiness { width:100%; min-width:0; margin-top:22px; min-height:78px; border:2px solid var(--red); border-radius:18px; background:#fff; color:var(--red); text-decoration:none; display:flex; align-items:center; justify-content:space-between; gap:24px; padding:16px 22px; transition:transform .18s ease,box-shadow .18s ease,background .18s ease; box-shadow:0 8px 20px rgba(0,0,0,.04); }
         .afl-readiness:hover { transform:translateY(-2px); box-shadow:0 12px 26px rgba(204,0,0,.12); background:#FFF8F8; }
         .afl-readiness-copy { min-width:0; }
         .afl-readiness-title { font-size:18px; line-height:1.2; font-weight:800; margin-bottom:4px; }
@@ -134,7 +136,7 @@ function LandingPageInner() {
         .afl-reset-confirm { border:1px solid var(--red); background:var(--red); color:#fff; min-width:128px; }
         .afl-reset-cancel:disabled,.afl-reset-confirm:disabled { opacity:.55; cursor:wait; }
         @media(max-width:900px){.afl-header{align-items:flex-start;flex-direction:column}.afl-account{width:100%;justify-content:flex-start}.afl-bubbles{grid-template-columns:repeat(2,1fr)}}
-        @media(max-width:560px){.afl-wrap{padding:24px 18px 80px}.afl-bubbles{grid-template-columns:1fr}.afl-bubble{min-height:140px}.afl-readiness{align-items:flex-start;gap:12px;padding:16px 18px}.afl-readiness-action{font-size:0}.afl-readiness-action .dot{display:none}.afl-readiness-arrow{font-size:22px}.afl-reset-row{align-items:flex-start;flex-direction:column}.afl-reset-actions{flex-direction:column-reverse}.afl-reset-cancel,.afl-reset-confirm{width:100%}}
+        @media(max-width:560px){.afl-wrap{width:100%;max-width:100vw;padding:24px 18px 80px}.afl-bubbles{grid-template-columns:1fr}.afl-bubble{min-height:140px}.afl-readiness{align-items:flex-start;gap:12px;padding:16px 18px}.afl-readiness-action{font-size:0}.afl-readiness-action .dot{display:none}.afl-readiness-arrow{font-size:22px}.afl-reset-row{align-items:flex-start;flex-direction:column}.afl-reset-actions{flex-direction:column-reverse}.afl-reset-cancel,.afl-reset-confirm{width:100%}}
       `}</style>
 
       <div className="afl-header">
