@@ -34,9 +34,10 @@ async function seedGpuSizingScenario(page) {
 test("16 B200 GPU Sizing -> TCO -> IE stays full-fleet and replica-scaled", async ({ page }) => {
   await seedGpuSizingScenario(page);
 
-  // Original repro: ~14 B200 technical GPUs for this workload, node-rounded
-  // to the 16-GPU production recommendation.
-  await expect(page.getByText("14", { exact: true })).toBeVisible();
+  // Regression invariant: the production recommendation handed downstream
+  // is the full 16-GPU B200 deployment. The exact unrounded minimum technical
+  // count is intentionally not pinned because model/precision calibration may
+  // legitimately change it without changing this cross-tool contract.
   await expect(page.getByText("16 GPUs", { exact: true })).toBeVisible();
   await expect(page.getByText("B200", { exact: true }).first()).toBeVisible();
 
