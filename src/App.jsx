@@ -90,6 +90,19 @@ function ToolRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/tco" element={<TcoRoute />} />
       <Route
+        path="/inference-economics"
+        element={(
+          <SharedToolShell
+            title="Inference Economics"
+            backHref="/"
+            backLabel="All tools"
+            toolKey="inference-economics"
+          >
+            <InferenceEconomicsGuidedPreview />
+          </SharedToolShell>
+        )}
+      />
+      <Route
         path="/tco/inference-economics-preview"
         element={(
           <SharedToolShell
