@@ -3,11 +3,15 @@ import fs from "node:fs";
 
 const app = fs.readFileSync(new URL("../src/App.jsx", import.meta.url), "utf8");
 const guided = fs.readFileSync(new URL("../src/InferenceEconomicsGuidedPreview.jsx", import.meta.url), "utf8");
+const landing = fs.readFileSync(new URL("../src/LandingPage.jsx", import.meta.url), "utf8");
 
 assert.ok(app.includes('/tco/inference-economics-preview"'));
 assert.ok(app.includes('/tco/inference-economics-preview-guided"'));
+assert.ok(app.includes('/inference-economics"'));
 assert.ok(app.includes("InferenceEconomicsPreview"));
 assert.ok(app.includes("InferenceEconomicsGuidedPreview"));
+assert.ok(landing.includes('path: "/inference-economics"'));
+assert.ok(landing.includes('name: "Inference\\nEconomics"'));
 
 for (const title of [
   "Your private AI scenario",
