@@ -10,8 +10,8 @@ const ANALYSIS_TOOLS = [
   { key: "model-advisor", name: "Open-Weight\nModel Advisor", desc: "Recommends open-weight models by workload, then hands off to GPU sizing.", status: "live", path: "/model-advisor" },
   { key: "gpu-sizing", name: "GPU Sizing Tool", desc: "Right-size GPU class, count, and cluster shape for a target workload.", status: "live", path: "/gpu-sizing" },
   { key: "tco", name: "Cloud vs On-Prem\nTCO Calculator", desc: "Cloud AI spend translated into on-prem infrastructure cost and payback.", status: "live", path: "/tco" },
-  { key: "roi", name: "AI Use Case\nROI Calculator", desc: "Workload acceleration translated into capacity created and its economic value.", status: "live", path: "/roi" },
   { key: "inference-economics", name: "Inference\nEconomics", desc: "Compare effective private-AI inference cost per 1M output tokens with managed-API pricing.", status: "live", path: "/inference-economics" },
+  { key: "roi", name: "AI Use Case\nROI Calculator", desc: "Workload acceleration translated into capacity created and its economic value.", status: "live", path: "/roi" },
 ];
 
 const READINESS_TOOL = {
