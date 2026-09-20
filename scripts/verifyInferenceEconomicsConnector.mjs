@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import {
   buildInferenceEconomicsPreviewHandoff,
+  buildInferenceEconomicsGpuSizingHandoff,
   parseInferenceEconomicsPreviewHandoff,
 } from "../src/inferenceEconomicsConnector.js";
 
@@ -165,6 +166,42 @@ const parsedCustom = parseInferenceEconomicsPreviewHandoff(
 );
 assert.equal(parsedCustom.modelId, "custom");
 assert.equal(parsedCustom.modelParamsB, 42);
+
+// GPU Sizing may hand off technical context directly only when it matches an
+// exact qualified IE benchmark configuration. No private-cost value is invented.
+const gpuDirect = buildInferenceEconomicsGpuSizingHandoff({
+  hardwareClass: "B200",
+  gpuCount: 8,
+  modelId: "llama-3.1-70b",
+  modelParamsB: 70.6,
+  quant: "FP8",
+  workingDayHours: 8,
+});
+assert.equal(gpuDirect.eligible, true);
+assert.deepEqual(gpuDirect.blockers, []);
+assert.ok(gpuDirect.href.startsWith("/inference-economics?"));
+assert.ok(gpuDirect.href.includes("source=gpu-sizing"));
+assert.equal(gpuDirect.href.includes("tco="), false);
+const parsedGpuDirect = parseInferenceEconomicsPreviewHandoff(
+  gpuDirect.href.slice(gpuDirect.href.indexOf("?"))
+);
+assert.equal(parsedGpuDirect.source, "gpu-sizing");
+assert.equal(parsedGpuDirect.hardwareClass, "B200");
+assert.equal(parsedGpuDirect.gpuCount, 8);
+assert.equal(parsedGpuDirect.modelId, "llama-3.1-70b");
+assert.equal(parsedGpuDirect.quant, "FP8");
+assert.equal(parsedGpuDirect.activeHoursPerDay, 8);
+assert.equal(parsedGpuDirect.attributableTcoUsd, null);
+
+const gpuScaled = buildInferenceEconomicsGpuSizingHandoff({
+  hardwareClass: "B200",
+  gpuCount: 16,
+  modelId: "llama-3.1-70b",
+  quant: "FP8",
+  workingDayHours: 8,
+});
+assert.equal(gpuScaled.eligible, false);
+assert.ok(gpuScaled.blockers.includes("UNSUPPORTED_DEPLOYMENT_SCALING"));
 
 // TCO's normal journey now opens the standalone Inference Economics tool; the technical Preview remains available
 // as a direct advanced/audit route. The connector stays one-way.
