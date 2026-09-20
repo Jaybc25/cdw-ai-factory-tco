@@ -310,6 +310,14 @@ export default function InferenceEconomicsGuidedPreview() {
         : "the same"
     : null;
 
+  const roiHandoffReady =
+    handoff?.source === "tco" &&
+    Number.isFinite(Number(handoff?.roiInitialCostUsd)) &&
+    Number.isFinite(Number(handoff?.roiRecurringCostUsd));
+  const roiHref = roiHandoffReady
+    ? `/roi?initialCost=${Math.round(Number(handoff.roiInitialCostUsd))}&recurringCost=${Math.round(Number(handoff.roiRecurringCostUsd))}&planningBasis=${handoff?.roiPlanningBasis || "spend"}`
+    : "/roi";
+
   if (view === "report") {
     return (
       <InferenceEconomicsReportView
@@ -662,6 +670,26 @@ export default function InferenceEconomicsGuidedPreview() {
           </div>
         )}
       </Step>
+
+      <div className="no-print" style={{ marginTop: 18, marginBottom: 14, border: "1px solid #D9DDE2", borderRadius: 12, background: "#F7F7F8", padding: "14px 16px" }}>
+        <div style={{ fontSize: 11, fontWeight: 850, letterSpacing: ".04em", textTransform: "uppercase", color: "#666", marginBottom: 4 }}>
+          Next · Build the business case
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#222", marginBottom: 4 }}>
+          Translate these inference economics into ROI and business value.
+        </div>
+        <div style={{ ...muted, marginBottom: 10 }}>
+          {roiHandoffReady
+            ? "Your original TCO upfront and annual recurring investment will carry forward exactly into ROI."
+            : "Inference Economics knows the assigned workload cost, but not a defensible upfront-versus-recurring investment split. Open ROI and enter or confirm those investment inputs there."}
+        </div>
+        <a
+          href={roiHref}
+          style={{ ...actionButton, ...primaryActionButton, display: "inline-flex", textDecoration: "none", width: "auto" }}
+        >
+          {roiHandoffReady ? "Continue to ROI" : "Open ROI Calculator"}
+        </a>
+      </div>
 
       <div className="no-print" style={actionRow}>
         <button
