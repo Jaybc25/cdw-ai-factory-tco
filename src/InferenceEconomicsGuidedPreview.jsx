@@ -67,7 +67,6 @@ export default function InferenceEconomicsGuidedPreview() {
     []
   );
   const inherited = handoff?.source === "tco";
-  const totalDeployedGpuCount = handoff?.totalDeployedGpuCount || handoff?.gpuCount || null;
   const initialModel = handoff?.modelId ? getModelById(handoff.modelId) : null;
   const modelOptions = useMemo(() => {
     const options = [...RECOMMENDED_MODELS];
@@ -109,7 +108,7 @@ export default function InferenceEconomicsGuidedPreview() {
   const availablePrecisions = PRECISIONS_BY_HARDWARE[hardwareClass] || ["FP8"];
 
   const blockers = (handoff?.blockers || []).filter((code) =>
-    ["UNSUPPORTED_HARDWARE", "CUSTOM_MODEL_SIZE_MISSING", "INFERENCE_SHARE_UNKNOWN", "NO_INFERENCE_SHARE"].includes(code)
+    ["UNSUPPORTED_HARDWARE", "CUSTOM_MODEL_SIZE_MISSING", "INFERENCE_SHARE_UNKNOWN", "NO_INFERENCE_SHARE", "TOPOLOGY_SCALEOUT_REQUIRED"].includes(code)
   );
   const inheritedScenarioBlocked = inherited && blockers.length > 0;
 
@@ -150,7 +149,9 @@ export default function InferenceEconomicsGuidedPreview() {
       ? {
           ok: false,
           reason: "INHERITED_SCENARIO_UNSUPPORTED",
-          errors: ["The inherited TCO scenario has an unresolved eligibility issue."],
+          errors: blockers.includes("TOPOLOGY_SCALEOUT_REQUIRED")
+            ? ["GPU Sizing classified this workload as topology-dependent: one modeled serving instance does not fit inside a qualified benchmark-sized serving group. Definitive token economics are suppressed until topology-specific throughput evidence is available."]
+            : ["The inherited TCO scenario has an unresolved eligibility issue."],
         }
       : calculateDemandBoundInferenceEconomics({
           attributableTcoUsd: n(attributableTcoUsd),
@@ -375,8 +376,7 @@ export default function InferenceEconomicsGuidedPreview() {
         {inherited ? (
           <div style={summaryGrid}>
             <Summary label="Hardware" value={hardwareClass} />
-            <Summary label="Deployed private-AI fleet" value={totalDeployedGpuCount ? totalDeployedGpuCount + " GPUs" : "—"} />
-            <Summary label="GPUs credited for throughput" value={deployedGpuCount} />
+            <Summary label="Deployed GPUs evaluated" value={deployedGpuCount} />
             <Summary label="Model" value={model?.label || "—"} />
             <Summary label="Precision" value={quant} />
             <Summary label="Private AI cost assigned to this workload" value={attributableTcoUsd ? compactMoney(n(attributableTcoUsd)) : "Not available"} />
@@ -414,14 +414,6 @@ export default function InferenceEconomicsGuidedPreview() {
           </div>
         )}
 
-        {inherited && totalDeployedGpuCount && n(totalDeployedGpuCount) > n(deployedGpuCount) ? (
-          <div style={{ ...sourceLine, marginTop: 16 }}>
-            <span>
-              <b>Conservative throughput treatment:</b> TCO includes the full {totalDeployedGpuCount}-GPU fleet in the cost basis, while Inference Economics credits throughput only to the qualified {deployedGpuCount}-GPU benchmark configuration. No additional throughput is assumed without scaling evidence.
-            </span>
-          </div>
-        ) : null}
-
         {inherited && handoff?.allocationMethod === "WORKLOAD_SHARE_MODELED" ? (
           <div style={{ ...sourceLine, marginTop: 16 }}>
             <span><b>TCO attribution basis:</b> {Math.round(n(handoff.inferenceShare) * 100)}% of total TCO is assigned to inference from the TCO workload mix.</span>
@@ -439,7 +431,7 @@ export default function InferenceEconomicsGuidedPreview() {
         <details style={details} open={!productionServingFactor}>
           <summary style={summaryLink}>Technical assumptions</summary>
           <div style={{ ...twoCol, marginTop: 14 }}>
-            <Field label="GPUs credited for throughput" help="Throughput is only credited when the GPU count matches the supported benchmark configuration.">
+            <Field label="Deployed GPUs evaluated" help="Exact benchmark counts use direct evidence. Whole multiples of a benchmark-sized group may be modeled as independent serving replicas when one group can host the selected model.">
               <input style={input} type="number" min="1" value={deployedGpuCount} onChange={(ev) => setDeployedGpuCount(ev.target.value)} disabled={inherited} />
             </Field>
             <Field label="Precision" help="Inference precision used for the throughput estimate.">
@@ -520,6 +512,7 @@ export default function InferenceEconomicsGuidedPreview() {
               <summary style={summaryLink}>Evidence & methodology</summary>
               <div style={methodText}>
                 <div><b>Benchmark-adjusted output ceiling:</b> {compact(t?.effectiveThroughputTokPerSec)} tok/s</div>
+                <div><b>Deployment evidence basis:</b> {t?.deploymentEvidenceBasis === "REPLICA_SCALED" ? `Replica-scaled · ${t.replicaGroupCount} × ${t.benchmarkGpuCount}-GPU serving groups` : "Exact benchmark configuration"}</div>
                 <div><b>Evidence source:</b> {t?.evidence?.sourceLabel || "—"}</div>
                 <div><b>Evidence status:</b> {e.evidenceStatus || "—"}</div>
               </div>
