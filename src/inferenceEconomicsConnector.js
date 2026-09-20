@@ -136,7 +136,7 @@ export function buildInferenceEconomicsPreviewHandoff({
     fleetGrowthConservative: fleetChanges,
     workingDayHours: hours && hours <= 24 ? hours : null,
     blockers,
-    href: `/tco/inference-economics-preview?${params.toString()}`,
+    href: `/tco/inference-economics-preview-guided?${params.toString()}`,
   };
 }
 

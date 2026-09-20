@@ -293,6 +293,21 @@ export default function InferenceEconomicsGuidedPreview() {
     apiInputTokensPerOutputToken, apiCachedInputShare,
   ]);
 
+  const comparison = apiResult?.comparison?.ok ? apiResult.comparison : null;
+  const modeledDifferenceUsdPerMillion = comparison
+    ? Math.abs(comparison.managedApiMinusPrivateUsdPerMillionOutputTokens)
+    : null;
+  const modeledDifferencePctOfApi = comparison?.managedApiUsdPerMillionOutputTokens > 0
+    ? (modeledDifferenceUsdPerMillion / comparison.managedApiUsdPerMillionOutputTokens) * 100
+    : null;
+  const privateCostDirection = comparison
+    ? comparison.managedApiMinusPrivateUsdPerMillionOutputTokens > 0
+      ? "lower"
+      : comparison.managedApiMinusPrivateUsdPerMillionOutputTokens < 0
+        ? "higher"
+        : "the same"
+    : null;
+
   return (
     <main style={page}>
       <div style={previewBanner}>
@@ -512,23 +527,54 @@ export default function InferenceEconomicsGuidedPreview() {
 
         {apiResult?.managed?.ok && e?.ok ? (
           <>
+            {comparison ? (
+              <div style={takeawayBox}>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#666", textTransform: "uppercase", letterSpacing: ".04em" }}>What this means</div>
+                <div style={{ fontSize: 18, fontWeight: 850, lineHeight: 1.45, marginTop: 6 }}>
+                  Under these assumptions, private AI is modeled at {money(comparison.privateUsdPerMillionOutputTokens)} per 1M output tokens versus {money(comparison.managedApiUsdPerMillionOutputTokens)} for {apiModelLabel || "the selected managed API"}.
+                </div>
+                <div style={{ ...muted, fontSize: 13, marginTop: 7 }}>
+                  {privateCostDirection === "the same"
+                    ? "Both options are modeled at the same effective cost per 1M output tokens."
+                    : `Private AI is modeled ${money(modeledDifferenceUsdPerMillion)} per 1M output tokens ${privateCostDirection}, a ${modeledDifferencePctOfApi.toFixed(1)}% difference relative to the managed API cost.`}
+                  {" "}This is a cost comparison only and does not assert equivalent model capability.
+                </div>
+              </div>
+            ) : null}
+
             <div style={compareGrid}>
-              <CompareCard title={"Private AI · " + (model?.label || "Selected model")} value={money(e.costPerMillionOutputTokens)} subtitle="/ 1M output tokens" secondary={"Assigned " + horizonYears + "-year private cost: " + compactMoney(n(attributableTcoUsd))} />
+              <CompareCard
+                title={"Private AI · " + (model?.label || "Selected model")}
+                value={money(e.costPerMillionOutputTokens)}
+                subtitle="cost per 1M output tokens"
+                secondary={horizonYears + "-year assigned private cost: " + compactMoney(n(attributableTcoUsd))}
+              />
               <CompareCard
                 title={apiModelLabel || "Managed API"}
                 value={money(apiResult.managed.effectiveUsdPerMillionOutputTokens)}
-                subtitle="/ 1M output tokens"
-                secondary={
-                  horizonYears + "-year modeled API cost: " + compactMoney(apiResult.managed.horizonApiCostUsd)
-                  + (apiResult.basis === "REFERENCE" ? " · Reference mix: 70% input / 30% output · no cache discount" : "")
-                }
+                subtitle="cost per 1M output tokens"
+                secondary={horizonYears + "-year modeled API cost: " + compactMoney(apiResult.managed.horizonApiCostUsd)}
               />
             </div>
-            <div style={differenceBox}>
-              <div style={{ fontSize: 12, fontWeight: 800, color: "#666" }}>API minus private</div>
-              <div style={{ fontSize: 24, fontWeight: 900, marginTop: 3 }}>{apiResult.comparison?.ok ? money(apiResult.comparison.managedApiMinusPrivateUsdPerMillionOutputTokens) + " / 1M output" : "—"}</div>
-              <div style={muted}>Arithmetic difference only. This is not a recommendation and does not assert equivalent model capability.</div>
-            </div>
+
+            {comparison ? (
+              <div style={differenceBox}>
+                <div style={{ fontSize: 12, fontWeight: 800, color: "#666" }}>Modeled cost difference</div>
+                <div style={{ fontSize: 24, fontWeight: 900, marginTop: 3 }}>
+                  {money(modeledDifferenceUsdPerMillion)} / 1M output · {modeledDifferencePctOfApi.toFixed(1)}%
+                </div>
+                <div style={muted}>
+                  Private AI is modeled {privateCostDirection} than the selected managed API on this normalized output-token cost basis.
+                </div>
+              </div>
+            ) : null}
+
+            {apiResult.basis === "REFERENCE" ? (
+              <div style={sourceLine}>
+                <span><b>Comparison basis:</b> 70% input / 30% output token mix · no cache discount</span>
+                <InlineHelp text="This default mix is used only to normalize managed-API pricing to the same output-token denominator. You can change the assumptions below. Model capability equivalence is not asserted." />
+              </div>
+            ) : null}
           </>
         ) : (
           <div style={emptyState}>
@@ -665,7 +711,8 @@ const heroUnit = { fontSize: 16, fontWeight: 800, letterSpacing: 0 };
 const emptyState = { border: "1px dashed #ccc", borderRadius: 10, padding: 14, fontSize: 12, lineHeight: 1.5, color: "#666", background: "#fafafa" };
 const capacityWarning = { border: "1px solid #d7a83a", borderRadius: 10, padding: "11px 12px", marginTop: 12, fontSize: 12, lineHeight: 1.5, background: "#fffaf0", color: "#5f4a16" };
 const sourceLine = { display: "flex", gap: 7, alignItems: "center", flexWrap: "wrap", fontSize: 12, color: "#666", background: "#f7f7f7", borderRadius: 8, padding: "10px 12px", marginTop: 14 };
-const compareGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14, marginTop: 18 };
+const takeawayBox = { border: "1px solid #ddd", borderRadius: 12, padding: 16, background: "#fafafa", marginTop: 18 };
+const compareGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14, marginTop: 14 };
 const compareCard = { border: "1px solid #ddd", borderRadius: 12, padding: 16, background: "#fff" };
 const differenceBox = { marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 };
 const textButton = { marginTop: 16, border: 0, background: "transparent", color: "#B21F16", padding: 0, fontSize: 13, fontWeight: 850, cursor: "pointer", textDecoration: "underline" };
