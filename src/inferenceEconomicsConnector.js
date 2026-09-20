@@ -130,7 +130,6 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (quant) params.set("quant", quant);
   if (horizon) params.set("horizon", String(horizon));
   if (hours && hours <= 24) params.set("activeHours", String(hours));
-  if (scaleoutClassification) params.set("scaleoutClass", scaleoutClassification);
   params.set("demandGrowth", String(demandGrowthRate));
   if (inferenceShare != null) params.set("inferenceShare", String(inferenceShare));
   if (tco) params.set("fullTco", String(Math.round(tco)));
@@ -192,6 +191,7 @@ export function buildInferenceEconomicsGpuSizingHandoff({
   if (!modelId) blockers.push("MISSING_MODEL");
   if (modelId === "custom" && !finitePositive(modelParamsB)) blockers.push("CUSTOM_MODEL_SIZE_MISSING");
   if (!quant) blockers.push("MISSING_PRECISION");
+  if (scaleoutClassification === "TOPOLOGY_SCALEOUT_REQUIRED") blockers.push("TOPOLOGY_SCALEOUT_REQUIRED");
 
   const params = new URLSearchParams();
   params.set("source", "gpu-sizing");
@@ -201,6 +201,7 @@ export function buildInferenceEconomicsGpuSizingHandoff({
   if (finitePositive(modelParamsB)) params.set("modelParamsB", String(Number(modelParamsB)));
   if (quant) params.set("quant", quant);
   if (hours && hours <= 24) params.set("activeHours", String(hours));
+  if (scaleoutClassification) params.set("scaleoutClass", scaleoutClassification);
   if (blockers.length) params.set("connectorBlockers", blockers.join(","));
 
   return {
