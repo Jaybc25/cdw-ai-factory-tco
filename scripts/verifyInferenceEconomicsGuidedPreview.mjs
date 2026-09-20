@@ -33,6 +33,9 @@ assert.ok(guided.includes("Capacity check:"));
 assert.ok(guided.includes("Production throughput assumption"));
 assert.ok(guided.includes("complete the capacity check"));
 assert.ok(guided.includes("Evidence & methodology"));
+assert.ok(guided.includes("TOPOLOGY_SCALEOUT_REQUIRED"));
+assert.ok(guided.includes("topology-specific throughput evidence"));
+
 assert.ok(guided.includes("Deployment evidence basis:"));
 assert.ok(guided.includes("Replica-scaled"));
 assert.ok(guided.includes("-GPU serving groups"));

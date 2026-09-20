@@ -802,6 +802,13 @@ function getInitialGpuSizingDemand(name) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function getInitialScaleoutClassification() {
+  const raw = getIncomingParams()?.get("scaleoutClass");
+  return raw === "REPLICA_CAPACITY_SCALEOUT" || raw === "TOPOLOGY_SCALEOUT_REQUIRED"
+    ? raw
+    : null;
+}
+
 function getInitialModelContext() {
   const params = getIncomingParams();
   const modelId = params?.get("model");
@@ -917,6 +924,7 @@ function AppInner() {
   // example training), so do not leak stale inference demand from a prior run.
   const [gpuSizingConcurrentUsers] = useState(() => arrivedFromGpuSizing ? getInitialGpuSizingDemand("concurrentUsers") : saved?.gpuSizingConcurrentUsers ?? null);
   const [gpuSizingTargetTokPerUser] = useState(() => arrivedFromGpuSizing ? getInitialGpuSizingDemand("targetTokPerUser") : saved?.gpuSizingTargetTokPerUser ?? null);
+  const [gpuSizingScaleoutClassification] = useState(() => arrivedFromGpuSizing ? getInitialScaleoutClassification() : saved?.gpuSizingScaleoutClassification ?? null);
   const [incomingModelContext] = useState(getInitialModelContext);
   const [incomingQuant] = useState(getInitialQuantization);
 
@@ -1076,12 +1084,12 @@ function AppInner() {
       // which is the actual root cause of the workload-anchor loss -- see
       // the comment above their useState calls near the top of this
       // component for the full explanation.
-      gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser,
+      gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, gpuSizingScaleoutClassification,
     });
   }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto, workloadStorageConfirmed,
       fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
-      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser]);
+      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, gpuSizingScaleoutClassification]);
 
   async function submitLead() {
     if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
@@ -1176,6 +1184,7 @@ function AppInner() {
     roiInitialCostUsd: r.adj.capex + r.oneTime,
     roiRecurringCostUsd: r.adj.opex * 12,
     roiPlanningBasis: r.isWorkloadMode ? "workload" : "spend",
+    scaleoutClassification: gpuSizingScaleoutClassification,
   });
 
 

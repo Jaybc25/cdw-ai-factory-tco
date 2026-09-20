@@ -26,6 +26,7 @@ const clean = buildInferenceEconomicsPreviewHandoff({
   roiInitialCostUsd: 900_000,
   roiRecurringCostUsd: 140_000,
   roiPlanningBasis: "workload",
+  scaleoutClassification: "REPLICA_CAPACITY_SCALEOUT",
 });
 assert.deepEqual(clean.blockers, []);
 assert.equal(clean.hardwareClass, "B200");
@@ -55,6 +56,7 @@ assert.equal(parsedClean.demandGrowthRate, 0.25);
 assert.equal(parsedClean.roiInitialCostUsd, 900_000);
 assert.equal(parsedClean.roiRecurringCostUsd, 140_000);
 assert.equal(parsedClean.roiPlanningBasis, "workload");
+assert.equal(parsedClean.scaleoutClassification, "REPLICA_CAPACITY_SCALEOUT");
 assert.deepEqual(parsedClean.fleetSystemsByYear, [1, 1, 1]);
 
 // Mixed workload: use TCO's known inference share as a MODELED allocation.
@@ -213,6 +215,19 @@ const gpuScaled = buildInferenceEconomicsGpuSizingHandoff({
 });
 assert.equal(gpuScaled.eligible, true);
 assert.deepEqual(gpuScaled.blockers, []);
+
+const gpuTopologyRequired = buildInferenceEconomicsGpuSizingHandoff({
+  hardwareClass: "B200",
+  gpuCount: 16,
+  modelId: "custom",
+  modelParamsB: 1500,
+  quant: "FP8",
+  workingDayHours: 8,
+  scaleoutClassification: "TOPOLOGY_SCALEOUT_REQUIRED",
+});
+assert.equal(gpuTopologyRequired.eligible, false);
+assert.ok(gpuTopologyRequired.blockers.includes("TOPOLOGY_SCALEOUT_REQUIRED"));
+assert.ok(gpuTopologyRequired.href.includes("scaleoutClass=TOPOLOGY_SCALEOUT_REQUIRED"));
 
 const gpuNonMultiple = buildInferenceEconomicsGpuSizingHandoff({
   hardwareClass: "B200",

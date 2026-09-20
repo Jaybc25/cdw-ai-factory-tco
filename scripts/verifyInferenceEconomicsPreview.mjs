@@ -13,6 +13,10 @@ import { deriveInferenceEconomicsThroughput } from "../src/inferenceEconomicsThr
 import { calculateManagedApiWorkloadEconomics } from "../src/managedApiComparison.js";
 import { getModelById } from "../src/modelRegistry.js";
 import {
+  classifyInferenceScaleout,
+  INFERENCE_SCALEOUT_CLASSIFICATION,
+} from "../src/inferenceScaleoutClassification.js";
+import {
   OUTPUT_TOKEN_DEMAND_BASIS,
   calculateAnnualOutputTokenDemand,
   calculateAnnualServingCapacity,
@@ -219,6 +223,35 @@ assert.equal(impossibleResidency.ok, false);
 assert.equal(impossibleResidency.reason, "MODEL_DOES_NOT_FIT_BENCHMARK_CONFIG");
 assert.equal(impossibleResidency.weightMemoryGB, 1650);
 assert.equal(impossibleResidency.aggregateMemoryGB, 1440);
+// 7c) Cross-tool classification distinguishes aggregate replica capacity from
+// per-instance topology requirements without using fleet-wide concurrency as
+// a proxy for model-parallel need.
+const replicaClassification = classifyInferenceScaleout({
+  hardwareClass: "B200",
+  weightMemoryGB: 70.6,
+  sequenceMemoryGB: 4,
+  overheadPct: 0.2,
+});
+assert.equal(
+  replicaClassification.classification,
+  INFERENCE_SCALEOUT_CLASSIFICATION.REPLICA_CAPACITY_SCALEOUT
+);
+
+const topologyClassification = classifyInferenceScaleout({
+  hardwareClass: "B200",
+  weightMemoryGB: 1500,
+  sequenceMemoryGB: 10,
+  overheadPct: 0.1,
+});
+assert.equal(
+  topologyClassification.classification,
+  INFERENCE_SCALEOUT_CLASSIFICATION.TOPOLOGY_SCALEOUT_REQUIRED
+);
+assert.ok(
+  topologyClassification.minimumServingInstanceMemoryGB >
+    topologyClassification.benchmarkGroupMemoryGB
+);
+
 
 // Do not import hidden GPU-Sizing workload assumptions into standalone Guided.
 // Mistral Large 3 weights fit within 8xB200 HBM at FP8, so residency alone must
