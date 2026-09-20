@@ -81,5 +81,13 @@ assert.ok(guided.includes("Reproducible derivation"));
 assert.ok(guided.includes("Horizon output demand"));
 assert.ok(guided.includes("Dollar difference"));
 assert.ok(guided.includes("window.print()"));
+assert.ok(guided.includes("Next · Build the business case"));
+assert.ok(guided.includes("Translate these inference economics into ROI and business value."));
+assert.ok(guided.includes("Your original TCO upfront and annual recurring investment will carry forward exactly into ROI."));
+assert.ok(guided.includes("Inference Economics knows the assigned workload cost, but not a defensible upfront-versus-recurring investment split."));
+assert.ok(guided.includes("Continue to ROI"));
+assert.ok(guided.includes("Open ROI Calculator"));
+assert.ok(guided.includes("roiInitialCostUsd"));
+assert.ok(guided.includes("roiRecurringCostUsd"));
 
 console.log("Guided inference economics Preview contract verified.");
