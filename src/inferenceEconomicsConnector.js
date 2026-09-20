@@ -13,6 +13,12 @@ function finitePositive(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function finiteNonNegative(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
 function validShare(value) {
   if (value == null || value === "") return null;
   const n = Number(value);
@@ -79,8 +85,8 @@ export function buildInferenceEconomicsPreviewHandoff({
       : 1 - trainingShare;
   const demandGrowthRate = validGrowth(growth);
 
-  const roiInitialCost = finitePositive(roiInitialCostUsd);
-  const roiRecurringCost = finitePositive(roiRecurringCostUsd);
+  const roiInitialCost = finiteNonNegative(roiInitialCostUsd);
+  const roiRecurringCost = finiteNonNegative(roiRecurringCostUsd);
   const planningBasis = roiPlanningBasis === "workload" || roiPlanningBasis === "spend"
     ? roiPlanningBasis
     : null;
@@ -129,8 +135,8 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (tco) params.set("fullTco", String(Math.round(tco)));
   if (allocatedTcoUsd) params.set("tco", String(Math.round(allocatedTcoUsd)));
   if (allocationMethod) params.set("tcoAllocation", allocationMethod);
-  if (roiInitialCost) params.set("roiInitialCost", String(Math.round(roiInitialCost)));
-  if (roiRecurringCost) params.set("roiRecurringCost", String(Math.round(roiRecurringCost)));
+  if (roiInitialCost != null) params.set("roiInitialCost", String(Math.round(roiInitialCost)));
+  if (roiRecurringCost != null) params.set("roiRecurringCost", String(Math.round(roiRecurringCost)));
   if (planningBasis) params.set("roiPlanningBasis", planningBasis);
   if (horizonFleet.length) params.set("fleetSystems", horizonFleet.join(","));
   if (fleetChanges) params.set("fleetGrowthConservative", "1");
@@ -213,8 +219,8 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
   const inferenceShare = validShare(params.get("inferenceShare"));
   const demandGrowthRate = validGrowth(params.get("demandGrowth"));
   const allocationMethod = params.get("tcoAllocation") || null;
-  const roiInitialCostUsd = finitePositive(params.get("roiInitialCost"));
-  const roiRecurringCostUsd = finitePositive(params.get("roiRecurringCost"));
+  const roiInitialCostUsd = finiteNonNegative(params.get("roiInitialCost"));
+  const roiRecurringCostUsd = finiteNonNegative(params.get("roiRecurringCost"));
   const roiPlanningBasisRaw = params.get("roiPlanningBasis");
   const roiPlanningBasis = roiPlanningBasisRaw === "workload" || roiPlanningBasisRaw === "spend"
     ? roiPlanningBasisRaw
