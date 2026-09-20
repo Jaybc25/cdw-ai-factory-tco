@@ -12,6 +12,7 @@ import { selectHigherGrowthConfiguration } from "./gpuSizingAlternatives.js";
 import { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";
 import { getRubinInferenceAdvisory } from "./rubinInferenceAdvisory.js";
 import { RUBIN_GPU_SIZING_SPECS, RUBIN_TRAINING_CANDIDATES } from "./rubinGpuSizingRegistry.js";
+import { buildInferenceEconomicsGpuSizingHandoff } from "./inferenceEconomicsConnector.js";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -752,21 +753,46 @@ function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", m
   if (mode === "Inference" && Number.isFinite(Number(concurrentUsers)) && Number(concurrentUsers) > 0) params.set("concurrentUsers", String(concurrentUsers));
   if (mode === "Inference" && Number.isFinite(Number(targetTokPerUser)) && Number(targetTokPerUser) > 0) params.set("targetTokPerUser", String(targetTokPerUser));
   const href = `/tco?${params.toString()}`;
+  const inferenceHandoff = mode === "Inference"
+    ? buildInferenceEconomicsGpuSizingHandoff({
+        hardwareClass: selectedClass,
+        gpuCount: recommended,
+        modelId: model?.id,
+        modelParamsB,
+        quant,
+        workingDayHours,
+      })
+    : null;
+
   return (
-    <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-gray-50 flex items-center justify-between gap-3">
-      <div>
-        <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-0.5">Next: Cost comparison</div>
-        <div className="text-xs text-gray-500">
-          Compare the cost of owning this {sizingBasis === "higher-growth" ? "user-selected higher-growth" : "recommended"} GPU capacity with renting equivalent capability in the cloud, in the TCO Calculator. TCO adds the shared infrastructure, storage, facility/operations, and transition costs required to model the full deployment lifecycle.
-        </div>
+    <div className="mb-6 rounded-xl p-4 border border-gray-200 bg-gray-50">
+      <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-1">Recommended next step · Compare total cost</div>
+      <div className="text-xs text-gray-500 mb-3">
+        Take this {sizingBasis === "higher-growth" ? "user-selected higher-growth" : "recommended"} GPU configuration into TCO to compare ownership with cloud and add the shared infrastructure, storage, facility/operations, and transition costs needed for the full deployment lifecycle.
       </div>
       <a
         href={href}
-        className="text-xs font-semibold px-3 py-1.5 rounded-lg text-white flex-shrink-0"
+        className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
         style={{ background: RED }}
       >
         Compare TCO
       </a>
+
+      {inferenceHandoff?.eligible ? (
+        <div className="mt-4 pt-3 border-t border-gray-200">
+          <div className="text-xs font-bold text-gray-700 mb-1">Already know your private AI cost?</div>
+          <div className="text-xs text-gray-500 mb-2">
+            Skip TCO and carry this model, hardware, precision, and serving schedule directly into Inference Economics. You will still need to enter or confirm the private cost assigned to this workload.
+          </div>
+          <a
+            href={inferenceHandoff.href}
+            className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-lg border bg-white"
+            style={{ borderColor: RED, color: RED }}
+          >
+            Compare inference economics
+          </a>
+        </div>
+      ) : null}
     </div>
   );
 }
