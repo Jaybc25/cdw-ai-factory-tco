@@ -13,6 +13,7 @@ import { selectDeployableRecommendation } from "./gpuSizingRecommendation.js";
 import { getRubinInferenceAdvisory } from "./rubinInferenceAdvisory.js";
 import { RUBIN_GPU_SIZING_SPECS, RUBIN_TRAINING_CANDIDATES } from "./rubinGpuSizingRegistry.js";
 import { buildInferenceEconomicsGpuSizingHandoff } from "./inferenceEconomicsConnector.js";
+import { classifyInferenceScaleout } from "./inferenceScaleoutClassification.js";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -733,7 +734,7 @@ const TCO_OWN_SYS_FOR_CLASS = {
   "Vera Rubin NVL72": "DGX Vera Rubin NVL72",
 };
 
-function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", mode, workingDayHours, concurrentUsers, targetTokPerUser, model, modelParamsB, quant }) {
+function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", mode, workingDayHours, concurrentUsers, targetTokPerUser, model, modelParamsB, quant, scaleoutClassification }) {
   const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass];
   if (!ownSys) {
     return (
@@ -752,6 +753,7 @@ function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", m
   if (mode === "Inference" && workingDayHours) params.set("workingDayHours", String(workingDayHours));
   if (mode === "Inference" && Number.isFinite(Number(concurrentUsers)) && Number(concurrentUsers) > 0) params.set("concurrentUsers", String(concurrentUsers));
   if (mode === "Inference" && Number.isFinite(Number(targetTokPerUser)) && Number(targetTokPerUser) > 0) params.set("targetTokPerUser", String(targetTokPerUser));
+  if (mode === "Inference" && scaleoutClassification?.classification) params.set("scaleoutClass", scaleoutClassification.classification);
   const href = `/tco?${params.toString()}`;
   const inferenceHandoff = mode === "Inference"
     ? buildInferenceEconomicsGpuSizingHandoff({
@@ -761,6 +763,7 @@ function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", m
         modelParamsB,
         quant,
         workingDayHours,
+        scaleoutClassification: scaleoutClassification?.classification,
       })
     : null;
 
@@ -1014,6 +1017,14 @@ function GPUSizingCalculatorInner() {
   const tcoSelectedClass = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
   const tcoSelectedCount = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
   const selectedBudget = effectiveTcoSelection === "higher-growth" ? result?.budget?.higherGrowth : result?.budget?.recommended;
+  const tcoScaleoutClassification = mode === "Inference" && result && tcoSelectedClass
+    ? classifyInferenceScaleout({
+        hardwareClass: tcoSelectedClass,
+        weightMemoryGB: result.weightMemoryGB,
+        sequenceMemoryGB: result.sequenceStateMemory?.totalGBPerSequence,
+        overheadPct,
+      })
+    : null;
   useEffect(() => {
     setTcoSelection("recommended");
   }, [sizingScenarioKey, result?.selectedClass, result?.recommended, result?.higherGrowth?.class, result?.higherGrowth?.recommended]);
@@ -1484,7 +1495,7 @@ function GPUSizingCalculatorInner() {
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
               <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Methodology:</strong> {mode === "Inference" ? `Total memory required: ${result.totalMemoryGB.toFixed(1)} GB (weights + inference sequence state + overhead). Aggregate throughput demand: ${result.totalThroughputNeeded.toLocaleString()} tok/s. This converts concurrent active requests × desired output rate into capacity demand; because the hardware anchors are MLPerf Offline throughput, it does not validate per-request TTFT/TPOT or guarantee the desired streaming rate. Hardware benchmark anchors are adjusted conservatively for active compute and, when selected precision differs from benchmark precision, by a downward NVIDIA dense Tensor Core peak-ratio guardrail; no automatic speedup is granted below the 70B reference. GPU count = max(memory-bound, performance-bound), rounded to a ${result.selectedNodeSize}-GPU node.` : `Resident training-state memory modeled: ${result.trainingMemoryGB.toFixed(1)} GB using resident parameters; activation and temporary-workspace memory is workload-specific and not separately modeled. Training compute uses ${result.trainingSemantics.activeComputeParamsB}B active parameters for this model. GPU count = max(GPUs to fit resident state, GPUs to hit the time target), rounded to a ${result.selectedNodeSize}-GPU node.`}{" "}A workload needing fewer GPUs than one node still shows a node-rounded recommendation, since systems are deployed as whole nodes ({result.selectedNodeSize === 72 ? "a 72-GPU NVL rack for this class" : "8-GPU DGX-class nodes for this class"}).</div>
-              <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} />
+              <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} scaleoutClassification={tcoScaleoutClassification} />
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
                 <button onClick={requestReport} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
                 <button onClick={openAudit} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 bg-white" style={{ color: CHARCOAL }}>Calculation Methodology &amp; Audit Trail</button>
