@@ -26,10 +26,10 @@ const WEIGHT_BYTES_BY_PRECISION = Object.freeze({ FP16: 2, FP8: 1, FP4: 0.5 });
  * used by GPU Sizing after M3. No independent precision table or model scaling
  * is maintained here.
  *
- * Benchmark-system throughput is only used at the exact benchmark deployment
- * count. IE-4.1 deliberately blocks arbitrary count scaling because no default
- * cross-node/rack scaling efficiency is defensible enough for cost-per-token
- * economics. A later evidence-backed scaling model may relax this guardrail.
+ * Exact benchmark counts remain the highest-confidence case. When the deployed
+ * count is a whole multiple of the benchmark group and the selected model's
+ * weights fit inside one benchmark-sized group, IE may aggregate independent
+ * serving replicas. This is deliberately NOT a model-parallel scaling claim.
  */
 export function deriveInferenceEconomicsThroughput({
   hardwareClass,
@@ -56,29 +56,35 @@ export function deriveInferenceEconomicsThroughput({
     };
   }
 
-  if (count !== record.benchmarkGpuCount) {
+  const benchmarkGpuCount = record.benchmarkGpuCount;
+  const replicaGroupCount = count / benchmarkGpuCount;
+  const exactDeployment = count === benchmarkGpuCount;
+  const replicaScaledDeployment =
+    count > benchmarkGpuCount &&
+    Number.isInteger(replicaGroupCount);
+
+  if (!exactDeployment && !replicaScaledDeployment) {
     return {
       ok: false,
       reason: "UNSUPPORTED_DEPLOYMENT_SCALING",
       errors: [
-        `Inference economics is currently limited to the source benchmark configuration: ${record.benchmarkGpuCount} × ${hardwareClass}. Scaling to ${count} GPUs is suppressed until qualified scaling-efficiency evidence is available.`,
+        `Inference economics can use the exact ${benchmarkGpuCount} × ${hardwareClass} benchmark or whole benchmark-sized replica groups. ${count} GPUs is not a whole multiple of the ${benchmarkGpuCount}-GPU benchmark group, so topology-dependent scaling is suppressed.`,
       ],
       hardwareClass,
       deployedGpuCount: count,
-      benchmarkGpuCount: record.benchmarkGpuCount,
+      benchmarkGpuCount,
     };
   }
 
-  // Necessary-condition residency guardrail. The Preview does not collect the
-  // full concurrency/context inputs used by GPU Sizing, so it must not recreate
-  // a hidden sizing model here. It can, however, reject a configuration when
-  // the selected model's weights alone cannot physically reside in the exact
-  // benchmark configuration being credited.
+  // Necessary-condition residency guardrail. Replica scaling is valid only
+  // when one independent benchmark-sized group can host the selected model's
+  // weights. If it cannot, the deployment becomes topology/model-parallel and
+  // requires separate evidence rather than linear replica aggregation.
   const residencyParamsB = getResidencyParamsB(model, customParamsB);
   const weightBytesPerParam = WEIGHT_BYTES_BY_PRECISION[quant];
   const aggregateMemoryGB =
     positiveNumber(record.memoryGBPerGpu) != null
-      ? record.memoryGBPerGpu * count
+      ? record.memoryGBPerGpu * benchmarkGpuCount
       : null;
   const weightMemoryGB =
     residencyParamsB && weightBytesPerParam
@@ -90,11 +96,13 @@ export function deriveInferenceEconomicsThroughput({
       ok: false,
       reason: "MODEL_DOES_NOT_FIT_BENCHMARK_CONFIG",
       errors: [
-        `${model?.label || model?.name || model?.id || "Selected model"} requires at least ${weightMemoryGB.toFixed(1)} GB for model weights at ${quant}, which exceeds the ${aggregateMemoryGB.toFixed(1)} GB aggregate HBM in the credited ${count} × ${hardwareClass} benchmark configuration. Use GPU Sizing to determine a deployable configuration before calculating inference economics.`,
+        `${model?.label || model?.name || model?.id || "Selected model"} requires at least ${weightMemoryGB.toFixed(1)} GB for model weights at ${quant}, which exceeds the ${aggregateMemoryGB.toFixed(1)} GB aggregate HBM in one ${benchmarkGpuCount} × ${hardwareClass} benchmark-sized serving group. This deployment therefore requires topology/model-parallel scaling evidence rather than independent replica aggregation.`,
       ],
       hardwareClass,
       deployedGpuCount: count,
-      benchmarkGpuCount: record.benchmarkGpuCount,
+      benchmarkGpuCount,
+    replicaGroupCount,
+    deploymentEvidenceBasis,
       weightMemoryGB,
       aggregateMemoryGB,
       residencyBasis: "model-weights-only necessary-condition check",
@@ -118,11 +126,12 @@ export function deriveInferenceEconomicsThroughput({
     }
   }
 
-  const deploymentScale = 1;
+  const deploymentScale = exactDeployment ? 1 : replicaGroupCount;
 
   const adjustmentFactor =
     modelScale.factor *
-    precisionScale.factor;
+    precisionScale.factor *
+    deploymentScale;
 
   const effectiveThroughputTokPerSec =
     record.throughputTokPerSec * adjustmentFactor;
@@ -134,7 +143,10 @@ export function deriveInferenceEconomicsThroughput({
     precisionScale.factor === 1 &&
     normalizedLabel(quant) === normalizedLabel(precisionScale.anchorPrecision);
   const hardwareMatch = true;
-  const deploymentMatch = count === record.benchmarkGpuCount;
+  const deploymentMatch = exactDeployment;
+  const deploymentEvidenceBasis = exactDeployment
+    ? "EXACT_BENCHMARK"
+    : "REPLICA_SCALED";
 
   // The currently loaded benchmark records are Offline scenarios. Until a
   // scenario-specific serving benchmark/translation exists, this adapter does
@@ -150,7 +162,9 @@ export function deriveInferenceEconomicsThroughput({
     adjustmentBasis: [
       `GPU Sizing model factor ${modelScale.factor.toFixed(4)}x: ${modelScale.basis}`,
       `GPU Sizing precision factor ${precisionScale.factor.toFixed(4)}x: ${precisionScale.basis}`,
-`Deployment count matches the ${record.benchmarkGpuCount}-GPU benchmark configuration; no cross-node/rack scaling is inferred.`,
+      exactDeployment
+        ? `Deployment count matches the ${benchmarkGpuCount}-GPU benchmark configuration; no deployment scaling is inferred.`
+        : `Replica-scaled deployment: ${count} GPUs = ${replicaGroupCount} independent ${benchmarkGpuCount}-GPU benchmark-sized serving groups. Aggregate benchmark capacity is multiplied by ${replicaGroupCount.toFixed(4)}x; this is not a model-parallel scaling claim.`,
     ].join(" "),
   });
 
