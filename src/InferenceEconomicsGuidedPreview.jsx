@@ -100,7 +100,7 @@ export default function InferenceEconomicsGuidedPreview() {
   const [apiInputTokensPerOutputToken, setApiInputTokensPerOutputToken] = useState("");
   const [apiCachedInputShare, setApiCachedInputShare] = useState(0);
   const [customizeApi, setCustomizeApi] = useState(false);
-  const [auditOpen, setAuditOpen] = useState(false);
+  const [view, setView] = useState("calc");
 
   const model = modelOptions.find((m) => m.id === modelId) || defaultModel;
   const customParamsB = handoff?.modelId === "custom" ? handoff?.modelParamsB : null;
