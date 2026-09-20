@@ -67,6 +67,7 @@ export default function InferenceEconomicsGuidedPreview() {
     []
   );
   const inherited = handoff?.source === "tco";
+  const totalDeployedGpuCount = handoff?.totalDeployedGpuCount || handoff?.gpuCount || null;
   const initialModel = handoff?.modelId ? getModelById(handoff.modelId) : null;
   const modelOptions = useMemo(() => {
     const options = [...RECOMMENDED_MODELS];
@@ -374,7 +375,8 @@ export default function InferenceEconomicsGuidedPreview() {
         {inherited ? (
           <div style={summaryGrid}>
             <Summary label="Hardware" value={hardwareClass} />
-            <Summary label="GPUs used for this estimate" value={deployedGpuCount} />
+            <Summary label="Deployed private-AI fleet" value={totalDeployedGpuCount ? totalDeployedGpuCount + " GPUs" : "—"} />
+            <Summary label="GPUs credited for throughput" value={deployedGpuCount} />
             <Summary label="Model" value={model?.label || "—"} />
             <Summary label="Precision" value={quant} />
             <Summary label="Private AI cost assigned to this workload" value={attributableTcoUsd ? compactMoney(n(attributableTcoUsd)) : "Not available"} />
@@ -412,6 +414,14 @@ export default function InferenceEconomicsGuidedPreview() {
           </div>
         )}
 
+        {inherited && totalDeployedGpuCount && n(totalDeployedGpuCount) > n(deployedGpuCount) ? (
+          <div style={{ ...sourceLine, marginTop: 16 }}>
+            <span>
+              <b>Conservative throughput treatment:</b> TCO includes the full {totalDeployedGpuCount}-GPU fleet in the cost basis, while Inference Economics credits throughput only to the qualified {deployedGpuCount}-GPU benchmark configuration. No additional throughput is assumed without scaling evidence.
+            </span>
+          </div>
+        ) : null}
+
         {inherited && handoff?.allocationMethod === "WORKLOAD_SHARE_MODELED" ? (
           <div style={{ ...sourceLine, marginTop: 16 }}>
             <span><b>TCO attribution basis:</b> {Math.round(n(handoff.inferenceShare) * 100)}% of total TCO is assigned to inference from the TCO workload mix.</span>
@@ -429,7 +439,7 @@ export default function InferenceEconomicsGuidedPreview() {
         <details style={details} open={!productionServingFactor}>
           <summary style={summaryLink}>Technical assumptions</summary>
           <div style={{ ...twoCol, marginTop: 14 }}>
-            <Field label="GPUs used for this estimate" help="Throughput is only credited when the GPU count matches the supported benchmark configuration.">
+            <Field label="GPUs credited for throughput" help="Throughput is only credited when the GPU count matches the supported benchmark configuration.">
               <input style={input} type="number" min="1" value={deployedGpuCount} onChange={(ev) => setDeployedGpuCount(ev.target.value)} disabled={inherited} />
             </Field>
             <Field label="Precision" help="Inference precision used for the throughput estimate.">
