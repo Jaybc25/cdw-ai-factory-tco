@@ -28,7 +28,7 @@ assert.equal(clean.attributableTcoUsd, 1_250_000);
 assert.equal(clean.inferenceShare, 1);
 assert.equal(clean.demandGrowthRate, 0.25);
 assert.equal(clean.allocationMethod, "DIRECT_INFERENCE_WORKLOAD");
-assert.ok(clean.href.startsWith("/tco/inference-economics-preview-guided?"));
+assert.ok(clean.href.startsWith("/inference-economics?"));
 assert.ok(clean.href.includes("source=tco"));
 assert.ok(clean.href.includes("tco=1250000"));
 
@@ -166,7 +166,7 @@ const parsedCustom = parseInferenceEconomicsPreviewHandoff(
 assert.equal(parsedCustom.modelId, "custom");
 assert.equal(parsedCustom.modelParamsB, 42);
 
-// TCO's normal journey now opens Guided; the technical Preview remains available
+// TCO's normal journey now opens the standalone Inference Economics tool; the technical Preview remains available
 // as a direct advanced/audit route. The connector stays one-way.
 const tco = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
 const ui = fs.readFileSync("src/InferenceEconomicsPreview.jsx", "utf8");
