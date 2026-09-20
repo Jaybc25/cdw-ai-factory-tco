@@ -48,8 +48,8 @@ export default function AuthWidget() {
 
   if (isLoggedIn && !needsSetup) {
     return (
-      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: CHARCOAL }}>
-        <span>{account?.name || account?.email}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: CHARCOAL, flexWrap: "wrap", maxWidth: "100%", minWidth: 0 }}>
+        <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{account?.name || account?.email}</span>
         <a href="/summary" style={{ color: RED, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>My Summary</a>
         <button onClick={signOut} style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 12, textDecoration: "underline", padding: 0 }}>Sign out</button>
       </div>
