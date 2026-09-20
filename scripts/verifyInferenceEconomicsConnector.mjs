@@ -170,7 +170,11 @@ assert.equal(parsedCustom.modelParamsB, 42);
 // as a direct advanced/audit route. The connector stays one-way.
 const tco = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
 const ui = fs.readFileSync("src/InferenceEconomicsPreview.jsx", "utf8");
-assert.ok(tco.includes("Open Guided Inference Economics"));
+assert.ok(tco.includes("Where do you want to go next?"));
+assert.ok(tco.includes("Option A · Compare inference economics"));
+assert.ok(tco.includes("Option B · Build the business case"));
+assert.ok(tco.includes("Compare inference economics"));
+assert.ok(tco.includes("Open ROI Calculator"));
 assert.ok(tco.includes("buildInferenceEconomicsPreviewHandoff"));
 assert.ok(tco.includes("fleetSystemsByYear: r.fleetAdj"));
 assert.ok(ui.includes("PREVIEW — IE-6.6"));
