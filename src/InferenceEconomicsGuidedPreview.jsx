@@ -100,7 +100,6 @@ export default function InferenceEconomicsGuidedPreview() {
   const [apiInputTokensPerOutputToken, setApiInputTokensPerOutputToken] = useState("");
   const [apiCachedInputShare, setApiCachedInputShare] = useState(0);
   const [customizeApi, setCustomizeApi] = useState(false);
-  const [view, setView] = useState("main");
   const [auditOpen, setAuditOpen] = useState(false);
 
   const model = modelOptions.find((m) => m.id === modelId) || defaultModel;
@@ -312,6 +311,14 @@ export default function InferenceEconomicsGuidedPreview() {
 
   return (
     <main style={page}>
+      <style>{`
+        .ie-print-summary { display: none; }
+        @media print {
+          .ie-print-summary { display: block !important; }
+          .no-print { display: none !important; }
+          body { background: #fff !important; }
+        }
+      `}</style>
       <div style={previewBanner}>
         <div style={{ fontSize: 18, fontWeight: 850 }}>Guided Inference Economics</div>
         <div style={muted}>Estimate effective private-AI inference cost and compare it with managed-API token pricing.</div>
@@ -736,7 +743,7 @@ function AuditRow({ label, value }) {
 
 function Step({ number, title, subtitle, children }) {
   return (
-    <section style={card}>
+    <section style={card} className="no-print">
       <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 18 }}>
         <div style={stepNumber}>{number}</div>
         <div>
@@ -830,4 +837,13 @@ const takeawayBox = { border: "1px solid #ddd", borderRadius: 12, padding: 16, b
 const compareGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14, marginTop: 14 };
 const compareCard = { border: "1px solid #ddd", borderRadius: 12, padding: 16, background: "#fff" };
 const differenceBox = { marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 };
+const actionRow = { display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end", marginTop: 4 };
+const actionButton = { border: "1px solid #CC0000", background: "#fff", color: "#CC0000", borderRadius: 8, padding: "11px 15px", fontSize: 13, fontWeight: 850, cursor: "pointer" };
+const primaryActionButton = { background: "#CC0000", color: "#fff" };
+const disabledActionButton = { opacity: .45, cursor: "not-allowed" };
+const auditPanel = { border: "1px solid #ddd", borderRadius: 14, padding: 20, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.04)", marginTop: 16 };
+const auditRow = { display: "flex", justifyContent: "space-between", gap: 20, padding: "6px 0", fontSize: 13, lineHeight: 1.45 };
+const formulaBox = { background: "#f7f7f7", borderLeft: "3px solid #CC0000", padding: "9px 11px", fontSize: 12, lineHeight: 1.55, margin: "8px 0 10px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" };
+const reportEyebrow = { fontSize: 11, fontWeight: 900, color: "#CC0000", letterSpacing: ".12em" };
+const reportTitle = { fontSize: 28, lineHeight: 1.2, margin: "5px 0 6px", fontWeight: 950 };
 const textButton = { marginTop: 16, border: 0, background: "transparent", color: "#B21F16", padding: 0, fontSize: 13, fontWeight: 850, cursor: "pointer", textDecoration: "underline" };
