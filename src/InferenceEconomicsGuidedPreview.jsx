@@ -309,16 +309,53 @@ export default function InferenceEconomicsGuidedPreview() {
         : "the same"
     : null;
 
+  if (view === "report") {
+    return (
+      <InferenceEconomicsReportView
+        onBack={() => setView("calc")}
+        onAudit={() => setView("audit")}
+        model={model}
+        hardwareClass={hardwareClass}
+        deployedGpuCount={n(deployedGpuCount)}
+        quant={quant}
+        horizonYears={n(horizonYears)}
+        attributableTcoUsd={n(attributableTcoUsd)}
+        economics={e}
+        managed={apiResult?.managed}
+        comparison={comparison}
+        apiModelLabel={apiModelLabel}
+        apiBasis={apiResult?.basis}
+      />
+    );
+  }
+
+  if (view === "audit") {
+    return (
+      <InferenceEconomicsAuditView
+        onBack={() => setView("report")}
+        model={model}
+        hardwareClass={hardwareClass}
+        deployedGpuCount={n(deployedGpuCount)}
+        quant={quant}
+        horizonYears={n(horizonYears)}
+        attributableTcoUsd={n(attributableTcoUsd)}
+        demandGrowthRate={n(demandGrowthRate)}
+        activeHoursPerDay={n(activeHoursPerDay)}
+        activeDaysPerYear={n(activeDaysPerYear)}
+        productionServingFactor={n(productionServingFactor)}
+        demand={result.demand}
+        throughput={t}
+        economics={e}
+        managed={apiResult?.managed}
+        comparison={comparison}
+        apiModelLabel={apiModelLabel}
+        apiBasis={apiResult?.basis}
+      />
+    );
+  }
+
   return (
     <main style={page}>
-      <style>{`
-        .ie-print-summary { display: none; }
-        @media print {
-          .ie-print-summary { display: block !important; }
-          .no-print { display: none !important; }
-          body { background: #fff !important; }
-        }
-      `}</style>
       <div style={previewBanner}>
         <div style={{ fontSize: 18, fontWeight: 850 }}>Guided Inference Economics</div>
         <div style={muted}>Estimate effective private-AI inference cost and compare it with managed-API token pricing.</div>
@@ -630,114 +667,20 @@ export default function InferenceEconomicsGuidedPreview() {
           type="button"
           style={{ ...actionButton, ...primaryActionButton, ...(e?.ok ? {} : disabledActionButton) }}
           disabled={!e?.ok}
-          onClick={() => window.print()}
-          title={e?.ok ? "Save a clean Inference Economics summary as PDF" : "Complete the private-AI economics inputs first"}
+          onClick={() => setView("report")}
+          title={e?.ok ? "Open the Inference Economics report" : "Complete the private-AI economics inputs first"}
         >
-          Save to PDF
+          Get the full report (PDF)
         </button>
         <button
           type="button"
           style={actionButton}
-          onClick={() => setAuditOpen((open) => !open)}
-          aria-expanded={auditOpen}
+          onClick={() => setView("audit")}
         >
           Calculation Methodology & Audit Trail
         </button>
       </div>
-
-      {auditOpen ? (
-        <section style={auditPanel}>
-          <h2 style={{ fontSize: 20, margin: "0 0 6px", fontWeight: 900 }}>Calculation Methodology & Audit Trail</h2>
-          <div style={muted}>Formulas and the current scenario values used to produce this result.</div>
-
-          <AuditSection title="1. Output-token demand">
-            <div style={formulaBox}>Year 1 output demand = demand entered or derived from the selected usage basis</div>
-            <AuditRow label="Year 1 output demand" value={result.demand?.ok ? compact(result.demand.annualOutputTokens) + " tokens" : "Incomplete"} />
-            <div style={formulaBox}>Year n demand = Year 1 demand × (1 + annual growth)^(n − 1)</div>
-            <AuditRow label="Annual growth" value={(n(demandGrowthRate) * 100).toFixed(1) + "%"} />
-          </AuditSection>
-
-          <AuditSection title="2. Production serving capacity">
-            <div style={formulaBox}>Annual capacity = benchmark-adjusted output tok/s × production serving factor × 3,600 × serving hours/day × serving days/year</div>
-            <AuditRow label="Benchmark-adjusted output ceiling" value={t?.ok ? compact(t.effectiveThroughputTokPerSec) + " tok/s" : "Unavailable"} />
-            <AuditRow label="Production serving factor" value={(n(productionServingFactor) * 100).toFixed(1) + "%"} />
-            <AuditRow label="Serving schedule" value={n(activeHoursPerDay) + " hr/day × " + n(activeDaysPerYear) + " days/year"} />
-            <AuditRow label="Modeled annual capacity" value={e?.ok ? compact(e.annualCapacityOutputTokens) + " tokens" : "Incomplete"} />
-            <AuditRow label="Evidence source" value={t?.evidence?.sourceLabel || "—"} />
-            <AuditRow label="Evidence status" value={e?.evidenceStatus || t?.evidence?.status || "—"} />
-          </AuditSection>
-
-          <AuditSection title="3. Private AI unit economics">
-            <div style={formulaBox}>Horizon output demand = Σ annual output demand across the selected analysis period</div>
-            <div style={formulaBox}>Private cost / 1M output = assigned private TCO ÷ horizon output demand × 1,000,000</div>
-            <AuditRow label="Assigned private TCO" value={compactMoney(n(attributableTcoUsd))} />
-            <AuditRow label="Analysis period" value={n(horizonYears) + " years"} />
-            <AuditRow label="Private effective cost" value={e?.ok ? money(e.costPerMillionOutputTokens) + " / 1M output" : "Incomplete"} />
-            <AuditRow label="Peak capacity used" value={e?.ok ? (e.peakDemandUtilizationOfCapacity * 100).toFixed(1) + "%" : "Incomplete"} />
-          </AuditSection>
-
-          <AuditSection title="4. Managed API normalization">
-            <div style={formulaBox}>Managed API cost / 1M output = output rate + (input tokens per output token × effective input rate)</div>
-            <div style={formulaBox}>Default reference mix = 70% input / 30% output, with no cache discount</div>
-            <AuditRow label="Managed API" value={apiModelLabel || "Not selected"} />
-            <AuditRow label="Normalized managed API cost" value={apiResult?.managed?.ok ? money(apiResult.managed.effectiveUsdPerMillionOutputTokens) + " / 1M output" : "Incomplete"} />
-            <AuditRow label="Modeled API horizon cost" value={apiResult?.managed?.ok ? compactMoney(apiResult.managed.horizonApiCostUsd) : "Incomplete"} />
-          </AuditSection>
-
-          <AuditSection title="5. Comparison">
-            <div style={formulaBox}>Dollar difference = managed API cost / 1M output − private AI cost / 1M output</div>
-            <AuditRow label="Arithmetic difference" value={comparison?.ok ? money(comparison.managedApiMinusPrivateUsdPerMillionOutputTokens) + " / 1M output" : "Incomplete"} />
-            <div style={{ ...methodText, marginTop: 12 }}>
-              The comparison is descriptive only. It does not assert equivalent model capability. Private AI represents effective allocated cost, not a marginal metered token price.
-            </div>
-          </AuditSection>
-        </section>
-      ) : null}
-
-      <section className="ie-print-summary">
-        <div style={reportEyebrow}>CDW AI FACTORY · INFERENCE ECONOMICS</div>
-        <h1 style={reportTitle}>Inference Economics Summary</h1>
-        <div style={muted}>Effective private-AI inference cost compared with managed-API token pricing.</div>
-        <div style={{ ...summaryGrid, marginTop: 20 }}>
-          <Summary label="Private model" value={model?.label || "—"} />
-          <Summary label="Infrastructure" value={hardwareClass + " · " + deployedGpuCount + " GPUs"} />
-          <Summary label="Precision" value={quant || "—"} />
-          <Summary label="Analysis period" value={n(horizonYears) + " years"} />
-        </div>
-        {e?.ok ? (
-          <>
-            <div style={{ ...compareGrid, marginTop: 18 }}>
-              <CompareCard title="Private AI" value={money(e.costPerMillionOutputTokens)} subtitle="cost per 1M output tokens" secondary={n(horizonYears) + "-year assigned private cost: " + compactMoney(n(attributableTcoUsd))} />
-              {apiResult?.managed?.ok ? <CompareCard title={apiModelLabel || "Managed API"} value={money(apiResult.managed.effectiveUsdPerMillionOutputTokens)} subtitle="cost per 1M output tokens" secondary={n(horizonYears) + "-year modeled API cost: " + compactMoney(apiResult.managed.horizonApiCostUsd)} /> : null}
-            </div>
-            <div style={{ ...summaryGrid, marginTop: 16 }}>
-              <Summary label="Year 1 AI usage" value={compact(e.annualDemandOutputTokens)} />
-              <Summary label="Modeled annual capacity" value={compact(e.annualCapacityOutputTokens)} />
-              <Summary label="Year 1 capacity used" value={(e.demandUtilizationOfCapacity * 100).toFixed(1) + "%"} />
-              <Summary label="Peak capacity used" value={(e.peakDemandUtilizationOfCapacity * 100).toFixed(1) + "%"} />
-            </div>
-          </>
-        ) : null}
-      </section>
     </main>
-  );
-}
-
-function AuditSection({ title, children }) {
-  return (
-    <div style={{ borderTop: "1px solid #e5e5e5", paddingTop: 14, marginTop: 16 }}>
-      <h3 style={{ fontSize: 15, margin: "0 0 8px", fontWeight: 900 }}>{title}</h3>
-      {children}
-    </div>
-  );
-}
-
-function AuditRow({ label, value }) {
-  return (
-    <div style={auditRow}>
-      <span style={{ color: "#666" }}>{label}</span>
-      <strong style={{ textAlign: "right" }}>{value}</strong>
-    </div>
   );
 }
 
