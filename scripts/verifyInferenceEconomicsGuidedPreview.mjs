@@ -35,7 +35,7 @@ assert.ok(guided.includes("complete the capacity check"));
 assert.ok(guided.includes("Evidence & methodology"));
 assert.ok(guided.includes("Deployment evidence basis:"));
 assert.ok(guided.includes("Replica-scaled"));
-assert.ok(guided.includes("benchmark-sized serving groups"));
+assert.ok(guided.includes("-GPU serving groups"));
 assert.ok(guided.includes("Deployed GPUs evaluated"));
 assert.ok(guided.includes("Peak capacity used"));
 assert.ok(guided.includes("peakDemandUtilizationOfCapacity"));
