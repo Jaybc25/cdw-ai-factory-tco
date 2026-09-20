@@ -16,7 +16,7 @@ assert.ok(landing.includes("const ANALYSIS_TOOLS = ["));
 assert.ok(landing.includes("const READINESS_TOOL = {"));
 assert.ok(landing.includes('className="afl-readiness"'));
 assert.ok(landing.includes("ANALYSIS_TOOLS.map"));
-assert.ok(!landing.includes("TOOLS.map"));
+assert.ok(!landing.includes("{TOOLS.map((tool) => ("));
 
 for (const title of [
   "Your private AI scenario",
