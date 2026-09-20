@@ -62,6 +62,11 @@ export function deriveInferenceEconomicsThroughput({
   const replicaScaledDeployment =
     count > benchmarkGpuCount &&
     Number.isInteger(replicaGroupCount);
+  const deploymentEvidenceBasis = exactDeployment
+    ? "EXACT_BENCHMARK"
+    : replicaScaledDeployment
+      ? "REPLICA_SCALED"
+      : null;
 
   if (!exactDeployment && !replicaScaledDeployment) {
     return {
@@ -144,9 +149,6 @@ export function deriveInferenceEconomicsThroughput({
     normalizedLabel(quant) === normalizedLabel(precisionScale.anchorPrecision);
   const hardwareMatch = true;
   const deploymentMatch = exactDeployment;
-  const deploymentEvidenceBasis = exactDeployment
-    ? "EXACT_BENCHMARK"
-    : "REPLICA_SCALED";
 
   // The currently loaded benchmark records are Offline scenarios. Until a
   // scenario-specific serving benchmark/translation exists, this adapter does
