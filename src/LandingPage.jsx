@@ -12,6 +12,7 @@ const TOOLS = [
   { key: "tco", name: "Cloud vs On-Prem\nTCO Calculator", desc: "Cloud AI spend translated into on-prem infrastructure cost and payback.", status: "live", path: "/tco" },
   { key: "roi", name: "AI Use Case\nROI Calculator", desc: "Workload acceleration translated into capacity created and its economic value.", status: "live", path: "/roi" },
   { key: "readiness", name: "AI Readiness\nChecklists", desc: "Work through what your data, security, and infrastructure need before deployment.", status: "live", path: "/readiness" },
+  { key: "inference-economics", name: "Inference\nEconomics", desc: "Compare effective private-AI inference cost per 1M output tokens with managed-API pricing.", status: "live", path: "/inference-economics" },
 ];
 
 function LandingPageInner() {
@@ -98,7 +99,7 @@ function LandingPageInner() {
         .afl-reset-note { color:#8A8A8A; font-size:11px; }
         .afl-bubbles { display:grid; grid-template-columns:repeat(3,1fr); gap:22px; }
         .afl-bubble { background:var(--red); border-radius:26px; padding:30px 24px; min-height:168px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; cursor:pointer; text-decoration:none; transition:transform .18s ease,box-shadow .18s ease,background .18s ease; box-shadow:0 10px 22px rgba(0,0,0,.06); position:relative; border:none; }
-        .afl-bubble:hover { transform:translateY(-3px); box-shadow:0 16px 32px rgba(204,0,0,.18); background:var(--red-dark); }
+        .afl-bubble:hover { transform:translateY(-3px); box-shadow:0 16px 32px rgba(204,0,0,.18); background:var(--red-dark); }\n        .afl-bubble:last-child:nth-child(3n+1) { grid-column:2; }
         .afl-badge { position:absolute; top:14px; right:16px; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.85); display:flex; align-items:center; gap:5px; }
         .afl-badge .dot { width:6px; height:6px; border-radius:50%; background:#6EE7A0; }
         .afl-name { color:#fff; font-weight:700; font-size:19px; line-height:1.25; margin-bottom:8px; white-space:pre-line; }
@@ -117,7 +118,7 @@ function LandingPageInner() {
         .afl-reset-cancel { border:1px solid #D1D5DB; background:#fff; color:#555; }
         .afl-reset-confirm { border:1px solid var(--red); background:var(--red); color:#fff; min-width:128px; }
         .afl-reset-cancel:disabled,.afl-reset-confirm:disabled { opacity:.55; cursor:wait; }
-        @media(max-width:900px){.afl-header{align-items:flex-start;flex-direction:column}.afl-account{width:100%;justify-content:flex-start}.afl-bubbles{grid-template-columns:repeat(2,1fr)}}
+        @media(max-width:900px){.afl-header{align-items:flex-start;flex-direction:column}.afl-account{width:100%;justify-content:flex-start}.afl-bubbles{grid-template-columns:repeat(2,1fr)}.afl-bubble:last-child:nth-child(3n+1){grid-column:auto}}
         @media(max-width:560px){.afl-wrap{padding:24px 18px 80px}.afl-bubbles{grid-template-columns:1fr}.afl-bubble{min-height:140px}.afl-reset-row{align-items:flex-start;flex-direction:column}.afl-reset-actions{flex-direction:column-reverse}.afl-reset-cancel,.afl-reset-confirm{width:100%}}
       `}</style>
 
