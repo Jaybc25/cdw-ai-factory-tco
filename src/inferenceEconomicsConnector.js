@@ -1,3 +1,5 @@
+import { getInferenceEconomicsEvidence } from "./inferenceEconomicsEvidence.js";
+
 const TCO_SYSTEM_TO_IE_HARDWARE = Object.freeze({
   "DGX H200": "H200",
   "DGX B200": "B200",
@@ -140,9 +142,48 @@ export function buildInferenceEconomicsPreviewHandoff({
   };
 }
 
+export function buildInferenceEconomicsGpuSizingHandoff({
+  hardwareClass,
+  gpuCount,
+  modelId,
+  modelParamsB = null,
+  quant,
+  workingDayHours = null,
+}) {
+  const count = finitePositive(gpuCount);
+  const hours = finitePositive(workingDayHours);
+  const evidence = getInferenceEconomicsEvidence(hardwareClass);
+  const blockers = [];
+
+  if (!evidence) blockers.push("UNSUPPORTED_HARDWARE");
+  if (!count) blockers.push("INVALID_GPU_COUNT");
+  if (evidence && count && count !== evidence.benchmarkGpuCount) blockers.push("UNSUPPORTED_DEPLOYMENT_SCALING");
+  if (!modelId) blockers.push("MISSING_MODEL");
+  if (modelId === "custom" && !finitePositive(modelParamsB)) blockers.push("CUSTOM_MODEL_SIZE_MISSING");
+  if (!quant) blockers.push("MISSING_PRECISION");
+
+  const params = new URLSearchParams();
+  params.set("source", "gpu-sizing");
+  if (hardwareClass) params.set("hardware", hardwareClass);
+  if (count) params.set("gpuCount", String(count));
+  if (modelId) params.set("model", modelId);
+  if (finitePositive(modelParamsB)) params.set("modelParamsB", String(Number(modelParamsB)));
+  if (quant) params.set("quant", quant);
+  if (hours && hours <= 24) params.set("activeHours", String(hours));
+  if (blockers.length) params.set("connectorBlockers", blockers.join(","));
+
+  return {
+    eligible: blockers.length === 0,
+    blockers,
+    benchmarkGpuCount: evidence?.benchmarkGpuCount || null,
+    href: `/inference-economics?${params.toString()}`,
+  };
+}
+
 export function parseInferenceEconomicsPreviewHandoff(search) {
   const params = new URLSearchParams(search || "");
-  if (params.get("source") !== "tco") return null;
+  const source = params.get("source");
+  if (source !== "tco" && source !== "gpu-sizing") return null;
 
   const hardwareClass = params.get("hardware");
   const gpuCount = finitePositive(params.get("gpuCount"));
@@ -168,7 +209,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     .filter(Boolean);
 
   return {
-    source: "tco",
+    source,
     hardwareClass,
     gpuCount,
     totalDeployedGpuCount,
