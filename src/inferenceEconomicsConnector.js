@@ -62,6 +62,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   roiInitialCostUsd = null,
   roiRecurringCostUsd = null,
   roiPlanningBasis = null,
+  scaleoutClassification = null,
 }) {
   const mappedHardwareClass = TCO_SYSTEM_TO_IE_HARDWARE[ownSys] || null;
   const hardwareClass = mappedHardwareClass || ownSys || null;
@@ -101,6 +102,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (!modelId) blockers.push("MISSING_MODEL");
   if (modelId === "custom" && !finitePositive(modelParamsB)) blockers.push("CUSTOM_MODEL_SIZE_MISSING");
   if (!quant) blockers.push("MISSING_PRECISION");
+  if (scaleoutClassification === "TOPOLOGY_SCALEOUT_REQUIRED") blockers.push("TOPOLOGY_SCALEOUT_REQUIRED");
   if (!horizon) blockers.push("INVALID_HORIZON");
   if (inferenceShare == null) blockers.push("INFERENCE_SHARE_UNKNOWN");
   if (inferenceShare === 0) blockers.push("NO_INFERENCE_SHARE");
@@ -128,6 +130,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (quant) params.set("quant", quant);
   if (horizon) params.set("horizon", String(horizon));
   if (hours && hours <= 24) params.set("activeHours", String(hours));
+  if (scaleoutClassification) params.set("scaleoutClass", scaleoutClassification);
   params.set("demandGrowth", String(demandGrowthRate));
   if (inferenceShare != null) params.set("inferenceShare", String(inferenceShare));
   if (tco) params.set("fullTco", String(Math.round(tco)));
@@ -136,6 +139,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (roiInitialCost != null) params.set("roiInitialCost", String(Math.round(roiInitialCost)));
   if (roiRecurringCost != null) params.set("roiRecurringCost", String(Math.round(roiRecurringCost)));
   if (planningBasis) params.set("roiPlanningBasis", planningBasis);
+  if (scaleoutClassification) params.set("scaleoutClass", scaleoutClassification);
   if (horizonFleet.length) params.set("fleetSystems", horizonFleet.join(","));
   if (fleetChanges) params.set("fleetGrowthConservative", "1");
   if (blockers.length) params.set("connectorBlockers", blockers.join(","));
@@ -152,6 +156,7 @@ export function buildInferenceEconomicsPreviewHandoff({
     roiInitialCostUsd: roiInitialCost,
     roiRecurringCostUsd: roiRecurringCost,
     roiPlanningBasis: planningBasis,
+    scaleoutClassification,
     demandGrowthRate,
     fleetSystemsByYear: horizonFleet,
     fleetGrowthConservative: fleetChanges,
@@ -168,6 +173,7 @@ export function buildInferenceEconomicsGpuSizingHandoff({
   modelParamsB = null,
   quant,
   workingDayHours = null,
+  scaleoutClassification = null,
 }) {
   const count = finitePositive(gpuCount);
   const hours = finitePositive(workingDayHours);
@@ -201,6 +207,7 @@ export function buildInferenceEconomicsGpuSizingHandoff({
     eligible: blockers.length === 0,
     blockers,
     benchmarkGpuCount: evidence?.benchmarkGpuCount || null,
+    scaleoutClassification,
     href: `/inference-economics?${params.toString()}`,
   };
 }
@@ -229,6 +236,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
   const roiPlanningBasis = roiPlanningBasisRaw === "workload" || roiPlanningBasisRaw === "spend"
     ? roiPlanningBasisRaw
     : null;
+  const scaleoutClassification = params.get("scaleoutClass") || null;
   const fleetSystemsByYear = (params.get("fleetSystems") || "")
     .split(",")
     .map(Number)
@@ -255,6 +263,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     roiInitialCostUsd,
     roiRecurringCostUsd,
     roiPlanningBasis,
+    scaleoutClassification,
     demandGrowthRate,
     fleetSystemsByYear,
     fleetGrowthConservative,
