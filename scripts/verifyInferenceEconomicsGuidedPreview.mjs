@@ -10,6 +10,12 @@ assert.ok(app.includes('/tco/inference-economics-preview-guided"'));
 assert.ok(app.includes('/inference-economics"'));
 assert.ok(app.includes("InferenceEconomicsPreview"));
 assert.ok(app.includes("InferenceEconomicsGuidedPreview"));
+assert.ok(app.includes("function InferenceEconomicsRoute()"));
+assert.ok(app.includes('source === "tco"'));
+assert.ok(app.includes('"Adjust TCO assumptions"'));
+assert.ok(app.includes('"Back to GPU Sizing"'));
+assert.ok(app.includes('"All tools"'));
+
 assert.ok(landing.includes('path: "/inference-economics"'));
 assert.ok(landing.includes('name: "Inference\\nEconomics"'));
 assert.ok(landing.includes("const ANALYSIS_TOOLS = ["));
