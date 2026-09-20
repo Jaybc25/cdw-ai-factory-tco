@@ -108,7 +108,7 @@ export default function InferenceEconomicsGuidedPreview() {
   const availablePrecisions = PRECISIONS_BY_HARDWARE[hardwareClass] || ["FP8"];
 
   const blockers = (handoff?.blockers || []).filter((code) =>
-    ["UNSUPPORTED_HARDWARE", "CUSTOM_MODEL_SIZE_MISSING", "INFERENCE_SHARE_UNKNOWN", "NO_INFERENCE_SHARE"].includes(code)
+    ["UNSUPPORTED_HARDWARE", "CUSTOM_MODEL_SIZE_MISSING", "INFERENCE_SHARE_UNKNOWN", "NO_INFERENCE_SHARE", "TOPOLOGY_SCALEOUT_REQUIRED"].includes(code)
   );
   const inheritedScenarioBlocked = inherited && blockers.length > 0;
 
@@ -149,7 +149,9 @@ export default function InferenceEconomicsGuidedPreview() {
       ? {
           ok: false,
           reason: "INHERITED_SCENARIO_UNSUPPORTED",
-          errors: ["The inherited TCO scenario has an unresolved eligibility issue."],
+          errors: blockers.includes("TOPOLOGY_SCALEOUT_REQUIRED")
+            ? ["GPU Sizing classified this workload as topology-dependent: one modeled serving instance does not fit inside a qualified benchmark-sized serving group. Definitive token economics are suppressed until topology-specific throughput evidence is available."]
+            : ["The inherited TCO scenario has an unresolved eligibility issue."],
         }
       : calculateDemandBoundInferenceEconomics({
           attributableTcoUsd: n(attributableTcoUsd),
