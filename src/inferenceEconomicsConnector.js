@@ -68,12 +68,10 @@ export function buildInferenceEconomicsPreviewHandoff({
   const totalDeployedGpuCount = finitePositive(systemCount) && finitePositive(gpusPerSystem)
     ? Number(systemCount) * Number(gpusPerSystem)
     : null;
-  // Inference Economics gives throughput credit only to one source-qualified
-  // benchmark configuration. The full TCO fleet still remains in the cost
-  // numerator, but additional systems receive no inferred scaling credit.
-  const gpuCount = finitePositive(gpusPerSystem)
-    ? Number(gpusPerSystem)
-    : null;
+  // Inference Economics evaluates the same deployed fleet that TCO prices.
+  // Exact benchmark counts remain highest-confidence; whole benchmark-sized
+  // replica groups may be aggregated by the throughput adapter.
+  const gpuCount = totalDeployedGpuCount;
   const horizon = finitePositive(horizonYears);
   const tco = finitePositive(onPremTcoUsd);
   const hours = finitePositive(workingDayHours);
@@ -178,7 +176,13 @@ export function buildInferenceEconomicsGpuSizingHandoff({
 
   if (!evidence) blockers.push("UNSUPPORTED_HARDWARE");
   if (!count) blockers.push("INVALID_GPU_COUNT");
-  if (evidence && count && count !== evidence.benchmarkGpuCount) blockers.push("UNSUPPORTED_DEPLOYMENT_SCALING");
+  if (
+    evidence &&
+    count &&
+    (count < evidence.benchmarkGpuCount || count % evidence.benchmarkGpuCount !== 0)
+  ) {
+    blockers.push("UNSUPPORTED_DEPLOYMENT_SCALING");
+  }
   if (!modelId) blockers.push("MISSING_MODEL");
   if (modelId === "custom" && !finitePositive(modelParamsB)) blockers.push("CUSTOM_MODEL_SIZE_MISSING");
   if (!quant) blockers.push("MISSING_PRECISION");

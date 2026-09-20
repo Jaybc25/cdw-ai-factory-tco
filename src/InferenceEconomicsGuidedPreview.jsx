@@ -374,7 +374,7 @@ export default function InferenceEconomicsGuidedPreview() {
         {inherited ? (
           <div style={summaryGrid}>
             <Summary label="Hardware" value={hardwareClass} />
-            <Summary label="GPUs used for this estimate" value={deployedGpuCount} />
+            <Summary label="Deployed GPUs evaluated" value={deployedGpuCount} />
             <Summary label="Model" value={model?.label || "—"} />
             <Summary label="Precision" value={quant} />
             <Summary label="Private AI cost assigned to this workload" value={attributableTcoUsd ? compactMoney(n(attributableTcoUsd)) : "Not available"} />
@@ -429,7 +429,7 @@ export default function InferenceEconomicsGuidedPreview() {
         <details style={details} open={!productionServingFactor}>
           <summary style={summaryLink}>Technical assumptions</summary>
           <div style={{ ...twoCol, marginTop: 14 }}>
-            <Field label="GPUs used for this estimate" help="Throughput is only credited when the GPU count matches the supported benchmark configuration.">
+            <Field label="Deployed GPUs evaluated" help="Exact benchmark counts use direct evidence. Whole multiples of a benchmark-sized group may be modeled as independent serving replicas when one group can host the selected model.">
               <input style={input} type="number" min="1" value={deployedGpuCount} onChange={(ev) => setDeployedGpuCount(ev.target.value)} disabled={inherited} />
             </Field>
             <Field label="Precision" help="Inference precision used for the throughput estimate.">
@@ -510,6 +510,7 @@ export default function InferenceEconomicsGuidedPreview() {
               <summary style={summaryLink}>Evidence & methodology</summary>
               <div style={methodText}>
                 <div><b>Benchmark-adjusted output ceiling:</b> {compact(t?.effectiveThroughputTokPerSec)} tok/s</div>
+                <div><b>Deployment evidence basis:</b> {t?.deploymentEvidenceBasis === "REPLICA_SCALED" ? `Replica-scaled · ${t.replicaGroupCount} × ${t.benchmarkGpuCount}-GPU serving groups` : "Exact benchmark configuration"}</div>
                 <div><b>Evidence source:</b> {t?.evidence?.sourceLabel || "—"}</div>
                 <div><b>Evidence status:</b> {e.evidenceStatus || "—"}</div>
               </div>

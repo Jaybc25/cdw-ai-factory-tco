@@ -172,8 +172,20 @@ assert.equal(
   integrated.effectiveThroughputTokPerSec,
 );
 
-// 7) Scaling beyond the exact benchmark configuration is suppressed until
-// qualified scaling-efficiency evidence is available.
+// 7) Whole benchmark-sized replica groups are supported when one group can
+// host the selected model. This is replica aggregation, not model-parallel scaling.
+const exact8 = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 8,
+  quant: "FP4",
+  model: {
+    id: "llama2-70b-reference",
+    label: "Llama 2 70B",
+    activeParamsB: 70,
+    totalParamsB: 70,
+    status: "VERIFIED",
+  },
+});
 const scaled16 = deriveInferenceEconomicsThroughput({
   hardwareClass: "B200",
   deployedGpuCount: 16,
@@ -182,11 +194,15 @@ const scaled16 = deriveInferenceEconomicsThroughput({
     id: "llama2-70b-reference",
     label: "Llama 2 70B",
     activeParamsB: 70,
+    totalParamsB: 70,
     status: "VERIFIED",
   },
 });
-assert.equal(scaled16.ok, false);
-assert.equal(scaled16.reason, "UNSUPPORTED_DEPLOYMENT_SCALING");
+assert.equal(exact8.ok, true);
+assert.equal(scaled16.ok, true);
+assert.equal(scaled16.deploymentEvidenceBasis, "REPLICA_SCALED");
+assert.equal(scaled16.replicaGroupCount, 2);
+assert.equal(scaled16.effectiveThroughputTokPerSec, exact8.effectiveThroughputTokPerSec * 2);
 
 
 // 7b) F1 residency guardrail: a model whose weights alone exceed aggregate HBM
