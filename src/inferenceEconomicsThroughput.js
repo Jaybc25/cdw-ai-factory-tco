@@ -172,7 +172,9 @@ export function deriveInferenceEconomicsThroughput({
     ok: true,
     hardwareClass,
     deployedGpuCount: count,
-    benchmarkGpuCount: record.benchmarkGpuCount,
+    benchmarkGpuCount,
+    replicaGroupCount,
+    deploymentEvidenceBasis,
     sourceThroughputTokPerSec: record.throughputTokPerSec,
     effectiveThroughputTokPerSec,
     // Safe direct input contract for calculateInferenceEconomics(): the engine
