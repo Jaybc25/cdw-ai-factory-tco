@@ -95,8 +95,8 @@ test("16 B200 GPU Sizing -> TCO -> IE stays full-fleet and replica-scaled", asyn
   // Complete only the minimum IE inputs needed to expose the calculated
   // evidence basis. Keep demand comfortably below capacity so this test checks
   // replica semantics rather than intentionally triggering undersizing.
-  await page.getByLabel("Production throughput assumption").fill("0.5");
-  await page.getByLabel("Output tokens per month").fill("1000000000");
+  await page.getByPlaceholder("Required for capacity check, e.g. 0.5").fill("0.5");
+  await page.getByPlaceholder("e.g. 2000000000").fill("1000000000");
 
   await expect(page.getByText(/\/ 1M output tokens/)).toBeVisible();
   await page.getByText("Evidence & methodology", { exact: true }).click();
