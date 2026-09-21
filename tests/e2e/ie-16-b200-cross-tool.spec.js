@@ -81,7 +81,7 @@ test("16 B200 GPU Sizing -> TCO -> IE stays full-fleet and replica-scaled", asyn
 
   // Full-fleet semantics: 16 deployed GPUs are evaluated. The retired
   // 16-deployed/8-throughput-credit treatment must never reappear.
-  const scenario = page.getByText("Your private AI scenario").locator("..");
+  const scenario = page.getByRole("heading", { name: "Your private AI scenario", exact: true }).locator("xpath=ancestor::section");
   await expect(scenario.getByText("Deployed GPUs evaluated", { exact: true }).first()).toBeVisible();
   await expect(scenario.getByText("16", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("GPUs credited for throughput", { exact: true })).toHaveCount(0);
