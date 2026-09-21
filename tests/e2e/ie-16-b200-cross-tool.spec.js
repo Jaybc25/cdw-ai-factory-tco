@@ -17,7 +17,7 @@ async function seedGpuSizingScenario(page) {
       pathLevel: "advanced",
       infModelId: "llama-3.1-70b",
       quant: "FP8",
-      concurrentUsers: 3000,
+      concurrentUsers: 2900,
       targetTokPerUser: 30,
       environment: "Production",
       avgInputTokens: 2000,
@@ -34,6 +34,8 @@ async function seedGpuSizingScenario(page) {
 test("16 B200 GPU Sizing -> TCO -> IE stays full-fleet and replica-scaled", async ({ page }) => {
   await seedGpuSizingScenario(page);
 
+  // 2,900 concurrent requests keeps this workload inside the 16-B200 memory
+  // envelope while still requiring more than one 8-GPU benchmark group.
   // Regression invariant: the production recommendation handed downstream
   // is the full 16-GPU B200 deployment. Assert the actual handoff contract
   // rather than presentation text, because the card renders the numeric count
