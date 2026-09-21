@@ -100,7 +100,7 @@ test("16 B200 GPU Sizing -> TCO -> IE stays full-fleet and replica-scaled", asyn
 
   await expect(page.getByText(/\/ 1M output tokens/)).toBeVisible();
   await page.getByText("Evidence & methodology", { exact: true }).click();
-  await expect(page.getByText("Replica-scaled · 2 × 8-GPU serving groups", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Deployment evidence basis:.*Replica-scaled · 2 × 8-GPU serving groups/)).toBeVisible();
 
   // ROI handoff remains available from the TCO-originated IE journey and must
   // preserve a real upfront/recurring split rather than inventing one.
