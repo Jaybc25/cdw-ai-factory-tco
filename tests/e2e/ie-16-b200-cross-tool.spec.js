@@ -88,7 +88,7 @@ test("16 B200 GPU Sizing -> TCO -> IE stays full-fleet and replica-scaled", asyn
   await expect(page.getByText(/Conservative throughput treatment:/)).toHaveCount(0);
 
   // Contextual navigation retained from the cleaned-up #136.
-  const adjustTco = page.getByRole("link", { name: "Adjust TCO assumptions", exact: true });
+  const adjustTco = page.getByRole("link", { name: /Adjust TCO assumptions/ });
   await expect(adjustTco).toBeVisible();
   await expect(adjustTco).toHaveAttribute("href", "/tco");
 
