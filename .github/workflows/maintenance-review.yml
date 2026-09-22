@@ -1,0 +1,52 @@
+name: Weekly maintenance review
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: "30 13 * * 1"
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: maintenance-review
+  cancel-in-progress: false
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Collect review evidence
+        env:
+          MAINTENANCE_REPORT_PATH: maintenance-review.md
+        run: node scripts/maintenanceWatch.mjs --live
+      - uses: actions/upload-artifact@v4
+        with:
+          name: maintenance-review
+          path: maintenance-review.md
+      - name: Keep one review issue current
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const title = 'AI Factory: weekly maintenance review';
+            const body = fs.readFileSync('maintenance-review.md', 'utf8');
+            const { owner, repo } = context.repo;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'open', per_page: 100,
+            });
+            const issue = issues.find(item => !item.pull_request && item.title === title);
+            if (issue) {
+              if (issue.body !== body) {
+                await github.rest.issues.update({ owner, repo, issue_number: issue.number, body });
+              }
+            } else {
+              await github.rest.issues.create({ owner, repo, title, body });
+            }

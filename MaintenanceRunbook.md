@@ -41,6 +41,12 @@ For architecture, history, rationale, and prior validation findings, read `AiFac
 | Governance/readiness source review | Quarterly or after major standards changes | Manual | Confirm primary-source citations and wording remain current |
 | Documentation review | After meaningful release and quarterly | Manual | Refresh README, changelog, runbook, service inventory, and project brief as needed |
 
+### Weekly maintenance review queue
+
+`.github/workflows/maintenance-review.yml` runs Monday at 13:30 UTC (or on manual dispatch) and keeps one GitHub issue, **AI Factory: weekly maintenance review**, current. It also stores the Markdown report as a workflow artifact and job summary. `scripts/maintenanceWatch.mjs` reports TCO and managed API pricing ages, non-listed/quote cloud rows, IE evidence review tasks, and read-only Azure Retail Prices API candidates for four exact GPU VM SKU/region pairs. Source errors and ambiguous meters are reported, not converted to prices. No source registry, verification date, methodology, or customer-facing result is changed by this job.
+
+The Azure comparison is a **candidate signal**, not a verified Linux On-Demand price: check the product, meter, region, purchase basis, currency, GPU count, and any provider changes before a pricing PR. The workflow does not collect AWS, Google Cloud, Oracle Cloud, CoreWeave, NVIDIA price-book, or managed API provider prices yet; their review tasks remain in the issue. The independent managed API freshness action still fails once the 14-day snapshot threshold is crossed, until the underlying rates are actually re-verified. A refreshed issue or successful source request is not verification.
+
 ## 3. Automated model-data jobs
 
 ### Hugging Face model specifications
@@ -118,9 +124,9 @@ Pricing is currently the most important recurring manual data-maintenance task.
 - Review due after 45 days.
 - Stale after 90 days.
 - Current cloud-rate verification baseline: 2026-09-01, after the first formal provider-by-provider refresh.
-- Current on-prem pricing verification baseline: 2026-08-07, from the existing NVIDIA TCO tool capture.
+- Current on-prem pricing verification baseline: 2026-09-08, for current Blackwell DGX hardware from the NVIDIA NPN Public Price List 202609. H200 retains its prior DGX TCO-tool basis.
 
-Under the current 45-day review / 90-day stale policy, the cloud baseline reaches review on 2026-10-16 and stale on 2026-11-30. The on-prem baseline reaches review on 2026-09-21 and stale on 2026-11-05 if not refreshed earlier. Treat the two provenance dates independently.
+Under the current implementation (`age > 45` for review, `age > 90` for stale), the cloud baseline first shows review on 2026-10-17 and stale on 2026-12-01. The on-prem baseline first shows review on 2026-10-24 and stale on 2026-12-08 if not refreshed earlier. Treat the two provenance dates independently; dates must only advance after source review.
 
 ### 4.1 NVIDIA / on-prem pricing
 
@@ -281,7 +287,7 @@ Run after meaningful source changes, pricing refreshes that affect calculations,
 - `npm install` succeeds from a fresh clone when dependency state changes.
 - `npm run build` succeeds.
 - No new material console errors on the deployed site.
-- Landing page loads all six tools.
+- Landing page loads all seven tool tiles, including Inference Economics; My Summary is a separate signed-in route.
 
 ### End-to-end journey
 
@@ -291,8 +297,9 @@ Exercise:
 2. Model Advisor
 3. GPU Sizing
 4. TCO
-5. ROI
-6. My Summary
+5. Guided Inference Economics (also test a direct GPU Sizing handoff)
+6. ROI
+7. My Summary
 
 Verify:
 
@@ -310,6 +317,9 @@ Verify:
 - Cloud GPU class follows the sizing class by default, while an explicit TCO cloud-class override remains explicit and survives later sizing changes.
 - User cloud rates remain scoped by provider + GPU class, and on-prem overrides remain scoped by target system.
 - TCO cost values and planning basis reach ROI correctly.
+- TCO fleet, horizon, and inference-attributable cost reach Guided IE; direct GPU Sizing entry asks for private cost instead of inventing it.
+- IE input edits persist through navigation; capacity shortfall suppresses economics, and the report/audit identifies the benchmark or replica basis.
+- IE -> ROI carries upfront/recurring investment only when a defensible original TCO split is available; standalone IE requires ROI input confirmation.
 - Directly entered ROI values are not mislabeled as TCO-derived.
 
 ### Tool-specific checks
@@ -354,6 +364,13 @@ ROI:
 - Negative ROI scenario.
 - Report horizon consistency.
 - Calculation Methodology & Audit Trail.
+
+Inference Economics:
+
+- Standalone, TCO handoff, and direct GPU Sizing entry.
+- Demand-bound output-token estimate, production-throughput capacity gate, and later-year shortfall.
+- Exact benchmark and whole benchmark-sized replica group; unsupported topology suppresses the estimate.
+- First-party managed API snapshot, explicit rate override, stale-rate disclosure, report/PDF, and audit trail.
 
 Readiness:
 
