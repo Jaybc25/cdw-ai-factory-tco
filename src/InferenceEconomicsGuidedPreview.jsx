@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import cdwLogo from "./cdw-logo.png";
 import { getDefaultModel, getModelById, RECOMMENDED_MODELS } from "./modelRegistry.js";
 import { parseInferenceEconomicsPreviewHandoff } from "./inferenceEconomicsConnector.js";
+import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { deriveInferenceEconomicsThroughput } from "./inferenceEconomicsThroughput.js";
 import {
   OUTPUT_TOKEN_DEMAND_BASIS,
@@ -62,46 +63,85 @@ function compactMoney(v) {
 
 export default function InferenceEconomicsGuidedPreview() {
   const defaultModel = getDefaultModel();
+  const [saved] = useState(() => loadSessionState("inference-economics"));
   const handoff = useMemo(
     () => (typeof window !== "undefined" ? parseInferenceEconomicsPreviewHandoff(window.location.search) : null),
     []
   );
   const inherited = handoff?.source === "tco";
-  const initialModel = handoff?.modelId ? getModelById(handoff.modelId) : null;
+  const initialModelId = handoff?.modelId || saved?.modelId || null;
+  const initialModel = initialModelId ? getModelById(initialModelId) : null;
   const modelOptions = useMemo(() => {
     const options = [...RECOMMENDED_MODELS];
     if (initialModel && !options.some((m) => m.id === initialModel.id)) options.push(initialModel);
     return options;
   }, [initialModel]);
 
-  const [hardwareClass, setHardwareClass] = useState(handoff?.hardwareClass || "B200");
-  const [deployedGpuCount, setDeployedGpuCount] = useState(handoff?.gpuCount || 8);
-  const [quant, setQuant] = useState(handoff?.quant || "FP8");
-  const [modelId, setModelId] = useState(handoff?.modelId || defaultModel?.id || RECOMMENDED_MODELS[0]?.id);
-  const [attributableTcoUsd, setAttributableTcoUsd] = useState(handoff?.attributableTcoUsd || "");
-  const [horizonYears, setHorizonYears] = useState(handoff?.horizonYears || 3);
-  const [activeHoursPerDay, setActiveHoursPerDay] = useState(handoff?.activeHoursPerDay || 8);
-  const [activeDaysPerYear, setActiveDaysPerYear] = useState(250);
-  const [productionServingFactor, setProductionServingFactor] = useState("");
-  const [demandGrowthRate, setDemandGrowthRate] = useState(handoff?.demandGrowthRate ?? 0);
+  const [hardwareClass, setHardwareClass] = useState(handoff?.hardwareClass ?? saved?.hardwareClass ?? "B200");
+  const [deployedGpuCount, setDeployedGpuCount] = useState(handoff?.gpuCount ?? saved?.deployedGpuCount ?? 8);
+  const [quant, setQuant] = useState(handoff?.quant ?? saved?.quant ?? "FP8");
+  const [modelId, setModelId] = useState(handoff?.modelId ?? saved?.modelId ?? defaultModel?.id ?? RECOMMENDED_MODELS[0]?.id);
+  const [attributableTcoUsd, setAttributableTcoUsd] = useState(handoff?.attributableTcoUsd ?? saved?.attributableTcoUsd ?? "");
+  const [horizonYears, setHorizonYears] = useState(handoff?.horizonYears ?? saved?.horizonYears ?? 3);
+  const [activeHoursPerDay, setActiveHoursPerDay] = useState(handoff?.activeHoursPerDay ?? saved?.activeHoursPerDay ?? 8);
+  const [activeDaysPerYear, setActiveDaysPerYear] = useState(saved?.activeDaysPerYear ?? 250);
+  const [productionServingFactor, setProductionServingFactor] = useState(saved?.productionServingFactor ?? "");
+  const [demandGrowthRate, setDemandGrowthRate] = useState(handoff?.demandGrowthRate ?? saved?.demandGrowthRate ?? 0);
 
-  const [demandBasis, setDemandBasis] = useState(OUTPUT_TOKEN_DEMAND_BASIS.MEASURED_MONTHLY);
-  const [monthlyOutputTokens, setMonthlyOutputTokens] = useState("");
-  const [annualOutputTokens, setAnnualOutputTokens] = useState("");
-  const [requestsPerDay, setRequestsPerDay] = useState("");
-  const [avgOutputTokens, setAvgOutputTokens] = useState("");
+  const [demandBasis, setDemandBasis] = useState(saved?.demandBasis ?? OUTPUT_TOKEN_DEMAND_BASIS.MEASURED_MONTHLY);
+  const [monthlyOutputTokens, setMonthlyOutputTokens] = useState(saved?.monthlyOutputTokens ?? "");
+  const [annualOutputTokens, setAnnualOutputTokens] = useState(saved?.annualOutputTokens ?? "");
+  const [requestsPerDay, setRequestsPerDay] = useState(saved?.requestsPerDay ?? "");
+  const [avgOutputTokens, setAvgOutputTokens] = useState(saved?.avgOutputTokens ?? "");
 
-  const [apiProvider, setApiProvider] = useState("");
-  const [apiModelId, setApiModelId] = useState("");
-  const [apiModelLabel, setApiModelLabel] = useState("");
-  const [apiCustomProvider, setApiCustomProvider] = useState("");
-  const [apiInputUsdPerMillion, setApiInputUsdPerMillion] = useState("");
-  const [apiOutputUsdPerMillion, setApiOutputUsdPerMillion] = useState("");
-  const [apiCachedInputUsdPerMillion, setApiCachedInputUsdPerMillion] = useState("");
-  const [apiInputTokensPerOutputToken, setApiInputTokensPerOutputToken] = useState("");
-  const [apiCachedInputShare, setApiCachedInputShare] = useState(0);
-  const [customizeApi, setCustomizeApi] = useState(false);
+  const [apiProvider, setApiProvider] = useState(saved?.apiProvider ?? "");
+  const [apiModelId, setApiModelId] = useState(saved?.apiModelId ?? "");
+  const [apiModelLabel, setApiModelLabel] = useState(saved?.apiModelLabel ?? "");
+  const [apiCustomProvider, setApiCustomProvider] = useState(saved?.apiCustomProvider ?? "");
+  const [apiInputUsdPerMillion, setApiInputUsdPerMillion] = useState(saved?.apiInputUsdPerMillion ?? "");
+  const [apiOutputUsdPerMillion, setApiOutputUsdPerMillion] = useState(saved?.apiOutputUsdPerMillion ?? "");
+  const [apiCachedInputUsdPerMillion, setApiCachedInputUsdPerMillion] = useState(saved?.apiCachedInputUsdPerMillion ?? "");
+  const [apiInputTokensPerOutputToken, setApiInputTokensPerOutputToken] = useState(saved?.apiInputTokensPerOutputToken ?? "");
+  const [apiCachedInputShare, setApiCachedInputShare] = useState(saved?.apiCachedInputShare ?? 0);
+  const [customizeApi, setCustomizeApi] = useState(saved?.customizeApi ?? false);
   const [view, setView] = useState("calc");
+
+  useEffect(() => {
+    saveSessionState("inference-economics", {
+      hardwareClass,
+      deployedGpuCount,
+      quant,
+      modelId,
+      attributableTcoUsd,
+      horizonYears,
+      activeHoursPerDay,
+      activeDaysPerYear,
+      productionServingFactor,
+      demandGrowthRate,
+      demandBasis,
+      monthlyOutputTokens,
+      annualOutputTokens,
+      requestsPerDay,
+      avgOutputTokens,
+      apiProvider,
+      apiModelId,
+      apiModelLabel,
+      apiCustomProvider,
+      apiInputUsdPerMillion,
+      apiOutputUsdPerMillion,
+      apiCachedInputUsdPerMillion,
+      apiInputTokensPerOutputToken,
+      apiCachedInputShare,
+      customizeApi,
+    });
+  }, [
+    hardwareClass, deployedGpuCount, quant, modelId, attributableTcoUsd, horizonYears,
+    activeHoursPerDay, activeDaysPerYear, productionServingFactor, demandGrowthRate,
+    demandBasis, monthlyOutputTokens, annualOutputTokens, requestsPerDay, avgOutputTokens,
+    apiProvider, apiModelId, apiModelLabel, apiCustomProvider, apiInputUsdPerMillion,
+    apiOutputUsdPerMillion, apiCachedInputUsdPerMillion, apiInputTokensPerOutputToken,
+    apiCachedInputShare, customizeApi,
+  ]);
 
   const model = modelOptions.find((m) => m.id === modelId) || defaultModel;
   const customParamsB = handoff?.modelId === "custom" ? handoff?.modelParamsB : null;
@@ -925,6 +965,14 @@ function InferenceEconomicsAuditView({
             expression={throughput?.ok
               ? compact(throughput.effectiveThroughputTokPerSec * productionServingFactor) + " × 3,600 × " + activeHoursPerDay + " hr/day × " + activeDaysPerYear + " days/yr = " + compact(capacity) + " output tokens"
               : "Incomplete"}
+          />
+          <AuditRow
+            label="Deployment evidence basis"
+            value={throughput?.deploymentEvidenceBasis === "REPLICA_SCALED"
+              ? `Replica-scaled · ${throughput.replicaGroupCount} × ${throughput.benchmarkGpuCount}-GPU serving groups`
+              : throughput?.deploymentEvidenceBasis === "EXACT_BENCHMARK"
+                ? `Exact benchmark · ${throughput.benchmarkGpuCount}-GPU configuration`
+                : "—"}
           />
           <AuditRow label="Evidence source" value={throughput?.evidence?.sourceLabel || "—"} />
           <AuditRow label="Evidence status" value={economics?.evidenceStatus || throughput?.evidence?.status || "—"} />
