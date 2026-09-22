@@ -23,6 +23,12 @@ assert.ok(landing.includes("const READINESS_TOOL = {"));
 assert.ok(landing.includes('className="afl-readiness"'));
 assert.ok(landing.includes("ANALYSIS_TOOLS.map"));
 assert.ok(!landing.includes("{TOOLS.map((tool) => ("));
+assert.ok(landing.includes("html, body, #root { max-width:100%; overflow-x:hidden; }"));
+assert.ok(landing.includes("grid-template-columns:repeat(3,minmax(0,1fr))"));
+assert.ok(landing.includes("max-width:100vw"));
+const authWidget = fs.readFileSync(new URL("../src/AuthWidget.jsx", import.meta.url), "utf8");
+assert.ok(authWidget.includes('flexWrap: "wrap"'));
+assert.ok(authWidget.includes('overflowWrap: "anywhere"'));
 
 for (const title of [
   "Your private AI scenario",
