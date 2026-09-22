@@ -21,8 +21,11 @@ For recurring maintenance procedures, read `MaintenanceRunbook.md`. For architec
 | Hugging Face | Primary model specification metadata source | Data-maintenance-critical | Account + read-only token sufficient; no paid plan required by current design | Hugging Face account + GitHub Actions secret |
 | Artificial Analysis | Model capability/speed/token-price data | Data-maintenance-critical | Free API tier | Artificial Analysis account + GitHub Actions secret |
 | NVIDIA data/tools | DGX pricing, GPU/product/performance reference inputs, NIM research | Data-maintenance-critical | External/manual sources; no project subscription identified | NVIDIA tools/sites and captured source evidence |
+| Managed API provider public pricing pages | Manual first-party evidence for Inference Economics comparison snapshot | Data-maintenance input, not runtime API dependency | Dated rates and provenance stored in `src/managedApiPricingRegistry.js` | Provider pricing pages and repository snapshot |
 | Claude Project / Cowork | Primary AI-assisted build/project workspace | Development-only | Subscription/account external to runtime; exact plan not recorded here | Anthropic account / Claude Project |
 | ChatGPT | Independent review, audit, GitHub-connected maintenance | Development-only | Subscription/account external to runtime; exact plan not recorded here | OpenAI account / ChatGPT connectors |
+
+The Inference Economics managed API selector reads a checked-in, dated first-party pricing snapshot, not live provider pricing APIs. BenchLM appears only as a future adapter slot in `src/managedApiPricingSource.js`; commercial-use status is unresolved, activation is on hold, and it is not an operational dependency. Recheck snapshot dates and exceptions using the maintenance runbook.
 
 ## 2. GitHub
 

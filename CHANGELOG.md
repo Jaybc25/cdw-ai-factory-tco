@@ -59,6 +59,22 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+### September 22, 2026 - Guided Inference Economics and cross-tool completion
+
+- PR #112 merged the Guided Inference Economics experience into `main`: a landing-page entry at `/inference-economics`, contextual TCO and GPU Sizing handoffs, session input persistence, an exportable report, a calculation/audit view, and a path onward to ROI. The earlier TCO preview routes remain available in source.
+- Private inference cost per million **useful output tokens** is demand-bound: assigned private cost is divided by expected output demand, subject to the selected horizon and a production-capacity check. The required production-throughput assumption validates feasibility; it does not continuously reduce the quoted unit cost. An undersized configuration does not produce a valid economics result.
+- Exact benchmark configurations and qualified whole benchmark-sized serving replicas can support an estimate. Non-whole deployments and cases requiring topology/model-parallel extrapolation are suppressed without adequate evidence; deployment basis is shown in the result and audit trail. The 16-B200 GPU Sizing -> TCO -> IE journey gained permanent regression coverage.
+- Managed API comparison uses a dated, first-party last-known-good public pricing snapshot with provider/model selectors and user overrides. The reference blended rate and workload-specific input/output-token assumptions are kept distinct. BenchLM is a disconnected future adapter on commercial-use hold, not a live pricing feed.
+- TCO handoff preserves fleet, horizon, workload-cost attribution, and eligible investment context. A directly identified inference workload can allocate 100% of its TCO; mixed workloads use a disclosed modeled inference share. ROI only inherits the upfront/recurring split when the original TCO context supplies it; otherwise the user must enter or confirm investment inputs.
+- September 22 follow-up work added IE input persistence, deployment-evidence detail in the audit view, and Model Advisor Nemotron visibility regression coverage. These changes are on `main`; no new validated suite release or tag was created.
+
+### September 10-22, 2026 - Hardware evidence, methodology, and corrective work
+
+- September NVIDIA pricing/evidence work added guarded Rubin planning and TCO support, deployable GPU Sizing ranking, and Blackwell Ultra inference evidence. Rubin inference remains advisory where an absolute qualified throughput anchor is unavailable; do not treat speculative inference performance as measured capacity. See `docs/RUBIN_EVIDENCE_FOUNDATION_2026-09-10.md` for the evidence gates.
+- Corrected cloud unit-price trend percentage scaling; GB300 NVL72 handoff; shared serving-hours context; higher-growth provenance and wording; deployable cost/headroom; training provenance and memory treatment; inference precision anchors and offline-versus-interactive semantics; infrastructure-cost coverage; ROI Year-1 ramp and report assumptions; GPU Sizing loaded-budget framing; and user-facing duty-cycle/copy formatting. Relevant fixes were merged across PRs #78-#86, #89, #94, #96, #101, #105-#106, and #113-#115.
+- Built the inference-economics evidence, throughput, serving-workload, TCO connector, and managed-API comparison foundation in staged PRs #87-#111. The Guided entry and subsequent refinements were consolidated through PR #112. Research notes on replica scale-out and model-parallel calibration remain in `docs/` and must be read alongside the implemented guardrails.
+- Routine automated model-capability syncs and related validator/test maintenance occurred during this period; they are not a new validated release or an external approval.
+
 ### September 7, 2026 - Cloud GPU unit-price trend sensitivity preview
 - Added an interactive preview-only cloud GPU unit-price trend control ranging from -20% to +20% per year in 5-point steps, defaulting to 0%/year.
 - The preview is explicitly non-functional: it is not persisted, autosaved, passed into the TCO engine, or reflected in report economics.

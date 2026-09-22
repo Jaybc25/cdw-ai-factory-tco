@@ -4,6 +4,28 @@
 
 ---
 
+## September 22, 2026 Current-State Addendum
+
+This is the current orientation for the September 9-22 tranche at `main` commit `1de011309a1b9fe3fb5332dc51e5d050227b104b` (PR #112). The September 9 checkpoint and earlier addenda remain historical. Post-`AI Factory Suite 2026.09.1` changes are **Unreleased**; the merge did not create or move a validated release tag. Source review establishes the behavior described here. The production site has been reported live and apparently healthy, but broader internal CDW review and external approval have not been completed by this documentation update.
+
+### Journey and ownership
+
+- The landing page now offers Inference Economics at `/inference-economics`. GPU Sizing can pass technical context directly; TCO can pass its selected deployment, analysis period, and inference-attributable cost. The older `/tco/inference-economics-preview` and `/tco/inference-economics-preview-guided` routes remain in source. The Guided route is the primary current entry, with report/PDF, audit trail, contextual navigation, session input persistence, and an onward ROI action.
+- Model Advisor owns model context, GPU Sizing owns technical fleet sizing, TCO owns infrastructure economics, Inference Economics evaluates demand-bound inference unit cost for the specified deployment and allocated cost, and ROI owns the business-value case. Neither IE nor ROI silently re-sizes the upstream technical deployment.
+- An inference-only TCO workload can allocate all of its TCO; a mixed workload uses a disclosed proportional inference-share planning assumption, not measured marginal cost. The original TCO investment split passes onward to ROI only when defensible context is present. Standalone or direct GPU Sizing entry requires the user to supply or confirm private cost; ROI asks for investment inputs if the split is unavailable.
+
+### Inference-economics evidence and pricing boundaries
+
+- IE uses expected useful **output-token demand** as the denominator, retaining idle-capacity cost in the numerator. The required production-throughput factor tests whether the benchmark-adjusted deployed fleet can serve demand across the horizon; changing it affects feasibility/headroom, not unit cost continuously. If projected demand exceeds capacity, IE suppresses the private unit-cost result.
+- Qualified exact benchmark counts and whole multiples used as independent serving replicas are supported when one benchmark-sized group can host the model. A larger fleet does not itself prove model-parallel scaling. Non-whole groups or a model requiring topology-dependent scale-out are suppressed pending adequate evidence. The audit states exact versus replica-scaled basis; the 16-B200 cross-tool case is covered by a permanent regression.
+- Managed API comparison has a dated, first-party public-rate snapshot in `src/managedApiPricingRegistry.js`, a last-known-good fallback design, and explicit user/negotiated overrides. Reference blended rates and workload-specific input/output assumptions are separate comparisons. Cached-input assumptions are explicit where offered; public rates are not a customer quote. BenchLM has only a disconnected future-adapter placeholder with unresolved commercial use and must not be described as a live source.
+
+### Other September 9-22 work and operating status
+
+- September NVIDIA evidence/pricing and Rubin activation work added guarded planning/TCO support while retaining the inference-throughput evidence gate. Blackwell Ultra inference evidence, deployable GPU Sizing ranking, GB300 handoff, shared workload hours, training/inference modeling corrections, ROI Year-1 and report fixes, and user-facing copy/provenance refinements were merged. `CHANGELOG.md` records the milestone groups; `docs/RUBIN_EVIDENCE_FOUNDATION_2026-09-10.md` retains the evidence contract.
+- Production cloud GPU unit-price trend is a separate TCO sensitivity with a 0%/year default. It applies to modeled cloud GPU compute rates, while workload growth models consumption; the older September 7 preview description below is historical.
+- IE input persistence and audit deployment detail were added before PR #112 merged. Automated model-data refreshes and permanent checks continued. Source-backed coverage and a healthy-appearing production site do not constitute complete internal CDW methodology, pricing, branding, or release approval. `MaintenanceRunbook.md` defines recurring evidence and rate review.
+
 
 ## September 7, 2026 TCO Growth and Cloud Pricing Addendum
 
