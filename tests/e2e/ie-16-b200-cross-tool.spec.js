@@ -95,12 +95,31 @@ test("16 B200 GPU Sizing -> TCO -> IE stays full-fleet and replica-scaled", asyn
   // Complete only the minimum IE inputs needed to expose the calculated
   // evidence basis. Keep demand comfortably below capacity so this test checks
   // replica semantics rather than intentionally triggering undersizing.
-  await page.getByPlaceholder("Required for capacity check, e.g. 0.5").fill("0.5");
-  await page.getByPlaceholder("e.g. 2000000000").fill("1000000000");
+  const servingFactorInput = page.getByPlaceholder("Required for capacity check, e.g. 0.5");
+  const monthlyDemandInput = page.getByPlaceholder("e.g. 2000000000");
+  await servingFactorInput.fill("0.5");
+  await monthlyDemandInput.fill("1000000000");
 
   await expect(page.getByText(/\/ 1M output tokens/)).toBeVisible();
   await page.getByText("Evidence & methodology", { exact: true }).click();
   await expect(page.getByText(/Deployment evidence basis:.*Replica-scaled · 2 × 8-GPU serving groups/)).toBeVisible();
+
+  // IE now follows the suite-wide session-state contract. A full reload must
+  // preserve user-entered serving and demand assumptions while the incoming
+  // TCO handoff remains authoritative for architecture/cost fields.
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(page.getByPlaceholder("Required for capacity check, e.g. 0.5")).toHaveValue("0.5");
+  await expect(page.getByPlaceholder("e.g. 2000000000")).toHaveValue("1000000000");
+  await expect(page.getByText(/\/ 1M output tokens/)).toBeVisible();
+
+  // The printable audit trail must carry the same replica deployment basis as
+  // the live evidence panel so a forwarded PDF preserves the defensibility anchor.
+  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail", exact: true }).click();
+  await expect(page.getByText("Inference Economics Audit Trail", { exact: true })).toBeVisible();
+  await expect(page.getByText("Deployment evidence basis", { exact: true })).toBeVisible();
+  await expect(page.getByText("Replica-scaled · 2 × 8-GPU serving groups", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back to report", exact: true }).click();
+  await page.getByRole("button", { name: "Back to calculator", exact: true }).click();
 
   // ROI handoff remains available from the TCO-originated IE journey and must
   // preserve a real upfront/recurring split rather than inventing one.
