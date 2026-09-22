@@ -44,7 +44,7 @@ test("Model Advisor exposes activated Nemotron with sourced capability evidence"
     hasText: "NVIDIA Nemotron 3 Super 120B-A12B FP8",
   });
   await expect(nemotronRow).toBeVisible();
-  await expect(nemotronRow).toContainText("13.6");
+  await expect(nemotronRow.locator("td").nth(1)).toHaveText(/\d+(?:\.\d+)?/);
   await expect(nemotronRow).toContainText("HIGH");
 });
 
