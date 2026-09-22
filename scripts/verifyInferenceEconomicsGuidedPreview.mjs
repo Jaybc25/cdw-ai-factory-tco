@@ -43,6 +43,10 @@ assert.ok(guided.includes("TOPOLOGY_SCALEOUT_REQUIRED"));
 assert.ok(guided.includes("topology-specific throughput evidence"));
 
 assert.ok(guided.includes("Deployment evidence basis:"));
+assert.ok(guided.includes('loadSessionState("inference-economics")'));
+assert.ok(guided.includes('saveSessionState("inference-economics"'));
+assert.ok(guided.includes('label="Deployment evidence basis"'));
+assert.ok(guided.includes("Exact benchmark ·"));
 assert.ok(guided.includes("Replica-scaled"));
 assert.ok(guided.includes("-GPU serving groups"));
 assert.ok(guided.includes("Deployed GPUs evaluated"));
