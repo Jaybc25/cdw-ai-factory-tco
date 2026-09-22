@@ -245,7 +245,7 @@ test("GPU Sizing distinguishes loaded system budget from full deployment TCO", a
   await expect(page.getByText("Loaded system budget", { exact: true }).first()).toBeVisible();
   await expect(page.getByText(/Same pricing basis as the Cloud vs On-Prem TCO Calculator \(system \+ software suite \+ fabrics \+ professional services\)\./).first()).toBeVisible();
   await expect(page.getByText(/Excludes shared cluster infrastructure, workload storage, racks\/facility costs, ongoing operations, and migration\/transition costs -- not a quote\./).first()).toBeVisible();
-  await expect(page.getByText(/TCO adds the shared infrastructure, storage, facility\/operations, and transition costs required to model the full deployment lifecycle\./).first()).toBeVisible();
+  await expect(page.getByText(/Take this .* GPU configuration into TCO to compare ownership with cloud and add the shared infrastructure, storage, facility\/operations, and transition costs needed for the full deployment lifecycle\./).first()).toBeVisible();
 
   await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
   await expect(page.getByText("Loaded system budget", { exact: true }).first()).toBeVisible();

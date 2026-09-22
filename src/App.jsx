@@ -12,6 +12,7 @@ import LoginFrontDoor from "./LoginFrontDoor.jsx";
 import ModelCatalogVisibilityRoute from "./ModelCatalogVisibilityRoute.jsx";
 import HybridSequenceStateTestRoute from "./HybridSequenceStateTestRoute.jsx";
 import InferenceEconomicsPreview from "./InferenceEconomicsPreview.jsx";
+import InferenceEconomicsGuidedPreview from "./InferenceEconomicsGuidedPreview.jsx";
 import SharedToolShell from "./SharedToolShell.jsx";
 import "./print-overrides.css";
 
@@ -83,11 +84,38 @@ function TcoRoute() {
   );
 }
 
+function InferenceEconomicsRoute() {
+  const location = useLocation();
+  const source = new URLSearchParams(location.search).get("source");
+  const backHref = source === "tco"
+    ? "/tco"
+    : source === "gpu-sizing"
+      ? "/gpu-sizing"
+      : "/";
+  const backLabel = source === "tco"
+    ? "Adjust TCO assumptions"
+    : source === "gpu-sizing"
+      ? "Back to GPU Sizing"
+      : "All tools";
+
+  return (
+    <SharedToolShell
+      title="Inference Economics"
+      backHref={backHref}
+      backLabel={backLabel}
+      toolKey="inference-economics"
+    >
+      <InferenceEconomicsGuidedPreview />
+    </SharedToolShell>
+  );
+}
+
 function ToolRoutes() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/tco" element={<TcoRoute />} />
+      <Route path="/inference-economics" element={<InferenceEconomicsRoute />} />
       <Route
         path="/tco/inference-economics-preview"
         element={(
@@ -98,6 +126,19 @@ function ToolRoutes() {
             toolKey="inference-economics-preview"
           >
             <InferenceEconomicsPreview />
+          </SharedToolShell>
+        )}
+      />
+      <Route
+        path="/tco/inference-economics-preview-guided"
+        element={(
+          <SharedToolShell
+            title="Guided Inference Economics Preview"
+            backHref="/tco"
+            backLabel="TCO Calculator"
+            toolKey="inference-economics-preview-guided"
+          >
+            <InferenceEconomicsGuidedPreview />
           </SharedToolShell>
         )}
       />

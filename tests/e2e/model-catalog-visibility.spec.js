@@ -32,7 +32,20 @@ test("Model Advisor never surfaces existing-deployment models", async ({ page })
 
 test("Model Advisor exposes activated Nemotron with sourced capability evidence", async ({ page }) => {
   await page.goto("/model-advisor", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("NVIDIA Nemotron 3 Super 120B-A12B FP8", { exact: true })).toBeVisible();
+
+  // The main advisor intentionally renders only the featured shortlist plus a
+  // few other eligible models. Activation does not guarantee every tracked
+  // model is visible on the default result surface. The decision trace is the
+  // authoritative surface for the full evidence-backed ranking population.
+  await page.getByRole("button", { name: "Why these recommendations?", exact: true }).click();
+  await expect(page.getByText("Recommendation Methodology & Decision Trace", { exact: false })).toBeVisible();
+
+  const nemotronRow = page.getByRole("row").filter({
+    hasText: "NVIDIA Nemotron 3 Super 120B-A12B FP8",
+  });
+  await expect(nemotronRow).toBeVisible();
+  await expect(nemotronRow.locator("td").nth(1)).toHaveText(/\d+(?:\.\d+)?/);
+  await expect(nemotronRow).toContainText("HIGH");
 });
 
 test("GPU Sizing exposes all ten tranche models by default", async ({ page }) => {

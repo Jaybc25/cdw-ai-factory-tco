@@ -188,6 +188,12 @@ export function calculateDemandBoundInferenceEconomics({
       errors: ["attributableTcoUsd and horizonYears must be > 0."],
     };
   }
+  if (!Number.isInteger(years)) {
+    return {
+      ok: false,
+      errors: ["horizonYears must be a whole number of years."],
+    };
+  }
   if (!demand?.ok) {
     return { ok: false, errors: demand?.errors || ["Valid output-token demand is required."] };
   }
@@ -198,8 +204,14 @@ export function calculateDemandBoundInferenceEconomics({
   const firstYearDemand = demand.annualOutputTokens;
   const annualCapacity = servingCapacity.annualCapacityOutputTokens;
   const growth = Number(demandGrowthRate);
-  const normalizedGrowth = Number.isFinite(growth) && growth >= 0 ? growth : 0;
-  const wholeYears = Math.max(1, Math.floor(years));
+  if (!Number.isFinite(growth) || growth < 0) {
+    return {
+      ok: false,
+      errors: ["demandGrowthRate must be >= 0."],
+    };
+  }
+  const normalizedGrowth = growth;
+  const wholeYears = years;
   const demandByYear = Array.from({ length: wholeYears }, (_, i) =>
     firstYearDemand * Math.pow(1 + normalizedGrowth, i)
   );

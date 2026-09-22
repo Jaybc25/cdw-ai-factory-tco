@@ -802,6 +802,13 @@ function getInitialGpuSizingDemand(name) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function getInitialScaleoutClassification() {
+  const raw = getIncomingParams()?.get("scaleoutClass");
+  return raw === "REPLICA_CAPACITY_SCALEOUT" || raw === "TOPOLOGY_SCALEOUT_REQUIRED"
+    ? raw
+    : null;
+}
+
 function getInitialModelContext() {
   const params = getIncomingParams();
   const modelId = params?.get("model");
@@ -917,6 +924,7 @@ function AppInner() {
   // example training), so do not leak stale inference demand from a prior run.
   const [gpuSizingConcurrentUsers] = useState(() => arrivedFromGpuSizing ? getInitialGpuSizingDemand("concurrentUsers") : saved?.gpuSizingConcurrentUsers ?? null);
   const [gpuSizingTargetTokPerUser] = useState(() => arrivedFromGpuSizing ? getInitialGpuSizingDemand("targetTokPerUser") : saved?.gpuSizingTargetTokPerUser ?? null);
+  const [gpuSizingScaleoutClassification] = useState(() => arrivedFromGpuSizing ? getInitialScaleoutClassification() : saved?.gpuSizingScaleoutClassification ?? null);
   const [incomingModelContext] = useState(getInitialModelContext);
   const [incomingQuant] = useState(getInitialQuantization);
 
@@ -1076,12 +1084,12 @@ function AppInner() {
       // which is the actual root cause of the workload-anchor loss -- see
       // the comment above their useState calls near the top of this
       // component for the full explanation.
-      gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser,
+      gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, gpuSizingScaleoutClassification,
     });
   }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto, workloadStorageConfirmed,
       fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
-      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser]);
+      residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, gpuSizingScaleoutClassification]);
 
   async function submitLead() {
     if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
@@ -1173,6 +1181,10 @@ function AppInner() {
     trainShare,
     growth,
     fleetSystemsByYear: r.fleetAdj,
+    roiInitialCostUsd: r.adj.capex + r.oneTime,
+    roiRecurringCostUsd: r.adj.opex * 12,
+    roiPlanningBasis: r.isWorkloadMode ? "workload" : "spend",
+    scaleoutClassification: gpuSizingScaleoutClassification,
   });
 
 
@@ -2358,33 +2370,40 @@ function AppInner() {
           </div>
         </Section>
 
-        <div style={{ marginBottom: 10, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 10 }}>
-          <div style={{ borderRadius: 10, border: `1px solid ${C.line}`, background: "#F7F7F7", padding: "12px 16px" }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, color: C.sub, textTransform: "uppercase", marginBottom: 4 }}>Next: task-level ROI</div>
-            <div style={{ fontSize: 12, color: "#444", lineHeight: 1.5, marginBottom: 10 }}>
-              Send this infrastructure cost ({fmt(r.adj.capex + r.oneTime)} upfront, {fmt(r.adj.opex * 12)}/yr ongoing) into the ROI Calculator as the AI cost side of a task-automation business case.
-              {r.isWorkloadMode ? " Based on the Workload Requirement fleet, not your reported cloud spend." : " Based on your reported cloud spend."}
-            </div>
-            <a
-              href={`/roi?initialCost=${Math.round(r.adj.capex + r.oneTime)}&recurringCost=${Math.round(r.adj.opex * 12)}&planningBasis=${r.isWorkloadMode ? "workload" : "spend"}`}
-              style={{ ...disp, display: "inline-block", fontSize: 12, fontWeight: 700, padding: "9px 14px", borderRadius: 8, background: C.green, color: "#fff", textDecoration: "none", whiteSpace: "nowrap" }}
-            >
-              Send to ROI Calculator
-            </a>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ marginBottom: 8 }}>
+            <div style={{ ...disp, fontSize: 15, fontWeight: 700, color: C.ink }}>Where do you want to go next?</div>
+            <div style={{ fontSize: 12, color: C.sub, lineHeight: 1.45, marginTop: 2 }}>Choose the path based on the question you want to answer next.</div>
           </div>
 
-          <div style={{ borderRadius: 10, border: "1px solid #F0B7B7", background: "#FFF8F8", padding: "12px 16px" }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, color: C.green, textTransform: "uppercase", marginBottom: 4 }}>Preview: inference unit economics</div>
-            <div style={{ fontSize: 12, color: "#444", lineHeight: 1.5, marginBottom: 10 }}>
-              Explore an experimental estimate of effective private-AI cost per 1M output tokens using this TCO scenario. Additional workload inputs are required in Preview.
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 10 }}>
+            <div style={{ borderRadius: 10, border: `1px solid ${C.line}`, background: "#F7F7F7", padding: "14px 16px" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, color: C.green, textTransform: "uppercase", marginBottom: 4 }}>Option A · Compare inference economics</div>
+              <div style={{ fontSize: 12, color: "#444", lineHeight: 1.5, marginBottom: 10 }}>
+                Choose this path when you want to understand the effective private-AI cost per 1M output tokens and compare it with managed-API pricing. This TCO scenario carries forward; a few inference-usage inputs are still required.
+              </div>
+              <a
+                href={inferenceEconomicsPreview.href}
+                style={{ ...disp, display: "inline-block", fontSize: 12, fontWeight: 700, padding: "9px 14px", borderRadius: 8, background: C.green, color: "#fff", textDecoration: "none", whiteSpace: "nowrap" }}
+                title="Opens Inference Economics with this TCO scenario"
+              >
+                Compare inference economics
+              </a>
             </div>
-            <a
-              href={inferenceEconomicsPreview.href}
-              style={{ ...disp, display: "inline-block", fontSize: 12, fontWeight: 700, padding: "9px 14px", borderRadius: 8, background: "#fff", color: C.green, border: "1px solid " + C.green, textDecoration: "none", whiteSpace: "nowrap" }}
-              title="Preview only — does not change TCO calculations or reports"
-            >
-              Open Inference Economics Preview
-            </a>
+
+            <div style={{ borderRadius: 10, border: `1px solid ${C.line}`, background: "#F7F7F7", padding: "14px 16px" }}>
+              <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, color: C.green, textTransform: "uppercase", marginBottom: 4 }}>Option B · Build the business case</div>
+              <div style={{ fontSize: 12, color: "#444", lineHeight: 1.5, marginBottom: 10 }}>
+                Choose this path when you want to translate this infrastructure investment ({fmt(r.adj.capex + r.oneTime)} upfront, {fmt(r.adj.opex * 12)}/yr ongoing) into task-level ROI and business value.
+                {r.isWorkloadMode ? " Based on the Workload Requirement fleet, not your reported cloud spend." : " Based on your reported cloud spend."}
+              </div>
+              <a
+                href={`/roi?initialCost=${Math.round(r.adj.capex + r.oneTime)}&recurringCost=${Math.round(r.adj.opex * 12)}&planningBasis=${r.isWorkloadMode ? "workload" : "spend"}`}
+                style={{ ...disp, display: "inline-block", fontSize: 12, fontWeight: 700, padding: "9px 14px", borderRadius: 8, background: C.green, color: "#fff", textDecoration: "none", whiteSpace: "nowrap" }}
+              >
+                Open ROI Calculator
+              </a>
+            </div>
           </div>
         </div>
 

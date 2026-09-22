@@ -5,14 +5,22 @@ import { AuthProvider } from "./AuthContext.jsx";
 import AuthWidget from "./AuthWidget.jsx";
 import { clearBrowserWorkspace, inspectWorkspaceResetState, resetWorkspace } from "./workspaceReset.js";
 
-const TOOLS = [
+const ANALYSIS_TOOLS = [
   { key: "use-cases", name: "AI Use Case\nExplorer", desc: "Match your industry's use cases to NVIDIA Blueprints CDW can execute.", status: "live", path: "/use-cases" },
   { key: "model-advisor", name: "Open-Weight\nModel Advisor", desc: "Recommends open-weight models by workload, then hands off to GPU sizing.", status: "live", path: "/model-advisor" },
   { key: "gpu-sizing", name: "GPU Sizing Tool", desc: "Right-size GPU class, count, and cluster shape for a target workload.", status: "live", path: "/gpu-sizing" },
   { key: "tco", name: "Cloud vs On-Prem\nTCO Calculator", desc: "Cloud AI spend translated into on-prem infrastructure cost and payback.", status: "live", path: "/tco" },
+  { key: "inference-economics", name: "Inference\nEconomics", desc: "Compare effective private-AI inference cost per 1M output tokens with managed-API pricing.", status: "live", path: "/inference-economics" },
   { key: "roi", name: "AI Use Case\nROI Calculator", desc: "Workload acceleration translated into capacity created and its economic value.", status: "live", path: "/roi" },
-  { key: "readiness", name: "AI Readiness\nChecklists", desc: "Work through what your data, security, and infrastructure need before deployment.", status: "live", path: "/readiness" },
 ];
+
+const READINESS_TOOL = {
+  key: "readiness",
+  name: "AI Readiness Checklists",
+  desc: "Assess data, security, and infrastructure readiness across your AI journey.",
+  status: "live",
+  path: "/readiness",
+};
 
 function LandingPageInner() {
   const [toast, setToast] = useState("");
@@ -103,6 +111,14 @@ function LandingPageInner() {
         .afl-badge .dot { width:6px; height:6px; border-radius:50%; background:#6EE7A0; }
         .afl-name { color:#fff; font-weight:700; font-size:19px; line-height:1.25; margin-bottom:8px; white-space:pre-line; }
         .afl-desc { color:rgba(255,255,255,.88); font-size:13px; line-height:1.5; max-width:220px; }
+        .afl-readiness { margin-top:22px; min-height:78px; border:2px solid var(--red); border-radius:18px; background:#fff; color:var(--red); text-decoration:none; display:flex; align-items:center; justify-content:space-between; gap:24px; padding:16px 22px; transition:transform .18s ease,box-shadow .18s ease,background .18s ease; box-shadow:0 8px 20px rgba(0,0,0,.04); }
+        .afl-readiness:hover { transform:translateY(-2px); box-shadow:0 12px 26px rgba(204,0,0,.12); background:#FFF8F8; }
+        .afl-readiness-copy { min-width:0; }
+        .afl-readiness-title { font-size:18px; line-height:1.2; font-weight:800; margin-bottom:4px; }
+        .afl-readiness-desc { color:#666; font-size:13px; line-height:1.45; }
+        .afl-readiness-action { flex-shrink:0; display:flex; align-items:center; gap:10px; font-size:12px; font-weight:800; }
+        .afl-readiness-action .dot { width:6px; height:6px; border-radius:50%; background:#22A35A; }
+        .afl-readiness-arrow { font-size:22px; line-height:1; }
         .afl-toast { position:fixed; bottom:28px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--charcoal); color:#fff; font-size:13px; padding:12px 20px; border-radius:10px; opacity:0; pointer-events:none; transition:opacity .25s ease,transform .25s ease; box-shadow:0 8px 30px rgba(0,0,0,.25); white-space:nowrap; z-index:1100; }
         .afl-toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
         .afl-reset-backdrop { position:fixed; inset:0; z-index:1000; background:rgba(25,25,25,.52); display:flex; align-items:center; justify-content:center; padding:24px; }
@@ -118,7 +134,7 @@ function LandingPageInner() {
         .afl-reset-confirm { border:1px solid var(--red); background:var(--red); color:#fff; min-width:128px; }
         .afl-reset-cancel:disabled,.afl-reset-confirm:disabled { opacity:.55; cursor:wait; }
         @media(max-width:900px){.afl-header{align-items:flex-start;flex-direction:column}.afl-account{width:100%;justify-content:flex-start}.afl-bubbles{grid-template-columns:repeat(2,1fr)}}
-        @media(max-width:560px){.afl-wrap{padding:24px 18px 80px}.afl-bubbles{grid-template-columns:1fr}.afl-bubble{min-height:140px}.afl-reset-row{align-items:flex-start;flex-direction:column}.afl-reset-actions{flex-direction:column-reverse}.afl-reset-cancel,.afl-reset-confirm{width:100%}}
+        @media(max-width:560px){.afl-wrap{padding:24px 18px 80px}.afl-bubbles{grid-template-columns:1fr}.afl-bubble{min-height:140px}.afl-readiness{align-items:flex-start;gap:12px;padding:16px 18px}.afl-readiness-action{font-size:0}.afl-readiness-action .dot{display:none}.afl-readiness-arrow{font-size:22px}.afl-reset-row{align-items:flex-start;flex-direction:column}.afl-reset-actions{flex-direction:column-reverse}.afl-reset-cancel,.afl-reset-confirm{width:100%}}
       `}</style>
 
       <div className="afl-header">
@@ -146,7 +162,7 @@ function LandingPageInner() {
       </div>
 
       <div className="afl-bubbles">
-        {TOOLS.map((tool) => (
+        {ANALYSIS_TOOLS.map((tool) => (
           <Link to={tool.path} key={tool.key} className="afl-bubble">
             <div className="afl-badge"><span className="dot" />Live</div>
             <div className="afl-name">{tool.name}</div>
@@ -154,6 +170,18 @@ function LandingPageInner() {
           </Link>
         ))}
       </div>
+
+      <Link to={READINESS_TOOL.path} className="afl-readiness">
+        <div className="afl-readiness-copy">
+          <div className="afl-readiness-title">{READINESS_TOOL.name}</div>
+          <div className="afl-readiness-desc">{READINESS_TOOL.desc}</div>
+        </div>
+        <div className="afl-readiness-action">
+          <span className="dot" />
+          <span>Live</span>
+          <span className="afl-readiness-arrow" aria-hidden="true">→</span>
+        </div>
+      </Link>
 
       {resetOpen && (
         <div className="afl-reset-backdrop" role="presentation">

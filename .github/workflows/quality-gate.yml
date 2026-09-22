@@ -16,6 +16,7 @@ on:
       - "scripts/validate_model_tranche_1.mjs"
       - "scripts/validate_model_sizing_methodology.mjs"
       - "scripts/verifyInferenceEconomicsPreview.mjs"
+      - "scripts/verifyInferenceEconomicsGuidedPreview.mjs"
       - "scripts/verifyInferenceEconomicsPreviewUi.mjs"
       - "scripts/verifyInferenceEconomicsConnector.mjs"
       - "scripts/verifyManagedApiComparison.mjs"
@@ -76,6 +77,7 @@ on:
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
       - "scripts/validate_global_reset.mjs"
+      - "scripts/verifyInferenceEconomicsGuidedPreview.mjs"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -117,6 +119,9 @@ jobs:
 
       - name: Validate Inference Economics Preview methodology
         run: node scripts/verifyInferenceEconomicsPreview.mjs
+
+      - name: Validate guided Inference Economics Preview contract
+        run: node scripts/verifyInferenceEconomicsGuidedPreview.mjs
 
       - name: Validate Inference Economics Preview UI contract
         run: node scripts/verifyInferenceEconomicsPreviewUi.mjs

@@ -10,6 +10,12 @@ import {
   qualifyInferenceEconomicsEvidence,
 } from "../src/inferenceEconomicsEvidence.js";
 import { deriveInferenceEconomicsThroughput } from "../src/inferenceEconomicsThroughput.js";
+import { calculateManagedApiWorkloadEconomics } from "../src/managedApiComparison.js";
+import { getModelById } from "../src/modelRegistry.js";
+import {
+  classifyInferenceScaleout,
+  INFERENCE_SCALEOUT_CLASSIFICATION,
+} from "../src/inferenceScaleoutClassification.js";
 import {
   OUTPUT_TOKEN_DEMAND_BASIS,
   calculateAnnualOutputTokenDemand,
@@ -170,8 +176,20 @@ assert.equal(
   integrated.effectiveThroughputTokPerSec,
 );
 
-// 7) Scaling beyond the exact benchmark configuration is suppressed until
-// qualified scaling-efficiency evidence is available.
+// 7) Whole benchmark-sized replica groups are supported when one group can
+// host the selected model. This is replica aggregation, not model-parallel scaling.
+const exact8 = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 8,
+  quant: "FP4",
+  model: {
+    id: "llama2-70b-reference",
+    label: "Llama 2 70B",
+    activeParamsB: 70,
+    totalParamsB: 70,
+    status: "VERIFIED",
+  },
+});
 const scaled16 = deriveInferenceEconomicsThroughput({
   hardwareClass: "B200",
   deployedGpuCount: 16,
@@ -180,11 +198,74 @@ const scaled16 = deriveInferenceEconomicsThroughput({
     id: "llama2-70b-reference",
     label: "Llama 2 70B",
     activeParamsB: 70,
+    totalParamsB: 70,
     status: "VERIFIED",
   },
 });
-assert.equal(scaled16.ok, false);
-assert.equal(scaled16.reason, "UNSUPPORTED_DEPLOYMENT_SCALING");
+assert.equal(exact8.ok, true);
+assert.equal(scaled16.ok, true);
+assert.equal(scaled16.deploymentEvidenceBasis, "REPLICA_SCALED");
+assert.equal(scaled16.replicaGroupCount, 2);
+assert.equal(scaled16.effectiveThroughputTokPerSec, exact8.effectiveThroughputTokPerSec * 2);
+
+
+// 7b) F1 residency guardrail: a model whose weights alone exceed aggregate HBM
+// must be suppressed before benchmark throughput is credited. This is a
+// necessary-condition check only; full workload memory remains GPU Sizing's job.
+const deepSeekV4Pro = getModelById("deepseek-v4-pro-0813");
+const impossibleResidency = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 8,
+  quant: "FP8",
+  model: deepSeekV4Pro,
+});
+assert.equal(impossibleResidency.ok, false);
+assert.equal(impossibleResidency.reason, "MODEL_DOES_NOT_FIT_BENCHMARK_CONFIG");
+assert.equal(impossibleResidency.weightMemoryGB, 1650);
+assert.equal(impossibleResidency.aggregateMemoryGB, 1440);
+// 7c) Cross-tool classification distinguishes aggregate replica capacity from
+// per-instance topology requirements without using fleet-wide concurrency as
+// a proxy for model-parallel need.
+const replicaClassification = classifyInferenceScaleout({
+  hardwareClass: "B200",
+  weightMemoryGB: 70.6,
+  sequenceMemoryGB: 4,
+  overheadPct: 0.2,
+});
+assert.equal(
+  replicaClassification.classification,
+  INFERENCE_SCALEOUT_CLASSIFICATION.REPLICA_CAPACITY_SCALEOUT
+);
+
+const topologyClassification = classifyInferenceScaleout({
+  hardwareClass: "B200",
+  weightMemoryGB: 1500,
+  sequenceMemoryGB: 10,
+  overheadPct: 0.1,
+});
+assert.equal(
+  topologyClassification.classification,
+  INFERENCE_SCALEOUT_CLASSIFICATION.TOPOLOGY_SCALEOUT_REQUIRED
+);
+assert.ok(
+  topologyClassification.minimumServingInstanceMemoryGB >
+    topologyClassification.benchmarkGroupMemoryGB
+);
+
+
+// Do not import hidden GPU-Sizing workload assumptions into standalone Guided.
+// Mistral Large 3 weights fit within 8xB200 HBM at FP8, so residency alone must
+// not suppress it; any larger requirement belongs to a full GPU Sizing run.
+const mistralLarge3 = getModelById("mistral-large-3");
+const residencyNecessaryConditionPasses = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 8,
+  quant: "FP8",
+  model: mistralLarge3,
+});
+assert.equal(residencyNecessaryConditionPasses.ok, true);
+assert.equal(residencyNecessaryConditionPasses.hardwareClass, "B200");
+assert.equal(residencyNecessaryConditionPasses.deployedGpuCount, 8);
 
 // H200 currently has qualified evidence only at FP8; unsupported precision must
 // be suppressed rather than silently reusing the FP8 anchor.
@@ -302,6 +383,57 @@ assert.equal(growthExceedsSupportedCapacity.ok, false);
 assert.equal(growthExceedsSupportedCapacity.reason, "UNDERSIZED_FOR_DEMAND");
 assert.equal(growthExceedsSupportedCapacity.costPerMillionOutputTokens, null);
 assert.ok(growthExceedsSupportedCapacity.annualShortfallTokens > 0);
+
+// 12d) F4: non-integer horizons must be rejected rather than silently floored.
+const fractionalPrivateHorizon = calculateDemandBoundInferenceEconomics({
+  attributableTcoUsd: 1_200_000,
+  horizonYears: 2.5,
+  demand: measuredDemand,
+  servingCapacity,
+  evidenceStatus: "MODELED",
+});
+assert.equal(fractionalPrivateHorizon.ok, false);
+assert.ok(fractionalPrivateHorizon.errors.includes("horizonYears must be a whole number of years."));
+
+const fractionalApiHorizon = calculateManagedApiWorkloadEconomics({
+  annualOutputTokens: 12_000_000_000,
+  horizonYears: 2.5,
+  demandGrowthRate: 0,
+  inputTokensPerOutputToken: 0.70 / 0.30,
+  cachedInputShare: 0,
+  rate: {
+    inputUsdPerMillion: 5,
+    outputUsdPerMillion: 25,
+  },
+});
+assert.equal(fractionalApiHorizon.ok, false);
+assert.ok(fractionalApiHorizon.errors.includes("horizonYears must be a whole number of years."));
+
+// 12e) F8: negative demand growth is rejected consistently on both private and API sides.
+const negativePrivateGrowth = calculateDemandBoundInferenceEconomics({
+  attributableTcoUsd: 1_200_000,
+  horizonYears: 3,
+  demand: measuredDemand,
+  servingCapacity,
+  demandGrowthRate: -0.1,
+  evidenceStatus: "MODELED",
+});
+assert.equal(negativePrivateGrowth.ok, false);
+assert.ok(negativePrivateGrowth.errors.includes("demandGrowthRate must be >= 0."));
+
+const negativeApiGrowth = calculateManagedApiWorkloadEconomics({
+  annualOutputTokens: 12_000_000_000,
+  horizonYears: 3,
+  demandGrowthRate: -0.1,
+  inputTokensPerOutputToken: 0.70 / 0.30,
+  cachedInputShare: 0,
+  rate: {
+    inputUsdPerMillion: 5,
+    outputUsdPerMillion: 25,
+  },
+});
+assert.equal(negativeApiGrowth.ok, false);
+assert.ok(negativeApiGrowth.errors.includes("demandGrowthRate must be >= 0."));
 
 // 13) An undersized design must not win with an artificially cheap token cost.
 const tooSmallCapacity = calculateAnnualServingCapacity({
