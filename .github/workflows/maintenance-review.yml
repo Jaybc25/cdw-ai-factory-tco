@@ -26,11 +26,14 @@ jobs:
       - name: Collect review evidence
         env:
           MAINTENANCE_REPORT_PATH: maintenance-review.md
+          MAINTENANCE_SHADOW_PATH: maintenance-shadow.json
         run: node scripts/maintenanceWatch.mjs --live
       - uses: actions/upload-artifact@v4
         with:
           name: maintenance-review
-          path: maintenance-review.md
+          path: |
+            maintenance-review.md
+            maintenance-shadow.json
       - name: Keep one review issue current
         uses: actions/github-script@v7
         with:
@@ -38,15 +41,45 @@ jobs:
             const fs = require('fs');
             const title = 'AI Factory: weekly maintenance review';
             const body = fs.readFileSync('maintenance-review.md', 'utf8');
+            const observation = JSON.parse(fs.readFileSync('maintenance-shadow.json', 'utf8'));
             const { owner, repo } = context.repo;
             const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner, repo, state: 'open', per_page: 100,
             });
             const issue = issues.find(item => !item.pull_request && item.title === title);
+            let issueNumber;
             if (issue) {
+              issueNumber = issue.number;
               if (issue.body !== body) {
                 await github.rest.issues.update({ owner, repo, issue_number: issue.number, body });
               }
             } else {
-              await github.rest.issues.create({ owner, repo, title, body });
+              const created = await github.rest.issues.create({ owner, repo, title, body });
+              issueNumber = created.data.number;
+            }
+            // One durable observation comment per UTC day. Re-running the
+            // workflow updates that day's entry instead of duplicating it.
+            const day = observation.observedAt.slice(0, 10);
+            const marker = `<!-- cloud-pricing-shadow:${day} -->`;
+            const lines = observation.rows.map(row => {
+              const delta = Number.isFinite(row.changePct) ? ` (${row.changePct.toFixed(1)}%)` : '';
+              return `- ${row.provider} ${row.gpu}, ${row.sku} / ${row.region}: **${row.state}**${delta}`;
+            });
+            const comment = [marker, `### Cloud pricing shadow observation · ${day}`,
+              `${observation.checkedRows}/${observation.expectedRows} Azure candidates queried; ` +
+              Object.entries(observation.counts).map(([state, count]) => `${state}: ${count}`).join(', ') + '.',
+              ...lines,
+              `[Workflow evidence](${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}). ` +
+              'No production rate or verification date was changed. This is source monitoring, not price certification.'
+            ].join('\n\n');
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner, repo, issue_number: issueNumber, per_page: 100,
+            });
+            const previous = comments.find(item => item.body?.includes(marker));
+            if (previous) {
+              if (previous.body !== comment) {
+                await github.rest.issues.updateComment({ owner, repo, comment_id: previous.id, body: comment });
+              }
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number: issueNumber, body: comment });
             }

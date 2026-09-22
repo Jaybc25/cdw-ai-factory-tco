@@ -90,6 +90,7 @@ The GitHub repository is the source of truth for code and tracked data. Before r
 - Hugging Face model-spec sync: monthly on the 1st at 06:00 UTC, plus manual dispatch
 - Artificial Analysis capability sync: weekly on Monday at 06:00 UTC, plus manual dispatch
 - Canonical model-registry reconciliation: daily at 07:00 UTC and on changes under `data/**`
+- Weekly maintenance evidence review: Monday at 13:30 UTC; captures Azure GPU VM price candidates, a structured shadow observation, and a dated comment on the rolling review issue. See `docs/cloud-pricing-shadow-rollout.md` for the validation and expansion plan; prices are not automatically changed.
 
 Relevant workflows live under `.github/workflows/`.
 

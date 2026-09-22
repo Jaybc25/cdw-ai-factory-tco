@@ -15,7 +15,7 @@ const HF_SNAPSHOT = JSON.parse(fs.readFileSync(new URL("../data/model_specs.json
 const AA_SNAPSHOT = JSON.parse(fs.readFileSync(new URL("../data/model_capability_db.json", import.meta.url), "utf8"));
 const AA_DISCOVERY = JSON.parse(fs.readFileSync(new URL("../data/aa_discovery_candidates.json", import.meta.url), "utf8"));
 
-const AZURE_CANONICAL = Object.freeze([
+export const AZURE_CANONICAL = Object.freeze([
   { gpu: "A100", sku: "Standard_ND96amsr_A100_v4", region: "eastus", gpus: 8 },
   { gpu: "H100", sku: "Standard_ND96isr_H100_v5", region: "eastus", gpus: 8 },
   { gpu: "H200", sku: "Standard_ND96isr_H200_v5", region: "westus3", gpus: 8 },
@@ -45,14 +45,18 @@ function normalizeAzureItem(item, target) {
   const price = Number(item.retailPrice);
   // Reject apparent Spot/Low Priority/Windows/reservation meters. A remaining
   // row is still only a candidate until a reviewer verifies purchase basis.
-  const excluded = /spot|low priority|windows|reservation|savings plan/i.test(`${meter} ${product} ${item.skuName || ""}`);
+  const excluded = /spot|low priority|windows|reservation|savings plan|dev.?test/i.test(`${meter} ${product} ${item.skuName || ""}`);
   return !excluded && sku.toLowerCase() === target.sku.toLowerCase() &&
     region.toLowerCase() === target.region && item.type === "Consumption" &&
     item.currencyCode === "USD" &&
-    /hour/i.test(unit) && Number.isFinite(price) && price > 0;
+    unit === "1 Hour" && /virtual machines/i.test(product) &&
+    Number.isFinite(price) && price > 0;
 }
 
 export function assessAzureResponse(items, target, currentRate) {
+  if (!Number.isFinite(currentRate) || currentRate <= 0 || !Number.isInteger(target.gpus) || target.gpus <= 0) {
+    throw new Error("A listed baseline rate and positive GPU count are required");
+  }
   const matches = items.filter((item) => normalizeAzureItem(item, target));
   if (matches.length !== 1) {
     return { state: matches.length ? "AMBIGUOUS" : "NO_MATCH", count: matches.length };
@@ -64,8 +68,10 @@ export function assessAzureResponse(items, target, currentRate) {
     state: Math.abs(changePct) >= 0.5 ? "REVIEW_CHANGE" : "CHECKED_CANDIDATE",
     count: 1,
     candidatePerGpu: perGpu,
+    nodePrice: item.retailPrice,
     changePct,
     meter: item.meterName,
+    product: item.productName,
     currency: item.currencyCode,
     effectiveStartDate: item.effectiveStartDate,
   };
@@ -102,12 +108,33 @@ export async function azureReview(fetchImpl = fetch) {
     const currentRate = CLOUD_GPU_RATES.Azure[target.gpu]?.od;
     try {
       const items = await fetchAzureCandidate(target, fetchImpl);
-      rows.push({ ...target, currentRate, ...assessAzureResponse(items, target, currentRate) });
+      rows.push({ provider: "Azure", ...target, currentRate, ...assessAzureResponse(items, target, currentRate) });
     } catch (error) {
-      rows.push({ ...target, currentRate, state: "SOURCE_ERROR", detail: String(error.message).slice(0, 180) });
+      rows.push({ provider: "Azure", ...target, currentRate, state: "SOURCE_ERROR", detail: String(error.message).slice(0, 180) });
     }
   }
   return rows;
+}
+
+// This observation records source candidates; it never advances the registry's
+// pricing verification date or certifies a price for use in a client estimate.
+export function buildShadowObservation({ azure = [], asOf = new Date() } = {}) {
+  const counts = Object.fromEntries(["CHECKED_CANDIDATE", "REVIEW_CHANGE", "NO_MATCH", "AMBIGUOUS", "SOURCE_ERROR"]
+    .map((state) => [state, azure.filter((row) => row.state === state).length]));
+  return {
+    schemaVersion: 1,
+    observedAt: asOf.toISOString(),
+    source: "Azure Retail Prices API",
+    mode: "shadow-candidates-only",
+    expectedRows: AZURE_CANONICAL.length,
+    checkedRows: azure.length,
+    counts,
+    rows: azure.map(({ provider, gpu, sku, region, gpus, currentRate, state, count, candidatePerGpu,
+      changePct, nodePrice, meter, product, currency, effectiveStartDate, detail }) => ({
+      provider, gpu, sku, region, gpus, currentRate, state, count, candidatePerGpu,
+      changePct, nodePrice, meter, product, currency, effectiveStartDate, detail,
+    })),
+  };
 }
 
 export function buildReport({ asOf = new Date(), azure = [] } = {}) {
@@ -141,7 +168,7 @@ export function buildReport({ asOf = new Date(), azure = [] } = {}) {
     `AA discovery has ${AA_DISCOVERY.unresolved_aa_slugs?.length || 0} unmapped candidates, including proprietary models; this is not an open-weight shortlist.`,
     "",
     "## Azure retail catalog candidates",
-    "Exact SKU and region lookup; Linux/standard On-Demand purchase basis and meter identity require review before changing rates. Missing or ambiguous rows do not overwrite a planning value.",
+    "Shadow monitoring of four exact SKU/region pairs. Consumption, USD, hourly VM meters exclude Spot, Windows, and reservation variants; a reviewer must still confirm the purchase basis and GPU count before changing rates. Missing or ambiguous rows do not overwrite a planning value.",
     "| GPU | SKU / region | Current $/GPU-hour | Catalog candidate | State | Detail |",
     "| --- | --- | ---: | ---: | --- | --- |",
     ...azure.map((row) => `| ${row.gpu} | [${row.sku} / ${row.region}](${azureCatalogUrl(row)}) | ${row.currentRate.toFixed(2)} | ${row.candidatePerGpu?.toFixed(4) ?? "—"} | **${row.state}** | ${escapeCell(row.detail || (row.changePct == null ? `${row.count ?? 0} matching meters` : `${row.changePct.toFixed(1)}% · ${row.meter || "meter unspecified"} · ${row.currency || "currency unspecified"}`))} |`),
@@ -171,9 +198,13 @@ export function buildReport({ asOf = new Date(), azure = [] } = {}) {
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const live = process.argv.includes("--live");
-  const report = buildReport({ azure: live ? await azureReview() : [] });
+  const asOf = new Date();
+  const azure = live ? await azureReview() : [];
+  const report = buildReport({ asOf, azure });
   const output = process.env.MAINTENANCE_REPORT_PATH || "maintenance-review.md";
   fs.writeFileSync(output, report.markdown);
+  if (live) fs.writeFileSync(process.env.MAINTENANCE_SHADOW_PATH || "maintenance-shadow.json",
+    `${JSON.stringify(buildShadowObservation({ asOf, azure }), null, 2)}\n`);
   if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, report.markdown);
   console.log(`Wrote ${output}; ${report.states.map((x) => `${x.name}: ${x.state}`).join(", ")}`);
 }

@@ -35,7 +35,7 @@ The Inference Economics managed API selector reads a checked-in, dated first-par
 - Default branch: `main`.
 - Git history and future releases/tags.
 - GitHub Actions for model-data maintenance and reconciliation.
-- Weekly read-only maintenance review action: checks registry freshness and Azure Retail Prices API candidates, stores a report artifact, and maintains one GitHub review issue. Its built-in GitHub token needs `issues: write`; it does not write pricing registries or require a provider secret.
+- Weekly read-only maintenance review action: checks registry freshness and Azure Retail Prices API candidates, stores Markdown and JSON artifacts, and maintains one GitHub review issue with dated shadow-observation comments. Its built-in GitHub token needs `issues: write`; it does not write pricing registries or require a provider secret. See `docs/cloud-pricing-shadow-rollout.md` for the observation gate and pending provider coverage.
 - GitHub Actions secret storage for external data APIs.
 - Connected AI-tool access for repo-backed review and maintenance.
 

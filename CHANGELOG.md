@@ -1,5 +1,11 @@
 # Changelog
 
+## September 22, 2026 - Cloud price shadow observation rollout
+
+- Extended the scheduled maintenance review to preserve dated Azure GPU VM candidate observations in the rolling issue and a structured workflow artifact.
+- Tightened exact SKU, region, USD, hourly VM, and purchase-variant filters; missing, duplicate, changed, and failed source readings remain review signals.
+- Documented a four-run validation period and staged AWS, Google Cloud, and Oracle Cloud coverage before considering proposed pricing PRs or narrowly scoped unattended updates. Production pricing and verification dates were not changed.
+
 ## September 8, 2026 - Model Advisor explanation polish
 
 - Simplified customer-facing recommendation and decision-trace language without changing ranking, filters, margins, tie-breaking, or model eligibility.
