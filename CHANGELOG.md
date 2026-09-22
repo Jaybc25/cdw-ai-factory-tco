@@ -59,6 +59,12 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+### September 22, 2026 - Read-only maintenance review automation
+
+- Added a weekly GitHub Actions evidence report and one rolling maintenance issue covering pricing age, managed API snapshot age, cloud rows using proxies/quote placeholders, and manual IE/model/governance review tasks.
+- Added an exact-SKU Azure Retail Prices API candidate comparison for four listed GPU VM configurations. It records missing, ambiguous, changed, and source-error states without changing pricing, provenance dates, methodology, or customer-facing output. Provider meter and purchase-basis review remains required.
+- Corrected the runbook's on-prem price verification date and expanded its live regression checklist for Guided Inference Economics. The existing HF/AA syncs, freshness check, and human approval boundaries remain in place.
+
 ### September 22, 2026 - Guided Inference Economics and cross-tool completion
 
 - PR #112 merged the Guided Inference Economics experience into `main`: a landing-page entry at `/inference-economics`, contextual TCO and GPU Sizing handoffs, session input persistence, an exportable report, a calculation/audit view, and a path onward to ROI. The earlier TCO preview routes remain available in source.

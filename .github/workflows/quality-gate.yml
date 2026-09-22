@@ -22,6 +22,9 @@ on:
       - "scripts/verifyManagedApiComparison.mjs"
       - "scripts/verifyManagedApiPricingRefresh.mjs"
       - "scripts/auditManagedApiPricingFreshness.mjs"
+      - "scripts/maintenanceWatch.mjs"
+      - "scripts/verifyMaintenanceWatch.mjs"
+      - ".github/workflows/maintenance-review.yml"
       - ".github/workflows/managed-api-pricing-freshness.yml"
       - "scripts/verifyInferenceEconomicsConnector.mjs"
       - "scripts/verifyManagedApiComparison.mjs"
@@ -42,9 +45,6 @@ on:
       - "scripts/validate_best_value_gpuaas.mjs"
       - "scripts/validate_best_value_gpuaas_ui.mjs"
       - "scripts/validate_global_reset.mjs"
-      - "scripts/verifyManagedApiPricingRefresh.mjs"
-      - "scripts/auditManagedApiPricingFreshness.mjs"
-      - ".github/workflows/managed-api-pricing-freshness.yml"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -78,6 +78,9 @@ on:
       - "scripts/validate_best_value_gpuaas_ui.mjs"
       - "scripts/validate_global_reset.mjs"
       - "scripts/verifyInferenceEconomicsGuidedPreview.mjs"
+      - "scripts/maintenanceWatch.mjs"
+      - "scripts/verifyMaintenanceWatch.mjs"
+      - ".github/workflows/maintenance-review.yml"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -134,6 +137,9 @@ jobs:
 
       - name: Validate managed API pricing refresh architecture
         run: node scripts/verifyManagedApiPricingRefresh.mjs
+
+      - name: Validate weekly maintenance evidence report
+        run: node scripts/verifyMaintenanceWatch.mjs
 
       - name: Validate hybrid sequence-state methodology
         run: node scripts/validate_hybrid_sequence_state_methodology.mjs
