@@ -10,8 +10,8 @@ assert.ok(app.includes('backHref="/tco"'));
 
 // Preview stays a separate route; IE-5 adds only an explicit one-way Preview link from TCO.
 const tco = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
-assert.ok(tco.includes("Open Guided Inference Economics"));
-assert.ok(tco.includes("Opens Guided Inference Economics — does not change TCO calculations or reports"));
+assert.ok(tco.includes("Compare inference economics"));
+assert.ok(tco.includes("Opens Inference Economics with this TCO scenario"));
 
 // Guardrails that should remain visible in the Preview UI.
 assert.ok(ui.includes("PREVIEW — IE-6.6"));

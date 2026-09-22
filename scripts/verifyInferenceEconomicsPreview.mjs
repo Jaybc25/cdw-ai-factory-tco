@@ -13,6 +13,10 @@ import { deriveInferenceEconomicsThroughput } from "../src/inferenceEconomicsThr
 import { calculateManagedApiWorkloadEconomics } from "../src/managedApiComparison.js";
 import { getModelById } from "../src/modelRegistry.js";
 import {
+  classifyInferenceScaleout,
+  INFERENCE_SCALEOUT_CLASSIFICATION,
+} from "../src/inferenceScaleoutClassification.js";
+import {
   OUTPUT_TOKEN_DEMAND_BASIS,
   calculateAnnualOutputTokenDemand,
   calculateAnnualServingCapacity,
@@ -172,8 +176,20 @@ assert.equal(
   integrated.effectiveThroughputTokPerSec,
 );
 
-// 7) Scaling beyond the exact benchmark configuration is suppressed until
-// qualified scaling-efficiency evidence is available.
+// 7) Whole benchmark-sized replica groups are supported when one group can
+// host the selected model. This is replica aggregation, not model-parallel scaling.
+const exact8 = deriveInferenceEconomicsThroughput({
+  hardwareClass: "B200",
+  deployedGpuCount: 8,
+  quant: "FP4",
+  model: {
+    id: "llama2-70b-reference",
+    label: "Llama 2 70B",
+    activeParamsB: 70,
+    totalParamsB: 70,
+    status: "VERIFIED",
+  },
+});
 const scaled16 = deriveInferenceEconomicsThroughput({
   hardwareClass: "B200",
   deployedGpuCount: 16,
@@ -182,11 +198,15 @@ const scaled16 = deriveInferenceEconomicsThroughput({
     id: "llama2-70b-reference",
     label: "Llama 2 70B",
     activeParamsB: 70,
+    totalParamsB: 70,
     status: "VERIFIED",
   },
 });
-assert.equal(scaled16.ok, false);
-assert.equal(scaled16.reason, "UNSUPPORTED_DEPLOYMENT_SCALING");
+assert.equal(exact8.ok, true);
+assert.equal(scaled16.ok, true);
+assert.equal(scaled16.deploymentEvidenceBasis, "REPLICA_SCALED");
+assert.equal(scaled16.replicaGroupCount, 2);
+assert.equal(scaled16.effectiveThroughputTokPerSec, exact8.effectiveThroughputTokPerSec * 2);
 
 
 // 7b) F1 residency guardrail: a model whose weights alone exceed aggregate HBM
@@ -203,6 +223,35 @@ assert.equal(impossibleResidency.ok, false);
 assert.equal(impossibleResidency.reason, "MODEL_DOES_NOT_FIT_BENCHMARK_CONFIG");
 assert.equal(impossibleResidency.weightMemoryGB, 1650);
 assert.equal(impossibleResidency.aggregateMemoryGB, 1440);
+// 7c) Cross-tool classification distinguishes aggregate replica capacity from
+// per-instance topology requirements without using fleet-wide concurrency as
+// a proxy for model-parallel need.
+const replicaClassification = classifyInferenceScaleout({
+  hardwareClass: "B200",
+  weightMemoryGB: 70.6,
+  sequenceMemoryGB: 4,
+  overheadPct: 0.2,
+});
+assert.equal(
+  replicaClassification.classification,
+  INFERENCE_SCALEOUT_CLASSIFICATION.REPLICA_CAPACITY_SCALEOUT
+);
+
+const topologyClassification = classifyInferenceScaleout({
+  hardwareClass: "B200",
+  weightMemoryGB: 1500,
+  sequenceMemoryGB: 10,
+  overheadPct: 0.1,
+});
+assert.equal(
+  topologyClassification.classification,
+  INFERENCE_SCALEOUT_CLASSIFICATION.TOPOLOGY_SCALEOUT_REQUIRED
+);
+assert.ok(
+  topologyClassification.minimumServingInstanceMemoryGB >
+    topologyClassification.benchmarkGroupMemoryGB
+);
+
 
 // Do not import hidden GPU-Sizing workload assumptions into standalone Guided.
 // Mistral Large 3 weights fit within 8xB200 HBM at FP8, so residency alone must

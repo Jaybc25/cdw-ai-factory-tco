@@ -1,6 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import cdwLogo from "./cdw-logo.png";
 import { getDefaultModel, getModelById, RECOMMENDED_MODELS } from "./modelRegistry.js";
 import { parseInferenceEconomicsPreviewHandoff } from "./inferenceEconomicsConnector.js";
+import { loadSessionState, saveSessionState } from "./sessionState.js";
 import { deriveInferenceEconomicsThroughput } from "./inferenceEconomicsThroughput.js";
 import {
   OUTPUT_TOKEN_DEMAND_BASIS,
@@ -61,52 +63,92 @@ function compactMoney(v) {
 
 export default function InferenceEconomicsGuidedPreview() {
   const defaultModel = getDefaultModel();
+  const [saved] = useState(() => loadSessionState("inference-economics"));
   const handoff = useMemo(
     () => (typeof window !== "undefined" ? parseInferenceEconomicsPreviewHandoff(window.location.search) : null),
     []
   );
   const inherited = handoff?.source === "tco";
-  const initialModel = handoff?.modelId ? getModelById(handoff.modelId) : null;
+  const initialModelId = handoff?.modelId || saved?.modelId || null;
+  const initialModel = initialModelId ? getModelById(initialModelId) : null;
   const modelOptions = useMemo(() => {
     const options = [...RECOMMENDED_MODELS];
     if (initialModel && !options.some((m) => m.id === initialModel.id)) options.push(initialModel);
     return options;
   }, [initialModel]);
 
-  const [hardwareClass, setHardwareClass] = useState(handoff?.hardwareClass || "B200");
-  const [deployedGpuCount, setDeployedGpuCount] = useState(handoff?.gpuCount || 8);
-  const [quant, setQuant] = useState(handoff?.quant || "FP8");
-  const [modelId, setModelId] = useState(handoff?.modelId || defaultModel?.id || RECOMMENDED_MODELS[0]?.id);
-  const [attributableTcoUsd, setAttributableTcoUsd] = useState(handoff?.attributableTcoUsd || "");
-  const [horizonYears, setHorizonYears] = useState(handoff?.horizonYears || 3);
-  const [activeHoursPerDay, setActiveHoursPerDay] = useState(handoff?.activeHoursPerDay || 8);
-  const [activeDaysPerYear, setActiveDaysPerYear] = useState(250);
-  const [productionServingFactor, setProductionServingFactor] = useState("");
-  const [demandGrowthRate, setDemandGrowthRate] = useState(handoff?.demandGrowthRate ?? 0);
+  const [hardwareClass, setHardwareClass] = useState(handoff?.hardwareClass ?? saved?.hardwareClass ?? "B200");
+  const [deployedGpuCount, setDeployedGpuCount] = useState(handoff?.gpuCount ?? saved?.deployedGpuCount ?? 8);
+  const [quant, setQuant] = useState(handoff?.quant ?? saved?.quant ?? "FP8");
+  const [modelId, setModelId] = useState(handoff?.modelId ?? saved?.modelId ?? defaultModel?.id ?? RECOMMENDED_MODELS[0]?.id);
+  const [attributableTcoUsd, setAttributableTcoUsd] = useState(handoff?.attributableTcoUsd ?? saved?.attributableTcoUsd ?? "");
+  const [horizonYears, setHorizonYears] = useState(handoff?.horizonYears ?? saved?.horizonYears ?? 3);
+  const [activeHoursPerDay, setActiveHoursPerDay] = useState(handoff?.activeHoursPerDay ?? saved?.activeHoursPerDay ?? 8);
+  const [activeDaysPerYear, setActiveDaysPerYear] = useState(saved?.activeDaysPerYear ?? 250);
+  const [productionServingFactor, setProductionServingFactor] = useState(saved?.productionServingFactor ?? "");
+  const [demandGrowthRate, setDemandGrowthRate] = useState(handoff?.demandGrowthRate ?? saved?.demandGrowthRate ?? 0);
 
-  const [demandBasis, setDemandBasis] = useState(OUTPUT_TOKEN_DEMAND_BASIS.MEASURED_MONTHLY);
-  const [monthlyOutputTokens, setMonthlyOutputTokens] = useState("");
-  const [annualOutputTokens, setAnnualOutputTokens] = useState("");
-  const [requestsPerDay, setRequestsPerDay] = useState("");
-  const [avgOutputTokens, setAvgOutputTokens] = useState("");
+  const [demandBasis, setDemandBasis] = useState(saved?.demandBasis ?? OUTPUT_TOKEN_DEMAND_BASIS.MEASURED_MONTHLY);
+  const [monthlyOutputTokens, setMonthlyOutputTokens] = useState(saved?.monthlyOutputTokens ?? "");
+  const [annualOutputTokens, setAnnualOutputTokens] = useState(saved?.annualOutputTokens ?? "");
+  const [requestsPerDay, setRequestsPerDay] = useState(saved?.requestsPerDay ?? "");
+  const [avgOutputTokens, setAvgOutputTokens] = useState(saved?.avgOutputTokens ?? "");
 
-  const [apiProvider, setApiProvider] = useState("");
-  const [apiModelId, setApiModelId] = useState("");
-  const [apiModelLabel, setApiModelLabel] = useState("");
-  const [apiCustomProvider, setApiCustomProvider] = useState("");
-  const [apiInputUsdPerMillion, setApiInputUsdPerMillion] = useState("");
-  const [apiOutputUsdPerMillion, setApiOutputUsdPerMillion] = useState("");
-  const [apiCachedInputUsdPerMillion, setApiCachedInputUsdPerMillion] = useState("");
-  const [apiInputTokensPerOutputToken, setApiInputTokensPerOutputToken] = useState("");
-  const [apiCachedInputShare, setApiCachedInputShare] = useState(0);
-  const [customizeApi, setCustomizeApi] = useState(false);
+  const [apiProvider, setApiProvider] = useState(saved?.apiProvider ?? "");
+  const [apiModelId, setApiModelId] = useState(saved?.apiModelId ?? "");
+  const [apiModelLabel, setApiModelLabel] = useState(saved?.apiModelLabel ?? "");
+  const [apiCustomProvider, setApiCustomProvider] = useState(saved?.apiCustomProvider ?? "");
+  const [apiInputUsdPerMillion, setApiInputUsdPerMillion] = useState(saved?.apiInputUsdPerMillion ?? "");
+  const [apiOutputUsdPerMillion, setApiOutputUsdPerMillion] = useState(saved?.apiOutputUsdPerMillion ?? "");
+  const [apiCachedInputUsdPerMillion, setApiCachedInputUsdPerMillion] = useState(saved?.apiCachedInputUsdPerMillion ?? "");
+  const [apiInputTokensPerOutputToken, setApiInputTokensPerOutputToken] = useState(saved?.apiInputTokensPerOutputToken ?? "");
+  const [apiCachedInputShare, setApiCachedInputShare] = useState(saved?.apiCachedInputShare ?? 0);
+  const [customizeApi, setCustomizeApi] = useState(saved?.customizeApi ?? false);
+  const [view, setView] = useState("calc");
+
+  useEffect(() => {
+    saveSessionState("inference-economics", {
+      hardwareClass,
+      deployedGpuCount,
+      quant,
+      modelId,
+      attributableTcoUsd,
+      horizonYears,
+      activeHoursPerDay,
+      activeDaysPerYear,
+      productionServingFactor,
+      demandGrowthRate,
+      demandBasis,
+      monthlyOutputTokens,
+      annualOutputTokens,
+      requestsPerDay,
+      avgOutputTokens,
+      apiProvider,
+      apiModelId,
+      apiModelLabel,
+      apiCustomProvider,
+      apiInputUsdPerMillion,
+      apiOutputUsdPerMillion,
+      apiCachedInputUsdPerMillion,
+      apiInputTokensPerOutputToken,
+      apiCachedInputShare,
+      customizeApi,
+    });
+  }, [
+    hardwareClass, deployedGpuCount, quant, modelId, attributableTcoUsd, horizonYears,
+    activeHoursPerDay, activeDaysPerYear, productionServingFactor, demandGrowthRate,
+    demandBasis, monthlyOutputTokens, annualOutputTokens, requestsPerDay, avgOutputTokens,
+    apiProvider, apiModelId, apiModelLabel, apiCustomProvider, apiInputUsdPerMillion,
+    apiOutputUsdPerMillion, apiCachedInputUsdPerMillion, apiInputTokensPerOutputToken,
+    apiCachedInputShare, customizeApi,
+  ]);
 
   const model = modelOptions.find((m) => m.id === modelId) || defaultModel;
   const customParamsB = handoff?.modelId === "custom" ? handoff?.modelParamsB : null;
   const availablePrecisions = PRECISIONS_BY_HARDWARE[hardwareClass] || ["FP8"];
 
   const blockers = (handoff?.blockers || []).filter((code) =>
-    ["UNSUPPORTED_HARDWARE", "CUSTOM_MODEL_SIZE_MISSING", "INFERENCE_SHARE_UNKNOWN", "NO_INFERENCE_SHARE"].includes(code)
+    ["UNSUPPORTED_HARDWARE", "CUSTOM_MODEL_SIZE_MISSING", "INFERENCE_SHARE_UNKNOWN", "NO_INFERENCE_SHARE", "TOPOLOGY_SCALEOUT_REQUIRED"].includes(code)
   );
   const inheritedScenarioBlocked = inherited && blockers.length > 0;
 
@@ -147,7 +189,9 @@ export default function InferenceEconomicsGuidedPreview() {
       ? {
           ok: false,
           reason: "INHERITED_SCENARIO_UNSUPPORTED",
-          errors: ["The inherited TCO scenario has an unresolved eligibility issue."],
+          errors: blockers.includes("TOPOLOGY_SCALEOUT_REQUIRED")
+            ? ["GPU Sizing classified this workload as topology-dependent: one modeled serving instance does not fit inside a qualified benchmark-sized serving group. Definitive token economics are suppressed until topology-specific throughput evidence is available."]
+            : ["The inherited TCO scenario has an unresolved eligibility issue."],
         }
       : calculateDemandBoundInferenceEconomics({
           attributableTcoUsd: n(attributableTcoUsd),
@@ -308,6 +352,59 @@ export default function InferenceEconomicsGuidedPreview() {
         : "the same"
     : null;
 
+  const roiHandoffReady =
+    handoff?.source === "tco" &&
+    Number.isFinite(Number(handoff?.roiInitialCostUsd)) &&
+    Number.isFinite(Number(handoff?.roiRecurringCostUsd));
+  const roiHref = roiHandoffReady
+    ? `/roi?initialCost=${Math.round(Number(handoff.roiInitialCostUsd))}&recurringCost=${Math.round(Number(handoff.roiRecurringCostUsd))}&planningBasis=${handoff?.roiPlanningBasis || "spend"}`
+    : "/roi";
+
+  if (view === "report") {
+    return (
+      <InferenceEconomicsReportView
+        onBack={() => setView("calc")}
+        onAudit={() => setView("audit")}
+        model={model}
+        hardwareClass={hardwareClass}
+        deployedGpuCount={n(deployedGpuCount)}
+        quant={quant}
+        horizonYears={n(horizonYears)}
+        attributableTcoUsd={n(attributableTcoUsd)}
+        economics={e}
+        managed={apiResult?.managed}
+        comparison={comparison}
+        apiModelLabel={apiModelLabel}
+        apiBasis={apiResult?.basis}
+      />
+    );
+  }
+
+  if (view === "audit") {
+    return (
+      <InferenceEconomicsAuditView
+        onBack={() => setView("report")}
+        model={model}
+        hardwareClass={hardwareClass}
+        deployedGpuCount={n(deployedGpuCount)}
+        quant={quant}
+        horizonYears={n(horizonYears)}
+        attributableTcoUsd={n(attributableTcoUsd)}
+        demandGrowthRate={n(demandGrowthRate)}
+        activeHoursPerDay={n(activeHoursPerDay)}
+        activeDaysPerYear={n(activeDaysPerYear)}
+        productionServingFactor={n(productionServingFactor)}
+        demand={result.demand}
+        throughput={t}
+        economics={e}
+        managed={apiResult?.managed}
+        comparison={comparison}
+        apiModelLabel={apiModelLabel}
+        apiBasis={apiResult?.basis}
+      />
+    );
+  }
+
   return (
     <main style={page}>
       <div style={previewBanner}>
@@ -319,7 +416,7 @@ export default function InferenceEconomicsGuidedPreview() {
         {inherited ? (
           <div style={summaryGrid}>
             <Summary label="Hardware" value={hardwareClass} />
-            <Summary label="GPUs used for this estimate" value={deployedGpuCount} />
+            <Summary label="Deployed GPUs evaluated" value={deployedGpuCount} />
             <Summary label="Model" value={model?.label || "—"} />
             <Summary label="Precision" value={quant} />
             <Summary label="Private AI cost assigned to this workload" value={attributableTcoUsd ? compactMoney(n(attributableTcoUsd)) : "Not available"} />
@@ -374,7 +471,7 @@ export default function InferenceEconomicsGuidedPreview() {
         <details style={details} open={!productionServingFactor}>
           <summary style={summaryLink}>Technical assumptions</summary>
           <div style={{ ...twoCol, marginTop: 14 }}>
-            <Field label="GPUs used for this estimate" help="Throughput is only credited when the GPU count matches the supported benchmark configuration.">
+            <Field label="Deployed GPUs evaluated" help="Exact benchmark counts use direct evidence. Whole multiples of a benchmark-sized group may be modeled as independent serving replicas when one group can host the selected model.">
               <input style={input} type="number" min="1" value={deployedGpuCount} onChange={(ev) => setDeployedGpuCount(ev.target.value)} disabled={inherited} />
             </Field>
             <Field label="Precision" help="Inference precision used for the throughput estimate.">
@@ -455,6 +552,7 @@ export default function InferenceEconomicsGuidedPreview() {
               <summary style={summaryLink}>Evidence & methodology</summary>
               <div style={methodText}>
                 <div><b>Benchmark-adjusted output ceiling:</b> {compact(t?.effectiveThroughputTokPerSec)} tok/s</div>
+                <div><b>Deployment evidence basis:</b> {t?.deploymentEvidenceBasis === "REPLICA_SCALED" ? `Replica-scaled · ${t.replicaGroupCount} × ${t.benchmarkGpuCount}-GPU serving groups` : "Exact benchmark configuration"}</div>
                 <div><b>Evidence source:</b> {t?.evidence?.sourceLabel || "—"}</div>
                 <div><b>Evidence status:</b> {e.evidenceStatus || "—"}</div>
               </div>
@@ -615,13 +713,367 @@ export default function InferenceEconomicsGuidedPreview() {
           </div>
         )}
       </Step>
+
+      <div className="no-print" style={{ marginTop: 18, marginBottom: 14, border: "1px solid #D9DDE2", borderRadius: 12, background: "#F7F7F8", padding: "14px 16px" }}>
+        <div style={{ fontSize: 11, fontWeight: 850, letterSpacing: ".04em", textTransform: "uppercase", color: "#666", marginBottom: 4 }}>
+          Next · Build the business case
+        </div>
+        <div style={{ fontSize: 13, fontWeight: 800, color: "#222", marginBottom: 4 }}>
+          Translate these inference economics into ROI and business value.
+        </div>
+        <div style={{ ...muted, marginBottom: 10 }}>
+          {roiHandoffReady
+            ? "Your original TCO upfront and annual recurring investment will carry forward exactly into ROI."
+            : "Inference Economics knows the assigned workload cost, but not a defensible upfront-versus-recurring investment split. Open ROI and enter or confirm those investment inputs there."}
+        </div>
+        <a
+          href={roiHref}
+          style={{ ...actionButton, ...primaryActionButton, display: "inline-flex", textDecoration: "none", width: "auto" }}
+        >
+          {roiHandoffReady ? "Continue to ROI" : "Open ROI Calculator"}
+        </a>
+      </div>
+
+      <div className="no-print" style={actionRow}>
+        <button
+          type="button"
+          style={{ ...actionButton, ...primaryActionButton, ...(e?.ok ? {} : disabledActionButton) }}
+          disabled={!e?.ok}
+          onClick={() => setView("report")}
+          title={e?.ok ? "Open the Inference Economics report" : "Complete the private-AI economics inputs first"}
+        >
+          Get the full report (PDF)
+        </button>
+        <button
+          type="button"
+          style={actionButton}
+          onClick={() => setView("audit")}
+        >
+          Calculation Methodology & Audit Trail
+        </button>
+      </div>
     </main>
+  );
+}
+
+
+function InferenceEconomicsReportView({
+  onBack,
+  onAudit,
+  model,
+  hardwareClass,
+  deployedGpuCount,
+  quant,
+  horizonYears,
+  attributableTcoUsd,
+  economics,
+  managed,
+  comparison,
+  apiModelLabel,
+  apiBasis,
+}) {
+  const difference = comparison?.ok
+    ? Math.abs(comparison.managedApiMinusPrivateUsdPerMillionOutputTokens)
+    : null;
+  const differencePct = comparison?.ok && comparison.managedApiUsdPerMillionOutputTokens > 0
+    ? (difference / comparison.managedApiUsdPerMillionOutputTokens) * 100
+    : null;
+  const direction = comparison?.ok
+    ? comparison.managedApiMinusPrivateUsdPerMillionOutputTokens > 0
+      ? "lower"
+      : comparison.managedApiMinusPrivateUsdPerMillionOutputTokens < 0
+        ? "higher"
+        : "the same"
+    : null;
+
+  return (
+    <main style={page}>
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: #fff !important; }
+          .ie-report-sheet { border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+          @page { size: Letter; margin: .4in; }
+        }
+      `}</style>
+
+      <section className="ie-report-sheet" style={reportSheet}>
+        <div className="no-print" style={reportUtilityRow}>
+          <button type="button" style={{ ...actionButton, ...primaryActionButton, flex: 1 }} onClick={() => window.print()}>
+            Print / Save as PDF
+          </button>
+          <button type="button" style={actionButton} onClick={onAudit}>
+            Calculation Methodology & Audit Trail
+          </button>
+          <button type="button" style={actionButton} onClick={onBack}>Back to calculator</button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><img src={cdwLogo} alt="CDW" style={{ height: 32, width: "auto" }} /><div style={reportEyebrow}>AI FACTORY · INFERENCE ECONOMICS REPORT</div></div>
+        <h1 style={reportTitle}>Inference Economics Summary</h1>
+        <div style={muted}>Effective private-AI inference cost compared with managed-API token pricing.</div>
+
+        <div style={{ ...summaryGrid, marginTop: 20 }}>
+          <Summary label="Private model" value={model?.label || "—"} />
+          <Summary label="Infrastructure" value={hardwareClass + " · " + deployedGpuCount + " GPUs"} />
+          <Summary label="Precision" value={quant || "—"} />
+          <Summary label="Analysis period" value={horizonYears + " years"} />
+        </div>
+
+        {economics?.ok ? (
+          <>
+            <div style={{ ...compareGrid, marginTop: 20 }}>
+              <CompareCard
+                title="Private AI"
+                value={money(economics.costPerMillionOutputTokens)}
+                subtitle="cost per 1M output tokens"
+                secondary={horizonYears + "-year assigned private cost: " + compactMoney(attributableTcoUsd)}
+              />
+              {managed?.ok ? (
+                <CompareCard
+                  title={apiModelLabel || "Managed API"}
+                  value={money(managed.effectiveUsdPerMillionOutputTokens)}
+                  subtitle="cost per 1M output tokens"
+                  secondary={horizonYears + "-year modeled API cost: " + compactMoney(managed.horizonApiCostUsd)}
+                />
+              ) : null}
+            </div>
+
+            {comparison?.ok ? (
+              <div style={takeawayBox}>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#666", textTransform: "uppercase", letterSpacing: ".04em" }}>What this means</div>
+                <div style={{ fontSize: 18, fontWeight: 850, lineHeight: 1.45, marginTop: 6 }}>
+                  {direction === "the same"
+                    ? "Private AI and the selected managed API are modeled at the same effective cost per 1M output tokens."
+                    : "Private AI is modeled " + money(difference) + " per 1M output tokens " + direction + " than " + (apiModelLabel || "the selected managed API") + (differencePct != null ? ", a " + differencePct.toFixed(1) + "% difference relative to the managed API cost." : ".")}
+                </div>
+                <div style={{ ...muted, marginTop: 7 }}>Cost comparison only; equivalent model capability is not asserted.</div>
+              </div>
+            ) : null}
+
+            <div style={{ ...summaryGrid, marginTop: 18 }}>
+              <Summary label="Year 1 AI usage" value={compact(economics.annualDemandOutputTokens)} />
+              <Summary label="Horizon AI usage" value={compact(economics.horizonUsefulOutputTokens)} />
+              <Summary label="Modeled annual capacity" value={compact(economics.annualCapacityOutputTokens)} />
+              <Summary label="Peak capacity used" value={(economics.peakDemandUtilizationOfCapacity * 100).toFixed(1) + "%"} />
+            </div>
+
+            {apiBasis === "REFERENCE" ? (
+              <div style={sourceLine}><b>Managed-API comparison basis:</b> 70% input / 30% output token mix · no cache discount.</div>
+            ) : null}
+          </>
+        ) : (
+          <div style={emptyState}>Complete the private-AI economics inputs before creating a report.</div>
+        )}
+
+        <div style={{ ...methodText, borderTop: "1px solid #eee", paddingTop: 14, marginTop: 22 }}>
+          <b>Interpretation:</b> Private AI is an effective allocated cost based on the TCO assigned to this workload and expected output-token demand. It is not a marginal metered token price.
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function InferenceEconomicsAuditView({
+  onBack,
+  model,
+  hardwareClass,
+  deployedGpuCount,
+  quant,
+  horizonYears,
+  attributableTcoUsd,
+  demandGrowthRate,
+  activeHoursPerDay,
+  activeDaysPerYear,
+  productionServingFactor,
+  demand,
+  throughput,
+  economics,
+  managed,
+  comparison,
+  apiModelLabel,
+  apiBasis,
+}) {
+  const demandYears = economics?.demandByYear || [];
+  const capacity = economics?.annualCapacityOutputTokens || 0;
+  const horizonDemand = economics?.horizonUsefulOutputTokens || 0;
+  const apiRatio = managed?.assumptions?.inputTokensPerOutputToken ?? null;
+  const cacheShare = managed?.assumptions?.cachedInputShare ?? null;
+  const apiRate = managed?.rate || null;
+  const year1Api = managed?.annualRows?.[0] || null;
+
+  return (
+    <main style={page}>
+      <style>{`
+        @media print {
+          .no-print { display: none !important; }
+          body { background: #fff !important; }
+          .ie-audit-sheet { border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+          @page { size: Letter; margin: .4in; }
+        }
+      `}</style>
+
+      <section className="ie-audit-sheet" style={reportSheet}>
+        <div className="no-print" style={reportUtilityRow}>
+          <button type="button" style={{ ...actionButton, ...primaryActionButton, flex: 1 }} onClick={() => window.print()}>
+            Print / Save as PDF
+          </button>
+          <button type="button" style={actionButton} onClick={onBack}>Back to report</button>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><img src={cdwLogo} alt="CDW" style={{ height: 32, width: "auto" }} /><div style={reportEyebrow}>AI FACTORY · CALCULATION METHODOLOGY & AUDIT TRAIL</div></div>
+        <h1 style={reportTitle}>Inference Economics Audit Trail</h1>
+        <div style={muted}>Reproducible derivation of the material calculations supporting the report result.</div>
+        <div style={{ ...muted, marginTop: 5, fontStyle: "italic" }}>
+          This page formats the same calculation already run by the tool. It does not run a separate calculation.
+        </div>
+
+        <AuditSection title="1. Scenario overview">
+          <AuditRow label="Private model" value={model?.label || "—"} />
+          <AuditRow label="Hardware" value={hardwareClass + " · " + deployedGpuCount + " GPUs"} />
+          <AuditRow label="Precision" value={quant} />
+          <AuditRow label="Assigned private TCO" value={compactMoney(attributableTcoUsd)} />
+          <AuditRow label="Analysis period" value={horizonYears + " years"} />
+          <AuditRow label="Demand growth" value={(demandGrowthRate * 100).toFixed(1) + "% / yr"} />
+        </AuditSection>
+
+        <AuditSection title="2. Output-token demand">
+          <FormulaLine formula="Year 1 output demand" expression={demand?.ok ? compact(demand.annualOutputTokens) + " tokens" : "Incomplete"} />
+          {demandYears.map((value, index) => (
+            <FormulaLine
+              key={index}
+              formula={"Year " + (index + 1) + " demand"}
+              expression={index === 0
+                ? compact(value) + " tokens"
+                : compact(demandYears[0]) + " × (1 + " + (demandGrowthRate * 100).toFixed(1) + "%)^" + index + " = " + compact(value) + " tokens"}
+            />
+          ))}
+          <FormulaLine
+            formula="Horizon output demand"
+            expression={demandYears.length ? demandYears.map((value) => compact(value)).join(" + ") + " = " + compact(horizonDemand) + " tokens" : "Incomplete"}
+          />
+        </AuditSection>
+
+        <AuditSection title="3. Production serving capacity">
+          <FormulaLine
+            formula="Production output throughput"
+            expression={throughput?.ok
+              ? compact(throughput.effectiveThroughputTokPerSec) + " tok/s × " + (productionServingFactor * 100).toFixed(1) + "% = " + compact(throughput.effectiveThroughputTokPerSec * productionServingFactor) + " tok/s"
+              : "Incomplete"}
+          />
+          <FormulaLine
+            formula="Annual serving capacity"
+            expression={throughput?.ok
+              ? compact(throughput.effectiveThroughputTokPerSec * productionServingFactor) + " × 3,600 × " + activeHoursPerDay + " hr/day × " + activeDaysPerYear + " days/yr = " + compact(capacity) + " output tokens"
+              : "Incomplete"}
+          />
+          <AuditRow
+            label="Deployment evidence basis"
+            value={throughput?.deploymentEvidenceBasis === "REPLICA_SCALED"
+              ? `Replica-scaled · ${throughput.replicaGroupCount} × ${throughput.benchmarkGpuCount}-GPU serving groups`
+              : throughput?.deploymentEvidenceBasis === "EXACT_BENCHMARK"
+                ? `Exact benchmark · ${throughput.benchmarkGpuCount}-GPU configuration`
+                : "—"}
+          />
+          <AuditRow label="Evidence source" value={throughput?.evidence?.sourceLabel || "—"} />
+          <AuditRow label="Evidence status" value={economics?.evidenceStatus || throughput?.evidence?.status || "—"} />
+          <AuditRow label="Peak demand / annual capacity" value={economics?.ok ? compact(economics.peakAnnualDemandOutputTokens) + " ÷ " + compact(capacity) + " = " + (economics.peakDemandUtilizationOfCapacity * 100).toFixed(1) + "%" : "Incomplete"} />
+        </AuditSection>
+
+        <AuditSection title="4. Private AI unit economics">
+          <FormulaLine
+            formula="Private cost per 1M output tokens"
+            expression={economics?.ok
+              ? compactMoney(attributableTcoUsd) + " ÷ " + compact(horizonDemand) + " × 1,000,000 = " + money(economics.costPerMillionOutputTokens) + " / 1M output"
+              : "Incomplete"}
+          />
+          <div style={auditNote}>Unused modeled capacity does not enter the denominator. The denominator is expected useful output-token demand actually served.</div>
+        </AuditSection>
+
+        <AuditSection title="5. Managed API normalization">
+          <AuditRow label="Managed API" value={apiModelLabel || "Not selected"} />
+          <AuditRow label="Comparison basis" value={apiBasis === "REFERENCE" ? "70% input / 30% output · no cache discount" : "Customized workload assumptions"} />
+          <FormulaLine
+            formula="Input tokens per output token"
+            expression={apiRatio == null ? "Incomplete" : apiRatio.toFixed(4)}
+          />
+          {apiRate ? (
+            <>
+              <AuditRow label="Input rate" value={money(apiRate.inputUsdPerMillion) + " / 1M input"} />
+              <AuditRow label="Cached input rate" value={apiRate.cachedInputUsdPerMillion == null ? "Not used" : money(apiRate.cachedInputUsdPerMillion) + " / 1M cached input"} />
+              <AuditRow label="Output rate" value={money(apiRate.outputUsdPerMillion) + " / 1M output"} />
+            </>
+          ) : null}
+          {year1Api ? (
+            <>
+              <FormulaLine
+                formula="Year 1 input tokens"
+                expression={compact(year1Api.annualOutputTokens) + " output × " + apiRatio.toFixed(4) + " = " + compact(year1Api.annualInputTokens) + " input"}
+              />
+              <FormulaLine
+                formula="Year 1 API cost"
+                expression={compactMoney(year1Api.uncachedInputCostUsd) + " uncached input + " + compactMoney(year1Api.cachedInputCostUsd) + " cached input + " + compactMoney(year1Api.outputCostUsd) + " output = " + compactMoney(year1Api.totalApiCostUsd)}
+              />
+            </>
+          ) : null}
+          <FormulaLine
+            formula="Effective managed API cost per 1M output"
+            expression={managed?.ok
+              ? compactMoney(managed.horizonApiCostUsd) + " ÷ " + compact(managed.horizonOutputTokens) + " × 1,000,000 = " + money(managed.effectiveUsdPerMillionOutputTokens) + " / 1M output"
+              : "Incomplete"}
+          />
+          <AuditRow label="Cached input share" value={cacheShare == null ? "Incomplete" : (cacheShare * 100).toFixed(1) + "%"} />
+        </AuditSection>
+
+        <AuditSection title="6. Private vs managed API comparison">
+          <FormulaLine
+            formula="Dollar difference"
+            expression={comparison?.ok
+              ? money(comparison.managedApiUsdPerMillionOutputTokens) + " − " + money(comparison.privateUsdPerMillionOutputTokens) + " = " + money(comparison.managedApiMinusPrivateUsdPerMillionOutputTokens) + " / 1M output"
+              : "Incomplete"}
+          />
+          <FormulaLine
+            formula="Managed API / private cost ratio"
+            expression={comparison?.ok
+              ? money(comparison.managedApiUsdPerMillionOutputTokens) + " ÷ " + money(comparison.privateUsdPerMillionOutputTokens) + " = " + comparison.managedApiToPrivateCostRatio.toFixed(2) + "×"
+              : "Incomplete"}
+          />
+          <div style={auditNote}>This is a cost comparison only. Equivalent model capability is not asserted.</div>
+        </AuditSection>
+      </section>
+    </main>
+  );
+}
+
+function AuditSection({ title, children }) {
+  return (
+    <section style={auditBlock}>
+      <h2 style={{ fontSize: 16, margin: "0 0 10px", fontWeight: 900 }}>{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+function AuditRow({ label, value }) {
+  return (
+    <div style={auditRow}>
+      <span style={{ color: "#666" }}>{label}</span>
+      <strong style={{ textAlign: "right" }}>{value}</strong>
+    </div>
+  );
+}
+
+function FormulaLine({ formula, expression }) {
+  return (
+    <div style={formulaBlock}>
+      <div style={{ fontSize: 11, fontWeight: 900, color: "#666", textTransform: "uppercase", letterSpacing: ".04em" }}>{formula}</div>
+      <div style={{ marginTop: 5 }}>{expression}</div>
+    </div>
   );
 }
 
 function Step({ number, title, subtitle, children }) {
   return (
-    <section style={card}>
+    <section style={card} className="no-print">
       <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 18 }}>
         <div style={stepNumber}>{number}</div>
         <div>
@@ -715,4 +1167,18 @@ const takeawayBox = { border: "1px solid #ddd", borderRadius: 12, padding: 16, b
 const compareGrid = { display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(240px,1fr))", gap: 14, marginTop: 14 };
 const compareCard = { border: "1px solid #ddd", borderRadius: 12, padding: 16, background: "#fff" };
 const differenceBox = { marginTop: 14, borderTop: "1px solid #eee", paddingTop: 14 };
+const actionRow = { display: "flex", gap: 10, flexWrap: "wrap", justifyContent: "flex-end", marginTop: 4 };
+const actionButton = { border: "1px solid #CC0000", background: "#fff", color: "#CC0000", borderRadius: 8, padding: "11px 15px", fontSize: 13, fontWeight: 850, cursor: "pointer" };
+const primaryActionButton = { background: "#CC0000", color: "#fff" };
+const disabledActionButton = { opacity: .45, cursor: "not-allowed" };
+const reportUtilityRow = { display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 };
+const reportSheet = { border: "1px solid #ddd", borderRadius: 14, padding: 24, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.04)" };
+const auditBlock = { borderTop: "2px solid #232323", paddingTop: 14, marginTop: 22 };
+const formulaBlock = { background: "#f7f7f7", borderLeft: "3px solid #CC0000", padding: "10px 12px", fontSize: 12, lineHeight: 1.55, margin: "9px 0 10px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" };
+const auditNote = { fontSize: 12, lineHeight: 1.55, color: "#555", background: "#fafafa", borderRadius: 8, padding: "9px 11px", marginTop: 10 };
+const auditPanel = { border: "1px solid #ddd", borderRadius: 14, padding: 20, background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,.04)", marginTop: 16 };
+const auditRow = { display: "flex", justifyContent: "space-between", gap: 20, padding: "6px 0", fontSize: 13, lineHeight: 1.45 };
+const formulaBox = { background: "#f7f7f7", borderLeft: "3px solid #CC0000", padding: "9px 11px", fontSize: 12, lineHeight: 1.55, margin: "8px 0 10px", fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" };
+const reportEyebrow = { fontSize: 11, fontWeight: 900, color: "#CC0000", letterSpacing: ".12em" };
+const reportTitle = { fontSize: 28, lineHeight: 1.2, margin: "5px 0 6px", fontWeight: 950 };
 const textButton = { marginTop: 16, border: 0, background: "transparent", color: "#B21F16", padding: 0, fontSize: 13, fontWeight: 850, cursor: "pointer", textDecoration: "underline" };

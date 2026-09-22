@@ -1,3 +1,5 @@
+import { getInferenceEconomicsEvidence } from "./inferenceEconomicsEvidence.js";
+
 const TCO_SYSTEM_TO_IE_HARDWARE = Object.freeze({
   "DGX H200": "H200",
   "DGX B200": "B200",
@@ -9,6 +11,12 @@ const TCO_SYSTEM_TO_IE_HARDWARE = Object.freeze({
 function finitePositive(value) {
   const n = Number(value);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function finiteNonNegative(value) {
+  if (value == null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 function validShare(value) {
@@ -51,18 +59,20 @@ export function buildInferenceEconomicsPreviewHandoff({
   isInferenceWorkloadHandoff = false,
   trainShare = null,
   growth = null,
+  roiInitialCostUsd = null,
+  roiRecurringCostUsd = null,
+  roiPlanningBasis = null,
+  scaleoutClassification = null,
 }) {
   const mappedHardwareClass = TCO_SYSTEM_TO_IE_HARDWARE[ownSys] || null;
   const hardwareClass = mappedHardwareClass || ownSys || null;
   const totalDeployedGpuCount = finitePositive(systemCount) && finitePositive(gpusPerSystem)
     ? Number(systemCount) * Number(gpusPerSystem)
     : null;
-  // Inference Economics gives throughput credit only to one source-qualified
-  // benchmark configuration. The full TCO fleet still remains in the cost
-  // numerator, but additional systems receive no inferred scaling credit.
-  const gpuCount = finitePositive(gpusPerSystem)
-    ? Number(gpusPerSystem)
-    : null;
+  // Inference Economics evaluates the same deployed fleet that TCO prices.
+  // Exact benchmark counts remain highest-confidence; whole benchmark-sized
+  // replica groups may be aggregated by the throughput adapter.
+  const gpuCount = totalDeployedGpuCount;
   const horizon = finitePositive(horizonYears);
   const tco = finitePositive(onPremTcoUsd);
   const hours = finitePositive(workingDayHours);
@@ -73,6 +83,12 @@ export function buildInferenceEconomicsPreviewHandoff({
       ? null
       : 1 - trainingShare;
   const demandGrowthRate = validGrowth(growth);
+
+  const roiInitialCost = finiteNonNegative(roiInitialCostUsd);
+  const roiRecurringCost = finiteNonNegative(roiRecurringCostUsd);
+  const planningBasis = roiPlanningBasis === "workload" || roiPlanningBasis === "spend"
+    ? roiPlanningBasis
+    : null;
 
   const horizonFleet = Array.isArray(fleetSystemsByYear)
     ? fleetSystemsByYear.slice(0, Math.max(1, Math.floor(horizon || 1))).map(Number).filter(Number.isFinite)
@@ -86,6 +102,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (!modelId) blockers.push("MISSING_MODEL");
   if (modelId === "custom" && !finitePositive(modelParamsB)) blockers.push("CUSTOM_MODEL_SIZE_MISSING");
   if (!quant) blockers.push("MISSING_PRECISION");
+  if (scaleoutClassification === "TOPOLOGY_SCALEOUT_REQUIRED") blockers.push("TOPOLOGY_SCALEOUT_REQUIRED");
   if (!horizon) blockers.push("INVALID_HORIZON");
   if (inferenceShare == null) blockers.push("INFERENCE_SHARE_UNKNOWN");
   if (inferenceShare === 0) blockers.push("NO_INFERENCE_SHARE");
@@ -118,6 +135,10 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (tco) params.set("fullTco", String(Math.round(tco)));
   if (allocatedTcoUsd) params.set("tco", String(Math.round(allocatedTcoUsd)));
   if (allocationMethod) params.set("tcoAllocation", allocationMethod);
+  if (roiInitialCost != null) params.set("roiInitialCost", String(Math.round(roiInitialCost)));
+  if (roiRecurringCost != null) params.set("roiRecurringCost", String(Math.round(roiRecurringCost)));
+  if (planningBasis) params.set("roiPlanningBasis", planningBasis);
+  if (scaleoutClassification) params.set("scaleoutClass", scaleoutClassification);
   if (horizonFleet.length) params.set("fleetSystems", horizonFleet.join(","));
   if (fleetChanges) params.set("fleetGrowthConservative", "1");
   if (blockers.length) params.set("connectorBlockers", blockers.join(","));
@@ -131,6 +152,10 @@ export function buildInferenceEconomicsPreviewHandoff({
     fullTcoUsd: tco,
     inferenceShare,
     allocationMethod,
+    roiInitialCostUsd: roiInitialCost,
+    roiRecurringCostUsd: roiRecurringCost,
+    roiPlanningBasis: planningBasis,
+    scaleoutClassification,
     demandGrowthRate,
     fleetSystemsByYear: horizonFleet,
     fleetGrowthConservative: fleetChanges,
@@ -140,9 +165,58 @@ export function buildInferenceEconomicsPreviewHandoff({
   };
 }
 
+export function buildInferenceEconomicsGpuSizingHandoff({
+  hardwareClass,
+  gpuCount,
+  modelId,
+  modelParamsB = null,
+  quant,
+  workingDayHours = null,
+  scaleoutClassification = null,
+}) {
+  const count = finitePositive(gpuCount);
+  const hours = finitePositive(workingDayHours);
+  const evidence = getInferenceEconomicsEvidence(hardwareClass);
+  const blockers = [];
+
+  if (!evidence) blockers.push("UNSUPPORTED_HARDWARE");
+  if (!count) blockers.push("INVALID_GPU_COUNT");
+  if (
+    evidence &&
+    count &&
+    (count < evidence.benchmarkGpuCount || count % evidence.benchmarkGpuCount !== 0)
+  ) {
+    blockers.push("UNSUPPORTED_DEPLOYMENT_SCALING");
+  }
+  if (!modelId) blockers.push("MISSING_MODEL");
+  if (modelId === "custom" && !finitePositive(modelParamsB)) blockers.push("CUSTOM_MODEL_SIZE_MISSING");
+  if (!quant) blockers.push("MISSING_PRECISION");
+  if (scaleoutClassification === "TOPOLOGY_SCALEOUT_REQUIRED") blockers.push("TOPOLOGY_SCALEOUT_REQUIRED");
+
+  const params = new URLSearchParams();
+  params.set("source", "gpu-sizing");
+  if (hardwareClass) params.set("hardware", hardwareClass);
+  if (count) params.set("gpuCount", String(count));
+  if (modelId) params.set("model", modelId);
+  if (finitePositive(modelParamsB)) params.set("modelParamsB", String(Number(modelParamsB)));
+  if (quant) params.set("quant", quant);
+  if (hours && hours <= 24) params.set("activeHours", String(hours));
+  if (scaleoutClassification) params.set("scaleoutClass", scaleoutClassification);
+  if (blockers.length) params.set("connectorBlockers", blockers.join(","));
+
+  return {
+    eligible: blockers.length === 0,
+    blockers,
+    benchmarkGpuCount: evidence?.benchmarkGpuCount || null,
+    scaleoutClassification,
+    href: `/inference-economics?${params.toString()}`,
+  };
+}
+
 export function parseInferenceEconomicsPreviewHandoff(search) {
   const params = new URLSearchParams(search || "");
-  if (params.get("source") !== "tco") return null;
+  const source = params.get("source");
+  if (source !== "tco" && source !== "gpu-sizing") return null;
 
   const hardwareClass = params.get("hardware");
   const gpuCount = finitePositive(params.get("gpuCount"));
@@ -157,6 +231,13 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
   const inferenceShare = validShare(params.get("inferenceShare"));
   const demandGrowthRate = validGrowth(params.get("demandGrowth"));
   const allocationMethod = params.get("tcoAllocation") || null;
+  const roiInitialCostUsd = finiteNonNegative(params.get("roiInitialCost"));
+  const roiRecurringCostUsd = finiteNonNegative(params.get("roiRecurringCost"));
+  const roiPlanningBasisRaw = params.get("roiPlanningBasis");
+  const roiPlanningBasis = roiPlanningBasisRaw === "workload" || roiPlanningBasisRaw === "spend"
+    ? roiPlanningBasisRaw
+    : null;
+  const scaleoutClassification = params.get("scaleoutClass") || null;
   const fleetSystemsByYear = (params.get("fleetSystems") || "")
     .split(",")
     .map(Number)
@@ -168,7 +249,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     .filter(Boolean);
 
   return {
-    source: "tco",
+    source,
     hardwareClass,
     gpuCount,
     totalDeployedGpuCount,
@@ -180,6 +261,10 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     fullTcoUsd,
     inferenceShare,
     allocationMethod,
+    roiInitialCostUsd,
+    roiRecurringCostUsd,
+    roiPlanningBasis,
+    scaleoutClassification,
     demandGrowthRate,
     fleetSystemsByYear,
     fleetGrowthConservative,
