@@ -29,8 +29,10 @@ For architecture, history, rationale, and prior validation findings, read `AiFac
 | Registry reconciliation | Daily and after `data/**` changes | Automated GitHub Action | Investigate any reconciliation failure |
 | NVIDIA DGX / on-prem pricing | Monthly or when NVIDIA/CDW portfolio changes | Manual | Re-verify loaded system pricing and derived GPU Sizing prices |
 | Cloud GPU pricing | Monthly | Manual | Re-verify provider list rates and confidence labels |
+| Managed API pricing snapshot | Monthly and when public rates change | Manual first-party review | Re-verify selected model/rate pairs, verification dates, source links, special terms, and staleness disclosures; retain the last successful snapshot on refresh failure |
 | Pricing provenance | With every pricing refresh | Manual | Update verification dates only after actual source review |
 | GPU performance factors | Quarterly or after major MLPerf/NVIDIA release | Manual | Re-check performance anchors and provisional factors |
+| Inference Economics evidence | Quarterly or after new qualified benchmark/hardware evidence | Manual | Re-check model, precision, GPU count, serving scenario, replica eligibility, and topology suppression before extending supported fleets |
 | Open-weight model catalog | Monthly plus major model releases | Automated discovery plus manual curation | Add models deliberately to canonical registry |
 | NVIDIA NIM compatibility | As needed | Manual-only workflow | Do not schedule until a production-backed endpoint is validated |
 | Dependencies | Quarterly or for security-critical updates | Manual | Review package updates and breaking changes |
@@ -208,10 +210,10 @@ Provider pricing/model presence and customer-facing commercial eligibility are s
 Keep these variables conceptually and operationally separate:
 
 - **Workload growth** is the production TCO assumption for increased consumption over time.
-- **Cloud GPU unit-price trend** is currently 0%/year in production economics, so the current cloud $/GPU-hr reference rate is held constant across the horizon.
-- The PR #37 slider is preview-only. Its UI value must not be persisted, autosaved, passed to the TCO engine, included in report economics, or treated as an approved methodology input.
+- **Cloud GPU unit-price trend** is a production sensitivity, defaulting to 0%/year. When changed, it affects modeled cloud GPU compute unit rates; non-compute costs retain their existing treatment. The selected assumption is persisted and disclosed in report/audit language.
+- PR #37's preview-only control is historical; the September 8 production activation superseded it. Keep the default-zero baseline and the workload-growth distinction in regression coverage.
 
-Before any future unit-price trend is wired into production economics:
+Before changing the current production unit-price trend methodology:
 
 1. Define which cloud cost components the trend applies to: GPU compute only, software uplift, storage, egress, or another explicitly scoped subset.
 2. Define annual compounding and the exact relationship to the separate workload-growth assumption.
@@ -219,11 +221,19 @@ Before any future unit-price trend is wired into production economics:
 4. Decide whether user-entered/custom cloud rates trend from the entered Year-1 rate or remain fixed unless explicitly opted in.
 5. Decide how Best-Value GPUaaS provider ranking should use the trend, if at all.
 6. Update the companion workbook/reference implementation if the production TCO engine changes in a way covered by Excel-to-JavaScript parity.
-7. Add source-level tests and browser regressions proving 0% reproduces the current baseline and positive/negative trends compound exactly as approved.
-8. Re-run the full permanent quality gate and perform representative live checks before calling the methodology production-ready.
+7. Maintain source-level tests and browser regressions proving 0% reproduces the baseline and positive/negative trends compound as intended.
+8. Re-run the full permanent quality gate and perform representative live checks before calling a changed methodology production-ready.
 9. Update `CHANGELOG.md`, `AiFactoryProjectBrief.md`, the relevant current-state methodology document, and this runbook.
 
 Do not mix this work with future capacity-ramp modeling. Purchased future headroom versus current utilized workload is a separate modeling question.
+
+### 4.6 Inference Economics evidence and managed API rates
+
+1. Treat `src/inferenceEconomicsEvidence.js`, `src/inferenceEconomicsThroughput.js`, and `src/inferenceScaleoutClassification.js` as the source for supported benchmark configurations and deployment guardrails. Do not infer absolute throughput from peak FLOPS or extrapolate a model-parallel topology from a larger GPU count. Verify model fit within one benchmark-sized serving group before approving whole-group replica aggregation; preserve explicit suppression when evidence is insufficient.
+2. Check that demand is useful output tokens, assigned private cost includes the intended allocation, and the required production-throughput factor validates capacity over the horizon. Re-run the relevant IE source checks and cross-tool browser journey after changing evidence, connector, or capacity behavior.
+3. Maintain public managed API rates in `src/managedApiPricingRegistry.js` only after first-party verification. Review model identity, input/output prices, cache and long-context exceptions, source URL, verification date, and snapshot staleness. A failed future refresh should leave the last successful snapshot available; an override should be labeled as user supplied.
+4. `src/managedApiPricingSource.js` holds BenchLM as a future adapter with commercial-use status unresolved and activation on hold. Do not call it or present its rates as live without resolving rights, provenance, implementation, and validation.
+5. Distinguish source verification, deployed-site checks, and CDW review. A merged PR or healthy route does not grant pricing, methodology, or external approval. Consult `docs/inference-economics-scaleout-methodology.md` and `docs/inference-economics-model-parallel-calibration.md` as design/evidence notes, then inspect current source for implemented behavior.
 
 ## 5. Model-catalog refresh procedure
 
@@ -535,4 +545,3 @@ Rules:
 2. A production regression that expects protected tool internals while signed out is testing the wrong context.
 3. After authentication/front-door changes, run both the live route/front-door checks and the local protected-tool regression suite.
 4. Credentialed manual checks remain appropriate for real magic-link delivery, account setup, My Summary persistence, Global Reset server-side deletion, report/download events, and Slack side effects where automation does not hold real credentials.
-

@@ -1,6 +1,6 @@
 # Model Modernization Current State
 
-_Last updated: 2026-09-07 through PR #37 preview work_
+_Model-modernization baseline: 2026-09-07; current ownership and TCO trend notes refreshed 2026-09-22. See the newest `AiFactoryProjectBrief.md` addendum for the full later tranche._
 
 This document is the durable current-state summary for the CDW AI Factory Tools model modernization program. It should be updated whenever model catalog policy, architecture-aware sizing methodology, capability evidence, or Model Advisor -> GPU Sizing -> TCO handoff semantics change materially.
 
@@ -165,9 +165,9 @@ The post-model-modernization TCO workstream keeps three separate concepts explic
 
 PR #36 made the constant-unit-price assumption explicit in the calculator, report, and audit trail without changing TCO formulas, rates, defaults, or provider behavior.
 
-PR #37 is a preview-only sensitivity experiment for a possible future cloud GPU unit-price trend input. The preview control defaults to 0%/year and spans -20% to +20% per year in 5 percentage-point steps. The preview value is deliberately isolated from persistence, autosave, `run()` inputs, My Summary snapshots, and report economics. Moving the preview control must not change production TCO results.
+PR #37 was a preview-only sensitivity experiment. The subsequent September 8 activation made cloud GPU unit-price trend a persisted production TCO sensitivity, defaulting to 0%/year. It applies to modeled cloud GPU compute rates and appears in report/audit language; workload growth remains a separate consumption assumption and non-compute cloud costs retain their existing escalation treatment. The older preview isolation rule no longer describes current source. Capacity-ramp modeling remains a separate deferred concept.
 
-Do not wire the preview into economics until a separate methodology decision defines exactly which cloud cost components are affected, how annual compounding is applied, how the trend interacts with workload growth, whether spend-basis and workload-basis modes should behave identically, and what new parity/regression coverage is required. Capacity-ramp modeling remains a separate deferred concept and must not be conflated with unit-price trend sensitivity.
+The later Guided Inference Economics journey consumes a specified deployment and allocated private cost after GPU Sizing/TCO, or takes direct GPU Sizing context with cost entered or confirmed by the user. It evaluates demand-bound inference unit cost and capacity without re-sizing the technical design. See the September 22 addendum in `AiFactoryProjectBrief.md` for its evidence and handoff boundaries.
 
 ## Source-of-truth files
 

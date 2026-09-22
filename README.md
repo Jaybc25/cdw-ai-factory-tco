@@ -1,6 +1,6 @@
 # CDW AI Factory Tool Suite
 
-Private source repository for the CDW AI Factory tool suite, a Vite + React single-page application focused on AI use-case discovery, open-weight model selection, GPU sizing, cloud vs on-prem TCO, ROI, readiness, and consolidated client summaries.
+Source repository for the CDW AI Factory tool suite, a Vite + React single-page application focused on AI use-case discovery, open-weight model selection, GPU sizing, cloud vs on-prem TCO, inference economics, ROI, readiness, and consolidated client summaries.
 
 Live application: https://cdw-ai-factory-tco.vercel.app
 
@@ -8,7 +8,7 @@ For architecture, history, validation findings, conventions, and durable project
 
 For a human-readable history of meaningful milestones and current open items, read `CHANGELOG.md`.
 
-For the latest September 9, 2026 source checkpoint covering the shared-shell, navigation, progressive-disclosure, report-control tranche, and the deliberate TCO deferral decision, read `docs/history/2026-09-09-current-state-checkpoint.md`.
+For the September 22 current state, read the newest addendum in `AiFactoryProjectBrief.md`. The earlier shared-shell and navigation checkpoint is preserved in `docs/history/2026-09-09-current-state-checkpoint.md`.
 
 For the current model catalog, architecture-aware sizing state, capability-evidence rules, and Model Advisor -> GPU Sizing -> TCO ownership contract, read `docs/MODEL_MODERNIZATION_CURRENT_STATE.md`.
 
@@ -18,7 +18,7 @@ Versioning is an internal engineering, audit, maintenance, and recovery mechanis
 
 **Current validated releases:** `v2026.09` remains the immutable September 1 baseline, followed by `AI Factory Suite 2026.09.1` released September 4, 2026. Existing release tags/releases are immutable.
 
-**Current unreleased production checkpoint before this documentation catch-up:** `main` at `9ee83d6c71edd5807c683ee2503ae95bc14b8887` on September 9, 2026, the merge of PR #57. Post-2026.09.1 work includes curated My Summary consistency handling, Best-Value GPUaaS, Global Reset, home account/My Summary access, the Phase 1 authenticated front door, auth-aware regression architecture, provider commercial-eligibility gating, GPU Sizing print/PDF hierarchy refinement, the completed model-modernization tranche, higher-growth GPU Sizing/TCO selection, production cloud GPU unit-price trend sensitivity, Model Advisor explanation/evidence improvements, the shared tool shell, direct methodology/audit access, route/internal-view scroll fixes, Model Advisor and GPU Sizing progressive-disclosure cleanup, and ROI/Readiness report-control consistency. These changes remain `Unreleased` until a new validated tag is created.
+**Current source checkpoint for this documentation update:** `main` at `1de011309a1b9fe3fb5332dc51e5d050227b104b` on September 22, 2026, the merge of PR #112. Post-2026.09.1 work includes the September 9 UX tranche, Rubin/Blackwell evidence and guarded hardware activation, cross-tool sizing/TCO/ROI fixes, and Guided Inference Economics with its report, audit trail, managed API comparison, and regression coverage. These changes remain `Unreleased` until a new validated tag is created. The production site has been reported live and apparently healthy; broader internal CDW review is pending.
 
 The suite uses calendar versioning for validated releases:
 
@@ -39,13 +39,16 @@ Routes in the current application:
 - `/model-advisor` - Open-Weight Model Advisor
 - `/gpu-sizing` - GPU Sizing Tool
 - `/tco` - Cloud vs On-Prem TCO Calculator
+- `/inference-economics` - Guided Inference Economics (standalone or contextual handoff)
 - `/roi` - AI Use Case ROI Calculator
 - `/readiness` - AI Readiness Checklists
 - `/summary` - My Summary for signed-in users
 
 The tools are designed as one connected journey, with state and provenance handoffs where appropriate.
 
-The core model-to-infrastructure-to-economics ownership chain is **Model Advisor -> GPU Sizing -> TCO -> ROI**: Model Advisor owns recommendation/selection context, GPU Sizing owns the technical infrastructure requirement, TCO consumes that technical result while owning economics and planning assumptions, and ROI consumes economic cost context where handed off while owning the capacity/value business-case layer. TCO does not independently re-run Model Advisor or silently re-size the workload from model parameters.
+The core ownership chain is **Model Advisor -> GPU Sizing -> TCO -> Inference Economics -> ROI**, with direct GPU Sizing -> Inference Economics and TCO -> ROI paths where appropriate. Model Advisor owns recommendation/selection context, GPU Sizing owns the technical infrastructure requirement, TCO owns economics and planning assumptions, Inference Economics compares demand-bound private inference unit cost against managed API pricing, and ROI owns the capacity/value business case. TCO and IE do not silently re-size the upstream technical deployment.
+
+Inference Economics evaluates expected useful output-token demand against production-serving capacity. The required production-throughput assumption is a feasibility check, not a continuous discount to cost per token. The managed API selector uses a dated first-party snapshot or explicit user override; BenchLM is a disconnected future adapter on hold. See the September 22 project-brief addendum for allocation, evidence, and ROI handoff limits.
 
 ## Current TCO growth/pricing contract
 
