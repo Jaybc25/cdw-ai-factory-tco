@@ -50,6 +50,8 @@ The core ownership chain is **Model Advisor -> GPU Sizing -> TCO -> Inference Ec
 
 Inference Economics evaluates expected useful output-token demand against production-serving capacity. The required production-throughput assumption is a feasibility check, not a continuous discount to cost per token. The managed API selector uses a dated first-party snapshot or explicit user override; BenchLM is a disconnected future adapter on hold. See the September 22 project-brief addendum for allocation, evidence, and ROI handoff limits.
 
+The managed API comparison includes first-party verified GPT-6 Sol and GPT-6 Luna rates. Each selected model displays its own verification date; the snapshot-level freshness date remains the oldest verified row so new additions do not conceal older price reviews.
+
 ## Current TCO growth/pricing contract
 
 GPU Sizing's node-rounded Recommended production design remains the default, with an explicit Higher-growth alternative selectable for TCO when available. TCO receives the exact selected class/count plus sizing-basis provenance and remains the economics layer rather than re-sizing the workload.

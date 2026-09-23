@@ -194,12 +194,18 @@ assert.equal(blocked.reason, "COMMERCIAL_USE_UNRESOLVED");
 // 8) IE-6.3 last-known-good pricing registry contract.
 assert.ok(MANAGED_API_PRICING_SNAPSHOT.rates.length >= 4);
 assert.deepEqual(listManagedApiProviders(), ["Anthropic", "Google", "OpenAI", "xAI"]);
-assert.ok(listManagedApiModels("OpenAI").length >= 4);
+assert.ok(listManagedApiModels("OpenAI").length >= 6);
 assert.ok(listManagedApiModels("Anthropic").length >= 4);
 assert.ok(listManagedApiModels("Google").length >= 4);
 assert.ok(listManagedApiModels("xAI").length >= 3);
 assert.equal(getManagedApiRate("OpenAI", "gpt-5.6-sol")?.inputUsdPerMillion, 4);
 assert.equal(getManagedApiRate("OpenAI", "gpt-5.6-sol")?.outputUsdPerMillion, 20);
+assert.equal(getManagedApiRate("OpenAI", "gpt-6-sol")?.inputUsdPerMillion, 2);
+assert.equal(getManagedApiRate("OpenAI", "gpt-6-sol")?.cachedInputUsdPerMillion, 0.2);
+assert.equal(getManagedApiRate("OpenAI", "gpt-6-sol")?.outputUsdPerMillion, 10);
+assert.equal(getManagedApiRate("OpenAI", "gpt-6-luna")?.inputUsdPerMillion, 0.1);
+assert.equal(getManagedApiRate("OpenAI", "gpt-6-luna")?.cachedInputUsdPerMillion, 0.01);
+assert.equal(getManagedApiRate("OpenAI", "gpt-6-luna")?.outputUsdPerMillion, 0.5);
 assert.equal(getManagedApiRate("OpenAI", "gpt-6-astra")?.cachedInputUsdPerMillion, 1);
 assert.equal(getManagedApiRate("Anthropic", "claude-sonnet-5")?.cachedInputUsdPerMillion, 0.2);
 assert.equal(getManagedApiRate("Anthropic", "claude-fable-5-1")?.outputUsdPerMillion, 50);
@@ -211,6 +217,24 @@ assert.equal(MANAGED_API_CUSTOM_PROVIDER, "CUSTOM");
 const snapshotMetadata = validateManagedApiPricingSnapshotMetadata();
 assert.equal(snapshotMetadata.ok, true);
 assert.deepEqual(snapshotMetadata.errors, []);
+assert.equal(MANAGED_API_PRICING_SNAPSHOT.verifiedAt, "2026-09-18");
+const newModelFreshness = getManagedApiPricingFreshness({
+  rate: getManagedApiRate("OpenAI", "gpt-6-sol"),
+  asOf: new Date("2026-10-05T00:00:00Z"),
+});
+const olderModelFreshness = getManagedApiPricingFreshness({
+  rate: getManagedApiRate("OpenAI", "gpt-6-astra"),
+  asOf: new Date("2026-10-05T00:00:00Z"),
+});
+assert.equal(newModelFreshness.verifiedAt, "2026-09-23");
+assert.equal(newModelFreshness.status, "CURRENT");
+assert.equal(olderModelFreshness.status, "STALE");
+assert.ok(validateManagedApiPricingSnapshotMetadata({
+  ...MANAGED_API_PRICING_SNAPSHOT,
+  verifiedAt: "2026-09-23",
+  snapshotId: "first-party-2026-09-23",
+  lastSuccessfulRefreshAt: "2026-09-23T00:00:00Z",
+}).errors.includes("Pricing snapshot verifiedAt must equal the oldest first-party rate verification date."));
 
 const mismatchedSnapshotMetadata = validateManagedApiPricingSnapshotMetadata({
   ...MANAGED_API_PRICING_SNAPSHOT,
