@@ -92,6 +92,42 @@ if (rubinFleet.clientReady || rubinFleet.rackCostStatus !== "QUOTE_REQUIRED") {
   throw new Error("M5 must preserve Rubin high-density infrastructure as quote-required rather than inventing rack CAPEX.");
 }
 
+// NVL72 quote coverage applies even to one rack and in spend mode. A review
+// cannot transfer to another facility, fleet, or cost basis; generic colo
+// economics must be replaced with a project-specific NVL72 rate.
+for (const systemName of ["DGX GB200 NVL72", "DGX GB300 NVL72"]) {
+  for (const isWorkloadMode of [false, true]) {
+    const args = { isWorkloadMode, isRubinPhase1: false, system: { gpus: 72 }, systemName,
+      systemCount: 1, rackCount: 1, fastPB: 0.25, bulkPB: 0.75,
+      workloadStorageConfirmed: true, clusterAllowance: 600000,
+      facility: "Self-hosted (AI-ready)", powerRate: 300,
+      rateCard: { perSysCost: 1000000, cluster: 600000, sysKw: 120 } };
+    const pending = getTcoInfrastructureCoverage(args);
+    if (pending.clientReady || !pending.highDensityReviewRequired || pending.highDensityReviewConfirmed) {
+      throw new Error(`${systemName} in ${isWorkloadMode ? "workload" : "spend"} mode must require infrastructure review even for one rack.`);
+    }
+    const quoteReview = { confirmed: true, reference: "Customer facility record 123", basis: pending.reviewBasis };
+    const reviewed = getTcoInfrastructureCoverage({ ...args, quoteReview });
+    if (!reviewed.clientReady || !reviewed.highDensityReviewConfirmed) {
+      throw new Error(`${systemName} must allow a recorded, scenario-scoped customer coverage review.`);
+    }
+    if (getTcoInfrastructureCoverage({ ...args, facility: "Self-hosted (retrofit)", quoteReview }).clientReady ||
+      getTcoInfrastructureCoverage({ ...args, systemCount: 2, quoteReview }).clientReady ||
+      getTcoInfrastructureCoverage({ ...args, rateCard: { ...args.rateCard, perSysCost: 2000000 }, quoteReview }).clientReady) {
+      throw new Error("Changing facility, fleet size, or cost basis must invalidate the NVL72 review.");
+    }
+    const colo = getTcoInfrastructureCoverage({ ...args, facility: "Equinix" });
+    if (getTcoInfrastructureCoverage({ ...args, facility: "Equinix", quoteReview: { ...quoteReview, basis: colo.reviewBasis } }).clientReady) {
+      throw new Error("The default eight-GPU Equinix rate cannot qualify NVL72 even with an acknowledgment.");
+    }
+    const quotedColo = getTcoInfrastructureCoverage({ ...args, facility: "Equinix", coloRateOverridden: true });
+    if (!getTcoInfrastructureCoverage({ ...args, facility: "Equinix", coloRateOverridden: true,
+      quoteReview: { ...quoteReview, basis: quotedColo.reviewBasis } }).clientReady) {
+      throw new Error("A quoted NVL72 Equinix rate plus a scenario-specific review must qualify the cost basis.");
+    }
+  }
+}
+
 
 function requireText(text, message) {
   if (!source.includes(text)) throw new Error(message);

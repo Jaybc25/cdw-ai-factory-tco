@@ -331,6 +331,7 @@ TCO:
 - Workload-requirement scenario.
 - Multiple cloud providers.
 - At least one NVL system class.
+- For GB200/GB300 NVL72, check one-rack workload and spend results remain directional until a scenario-specific quote/coverage review. Verify a facility, fleet, storage, or rate change invalidates the review. An Equinix scenario also needs a quoted NVL72 bundle override; Rubin Phase 1 remains directional. For client work, reconcile rack, cooling, power distribution, fabric, installation, selected software, and facility/operating costs against the actual customer/CDW quote or documented facility coverage; a user-entered reference is not independently checked by the tool.
 - 1-year, 3-year, and 5-year horizons.
 - No-crossover case.
 - Capacity-exhaustion behavior.

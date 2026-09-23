@@ -75,3 +75,22 @@ test("workload fleets beyond the current small-cluster envelope require architec
   await expect(page.getByText(/3-YEAR MODELED DELTA · DIRECTIONAL/)).toBeVisible();
   await expect(page.getByText("9 sys", { exact: true })).toBeVisible();
 });
+
+test("single GB200 NVL72 requires a scoped infrastructure review in workload mode", async ({ page }) => {
+  await page.goto(
+    "/tco?ownSys=DGX%20GB200%20NVL72&gpuCount=72&sourceClass=GB200&sizingBasis=recommended&workingDayHours=10&model=llama-3.1-70b&modelParamsB=70.6&quant=FP8",
+    { waitUntil: "domcontentloaded" },
+  );
+  await expect(page.getByText(/3-YEAR MODELED DELTA · DIRECTIONAL/)).toBeVisible();
+  await openRefine(page);
+  await expect(page.getByText("NVL72 infrastructure quote/coverage review")).toBeVisible();
+  await expect(page.getByText(/rack, liquid cooling, power distribution, fabric, installation, selected software/)).toBeVisible();
+  await page.getByRole("button", { name: /use these storage assumptions/i }).click();
+  await waitForStorageConfirmation(page, true);
+  const confirm = page.getByRole("button", { name: /I reviewed coverage and reflected the costs/i });
+  await expect(confirm).toBeDisabled();
+  await page.getByRole("textbox", { name: "Quote or existing-facility coverage reference" }).fill("CDW quote 123 / facility review 2026-09-23");
+  await confirm.click();
+  await expect(page.getByText(/Review recorded for these inputs/)).toBeVisible();
+  await expect(page.getByText(/Infrastructure architecture review required\./)).toHaveCount(0);
+});
