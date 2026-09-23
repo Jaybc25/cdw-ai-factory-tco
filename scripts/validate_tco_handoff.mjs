@@ -95,7 +95,7 @@ if (rubinFleet.clientReady || rubinFleet.rackCostStatus !== "QUOTE_REQUIRED") {
 // NVL72 quote coverage applies even to one rack and in spend mode. A review
 // cannot transfer to another facility, fleet, or cost basis; generic colo
 // economics must be replaced with a project-specific NVL72 rate.
-for (const systemName of ["DGX GB200 NVL72", "DGX GB300 NVL72"]) {
+for (const systemName of ["DGX GB200 NVL-72", "DGX GB300 NVL-72"]) {
   for (const isWorkloadMode of [false, true]) {
     const args = { isWorkloadMode, isRubinPhase1: false, system: { gpus: 72 }, systemName,
       systemCount: 1, rackCount: 1, fastPB: 0.25, bulkPB: 0.75,

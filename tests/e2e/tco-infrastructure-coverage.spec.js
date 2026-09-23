@@ -78,7 +78,7 @@ test("workload fleets beyond the current small-cluster envelope require architec
 
 test("single GB200 NVL72 requires a scoped infrastructure review in workload mode", async ({ page }) => {
   await page.goto(
-    "/tco?ownSys=DGX%20GB200%20NVL72&gpuCount=72&sourceClass=GB200&sizingBasis=recommended&workingDayHours=10&model=llama-3.1-70b&modelParamsB=70.6&quant=FP8",
+    "/tco?ownSys=DGX%20GB200%20NVL-72&gpuCount=72&sourceClass=GB200%20NVL72&sizingBasis=recommended&workingDayHours=10&model=llama-3.1-70b&modelParamsB=70.6&quant=FP8",
     { waitUntil: "domcontentloaded" },
   );
   await expect(page.getByText(/3-YEAR MODELED DELTA · DIRECTIONAL/)).toBeVisible();
