@@ -52,6 +52,8 @@ Inference Economics evaluates expected useful output-token demand against produc
 
 The managed API comparison includes first-party verified GPT-6 Sol and GPT-6 Luna rates. Each selected model displays its own verification date; the snapshot-level freshness date remains the oldest verified row so new additions do not conceal older price reviews.
 
+TCO retains its infrastructure cash-flow comparison and clearly labeled directional serving-capacity estimates. Its earlier standalone $8-per-million-token API illustration has been retired; use the TCO handoff to Guided Inference Economics to compare demand-bound private token costs with a named managed API model.
+
 ## Current TCO growth/pricing contract
 
 GPU Sizing's node-rounded Recommended production design remains the default, with an explicit Higher-growth alternative selectable for TCO when available. TCO receives the exact selected class/count plus sizing-basis provenance and remains the economics layer rather than re-sizing the workload.

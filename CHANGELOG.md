@@ -1,5 +1,10 @@
 # Changelog
 
+## September 23, 2026 - TCO capacity and API comparison ownership
+
+- Retired TCO's standalone $8-per-million-token managed API illustration and the associated token-cost/user-cost comparisons from the UI, PDF and audit appendix. Existing saved overrides for that retired field are discarded.
+- Retained TCO's cloud-versus-owned infrastructure economics, estimates of model fit and serving capacity, and the handoff to Guided Inference Economics for demand-bound cost per token against named managed API models. No TCO pricing or core cash-flow methodology changed.
+
 ## September 23, 2026 - OpenAI GPT-6 managed API comparison choices
 
 - Added GPT-6 Sol and GPT-6 Luna as first-party verified managed API comparison choices in Inference Economics, using OpenAI's published standard text-token rates and separate cache-read prices.
