@@ -97,7 +97,10 @@ export default function InferenceEconomicsPreview() {
     () => apiProvider && apiModelId ? getManagedApiRate(apiProvider, apiModelId) : null,
     [apiProvider, apiModelId]
   );
-  const pricingFreshness = useMemo(() => getManagedApiPricingFreshness(), []);
+  const pricingFreshness = useMemo(
+    () => getManagedApiPricingFreshness({ rate: selectedRegistryRate }),
+    [selectedRegistryRate]
+  );
 
   function applyRegistryRate(rate) {
     if (!rate) return;

@@ -1,5 +1,11 @@
 # Changelog
 
+## September 23, 2026 - OpenAI GPT-6 managed API comparison choices
+
+- Added GPT-6 Sol and GPT-6 Luna as first-party verified managed API comparison choices in Inference Economics, using OpenAI's published standard text-token rates and separate cache-read prices.
+- Kept the September 18 verification baseline for the older rates; newly verified rows carry their own September 23 date. The selected model now displays its own pricing verification date and staleness.
+- The standard short-context comparison still excludes long-context surcharges, regional/Fast premiums, Batch/Flex discounts, and cache-write charges. No private throughput or hardware evidence was inferred from API model releases.
+
 ## September 22, 2026 - Cloud price shadow observation rollout
 
 - Extended the scheduled maintenance review to preserve dated Azure GPU VM candidate observations in the rolling issue and a structured workflow artifact.

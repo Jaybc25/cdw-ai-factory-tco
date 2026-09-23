@@ -9,6 +9,8 @@ export const MANAGED_API_CUSTOM_PROVIDER = "CUSTOM";
 const SNAPSHOT_METADATA = Object.freeze({
   snapshotId: "first-party-2026-09-18",
   lastSuccessfulRefreshAt: "2026-09-18T18:00:00-05:00",
+  // Oldest first-party rate verification in this mixed-date snapshot. A newly
+  // admitted model cannot reset the verification age of existing models.
   verifiedAt: "2026-09-18",
   staleAfterDays: 14,
   sourceStrategy: "FIRST_PARTY_SNAPSHOT",
@@ -28,6 +30,34 @@ const RAW_FIRST_PARTY_RATES = Object.freeze([
     verifiedAt: "2026-09-18",
     sourceUrl: "https://developers.openai.com/api/docs/models/compare",
     provenanceNote: "Current short-context public API rates. Long-context pricing differs above the provider threshold.",
+    commercialUseStatus: COMMERCIAL_USE_STATUS.NOT_APPLICABLE,
+  }),
+  Object.freeze({
+    sourceId: "openai-model-docs",
+    sourceType: MANAGED_API_SOURCE_TYPE.FIRST_PARTY,
+    provider: "OpenAI",
+    modelId: "gpt-6-sol",
+    modelLabel: "GPT-6 Sol",
+    inputUsdPerMillion: 2,
+    cachedInputUsdPerMillion: 0.2,
+    outputUsdPerMillion: 10,
+    verifiedAt: "2026-09-23",
+    sourceUrl: "https://developers.openai.com/api/docs/models/gpt-6-sol",
+    provenanceNote: "Standard text-token rate. Above 272k input tokens, higher whole-request context pricing applies; regional processing and Fast cost more, Batch/Flex cost less. These modes and cache-write fees are excluded from the baseline comparison.",
+    commercialUseStatus: COMMERCIAL_USE_STATUS.NOT_APPLICABLE,
+  }),
+  Object.freeze({
+    sourceId: "openai-model-docs",
+    sourceType: MANAGED_API_SOURCE_TYPE.FIRST_PARTY,
+    provider: "OpenAI",
+    modelId: "gpt-6-luna",
+    modelLabel: "GPT-6 Luna",
+    inputUsdPerMillion: 0.1,
+    cachedInputUsdPerMillion: 0.01,
+    outputUsdPerMillion: 0.5,
+    verifiedAt: "2026-09-23",
+    sourceUrl: "https://developers.openai.com/api/docs/models/gpt-6-luna",
+    provenanceNote: "Standard text-token rate. Above 272k input tokens, higher whole-request context pricing applies; regional processing and Fast cost more, Batch/Flex cost less. These modes and cache-write fees are excluded from the baseline comparison.",
     commercialUseStatus: COMMERCIAL_USE_STATUS.NOT_APPLICABLE,
   }),
   Object.freeze({
@@ -262,10 +292,14 @@ export function validateManagedApiPricingSnapshotMetadata(snapshot = MANAGED_API
     errors.push("lastSuccessfulRefreshAt date must match verifiedAt.");
   }
 
-  for (const rate of snapshot?.rates || []) {
-    if (rate.sourceType === MANAGED_API_SOURCE_TYPE.FIRST_PARTY && rate.verifiedAt !== snapshot?.verifiedAt) {
-      errors.push(`${rate.provider}/${rate.modelId} verifiedAt must match snapshot verifiedAt.`);
+  const firstPartyRates = (snapshot?.rates || []).filter((rate) => rate.sourceType === MANAGED_API_SOURCE_TYPE.FIRST_PARTY);
+  for (const rate of firstPartyRates) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(rate.verifiedAt || "") || Number.isNaN(Date.parse(`${rate.verifiedAt}T00:00:00Z`))) {
+      errors.push(`${rate.provider}/${rate.modelId} requires an ISO verifiedAt date.`);
     }
+  }
+  if (firstPartyRates.length && snapshot?.verifiedAt !== firstPartyRates.map((rate) => rate.verifiedAt).sort()[0]) {
+    errors.push("Pricing snapshot verifiedAt must equal the oldest first-party rate verification date.");
   }
 
   return { ok: errors.length === 0, errors };
@@ -287,9 +321,11 @@ export function getManagedApiRate(provider, modelId, snapshot = MANAGED_API_PRIC
 
 export function getManagedApiPricingFreshness({
   snapshot = MANAGED_API_PRICING_SNAPSHOT,
+  rate = null,
   asOf = new Date(),
 } = {}) {
-  const verified = new Date(`${snapshot.verifiedAt}T00:00:00Z`);
+  const selectedVerifiedAt = rate?.verifiedAt || snapshot.verifiedAt;
+  const verified = new Date(`${selectedVerifiedAt}T00:00:00Z`);
   const current = asOf instanceof Date ? asOf : new Date(asOf);
   if (Number.isNaN(verified.getTime()) || Number.isNaN(current.getTime())) {
     return { status: "UNKNOWN", ageDays: null, stale: true };
@@ -300,7 +336,7 @@ export function getManagedApiPricingFreshness({
     ageDays,
     stale: ageDays > snapshot.staleAfterDays,
     staleAfterDays: snapshot.staleAfterDays,
-    verifiedAt: snapshot.verifiedAt,
+    verifiedAt: selectedVerifiedAt,
     lastSuccessfulRefreshAt: snapshot.lastSuccessfulRefreshAt,
   };
 }
