@@ -76,7 +76,7 @@ Workflow: `.github/workflows/sync-capability-scores.yml`
 - Scheduled for 06:00 UTC every Monday.
 - Can also be run manually.
 - Uses GitHub Actions secret `AA_API_KEY`.
-- Current architecture uses the Artificial Analysis free API tier.
+- The existing sync currently uses an Artificial Analysis Free API key. Current [Data API plan descriptions](https://artificialanalysis.ai/data-api) describe Free as internal-use-only and limited to organizations under 150 employees, while the [Data Platform Terms](https://artificialanalysiscdn.com/legal/ProDataPlatformTerms.pdf) restrict external distribution and certain competitive model-selection uses. CDW should confirm the existing Model Advisor display and sync rights with the provider/legal before treating this tier as sufficient; paid access alone does not settle all permitted-use questions.
 - Writes `data/model_capability_db.json` and `data/aa_discovery_candidates.json`.
 
 After a run:
@@ -239,6 +239,7 @@ Do not mix this work with future capacity-ramp modeling. Purchased future headro
 2. Check that demand is useful output tokens, assigned private cost includes the intended allocation, and the required production-throughput factor validates capacity over the horizon. Re-run the relevant IE source checks and cross-tool browser journey after changing evidence, connector, or capacity behavior.
 3. Maintain public managed API rates in `src/managedApiPricingRegistry.js` only after first-party verification. Review model identity, input/output prices, cache and long-context exceptions, source URL, verification date, and snapshot staleness. A failed future refresh should leave the last successful snapshot available; an override should be labeled as user supplied.
 4. `src/managedApiPricingSource.js` holds BenchLM as a future adapter with commercial-use status unresolved and activation on hold. Do not call it or present its rates as live without resolving rights, provenance, implementation, and validation.
+5. `.github/workflows/managed-api-catalog-watch.yml` compares first-party IE snapshot model IDs and prices to models.dev nightly, with a provider-aware LiteLLM cross-check. It stores read-only artifacts and maintains a rolling issue. Use `docs/managed-api-catalog-automation.md` to triage deltas, catalog failures, and new-model candidates; a successful source read never advances the first-party verification date or adds a model.
 5. Distinguish source verification, deployed-site checks, and CDW review. A merged PR or healthy route does not grant pricing, methodology, or external approval. Consult `docs/inference-economics-scaleout-methodology.md` and `docs/inference-economics-model-parallel-calibration.md` as design/evidence notes, then inspect current source for implemented behavior.
 
 ## 5. Model-catalog refresh procedure

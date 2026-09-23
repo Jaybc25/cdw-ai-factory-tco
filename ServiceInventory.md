@@ -19,9 +19,10 @@ For recurring maintenance procedures, read `MaintenanceRunbook.md`. For architec
 | Cloudflare | Domain registrar and DNS for `cdwaifactory.com` | Domain/DNS | Domain registered; exact plan beyond registrar not documented here | Cloudflare dashboard |
 | Slack | Download/report notifications | Operational visibility | Personal workspace `AI Factory Tools`; exact tier not documented here | Slack workspace + Supabase Edge Function secret |
 | Hugging Face | Primary model specification metadata source | Data-maintenance-critical | Account + read-only token sufficient; no paid plan required by current design | Hugging Face account + GitHub Actions secret |
-| Artificial Analysis | Model capability/speed/token-price data | Data-maintenance-critical | Free API tier | Artificial Analysis account + GitHub Actions secret |
+| Artificial Analysis | Model capability/speed/token-price data | Data-maintenance-critical; existing use needs rights review | Existing Free API key; published Free limits and external-use terms require provider/legal review for CDW use | Artificial Analysis account + GitHub Actions secret |
 | NVIDIA data/tools | DGX pricing, GPU/product/performance reference inputs, NIM research | Data-maintenance-critical | External/manual sources; no project subscription identified | NVIDIA tools/sites and captured source evidence |
 | Managed API provider public pricing pages | Manual first-party evidence for Inference Economics comparison snapshot | Data-maintenance input, not runtime API dependency | Dated rates and provenance stored in `src/managedApiPricingRegistry.js` | Provider pricing pages and repository snapshot |
+| models.dev + LiteLLM public catalogs | Daily managed API pricing/model discovery and cross-check | Maintenance only; no runtime dependency | Open catalogs; no API key; no automatic rate/model publication | `.github/workflows/managed-api-catalog-watch.yml` and `docs/managed-api-catalog-automation.md` |
 | Claude Project / Cowork | Primary AI-assisted build/project workspace | Development-only | Subscription/account external to runtime; exact plan not recorded here | Anthropic account / Claude Project |
 | ChatGPT | Independent review, audit, GitHub-connected maintenance | Development-only | Subscription/account external to runtime; exact plan not recorded here | OpenAI account / ChatGPT connectors |
 
@@ -261,7 +262,7 @@ Supplies current model intelligence, coding, agentic, speed, and token-pricing d
 
 ### Known tier
 
-- Free API tier is intentionally sufficient for the current architecture.
+- The current sync uses a Free key. Published tier, organization-size, and external-use restrictions mean CDW's current rights need explicit review; do not infer production eligibility from a successful API request.
 - The project deliberately does not depend on Pro-only fields for hard-filter model metadata.
 
 ### Secret/config name
@@ -388,7 +389,7 @@ Confirm:
 - `cdwaifactory.com` renewal/auto-renew state in Cloudflare.
 - Slack workspace tier if it changes from free/default behavior.
 - Hugging Face remains usable without a paid tier for current API needs.
-- Artificial Analysis remains usable on the free API tier for consumed fields.
+- Artificial Analysis Free API terms and CDW client-facing use need provider/legal review; see Section 9 and `MaintenanceRunbook.md`.
 - Claude subscription if tracking development-tool cost.
 - ChatGPT subscription if tracking development/review-tool cost.
 

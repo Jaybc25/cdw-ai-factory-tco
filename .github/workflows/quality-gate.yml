@@ -24,7 +24,10 @@ on:
       - "scripts/auditManagedApiPricingFreshness.mjs"
       - "scripts/maintenanceWatch.mjs"
       - "scripts/verifyMaintenanceWatch.mjs"
+      - "scripts/managedApiCatalogWatch.mjs"
+      - "scripts/verifyManagedApiCatalogWatch.mjs"
       - ".github/workflows/maintenance-review.yml"
+      - ".github/workflows/managed-api-catalog-watch.yml"
       - ".github/workflows/managed-api-pricing-freshness.yml"
       - "scripts/verifyInferenceEconomicsConnector.mjs"
       - "scripts/verifyManagedApiComparison.mjs"
@@ -80,7 +83,10 @@ on:
       - "scripts/verifyInferenceEconomicsGuidedPreview.mjs"
       - "scripts/maintenanceWatch.mjs"
       - "scripts/verifyMaintenanceWatch.mjs"
+      - "scripts/managedApiCatalogWatch.mjs"
+      - "scripts/verifyManagedApiCatalogWatch.mjs"
       - ".github/workflows/maintenance-review.yml"
+      - ".github/workflows/managed-api-catalog-watch.yml"
       - "docs/reverse-tco-model-v1.xlsx"
       - "package.json"
       - "package-lock.json"
@@ -140,6 +146,9 @@ jobs:
 
       - name: Validate weekly maintenance evidence report
         run: node scripts/verifyMaintenanceWatch.mjs
+
+      - name: Validate managed API catalog shadow comparison
+        run: node scripts/verifyManagedApiCatalogWatch.mjs
 
       - name: Validate hybrid sequence-state methodology
         run: node scripts/validate_hybrid_sequence_state_methodology.mjs
