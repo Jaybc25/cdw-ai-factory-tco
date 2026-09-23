@@ -67,7 +67,7 @@ const TIPS = {
   fastStorage: `High-performance storage feeding your GPUs during training and inference: active datasets, model checkpoints, and working files. In Existing Cloud Spend mode the auto default is scaled from the bill; in Workload Requirement mode storage is an explicit planning input and must be adjusted or confirmed for that workload.`,
   bulkStorage: `Everything else: archived datasets, older model versions, and raw data waiting to be processed. In Workload Requirement mode this capacity is not inferred from GPU count, model size, or training tokens; adjust or confirm it before treating the TCO result as client-ready.`,
   egress: `The share of your stored data that leaves the cloud each month, going to users, other systems, or your own facilities. Cloud providers charge for every gigabyte out; on-prem doesn't. The industry-typical default is 5% monthly, so leave it unless you know you're a heavy data mover.`,
-  facility: `Where the equipment would physically live. 'AI-ready' means you have a data center with power and cooling for high-density racks today. 'Retrofit' means you have space but it needs upgrades, which adds a one-time buildout cost. 'Equinix' means renting space in a ready facility with cooling and management bundled in. If unsure, Equinix is the conservative pick since it requires nothing from your building.`,
+  facility: `Where the equipment would physically live. 'AI-ready' means you have a data center with power and cooling for the selected rack today. 'Retrofit' means you have space but it needs upgrades, which adds a one-time buildout cost. 'Equinix' means renting space in a ready facility with cooling and management bundled in. NVL72 deployments need project-specific facility review; the generic Equinix bundle is based on smaller systems.`,
   redundancy: `Adds one spare system beyond what the workload needs, so a hardware failure never stops your work. Cloud gives you this implicitly; buying it on-prem is a real cost this toggle makes visible. Turn it on if your AI workloads are production-critical, off if they're research and development that can tolerate a pause.`,
   migration: `One-time cost of the engineering work to move workloads from cloud to your own systems: replatforming, testing, and cutover. The default of $100K represents a typical mid-size migration; complex environments with many custom pipelines run higher. If unsure, leave the default.`,
   dualRun: `How many months you'd pay for both cloud and on-prem while migrating, since you can't switch off the cloud the day hardware arrives. Each month adds one full cloud bill to the transition cost. Typical is 2 to 3 months; leave the default unless you know your cutover will be unusually fast or slow.`,
@@ -328,6 +328,14 @@ function run(inp, RC) {
     bulkPB: bulk,
     workloadStorageConfirmed: inp.workloadStorageConfirmed,
     clusterAllowance: RC.cluster,
+    facility: inp.facility,
+    powerRate: inp.powerRate,
+    retrofit: inp.retrofit,
+    growth: inp.growth,
+    horizon: inp.horizon,
+    rateCard: RC,
+    coloRateOverridden: inp.coloRateOverridden,
+    quoteReview: inp.quoteReview,
   });
   const prodSys = Math.max(1, sysAdj - nPlus); // productive systems: the N+1 spare is failover, not growth capacity (audit round 4)
   const headroom = isWorkloadMode
@@ -1007,6 +1015,8 @@ function AppInner() {
   // GPU Sizing handoff therefore resets confirmation instead of silently
   // carrying a prior workload's accepted storage assumptions forward.
   const [workloadStorageConfirmed, setWorkloadStorageConfirmed] = useState(() => arrivedFromGpuSizing ? false : saved?.workloadStorageConfirmed ?? false);
+  const [quoteReview, setQuoteReview] = useState(() => arrivedFromGpuSizing ? null : saved?.quoteReview ?? null);
+  const [quoteReference, setQuoteReference] = useState(() => arrivedFromGpuSizing ? "" : saved?.quoteReview?.reference ?? "");
   const [fastPBm, setFastPBm] = useState(saved?.fastPBm ?? 0.25);
   const [bulkPBm, setBulkPBm] = useState(saved?.bulkPBm ?? 0.75);
   const [egressPct, setEgressPct] = useState(saved?.egressPct ?? 0.05);
@@ -1072,7 +1082,7 @@ function AppInner() {
   useEffect(() => {
     saveSessionState("tco", {
       performanceFactorPolicyVersion: TCO_PERFORMANCE_FACTOR_POLICY_VERSION,
-      ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto, workloadStorageConfirmed,
+      ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto, workloadStorageConfirmed, quoteReview,
       fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
       residPct, modelId, modelParamsB, quant,
@@ -1082,7 +1092,7 @@ function AppInner() {
       // component for the full explanation.
       gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, gpuSizingScaleoutClassification,
     });
-  }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto, workloadStorageConfirmed,
+  }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto, workloadStorageConfirmed, quoteReview,
       fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
       residPct, modelId, modelParamsB, quant, gpuSizingCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, gpuSizingScaleoutClassification]);
@@ -1152,10 +1162,10 @@ function AppInner() {
   const bulkPB = effectiveStorageAuto ? Math.round(autoPB * 0.75 * 100) / 100 : bulkPBm;
   const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (mode === "workload") setWorkloadStorageConfirmed(true); if (effectiveStorageAuto) setBulkPBm(bulkPB); };
   const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (mode === "workload") setWorkloadStorageConfirmed(true); if (effectiveStorageAuto) setFastPBm(fastPB); };
-  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, workloadStorageConfirmed };
+  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, workloadStorageConfirmed, quoteReview, coloRateOverridden: "equinixMo" in activeOnPremRateOverride };
   const r = useMemo(
     () => run(inputsObj, rc),
-    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, workloadStorageConfirmed, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
+    [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, workloadStorageConfirmed, quoteReview, onPremRateOverrides, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
   );
   const t = r.tot(horizon);
 
@@ -1269,7 +1279,7 @@ function AppInner() {
     return null;
   }, [gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, retrofit, migration, dualRun, redundancy, residPct, computeShare, odShare, provider, ov, horizon, mode, cloudUnitPriceTrend]);
   const baseTier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
-  const tier = r.isWorkloadMode && !r.infrastructureCoverage.clientReady ? "DIRECTIONAL" : baseTier;
+  const tier = !r.infrastructureCoverage.clientReady ? "DIRECTIONAL" : baseTier;
   const maxBar = Math.max(t.cloud, t.cloudFloor, t.onAdj, t.onFlr, 1);
   const isSelf = facility !== "Equinix";
 
@@ -1434,7 +1444,7 @@ function AppInner() {
             <div style={{ fontSize: 12, color: C.sub, marginBottom: 12 }}>{new Date().toLocaleDateString()} · Confidence: {tier} · {provider} · {gpuClass} workloads</div>
             {t.saveAdj > 0 ? (
               <div style={{ background: C.greenSoft, borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
-                <div style={{ ...mono, fontSize: 11, color: C.green }}>{r.isWorkloadMode && !r.infrastructureCoverage.clientReady ? `${horizon}-YEAR MODELED DELTA — INFRASTRUCTURE INPUTS NOT YET QUALIFIED` : `${horizon}-YEAR PROJECTED SAVINGS`}</div>
+                <div style={{ ...mono, fontSize: 11, color: C.green }}>{!r.infrastructureCoverage.clientReady ? `${horizon}-YEAR MODELED DELTA — INFRASTRUCTURE INPUTS NOT YET QUALIFIED` : `${horizon}-YEAR PROJECTED SAVINGS`}</div>
                 <div style={{ ...mono, fontSize: 32, fontWeight: 600, color: C.green }}>{fmtM(t.saveAdj)}</div>
                 <div style={{ fontSize: 12, color: C.ink }}>vs. staying in cloud ({fmtM(t.cloud)}) · even with zero performance credit (floor case): {fmtM(t.saveFlr)}</div>
               </div>
@@ -1447,11 +1457,11 @@ function AppInner() {
               </div>
             )}
             <Row label="Planning basis" value={r.isWorkloadMode ? "Workload Requirement" : "Existing Cloud Spend"} sub={r.isWorkloadMode ? "both sides costed from the GPU Sizing technical requirement" : "on-prem sized from your reported cloud spend"} />
-            {r.isWorkloadMode && (
+            {r.infrastructureCoverage.applies && (
               <Row
                 label="Infrastructure coverage"
-                value={!r.infrastructureCoverage.storageConfirmed ? "Needs storage confirmation" : r.infrastructureCoverage.requiresArchitectureReview ? "Architecture review required" : "Planning basis confirmed"}
-                sub={`${r.infrastructureCoverage.storageNote} ${r.infrastructureCoverage.architectureNote}`}
+                value={!r.infrastructureCoverage.storageConfirmed ? "Needs storage confirmation" : r.infrastructureCoverage.requiresArchitectureReview ? "Architecture/quote review required" : r.infrastructureCoverage.highDensityReviewConfirmed ? "User-confirmed planning basis" : "Planning basis confirmed"}
+                sub={`${r.infrastructureCoverage.storageNote} ${r.infrastructureCoverage.architectureNote}${r.infrastructureCoverage.reviewReference ? ` User-provided quote/coverage reference: ${r.infrastructureCoverage.reviewReference}.` : ""}`}
               />
             )}
             <Row label={`Recommended build`} value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`} sub={r.isWorkloadMode ? `fixed to the workload's technical requirement · ${facility}` : `${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
@@ -1725,12 +1735,12 @@ function AppInner() {
               substituted={`${fmt(r.year0CapexBreakdown.clusterAndStorage)} (shared cluster allowance + explicit storage) + ${fmt(r.year0CapexBreakdown.systems)} (systems) + ${fmt(r.year0CapexBreakdown.racks)} (modeled racks)`}
               result={fmt(r.adj.capex)}
             />
-            {r.isWorkloadMode && (
+            {r.infrastructureCoverage.applies && (
               <AuditSourceRow
                 label="Infrastructure coverage"
-                value={r.infrastructureCoverage.clientReady ? "Planning basis confirmed" : "DIRECTIONAL — validation required"}
-                source="Current TCO planning allowances + NVIDIA reference-architecture scale boundaries"
-                basis={`${r.infrastructureCoverage.summary}. ${r.infrastructureCoverage.storageNote} ${r.infrastructureCoverage.architectureNote}`}
+                value={r.infrastructureCoverage.clientReady ? r.infrastructureCoverage.highDensityReviewConfirmed ? "User-confirmed planning basis" : "Planning basis confirmed" : "DIRECTIONAL — validation required"}
+                source="Current TCO planning allowances + user-provided infrastructure review"
+                basis={`${r.infrastructureCoverage.summary}. ${r.infrastructureCoverage.storageNote} ${r.infrastructureCoverage.architectureNote}${r.infrastructureCoverage.reviewReference ? ` User-provided quote/coverage reference: ${r.infrastructureCoverage.reviewReference}. This reference was entered by the user and has not been independently verified by the tool.` : ""}`}
                 confidence={r.infrastructureCoverage.clientReady ? "REFINED" : "DIRECTIONAL"}
               />
             )}
@@ -1934,7 +1944,7 @@ function AppInner() {
         <div style={{ background: C.ink, borderRadius: 14, padding: "16px 16px 12px", marginBottom: 14, color: "#FFFFFF" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ ...mono, fontSize: 10, letterSpacing: 1.5, color: "#ABABAB" }}>
-              {r.isWorkloadMode && !r.infrastructureCoverage.clientReady ? `${horizon}-YEAR MODELED DELTA · ${tier}` : `${horizon}-YEAR SAVINGS · ${tier}`}{editedCount > 0 ? ` · ${editedCount} RATE${editedCount > 1 ? "S" : ""} EDITED` : ""}
+              {!r.infrastructureCoverage.clientReady ? `${horizon}-YEAR MODELED DELTA · ${tier}` : `${horizon}-YEAR SAVINGS · ${tier}`}{editedCount > 0 ? ` · ${editedCount} RATE${editedCount > 1 ? "S" : ""} EDITED` : ""}
             </span>
             <div style={{ display: "flex", gap: 4 }}>
               {[1, 3, 5].map((h) => (
@@ -1963,7 +1973,7 @@ function AppInner() {
               </div>
             </div>
           )}
-          {r.isWorkloadMode && !r.infrastructureCoverage.clientReady && (
+          {!r.infrastructureCoverage.clientReady && (
             <div style={{ fontSize: 11.5, color: "#F1F1F1", background: "#3A3A3A", borderLeft: "3px solid #E8CE8A", borderRadius: 6, padding: "8px 10px", marginBottom: 10 }}>
               <b>{!r.infrastructureCoverage.storageConfirmed ? "Storage assumption unconfirmed." : "Infrastructure architecture review required."}</b>{" "}
               {r.infrastructureCoverage.architectureNote}
@@ -2169,10 +2179,35 @@ function AppInner() {
           <TipLabel text="Facility readiness" tip={TIPS.facility} />
           <Seg options={isRubinPhase1 ? FACILITIES.filter((f) => f !== "Equinix") : FACILITIES} value={facility} onChange={setFacility} />
           {isRubinPhase1 && <div style={{ fontSize: 11, color: C.sub, marginTop: 4 }}>Rubin colo/high-density facility economics require a customer or partner quote; the legacy Equinix bundle is intentionally unavailable for Rubin.</div>}
+          {r.infrastructureCoverage.highDensityReviewRequired && (
+            <div style={{ fontSize: 12, color: C.ink, background: "#FFF8E6", border: "1px solid #E8CE8A", borderRadius: 8, padding: "10px 12px", marginTop: 10 }}>
+              <b>NVL72 infrastructure quote/coverage review</b>
+              <div style={{ marginTop: 5, lineHeight: 1.5 }}>
+                {r.sysAdj} × {ownSys} at {facility}. Check a project-specific CDW/customer quote or documented existing-facility coverage for rack, liquid cooling, power distribution, fabric, installation, selected software, and operating/facility costs. Enter any differences in the rate card below. This acknowledgment records your review; the tool does not verify the quote or change the modeled costs.
+              </div>
+              {facility === "Equinix" && !("equinixMo" in activeOnPremRateOverride) && (
+                <div style={{ marginTop: 5, color: "#8A4B00" }}>The generic Equinix bundle is sized for eight-GPU systems. Enter a quoted NVL72 $/system/month rate in the rate card before confirming.</div>
+              )}
+              <label style={{ display: "block", marginTop: 8 }} htmlFor="nvl72-quote-reference">Quote or existing-facility coverage reference</label>
+              <input id="nvl72-quote-reference" aria-label="Quote or existing-facility coverage reference" value={quoteReference}
+                onChange={(event) => { setQuoteReference(event.target.value); setQuoteReview(null); }}
+                placeholder="e.g. CDW quote ID and date or facility review ID" style={{ width: "100%", boxSizing: "border-box", padding: "7px 9px", border: `1px solid ${C.line}`, borderRadius: 5, marginTop: 4 }} />
+              {!isRubinPhase1 && (
+                <button type="button" disabled={!quoteReference.trim() || (facility === "Equinix" && !("equinixMo" in activeOnPremRateOverride))}
+                  onClick={() => setQuoteReview({ confirmed: true, reference: quoteReference.trim(), basis: r.infrastructureCoverage.reviewBasis })}
+                  style={{ marginTop: 8, padding: "7px 9px", borderRadius: 5, border: `1px solid ${C.line}`, background: C.panel, color: C.ink, cursor: "pointer" }}>
+                  I reviewed coverage and reflected the costs in this scenario
+                </button>
+              )}
+              <div style={{ marginTop: 6, color: C.sub }}>
+                {isRubinPhase1 ? "Rubin remains Phase 1 directional even after a quote is obtained; the excluded infrastructure cannot be qualified through this acknowledgment." : r.infrastructureCoverage.highDensityReviewConfirmed ? "Review recorded for these inputs. Changing the design, facility, or cost inputs requires another review." : "Review required before presenting this modeled delta as a qualified planning basis."}
+              </div>
+            </div>
+          )}
           {facility === "Self-hosted (retrofit)" && (
             <Slider label="Facility retrofit (one-time)" value={retrofit} min={0} max={2000000} step={50000}
               onChange={setRetrofit} display={fmtM(retrofit)}
-              hint="2 DGX/rack = ~29 kW/rack, beyond most legacy DCs. Typical buildout $10-15K per kW of new capacity." />
+              hint={r.infrastructureCoverage.highDensityReviewRequired ? "NVL72 retrofit and liquid-cooling scope require a site-specific quote; adjust this planning allowance to the actual project cost." : "2 DGX/rack = ~29 kW/rack, beyond most legacy DCs. Typical buildout $10-15K per kW of new capacity."} />
           )}
           {isSelf && (
             <Slider label="Power rate (fully loaded)" value={powerRate} min={100} max={450} step={25}

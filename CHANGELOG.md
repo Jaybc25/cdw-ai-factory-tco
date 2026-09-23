@@ -82,6 +82,11 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+### September 23, 2026 - NVL72 infrastructure cost readiness
+
+- Extended TCO infrastructure qualification to a single GB200 or GB300 NVL72 and to spend-derived NVL72 scenarios. A quote or documented existing-facility coverage reference and explicit review now accompany rack, cooling, power distribution, fabric, installation, selected software, and facility/operating assumptions. The review is bound to the selected design and modeled cost inputs; changing them invalidates it.
+- The generic Equinix bundle cannot qualify an NVL72 scenario without a project-specific per-system override. Rubin Phase 1 stays directional with high-density costs still quote-dependent. Existing dollar inputs, TCO formulas, smaller-system planning allowances, and release tags are unchanged.
+
 ### September 22, 2026 - Read-only maintenance review automation
 
 - Added a weekly GitHub Actions evidence report and one rolling maintenance issue covering pricing age, managed API snapshot age, cloud rows using proxies/quote placeholders, and manual IE/model/governance review tasks.

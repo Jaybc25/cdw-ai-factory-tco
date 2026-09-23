@@ -20,8 +20,17 @@ export function getTcoInfrastructureCoverage({
   bulkPB,
   workloadStorageConfirmed,
   clusterAllowance,
+  facility,
+  powerRate,
+  retrofit,
+  growth,
+  horizon,
+  rateCard,
+  coloRateOverridden,
+  quoteReview,
 }) {
-  if (!isWorkloadMode) {
+  const isRackScaleSystem = Number(system?.gpus) >= 72;
+  if (!isWorkloadMode && !isRackScaleSystem && !isRubinPhase1) {
     return {
       applies: false,
       storageConfirmed: true,
@@ -33,8 +42,15 @@ export function getTcoInfrastructureCoverage({
     };
   }
 
-  const storageConfirmed = workloadStorageConfirmed === true;
-  const isRackScaleSystem = Number(system?.gpus) >= 72;
+  const storageConfirmed = !isWorkloadMode || workloadStorageConfirmed === true;
+  // The review is tied to the actual modeled inputs. Changing system, fleet,
+  // facility, or a cost assumption invalidates the prior acknowledgment.
+  const reviewBasis = JSON.stringify({ systemName, systemCount, rackCount, facility, powerRate, growth, horizon, retrofit: facility === "Self-hosted (retrofit)" ? retrofit : null,
+    rateCard: rateCard && Object.fromEntries(["perSysCost", "cluster", "sysKw", "equinixMo", "adminRatio", "opFTE", "netMo", "fastPB", "bulkPB", "fastSupPB", "bulkSupPB", "kwPerPB", "racksPerPB", "setupRack", "opsGrowth"].map((key) => [key, rateCard[key]])),
+    coloRateOverridden, fastPB, bulkPB });
+  const highDensityReviewConfirmed = isRackScaleSystem && !isRubinPhase1 &&
+    quoteReview?.confirmed === true && Boolean(quoteReview.reference?.trim()) &&
+    quoteReview.basis === reviewBasis && (facility !== "Equinix" || coloRateOverridden === true);
 
   // Current NVIDIA BasePOD guidance explicitly covers up to eight B200/H200/H100
   // systems as one reference architecture. Rack-scale NVL systems and Rubin
@@ -44,7 +60,7 @@ export function getTcoInfrastructureCoverage({
   let clusterScaleStatus = "PLANNING_ALLOWANCE";
   if (isRubinPhase1) {
     clusterScaleStatus = "ARCHITECTURE_QUOTE_REQUIRED";
-  } else if (isRackScaleSystem && systemCount > 1) {
+  } else if (isRackScaleSystem && !highDensityReviewConfirmed) {
     clusterScaleStatus = "ARCHITECTURE_REVIEW_REQUIRED";
   } else if (!isRackScaleSystem && systemCount > BASEPOD_MAX_8_GPU_SYSTEMS) {
     clusterScaleStatus = "ARCHITECTURE_REVIEW_REQUIRED";
@@ -52,11 +68,11 @@ export function getTcoInfrastructureCoverage({
 
   const rackCostStatus = system?.rackPlanningBasis
     ? "QUOTE_REQUIRED"
-    : "MODELED";
+    : isRackScaleSystem && !highDensityReviewConfirmed ? "COVERAGE_REVIEW_REQUIRED" : "MODELED";
 
   const requiresArchitectureReview =
     clusterScaleStatus !== "PLANNING_ALLOWANCE" ||
-    rackCostStatus === "QUOTE_REQUIRED";
+    rackCostStatus !== "MODELED";
 
   const totalPB = Number(fastPB || 0) + Number(bulkPB || 0);
   const summaryParts = [
@@ -69,16 +85,24 @@ export function getTcoInfrastructureCoverage({
   return {
     applies: true,
     storageConfirmed,
-    storageStatus: storageConfirmed ? "CONFIRMED_INPUT" : "UNCONFIRMED_PLANNING_INPUT",
+    storageStatus: !isWorkloadMode ? "NOT_APPLICABLE" : storageConfirmed ? "CONFIRMED_INPUT" : "UNCONFIRMED_PLANNING_INPUT",
     clusterScaleStatus,
     rackCostStatus,
+    highDensityReviewRequired: isRackScaleSystem,
+    highDensityReviewConfirmed,
+    reviewBasis,
+    reviewReference: highDensityReviewConfirmed ? quoteReview.reference.trim() : null,
     requiresArchitectureReview,
     clientReady: storageConfirmed && !requiresArchitectureReview,
     summary: summaryParts.join(" · "),
-    storageNote: storageConfirmed
+    storageNote: !isWorkloadMode ? "Spend-derived storage retains its existing planning basis." : storageConfirmed
       ? "Storage capacity is an explicit workload assumption."
       : "Storage capacity is not derived from GPU count, model size, or training tokens; the current values are planning inputs that must be confirmed or edited for this workload.",
-    architectureNote: requiresArchitectureReview
+    architectureNote: isRubinPhase1
+      ? "Rubin Phase 1 still excludes quoted high-density infrastructure; confirm rack, cooling, power distribution, fabric, installation, software, and facility costs in a project-specific design before client use."
+      : isRackScaleSystem && !highDensityReviewConfirmed
+      ? `High-density quote/coverage review required. Confirm rack, cooling, power distribution, fabric, installation, selected software, and facility costs against a customer/CDW quote or documented existing-facility coverage.${facility === "Equinix" && !coloRateOverridden ? " The generic Equinix bundle is calibrated for eight-GPU systems; enter a quoted NVL72 bundle rate in the rate card." : ""}`
+      : requiresArchitectureReview
       ? "The modeled subtotal retains the current shared cluster/storage assumptions. Validate management/network topology, rack/power/cooling, and storage design before treating the savings delta as client-ready."
       : "The shared cluster allowance remains within the current small-cluster planning envelope; storage capacity is still workload-specific.",
   };

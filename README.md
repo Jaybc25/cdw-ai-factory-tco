@@ -54,6 +54,8 @@ The managed API comparison includes first-party verified GPT-6 Sol and GPT-6 Lun
 
 TCO retains its infrastructure cash-flow comparison and clearly labeled directional serving-capacity estimates. Its earlier standalone $8-per-million-token API illustration has been retired; use the TCO handoff to Guided Inference Economics to compare demand-bound private token costs with a named managed API model.
 
+For GB200 and GB300 NVL72, even a single rack requires an explicit infrastructure quote/coverage review in both workload and spend modes before the TCO result is presented as a qualified planning basis. The review records a user-provided quote or existing-facility reference for rack, cooling, power distribution, fabric, installation, selected software, and facility/operating costs; it does not validate the evidence or edit the costs. The generic Equinix bundle requires a project-specific NVL72 rate. Changing the fleet, facility, storage, or rate-card inputs invalidates the review. Rubin Phase 1 remains directional because its quoted high-density infrastructure is excluded. Smaller B200/B300 designs retain their existing planning allowances; workload storage still requires explicit confirmation, and large fleets still require architecture review.
+
 ## Current TCO growth/pricing contract
 
 GPU Sizing's node-rounded Recommended production design remains the default, with an explicit Higher-growth alternative selectable for TCO when available. TCO receives the exact selected class/count plus sizing-basis provenance and remains the economics layer rather than re-sizing the workload.
