@@ -78,7 +78,7 @@ See `docs/MODEL_MODERNIZATION_CURRENT_STATE.md` and `ModelCatalogTranche1.md` fo
 - Hosting and deployment: Vercel
 - Notifications: Slack webhook invoked through a Supabase Edge Function
 - Model metadata source: Hugging Face Hub API
-- Model capability source: Artificial Analysis free API
+- Model capability source: Artificial Analysis API (current Free key; customer-facing rights require review under current published terms)
 - Domain/DNS: Cloudflare for `cdwaifactory.com`
 
 The GitHub repository is the source of truth for code and tracked data. Before reviewing or editing a module, fetch its current file from `main` rather than relying on memory, prior chat context, or old exported files.
@@ -89,6 +89,7 @@ The GitHub repository is the source of truth for code and tracked data. Before r
 
 - Hugging Face model-spec sync: monthly on the 1st at 06:00 UTC, plus manual dispatch
 - Artificial Analysis capability sync: weekly on Monday at 06:00 UTC, plus manual dispatch
+- Managed API catalog shadow comparison: nightly at 10:30 UTC, checks models.dev against the first-party IE snapshot and LiteLLM against exact provider IDs; see `docs/managed-api-catalog-automation.md`. This creates a review issue and does not automatically change IE rates or add models.
 - Canonical model-registry reconciliation: daily at 07:00 UTC and on changes under `data/**`
 - Weekly maintenance evidence review: Monday at 13:30 UTC; captures Azure GPU VM price candidates, a structured shadow observation, and a dated comment on the rolling review issue. See `docs/cloud-pricing-shadow-rollout.md` for the validation and expansion plan; prices are not automatically changed.
 
