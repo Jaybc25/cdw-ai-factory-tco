@@ -6,6 +6,12 @@
 - Kept the September 18 verification baseline for the older rates; newly verified rows carry their own September 23 date. The selected model now displays its own pricing verification date and staleness.
 - The standard short-context comparison still excludes long-context surcharges, regional/Fast premiums, Batch/Flex discounts, and cache-write charges. No private throughput or hardware evidence was inferred from API model releases.
 
+## September 23, 2026 - Managed API catalog shadow comparison
+
+- Added a nightly, read-only models.dev pricing/model discovery comparison for the Inference Economics first-party rate snapshot, with a provider-aware LiteLLM cross-check and one rolling review issue.
+- Confirmed all 15 checked-in models and short-context rates currently match both catalogs; surfaced recent frontier model entries only as candidates pending provider verification.
+- Documented source licensing and promotion gates. Flagged that existing Artificial Analysis Free API usage needs CDW/provider rights review under the currently published access terms; no client-facing rate, model eligibility, or verification date was changed.
+
 ## September 22, 2026 - Cloud price shadow observation rollout
 
 - Extended the scheduled maintenance review to preserve dated Azure GPU VM candidate observations in the rolling issue and a structured workflow artifact.
