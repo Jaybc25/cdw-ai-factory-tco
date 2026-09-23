@@ -48,7 +48,6 @@ const BASE_RC = {
   kwPerPB: 10, racksPerPB: 1, netMo: 3000, setupRack: 2000,
   adminRatio: 10, opFTE: 189000, equinixMo: 11387,
   hrsMo: 730, opsGrowth: 0.04, gpusPerSystem: 8,
-  cloudTok: 8.00, // managed-API blended $/1M tokens (EST — editable)
 };
 function defaultsFor(provider, gpuClass, ownSys) {
   const r = RATES[provider][gpuClass];
@@ -87,7 +86,7 @@ const TIPS = {
   tier3: `If you have a real invoice showing GPU-hours consumed, enter it here and the tool uses your actual number instead of estimating it from spend, making everything downstream more accurate. This is optional; leave it at 'not provided' and the spend-based estimate stands. Ask your cloud admin for a usage report if you want this precision.`,
   modelSize: `The largest AI model you plan to serve, in parameters. Bigger models need more GPU memory per copy and produce fewer tokens per second, so this drives the capacity estimates below. If unsure, 70B is the common enterprise workhorse.`,
   quant: `The numeric precision the model runs at. Lower precision (FP8, FP4) halves memory and boosts speed with modest quality trade-offs; most 2026 production serving runs FP8. If unsure, leave FP8.`,
-  capGroup: `Rule-of-thumb serving math, clearly estimated: model memory determines GPUs per copy, published throughput classes determine tokens per second, and your fleet cost divides across that capacity. Use it for direction and conversation, not capacity planning — a real sizing exercise comes with the CDW engagement.`,
+  capGroup: `Rule-of-thumb serving math, clearly estimated: model memory determines GPUs per copy, and throughput classes estimate tokens per second. Use it for direction and conversation, not capacity planning. For demand-bound cost per token against a named managed API model, continue to Inference Economics.`,
   ownSys: `The NVIDIA system you'd buy to run these workloads yourself. Newer systems cost more per box but do far more work per GPU-hour, so the best value is often not the cheapest system. If unsure, DGX B200 is the proven mainstream pick.`,
 };
 
@@ -367,7 +366,7 @@ function run(inp, RC) {
       ? Math.log(1 / (1 - headroom)) / Math.log(1 + inp.growth)
       : null;
 
-  // v1.9 capacity & unit economics. Rubin remains intentionally unavailable
+  // v1.9 directional capacity. Rubin remains intentionally unavailable
   // here until a qualifying absolute inference-throughput benchmark exists.
   let cap;
   if (isRubinPhase1) {
@@ -384,15 +383,10 @@ function run(inp, RC) {
     const tokPerGPU = BASE_TOK * IDX.infer[SYS_CLASS[inp.ownSys]] * q.mult * (70 / modelB);
     const fleetTokSec = replicas * gpusPerReplica * tokPerGPU * inp.util;
     const monthlyTokM = (fleetTokSec * 2628000) / 1e6;
-    const onPremMonthly = (adj.capex + oneTime - adj.resid) / (inp.horizon * 12) + adj.opex;
     cap = {
       available: true, gpusPerReplica, replicas, fits: replicas > 0,
       users: Math.floor(fleetTokSec / TOK_PER_USER),
       monthlyTokM,
-      perM: monthlyTokM > 0 ? onPremMonthly / monthlyTokM : null,
-      perUserOn: fleetTokSec >= TOK_PER_USER ? onPremMonthly / Math.floor(fleetTokSec / TOK_PER_USER) : null,
-      perUserCloud: ((TOK_PER_USER * 2628000) / 1e6) * RC.cloudTok,
-      cloudPerM: RC.cloudTok, onPremMonthly,
     };
   }
   const storageBudget = inp.bill * (1 - inp.computeShare);
@@ -1001,6 +995,8 @@ function AppInner() {
     delete next.perSysCost;
     delete next.sysKw;
     delete next.equinixMo;
+    // Retire saved overrides for the old TCO-only API cost illustration.
+    delete next.cloudTok;
     return next;
   });
   const [mode, setMode] = useState(() => (arrivedFromGpuSizing ? (gpuSizingCount ? "workload" : "spend") : saved?.mode ?? (gpuSizingCount ? "workload" : "spend"))); // v2.9: bake-off (spend-derived) vs workload (technical-requirement-driven)
@@ -1464,7 +1460,7 @@ function AppInner() {
             <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
             <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub={r.isWorkloadMode ? "capex + one-time vs. estimated workload-equivalent cloud cost" : "capex + one-time vs. current monthly cloud bill"} />
             <Row label="Residual value credit" value={`−${fmt(r.adj.resid)}`} sub={`${Math.round(residPct * 100)}% of systems + storage capex at horizon`} />
-            {r.cap.available !== false && r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} users · $${r.cap.perM.toFixed(2)}/1M tok`} sub={`${modelDisplay} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
+            {r.cap.available !== false && r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} concurrent users`} sub={`${modelDisplay} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
             {r.isWorkloadMode ? (
               <>
                 <Row label="Technical workload requirement" value={`${r.sysAdj} × ${ownSys}`} sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- ${gpuSizingBasis === "higher-growth" ? "user-selected higher-growth alternative" : "GPU Sizing recommended configuration"}; fleet size is duty-cycle-independent`} />
@@ -1485,7 +1481,7 @@ function AppInner() {
                 </>
               ) : (
                 <>
-                  Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with a net performance factor of {r.npf.toFixed(2)}x. Rubin Phase 1 scenarios intentionally hold this at 1.00x until qualifying inference evidence is available; non-Rubin scenarios use the existing MLPerf-derived factor model. On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
+                  Methodology: cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). Cloud spend normalized to GPU-hours at published list rates; on-prem fleet sized at {Math.round(util * 100)}% target utilization with a net performance factor of {r.npf.toFixed(2)}x. Rubin Phase 1 scenarios intentionally hold this at 1.00x until qualifying inference evidence is available; non-Rubin scenarios use the existing MLPerf-derived factor model. On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}). The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise; demand-bound token economics are handled by Inference Economics. Not modeled: hardware refresh cadence beyond residual, NPV discounting, cloud commitment early-termination, hybrid burst. This is a directional analysis — a validated version requires your actual cloud invoice.
                 </>
               )}
             </div>
@@ -1537,7 +1533,7 @@ function AppInner() {
                   [`Cloud vs on-prem (${horizon}yr)`, `${fmt(t.cloud)} vs ${fmt(t.onAdj)}${r.isWorkloadMode ? ` (floor cloud: ${fmt(t.cloudFloor)})` : ""}`],
                   ["Savings (adjusted / floor)", `${fmt(t.saveAdj)} / ${fmt(t.saveFlr)}`],
                   ["Model / quantization (capacity est.)", `${modelDisplay} / ${quant}`],
-                  ["Est. users / $ per 1M tokens", r.cap.fits ? `${r.cap.users.toLocaleString()} / $${r.cap.perM.toFixed(2)} (vs API $${r.cap.cloudPerM.toFixed(2)})` : r.cap.available === false ? "unavailable — Rubin inference benchmark pending" : "model does not fit fleet"],
+                  ["Est. concurrent users", r.cap.fits ? r.cap.users.toLocaleString() : r.cap.available === false ? "unavailable — Rubin inference benchmark pending" : "model does not fit fleet"],
                   ["Rate card overrides", editedCount > 0 ? Object.keys(ov).join(", ") : "none — all defaults"],
                   ...(r.isWorkloadMode ? [] : [["Spend/storage reconciliation", `${fmt(r.cloudStorage)}/mo implied vs ${fmt(r.storageBudget)}/mo non-compute budget — ${r.cloudStorage > r.storageBudget * 1.02 ? `OVERALLOCATED by ${fmt(r.cloudStorage - r.storageBudget)}` : "within tolerance"}`]]),
                   ["Crossover (cumulative) / static payback", `${r.crossoverMo ? `month ${r.crossoverMo}` : "none ≤60mo"} / ${r.payback ? r.payback.toFixed(0) + " mo" : "n/a"}`],
@@ -1546,7 +1542,7 @@ function AppInner() {
                   ["Cloud $/GPU-hr OD / reserved", `$${rc.instOD} / $${rc.instRes} (${RATES[provider][gpuClass].conf})`],
                   ["NVAIE $/GPU-hr OD / reserved", `$${rc.nvaieOD} / $${rc.nvaieRes}`],
                   ["Cloud storage fast / bulk $/GB-mo", `$${rc.fastGB} / $${rc.bulkGB}`],
-                  ["Egress $/GB · API $/1M tok", `$${rc.egressGB} · $${rc.cloudTok}`],
+                  ["Egress $/GB", `$${rc.egressGB}`],
                   ["System loaded cost / kW", `${fmt(rc.perSysCost)} / ${rc.sysKw} kW`],
                   ["Shared cluster planning allowance / Equinix bundle", `${fmt(rc.cluster)} / ${fmt(rc.equinixMo)}/sys/mo`],
                   ["On-prem storage fast / bulk $/PB", `${fmt(rc.fastPB)} / ${fmt(rc.bulkPB)}`],
@@ -1621,7 +1617,7 @@ function AppInner() {
               const RATE_LABELS = {
                 instRes: "Cloud $/GPU-hr, 1-yr reserved", nvaieRes: "NVAIE support $/GPU-hr, reserved",
                 nvaieOD: "NVAIE support $/GPU-hr, on-demand", fastGB: "Fast storage $/GB/mo",
-                bulkGB: "Bulk storage $/GB/mo", cloudTok: "Managed API blended $/1M tokens",
+                bulkGB: "Bulk storage $/GB/mo",
                 egressGB: "Egress $/GB", cluster: "Shared cluster infrastructure planning allowance $",
                 fastPB: "Fast storage $/PB", bulkPB: "Bulk storage $/PB",
                 sysKw: `Power kW per ${ownSys}`, equinixMo: "Equinix bundle $/system/mo",
@@ -2234,8 +2230,8 @@ function AppInner() {
           )}
         </Section>
 
-        {/* CAPACITY & UNIT ECONOMICS (v1.9) */}
-        <Section title={r.isWorkloadMode ? "Workload capacity basis" : "Capacity & unit economics"} badge={r.isWorkloadMode ? "GPU SIZING" : "EST"} defaultOpen={false}>
+        {/* DIRECTIONAL CAPACITY (v1.9) */}
+        <Section title={r.isWorkloadMode ? "Workload capacity basis" : "Capacity estimates"} badge={r.isWorkloadMode ? "GPU SIZING" : "EST"} defaultOpen={false}>
           {r.isWorkloadMode ? (
             <>
               <div style={{ fontSize: 12, color: C.ink, background: "#F6F8FA", border: `1px solid ${C.line}`, borderRadius: 8, padding: "10px 12px", marginBottom: 10, lineHeight: 1.5 }}>
@@ -2276,12 +2272,12 @@ function AppInner() {
               />
             </label>
           )}
-          {gpuSizingCount && <div style={{ fontSize: 11, color: C.sub, marginBottom: 8 }}>Model context is shared with GPU Sizing when available. GPU Sizing remains authoritative for the technical GPU count; this model value only drives the directional capacity and unit-economics estimates below.</div>}
+          {gpuSizingCount && <div style={{ fontSize: 11, color: C.sub, marginBottom: 8 }}>Model context is shared with GPU Sizing when available. GPU Sizing remains authoritative for the technical GPU count; this model value only drives the directional capacity estimates below.</div>}
           <TipLabel text="Quantization" tip={TIPS.quant} style={{ fontSize: 13 }} />
           <Seg options={Object.keys(QUANT)} value={quant} onChange={setQuant} />
           {r.cap.available === false ? (
             <div style={{ fontSize: 12, color: C.ink, background: "#FFF8E6", borderRadius: 6, padding: "8px 10px", marginTop: 6 }}>
-              Rubin serving-capacity and token-cost estimates are unavailable pending a qualifying absolute per-GPU inference-throughput benchmark. Ownership TCO above remains available and assumes no Rubin performance advantage.
+              Rubin serving-capacity estimates are unavailable pending a qualifying absolute per-GPU inference-throughput benchmark. Ownership TCO above remains available and assumes no Rubin performance advantage.
             </div>
           ) : !r.cap.fits ? (
             <div style={{ fontSize: 12, color: "#B4530A", background: "#FBF3EC", borderRadius: 6, padding: "8px 10px", marginTop: 6 }}>
@@ -2292,8 +2288,7 @@ function AppInner() {
               <Row label="GPUs per model copy / copies in fleet" value={`${r.cap.gpusPerReplica} / ${r.cap.replicas}`} sub={`${modelDisplay} @ ${quant} on ${ownSys} (${SYSTEMS[ownSys].vram} GB/GPU, ×${KV_OVERHEAD} overhead)`} />
               <Row label="Concurrent interactive users (est.)" value={r.cap.users.toLocaleString()} sub={`at ${TOK_PER_USER} tok/s per user, ${Math.round(util * 100)}% utilization`} />
               <Row label="Token throughput (est.)" value={`${r.cap.monthlyTokM >= 1000 ? (r.cap.monthlyTokM / 1000).toFixed(1) + "B" : Math.round(r.cap.monthlyTokM) + "M"} tokens/mo`} sub="fleet-wide at target utilization" />
-              <Row label="Cost per 1M tokens" value={`$${r.cap.perM.toFixed(2)} vs $${r.cap.cloudPerM.toFixed(2)}`} sub="on-prem all-in vs managed-API blended list (editable in Rate card)" />
-              <Row label="Cost per user / month" value={`$${Math.round(r.cap.perUserOn).toLocaleString()} vs $${Math.round(r.cap.perUserCloud).toLocaleString()}`} sub="on-prem vs cloud API at the same usage" />
+              <div style={{ fontSize: 11, color: C.sub, marginTop: 8, lineHeight: 1.45 }}>For demand-bound private cost per token and a named managed API comparison, use Inference Economics below.</div>
             </>
           )}
             </>
@@ -2327,7 +2322,6 @@ function AppInner() {
           <RateField k="nvaieOD" label="NVAIE support $/GPU-hr, on-demand" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="fastGB" label="Fast storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <RateField k="bulkGB" label="Bulk storage $/GB/mo" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
-          <RateField k="cloudTok" label="Managed API blended $/1M tokens (EST)" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.5} fmt={(v)=>`$${v}`} />
           <RateField k="egressGB" label="Egress $/GB" eff={rc} defaults={defaults} ov={ov} setOv={setOv} step={0.01} fmt={(v)=>`$${v}`} />
           <div style={{ ...disp, fontSize: 12, fontWeight: 600, margin: "10px 0 2px", color: C.sub }}>ON-PREM HARDWARE · {isRubinPhase1 ? "NVIDIA commercial evidence + Phase 1 planning assumptions" : "NVIDIA TCO reference"}</div>
           <RateField k="perSysCost" label={isRubinPhase1 ? `${ownSys} loaded planning cost $ (hardware + EST fabric + EST install/PS; optional software & quoted high-density infrastructure excluded)` : `${ownSys} loaded cost $ (system + SW + fabrics + svcs; excl. cluster & racks)`} eff={rc} defaults={defaults} ov={activeOnPremRateOverride} setOv={setActiveOnPremRateOverride} step={1000} fmt={fmt} />
@@ -2350,7 +2344,7 @@ function AppInner() {
         {/* LEDGER */}
         <Section title="Methodology & assumptions" defaultOpen={false}>
           <div style={{ fontSize: 12, color: C.ink, lineHeight: 1.5, marginBottom: 8 }}>
-            <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED / NODE-NORM / EST / QUOTE); on-prem costs use the active system registry, with Rubin combining current NVIDIA commercial evidence and explicitly labeled Phase 1 EST/PROVISIONAL planning assumptions. The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity and unit-economics figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise. Not modeled: hardware refresh cadence beyond the residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk, hybrid burst.
+            <b>How this works:</b> your cloud spend is converted to GPU-hours at published per-GPU rates for your provider and GPU class; an on-prem fleet is sized to supply those hours at your target utilization; both paths are costed over 1/3/5 years. <b>This is cash-flow TCO in nominal dollars</b> — not accounting depreciation and not discounted NPV. <b>Performance equivalence:</b> the floor case holds cloud and on-prem exactly performance-equivalent, hour for hour; only the adjusted case applies performance factors, all of which you can drag to 1.0. Cloud rates carry per-cell confidence labels (LISTED / NODE-NORM / EST / QUOTE); on-prem costs use the active system registry, with Rubin combining current NVIDIA commercial evidence and explicitly labeled Phase 1 EST/PROVISIONAL planning assumptions. The on-prem fleet expands year by year when demand growth exhausts installed capacity (incremental systems, racks, power, admin, and residual all scale); storage is held static. Mixed training/inference workloads use a harmonic (GPU-hour-correct) blend of the generational factors. Residual value applies to hardware only — professional services and software subscriptions are excluded. Storage defaults to Auto — sized from the non-compute share of the stated bill (making Tier 1 a true two-input model); manual entries are reconciled against that share with a visible warning on mismatch. Crossover is computed from cumulative monthly cash flows (cloud compute grows at the demand rate, non-compute and on-prem opex at 4%/yr; capex charged when incurred; residual excluded until exit); static payback is shown as a secondary metric only. The N+1 spare is excluded from growth headroom — spare capacity is failover, not expansion room. The companion workbook is the auditable reference implementation of the core sizing and TCO formulas; this application extends it with dynamic fleet growth, five-provider rate routing and interface-level validation. Capacity figures are rule-of-thumb estimates (labeled EST) from model memory and throughput classes, not a sizing exercise; demand-bound token economics are handled by Inference Economics. Not modeled: hardware refresh cadence beyond the residual assumption, NPV discounting, cloud commitment early-termination fees, stranded-capacity risk, hybrid burst.
           </div>
           <Row label="Reconstructed cloud GPU-hours" value={`${Math.round(r.gpuHrs).toLocaleString()}/mo`}
             sub={tier3Hrs > 0 ? "customer invoice" : `spend ÷ ${provider} ${gpuClass} blended rate $${r.blended.toFixed(2)}/instance-hr`} />

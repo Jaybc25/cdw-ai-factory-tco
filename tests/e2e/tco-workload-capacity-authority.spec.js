@@ -64,9 +64,28 @@ test("workload mode without inference demand refuses to fabricate serving capaci
   await expect(page.getByText("Concurrent interactive users (est.)", { exact: true })).toHaveCount(0);
 });
 
-test("standalone spend mode keeps the existing directional capacity estimator", async ({ page }) => {
+test("standalone spend mode retains directional capacity without an unverified API cost comparison", async ({ page }) => {
   await page.goto("/tco", { waitUntil: "domcontentloaded" });
-  await openSection(page, /Capacity & unit economics/i);
+  await openSection(page, /Capacity estimates/i);
   await expect(page.getByText("Concurrent interactive users (est.)", { exact: true })).toBeVisible();
-  await expect(page.getByText("Cost per 1M tokens", { exact: true })).toBeVisible();
+  await expect(page.getByText("Token throughput (est.)", { exact: true })).toBeVisible();
+  await expect(page.getByText("Cost per 1M tokens", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Cost per user / month", { exact: true })).toHaveCount(0);
+  await expect(page.getByText(/For demand-bound private cost per token and a named managed API comparison/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Compare inference economics" })).toHaveAttribute("href", /inference-economics/);
+
+  // Older saved TCO sessions can still carry the retired API estimate. Drop
+  // that override while preserving the rest of the scenario and the IE path.
+  await page.waitForFunction((key) => !!sessionStorage.getItem(key), KEY);
+  await page.evaluate((key) => {
+    const saved = JSON.parse(sessionStorage.getItem(key));
+    sessionStorage.setItem(key, JSON.stringify({ ...saved, ov: { ...saved.ov, cloudTok: 12 } }));
+  }, KEY);
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction((key) => {
+    const saved = JSON.parse(sessionStorage.getItem(key));
+    return saved && !("cloudTok" in saved.ov);
+  }, KEY);
+  await openSection(page, /Rate card/i);
+  await expect(page.getByText("Managed API blended $/1M tokens (EST)")).toHaveCount(0);
 });

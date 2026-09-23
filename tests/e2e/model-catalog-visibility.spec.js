@@ -17,7 +17,7 @@ async function existingModelOptionCount(page, modelId = "llama-3.1-70b") {
   return page.locator(`option[value="${modelId}"]`).count();
 }
 async function openTcoCapacitySection(page) {
-  const trigger = page.getByRole("button", { name: /Capacity & unit economics/i });
+  const trigger = page.getByRole("button", { name: /Capacity estimates/i });
   await expect(trigger).toBeVisible();
   if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
   await expect(trigger).toHaveAttribute("aria-expanded", "true");

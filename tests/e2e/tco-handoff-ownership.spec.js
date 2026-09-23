@@ -34,7 +34,7 @@ async function openTier2(page) {
 }
 
 async function openCapacitySection(page) {
-  const trigger = page.getByRole("button", { name: /Capacity & unit economics|Workload capacity basis/i });
+  const trigger = page.getByRole("button", { name: /Capacity estimates|Workload capacity basis/i });
   await expect(trigger).toBeVisible();
   if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
