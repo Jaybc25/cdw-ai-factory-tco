@@ -53,22 +53,21 @@ export function getTcoInfrastructureCoverage({
     quoteReview.basis === reviewBasis && (facility !== "Equinix" || coloRateOverridden === true);
 
   // Current NVIDIA BasePOD guidance explicitly covers up to eight B200/H200/H100
-  // systems as one reference architecture. Rack-scale NVL systems and Rubin
-  // require topology-specific architecture/quote treatment once more than one
-  // rack/system is involved. Rubin Phase 1 already excludes quoted high-density
-  // rack/cooling infrastructure from the loaded system price.
+  // systems as one reference architecture. An NVL72 remains directional even
+  // after a user records a review: the reference and costs are not independently
+  // validated. Rubin Phase 1 excludes quoted high-density infrastructure.
   let clusterScaleStatus = "PLANNING_ALLOWANCE";
   if (isRubinPhase1) {
     clusterScaleStatus = "ARCHITECTURE_QUOTE_REQUIRED";
-  } else if (isRackScaleSystem && !highDensityReviewConfirmed) {
-    clusterScaleStatus = "ARCHITECTURE_REVIEW_REQUIRED";
+  } else if (isRackScaleSystem) {
+    clusterScaleStatus = highDensityReviewConfirmed ? "USER_REVIEWED_DIRECTIONAL" : "ARCHITECTURE_REVIEW_REQUIRED";
   } else if (!isRackScaleSystem && systemCount > BASEPOD_MAX_8_GPU_SYSTEMS) {
     clusterScaleStatus = "ARCHITECTURE_REVIEW_REQUIRED";
   }
 
   const rackCostStatus = system?.rackPlanningBasis
     ? "QUOTE_REQUIRED"
-    : isRackScaleSystem && !highDensityReviewConfirmed ? "COVERAGE_REVIEW_REQUIRED" : "MODELED";
+    : isRackScaleSystem ? highDensityReviewConfirmed ? "USER_REVIEWED_DIRECTIONAL" : "COVERAGE_REVIEW_REQUIRED" : "MODELED";
 
   const requiresArchitectureReview =
     clusterScaleStatus !== "PLANNING_ALLOWANCE" ||
@@ -100,6 +99,8 @@ export function getTcoInfrastructureCoverage({
       : "Storage capacity is not derived from GPU count, model size, or training tokens; the current values are planning inputs that must be confirmed or edited for this workload.",
     architectureNote: isRubinPhase1
       ? "Rubin Phase 1 still excludes quoted high-density infrastructure; confirm rack, cooling, power distribution, fabric, installation, software, and facility costs in a project-specific design before client use."
+      : isRackScaleSystem && highDensityReviewConfirmed
+      ? "User-reported quote/coverage review recorded for these inputs. The tool has not verified the reference or reconciled its costs; the modeled delta remains directional pending project-specific validation."
       : isRackScaleSystem && !highDensityReviewConfirmed
       ? `High-density quote/coverage review required. Confirm rack, cooling, power distribution, fabric, installation, selected software, and facility costs against a customer/CDW quote or documented existing-facility coverage.${facility === "Equinix" && !coloRateOverridden ? " The generic Equinix bundle is calibrated for eight-GPU systems; enter a quoted NVL72 bundle rate in the rate card." : ""}`
       : requiresArchitectureReview

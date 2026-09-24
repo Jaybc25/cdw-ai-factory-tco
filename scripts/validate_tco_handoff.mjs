@@ -108,22 +108,23 @@ for (const systemName of ["DGX GB200 NVL-72", "DGX GB300 NVL-72"]) {
     }
     const quoteReview = { confirmed: true, reference: "Customer facility record 123", basis: pending.reviewBasis };
     const reviewed = getTcoInfrastructureCoverage({ ...args, quoteReview });
-    if (!reviewed.clientReady || !reviewed.highDensityReviewConfirmed) {
-      throw new Error(`${systemName} must allow a recorded, scenario-scoped customer coverage review.`);
+    if (reviewed.clientReady || !reviewed.highDensityReviewConfirmed || reviewed.clusterScaleStatus !== "USER_REVIEWED_DIRECTIONAL") {
+      throw new Error(`${systemName} must retain a directional result after recording a scenario-scoped user review.`);
     }
-    if (getTcoInfrastructureCoverage({ ...args, facility: "Self-hosted (retrofit)", quoteReview }).clientReady ||
-      getTcoInfrastructureCoverage({ ...args, systemCount: 2, quoteReview }).clientReady ||
-      getTcoInfrastructureCoverage({ ...args, rateCard: { ...args.rateCard, perSysCost: 2000000 }, quoteReview }).clientReady) {
+    if (getTcoInfrastructureCoverage({ ...args, facility: "Self-hosted (retrofit)", quoteReview }).highDensityReviewConfirmed ||
+      getTcoInfrastructureCoverage({ ...args, systemCount: 2, quoteReview }).highDensityReviewConfirmed ||
+      getTcoInfrastructureCoverage({ ...args, rateCard: { ...args.rateCard, perSysCost: 2000000 }, quoteReview }).highDensityReviewConfirmed) {
       throw new Error("Changing facility, fleet size, or cost basis must invalidate the NVL72 review.");
     }
     const colo = getTcoInfrastructureCoverage({ ...args, facility: "Equinix" });
-    if (getTcoInfrastructureCoverage({ ...args, facility: "Equinix", quoteReview: { ...quoteReview, basis: colo.reviewBasis } }).clientReady) {
+    if (getTcoInfrastructureCoverage({ ...args, facility: "Equinix", quoteReview: { ...quoteReview, basis: colo.reviewBasis } }).highDensityReviewConfirmed) {
       throw new Error("The default eight-GPU Equinix rate cannot qualify NVL72 even with an acknowledgment.");
     }
     const quotedColo = getTcoInfrastructureCoverage({ ...args, facility: "Equinix", coloRateOverridden: true });
-    if (!getTcoInfrastructureCoverage({ ...args, facility: "Equinix", coloRateOverridden: true,
-      quoteReview: { ...quoteReview, basis: quotedColo.reviewBasis } }).clientReady) {
-      throw new Error("A quoted NVL72 Equinix rate plus a scenario-specific review must qualify the cost basis.");
+    const reviewedColo = getTcoInfrastructureCoverage({ ...args, facility: "Equinix", coloRateOverridden: true,
+      quoteReview: { ...quoteReview, basis: quotedColo.reviewBasis } });
+    if (!reviewedColo.highDensityReviewConfirmed || reviewedColo.clientReady) {
+      throw new Error("A distinct NVL72 Equinix rate and a scenario-specific review must still remain directional.");
     }
   }
 }
@@ -203,6 +204,10 @@ requireText(
 requireText(
   'MODELED DELTA',
   "Incomplete workload infrastructure coverage must qualify the headline rather than present an unqualified savings verdict",
+);
+requireText(
+  'Number(activeOnPremRateOverride.equinixMo) !== defaults.equinixMo',
+  "A same-value Equinix entry cannot count as a distinct NVL72 bundle rate",
 );
 
 requireText(

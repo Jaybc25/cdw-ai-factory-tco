@@ -1132,6 +1132,8 @@ function AppInner() {
   const onPremRateProfileKey = ownSys;
   const activeCloudRateOverride = cloudRateOverrides[cloudRateProfileKey] ?? {};
   const activeOnPremRateOverride = onPremRateOverrides[onPremRateProfileKey] ?? {};
+  const hasDistinctNvl72ColoOverride = Number(activeOnPremRateOverride.equinixMo) > 0 &&
+    Number(activeOnPremRateOverride.equinixMo) !== defaults.equinixMo;
   const rc = { ...defaults, ...ov, ...activeCloudRateOverride, ...activeOnPremRateOverride };
   const editedCount = Object.keys(ov).length + Object.keys(activeCloudRateOverride).length + Object.keys(activeOnPremRateOverride).length;
   const setActiveCloudRateOverride = (next) => setCloudRateOverrides((profiles) => ({ ...profiles, [cloudRateProfileKey]: next }));
@@ -1162,7 +1164,7 @@ function AppInner() {
   const bulkPB = effectiveStorageAuto ? Math.round(autoPB * 0.75 * 100) / 100 : bulkPBm;
   const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (mode === "workload") setWorkloadStorageConfirmed(true); if (effectiveStorageAuto) setBulkPBm(bulkPB); };
   const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (mode === "workload") setWorkloadStorageConfirmed(true); if (effectiveStorageAuto) setFastPBm(fastPB); };
-  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, workloadStorageConfirmed, quoteReview, coloRateOverridden: "equinixMo" in activeOnPremRateOverride };
+  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, sourceClass, workingDayHours, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, workloadStorageConfirmed, quoteReview, coloRateOverridden: hasDistinctNvl72ColoOverride };
   const r = useMemo(
     () => run(inputsObj, rc),
     [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, workloadStorageConfirmed, quoteReview, onPremRateOverrides, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, sourceClass, workingDayHours]
@@ -1280,6 +1282,9 @@ function AppInner() {
   }, [gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, facility, powerRate, fNet, fSw, fNvaie, retrofit, migration, dualRun, redundancy, residPct, computeShare, odShare, provider, ov, horizon, mode, cloudUnitPriceTrend]);
   const baseTier = tier3Hrs > 0 ? "VALIDATED" : (bill !== 105000 || gpuClass !== "H100") ? "REFINED" : "DIRECTIONAL";
   const tier = !r.infrastructureCoverage.clientReady ? "DIRECTIONAL" : baseTier;
+  const fiveYearTermNote = horizon === 5 && SYSTEMS[ownSys]?.pricingSource?.includes("3-year")
+    ? "The initial system price uses a three-year commercial term. This five-year estimate adds no post-term support renewal, or renewal for any selected software subscription; confirm actual entitlements and renewal quotes before relying on years 4–5."
+    : null;
   const maxBar = Math.max(t.cloud, t.cloudFloor, t.onAdj, t.onFlr, 1);
   const isSelf = facility !== "Equinix";
 
@@ -1460,10 +1465,11 @@ function AppInner() {
             {r.infrastructureCoverage.applies && (
               <Row
                 label="Infrastructure coverage"
-                value={!r.infrastructureCoverage.storageConfirmed ? "Needs storage confirmation" : r.infrastructureCoverage.requiresArchitectureReview ? "Architecture/quote review required" : r.infrastructureCoverage.highDensityReviewConfirmed ? "User-confirmed planning basis" : "Planning basis confirmed"}
-                sub={`${r.infrastructureCoverage.storageNote} ${r.infrastructureCoverage.architectureNote}${r.infrastructureCoverage.reviewReference ? ` User-provided quote/coverage reference: ${r.infrastructureCoverage.reviewReference}.` : ""}`}
+                value={!r.infrastructureCoverage.storageConfirmed ? "Needs storage confirmation" : r.infrastructureCoverage.highDensityReviewConfirmed ? "User-reviewed · directional" : r.infrastructureCoverage.requiresArchitectureReview ? "Architecture/quote review required" : "Planning basis confirmed"}
+                sub={`${r.infrastructureCoverage.storageNote} ${r.infrastructureCoverage.architectureNote}${r.infrastructureCoverage.reviewReference ? ` User-provided quote/coverage reference: ${r.infrastructureCoverage.reviewReference}. This reference has not been independently verified by the tool.` : ""}`}
               />
             )}
+            {fiveYearTermNote && <Row label="Five-year software/support coverage" value="Renewal not included" sub={fiveYearTermNote} />}
             <Row label={`Recommended build`} value={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`} sub={r.isWorkloadMode ? `fixed to the workload's technical requirement · ${facility}` : `${Math.round(r.headroom * 100)}% growth headroom · ${facility}`} />
             <Row label="Cloud GPU unit-price trend" value={`${cloudUnitPriceTrend > 0 ? "+" : ""}${cloudUnitPriceTrend}%/yr`} sub="applies to modeled cloud GPU compute rates only; workload growth remains separate" />
             <Row label="Total capex + one-time transition" value={fmtM(r.adj.capex + r.oneTime)} sub={`incl. ${fmtM(r.oneTime)} migration, dual-run, and exit costs`} />
@@ -1738,11 +1744,16 @@ function AppInner() {
             {r.infrastructureCoverage.applies && (
               <AuditSourceRow
                 label="Infrastructure coverage"
-                value={r.infrastructureCoverage.clientReady ? r.infrastructureCoverage.highDensityReviewConfirmed ? "User-confirmed planning basis" : "Planning basis confirmed" : "DIRECTIONAL — validation required"}
+                value={r.infrastructureCoverage.highDensityReviewConfirmed ? "USER-REVIEWED · DIRECTIONAL" : r.infrastructureCoverage.clientReady ? "Planning basis confirmed" : "DIRECTIONAL — validation required"}
                 source="Current TCO planning allowances + user-provided infrastructure review"
                 basis={`${r.infrastructureCoverage.summary}. ${r.infrastructureCoverage.storageNote} ${r.infrastructureCoverage.architectureNote}${r.infrastructureCoverage.reviewReference ? ` User-provided quote/coverage reference: ${r.infrastructureCoverage.reviewReference}. This reference was entered by the user and has not been independently verified by the tool.` : ""}`}
                 confidence={r.infrastructureCoverage.clientReady ? "REFINED" : "DIRECTIONAL"}
               />
+            )}
+            {fiveYearTermNote && (
+              <AuditSourceRow label="Five-year software/support coverage" value="Renewal not included"
+                source="On-prem system registry initial three-year commercial term"
+                basis={fiveYearTermNote} confidence="DIRECTIONAL" />
             )}
             <AuditFormula
               label="One-time transition"
@@ -1975,8 +1986,13 @@ function AppInner() {
           )}
           {!r.infrastructureCoverage.clientReady && (
             <div style={{ fontSize: 11.5, color: "#F1F1F1", background: "#3A3A3A", borderLeft: "3px solid #E8CE8A", borderRadius: 6, padding: "8px 10px", marginBottom: 10 }}>
-              <b>{!r.infrastructureCoverage.storageConfirmed ? "Storage assumption unconfirmed." : "Infrastructure architecture review required."}</b>{" "}
+              <b>{!r.infrastructureCoverage.storageConfirmed ? "Storage assumption unconfirmed." : r.infrastructureCoverage.highDensityReviewConfirmed ? "NVL72 review recorded; result remains directional." : "Infrastructure architecture review required."}</b>{" "}
               {r.infrastructureCoverage.architectureNote}
+            </div>
+          )}
+          {fiveYearTermNote && (
+            <div style={{ fontSize: 11.5, color: "#F1F1F1", background: "#3A3A3A", borderLeft: "3px solid #E8CE8A", borderRadius: 6, padding: "8px 10px", marginBottom: 10 }}>
+              <b>Five-year software/support renewal not included.</b> {fiveYearTermNote}
             </div>
           )}
           <div style={{ background: "#1F1F1F", borderRadius: 8, padding: "10px 12px" }}>
@@ -2185,29 +2201,39 @@ function AppInner() {
               <div style={{ marginTop: 5, lineHeight: 1.5 }}>
                 {r.sysAdj} × {ownSys} at {facility}. Check a project-specific CDW/customer quote or documented existing-facility coverage for rack, liquid cooling, power distribution, fabric, installation, selected software, and operating/facility costs. Enter any differences in the rate card below. This acknowledgment records your review; the tool does not verify the quote or change the modeled costs.
               </div>
-              {facility === "Equinix" && !("equinixMo" in activeOnPremRateOverride) && (
-                <div style={{ marginTop: 5, color: "#8A4B00" }}>The generic Equinix bundle is sized for eight-GPU systems. Enter a quoted NVL72 $/system/month rate in the rate card before confirming.</div>
+              {facility === "Equinix" && !hasDistinctNvl72ColoOverride && (
+                <div style={{ marginTop: 5, color: "#8A4B00" }}>The generic Equinix bundle is sized for eight-GPU systems. Enter a positive, different, project-specific NVL72 $/system/month rate in the rate card before recording a review.</div>
               )}
               <label style={{ display: "block", marginTop: 8 }} htmlFor="nvl72-quote-reference">Quote or existing-facility coverage reference</label>
               <input id="nvl72-quote-reference" aria-label="Quote or existing-facility coverage reference" value={quoteReference}
                 onChange={(event) => { setQuoteReference(event.target.value); setQuoteReview(null); }}
                 placeholder="e.g. CDW quote ID and date or facility review ID" style={{ width: "100%", boxSizing: "border-box", padding: "7px 9px", border: `1px solid ${C.line}`, borderRadius: 5, marginTop: 4 }} />
               {!isRubinPhase1 && (
-                <button type="button" disabled={!quoteReference.trim() || (facility === "Equinix" && !("equinixMo" in activeOnPremRateOverride))}
+                <button type="button" disabled={!quoteReference.trim() || (facility === "Equinix" && !hasDistinctNvl72ColoOverride)}
                   onClick={() => setQuoteReview({ confirmed: true, reference: quoteReference.trim(), basis: r.infrastructureCoverage.reviewBasis })}
                   style={{ marginTop: 8, padding: "7px 9px", borderRadius: 5, border: `1px solid ${C.line}`, background: C.panel, color: C.ink, cursor: "pointer" }}>
                   I reviewed coverage and reflected the costs in this scenario
                 </button>
               )}
               <div style={{ marginTop: 6, color: C.sub }}>
-                {isRubinPhase1 ? "Rubin remains Phase 1 directional even after a quote is obtained; the excluded infrastructure cannot be qualified through this acknowledgment." : r.infrastructureCoverage.highDensityReviewConfirmed ? "Review recorded for these inputs. Changing the design, facility, or cost inputs requires another review." : "Review required before presenting this modeled delta as a qualified planning basis."}
+                {isRubinPhase1 ? "Rubin remains Phase 1 directional even after a quote is obtained; the excluded infrastructure cannot be qualified through this acknowledgment." : r.infrastructureCoverage.highDensityReviewConfirmed ? "User review recorded for these inputs; the result remains directional. Changing the design, facility, or cost inputs requires another review." : "Review the cost coverage and record a reference. An acknowledgment alone does not verify the numbers or qualify this result."}
               </div>
             </div>
           )}
           {facility === "Self-hosted (retrofit)" && (
-            <Slider label="Facility retrofit (one-time)" value={retrofit} min={0} max={2000000} step={50000}
-              onChange={setRetrofit} display={fmtM(retrofit)}
-              hint={r.infrastructureCoverage.highDensityReviewRequired ? "NVL72 retrofit and liquid-cooling scope require a site-specific quote; adjust this planning allowance to the actual project cost." : "2 DGX/rack = ~29 kW/rack, beyond most legacy DCs. Typical buildout $10-15K per kW of new capacity."} />
+            r.infrastructureCoverage.highDensityReviewRequired ? (
+              <label style={{ display: "block", fontSize: 12, color: C.ink, margin: "10px 0" }}>
+                Facility retrofit (one-time) $
+                <input type="number" min="0" step="10000" inputMode="decimal" value={retrofit}
+                  onChange={(event) => { const amount = Number(event.target.value); if (Number.isFinite(amount) && amount >= 0) setRetrofit(amount); }}
+                  style={{ display: "block", width: "100%", boxSizing: "border-box", padding: "7px 9px", border: `1px solid ${C.line}`, borderRadius: 5, marginTop: 4 }} />
+                <span style={{ display: "block", fontSize: 11, color: C.sub, marginTop: 3 }}>Enter the project-quoted NVL72 electrical and liquid-cooling retrofit cost. No generic maximum is assumed.</span>
+              </label>
+            ) : (
+              <Slider label="Facility retrofit (one-time)" value={retrofit} min={0} max={2000000} step={50000}
+                onChange={setRetrofit} display={fmtM(retrofit)}
+                hint="2 DGX/rack = ~29 kW/rack, beyond most legacy DCs. Typical buildout $10-15K per kW of new capacity." />
+            )
           )}
           {isSelf && (
             <Slider label="Power rate (fully loaded)" value={powerRate} min={100} max={450} step={25}
