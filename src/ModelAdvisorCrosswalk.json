@@ -1,7 +1,7 @@
 {
   "meta": {
-    "version": "0.2",
-    "source_blueprints_version": "2.1",
+    "version": "0.3",
+    "source_blueprints_version": "2.4",
     "purpose": "Single source of truth consumed by: Model Advisor tooltips, Use Case Explorer -> Model Advisor / GPU Sizing URL handoff, GPU Sizing routing/eligible-hardware logic.",
     "workload_families": [
       "Language / General GenAI",
@@ -621,6 +621,37 @@
       "routingClass": "specialized-stack",
       "specializedStack": "Riva ASR/TTS + voice cloning + lip-sync",
       "gpuWorkloadType": "audio-visual-pipeline-inference"
+    },
+    {
+      "id": "multimodal-document-extraction",
+      "explorerCategory": "RAG & Knowledge Retrieval",
+      "workloadFamily": "Vision / Multimodal",
+      "modelAdvisorUmbrellas": [
+        "Classification & Extraction",
+        "Vision & Multimodal"
+      ],
+      "primaryUmbrella": "Classification & Extraction",
+      "routingClass": "general-model-selection",
+      "specializedStack": null,
+      "gpuWorkloadType": "document-intelligence-inference",
+      "modelAdvisorMultimodal": "image-text",
+      "note": "Document understanding commonly needs OCR/layout parsing plus a vision-language model; preselect Image + text while keeping Classification & Extraction as the primary model-ranking workload."
+    },
+    {
+      "id": "structured-report-generation",
+      "explorerCategory": "Agentic AI & Automation",
+      "workloadFamily": "Agentic",
+      "modelAdvisorUmbrellas": [
+        "Summarization & Content Generation",
+        "Reasoning & Analysis",
+        "Agentic AI & Tool Use"
+      ],
+      "primaryUmbrella": "Summarization & Content Generation",
+      "routingClass": "general-model-selection",
+      "specializedStack": null,
+      "gpuWorkloadType": "structured-generation-inference",
+      "modelAdvisorMultimodal": null,
+      "note": "Report generation combines long-form synthesis with planning/reasoning and agentic source gathering; ranking stays anchored on generation quality."
     }
   ]
 }
