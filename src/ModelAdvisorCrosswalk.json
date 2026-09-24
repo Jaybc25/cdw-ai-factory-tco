@@ -1,7 +1,7 @@
 {
   "meta": {
-    "version": "0.4",
-    "source_blueprints_version": "2.5",
+    "version": "0.5",
+    "source_blueprints_version": "2.6",
     "purpose": "Single source of truth consumed by: Model Advisor tooltips, Use Case Explorer -> Model Advisor / GPU Sizing URL handoff, GPU Sizing routing/eligible-hardware logic.",
     "workload_families": [
       "Language / General GenAI",
@@ -696,6 +696,28 @@
       "specializedStack": "NVIDIA Metropolis + DeepStream + TAO / supported vision models",
       "gpuWorkloadType": "real-time-vision-inference",
       "note": "Real-time visual inspection and physical-operations perception require a dedicated vision stack; they should not silently fall back to general chat model ranking."
+    },
+    {
+      "id": "edge-ai-inference",
+      "explorerCategory": "Video & Sensor Intelligence",
+      "workloadFamily": "AI Platform / Model Operations",
+      "modelAdvisorUmbrellas": [],
+      "primaryUmbrella": null,
+      "routingClass": "platform-architecture",
+      "specializedStack": "NVIDIA edge AI deployment architecture / certified edge systems",
+      "gpuWorkloadType": "edge-inference-deployment",
+      "note": "Edge AI is primarily a deployment-architecture decision driven by latency, locality, connectivity, and environmental constraints; generic model ranking is not the right first step."
+    },
+    {
+      "id": "synthetic-data-generation",
+      "explorerCategory": "Digital Twins & Simulation",
+      "workloadFamily": "Simulation / Digital Twin / Physical AI",
+      "modelAdvisorUmbrellas": [],
+      "primaryUmbrella": null,
+      "routingClass": "specialized-stack",
+      "specializedStack": "NVIDIA Omniverse / Isaac Sim / Replicator / Cosmos synthetic-data stack",
+      "gpuWorkloadType": "synthetic-data-generation",
+      "note": "Synthetic-data generation is a simulation and data-pipeline workload rather than a general open-weight LLM selection problem."
     }
   ]
 }
