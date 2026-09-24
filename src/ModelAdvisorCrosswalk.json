@@ -1,7 +1,7 @@
 {
   "meta": {
-    "version": "0.3",
-    "source_blueprints_version": "2.4",
+    "version": "0.4",
+    "source_blueprints_version": "2.5",
     "purpose": "Single source of truth consumed by: Model Advisor tooltips, Use Case Explorer -> Model Advisor / GPU Sizing URL handoff, GPU Sizing routing/eligible-hardware logic.",
     "workload_families": [
       "Language / General GenAI",
@@ -652,6 +652,50 @@
       "gpuWorkloadType": "structured-generation-inference",
       "modelAdvisorMultimodal": null,
       "note": "Report generation combines long-form synthesis with planning/reasoning and agentic source gathering; ranking stays anchored on generation quality."
+    },
+    {
+      "id": "cybersecurity-threat-detection",
+      "explorerCategory": "Data Flywheel & Model Ops",
+      "workloadFamily": "AI Platform / Model Operations",
+      "modelAdvisorUmbrellas": [],
+      "primaryUmbrella": null,
+      "routingClass": "specialized-stack",
+      "specializedStack": "NVIDIA Morpheus + RAPIDS + Triton with SIEM/SOAR and security telemetry integrations",
+      "gpuWorkloadType": "cybersecurity-streaming-analytics",
+      "note": "This is a specialized streaming-security analytics stack, not an open-weight language-model selection problem."
+    },
+    {
+      "id": "predictive-maintenance",
+      "explorerCategory": "Video & Sensor Intelligence",
+      "workloadFamily": "Accelerated Analytics / ML",
+      "modelAdvisorUmbrellas": [],
+      "primaryUmbrella": null,
+      "routingClass": "infrastructure-first",
+      "specializedStack": "RAPIDS + forecasting / remaining-useful-life ML pipeline",
+      "gpuWorkloadType": "predictive-maintenance-ml",
+      "note": "Model choice depends on the customer's telemetry, feature engineering, and forecasting/RUL approach rather than the open-weight LLM market."
+    },
+    {
+      "id": "route-optimization-cuopt",
+      "explorerCategory": "Quantitative & Risk Analytics",
+      "workloadFamily": "Accelerated Analytics / ML",
+      "modelAdvisorUmbrellas": [],
+      "primaryUmbrella": null,
+      "routingClass": "infrastructure-first",
+      "specializedStack": "NVIDIA cuOpt",
+      "gpuWorkloadType": "gpu-accelerated-routing-optimization",
+      "note": "Routing and scheduling optimization uses cuOpt rather than a general language-model selection workflow."
+    },
+    {
+      "id": "metropolis-vision-ai",
+      "explorerCategory": "Video & Sensor Intelligence",
+      "workloadFamily": "Vision / Multimodal",
+      "modelAdvisorUmbrellas": [],
+      "primaryUmbrella": null,
+      "routingClass": "specialized-stack",
+      "specializedStack": "NVIDIA Metropolis + DeepStream + TAO / supported vision models",
+      "gpuWorkloadType": "real-time-vision-inference",
+      "note": "Real-time visual inspection and physical-operations perception require a dedicated vision stack; they should not silently fall back to general chat model ranking."
     }
   ]
 }

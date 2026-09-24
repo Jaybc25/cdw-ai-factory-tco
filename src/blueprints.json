@@ -1,8 +1,8 @@
 {
   "meta": {
-    "version": "2.4",
+    "version": "2.5",
     "last_verified": "2026-09-24",
-    "blueprint_count": 54,
+    "blueprint_count": 58,
     "industries": [
       "higher-education",
       "k12-education",
@@ -1732,6 +1732,191 @@
         "k12-education": "Districts draft IEP progress reports and present-level summaries for educator review, along with state and federal compliance reports and board materials."
       },
       "detail_infrastructure": "NVIDIA NIM-served language models, an agent framework such as LangGraph, approved enterprise or web data connectors, retrieval where grounding is required, orchestration and audit logging, and human-review workflow integration."
+    },
+    {
+      "id": "cybersecurity-threat-detection",
+      "name": "Cybersecurity Threat Detection with NVIDIA Morpheus",
+      "status": "active",
+      "nvidia_url": "https://developer.nvidia.com/morpheus-cybersecurity",
+      "use_case_category": "Data Flywheel & Model Ops",
+      "description": "Detect suspicious activity across high-volume security telemetry using GPU-accelerated AI pipelines that filter, classify, and analyze streaming logs, network data, and user or application behavior in near real time.",
+      "industry_fit": {
+        "higher-education": "primary",
+        "k12-education": "primary",
+        "federal-government": "primary",
+        "federal-defense": "primary",
+        "financial-services": "primary",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "primary",
+        "healthcare-life-sciences": "primary",
+        "legal-services": "primary",
+        "oil-gas": "primary",
+        "retail-distribution": "primary",
+        "state-local-government": "primary",
+        "transportation-logistics": "primary",
+        "utilities-energy": "primary",
+        "general-enterprise": "primary"
+      },
+      "department_fit": {
+        "cybersecurity": "primary",
+        "information-technology": "primary",
+        "legal-compliance": "adjacent",
+        "operations": "adjacent",
+        "data-analytics": "adjacent"
+      },
+      "detail_what_it_does": "Uses NVIDIA Morpheus to build GPU-accelerated security analytics pipelines for filtering, processing, and classifying large volumes of streaming cybersecurity data. It can support anomaly detection, compromised-account detection, malicious activity triage, and analyst-assistance workflows while integrating with existing SIEM, telemetry, and response platforms.",
+      "detail_in_practice": {
+        "default": "Security teams use Morpheus-based pipelines to analyze more telemetry in less time, surface suspicious activity earlier, and reduce repetitive analyst triage without replacing the organization's SIEM, identity, endpoint, or response controls.",
+        "federal-government": "Agencies analyze network and identity telemetry for compromised accounts, abnormal data movement, and intrusion activity while keeping the detection pipeline within agency-controlled infrastructure.",
+        "federal-defense": "Contractors use GPU-accelerated security analytics to monitor sensitive development environments, CUI workloads, software factories, and mission-program infrastructure.",
+        "financial-services": "Banks and insurers detect suspicious account, application, and network behavior across high-volume environments where delayed detection can create regulatory and financial exposure.",
+        "utilities-energy": "Utilities apply AI-based threat analytics across IT and operational telemetry to improve visibility into anomalous behavior affecting critical infrastructure.",
+        "higher-education": "Universities monitor campus, identity, and research-network telemetry for ransomware precursors and compromised accounts across highly distributed environments.",
+        "k12-education": "Districts use AI-assisted security analytics to identify compromised accounts, ransomware precursors, and abnormal data movement before they disrupt instruction or expose student data."
+      },
+      "detail_infrastructure": "NVIDIA Morpheus, RAPIDS, NVIDIA Triton Inference Server, GPU-accelerated streaming analytics, security telemetry pipelines, and integration with SIEM/SOAR, identity, endpoint, network, and observability platforms."
+    },
+    {
+      "id": "predictive-maintenance",
+      "name": "Predictive Maintenance & Remaining Useful Life",
+      "status": "active",
+      "nvidia_url": "https://developer.nvidia.com/blog/accelerating-predictive-maintenance-in-manufacturing-with-rapids-ai/",
+      "use_case_category": "Video & Sensor Intelligence",
+      "description": "Use equipment telemetry, maintenance history, operating conditions, and machine-learning models to predict failures or remaining useful life before breakdowns interrupt production, transportation, facilities, or mission operations.",
+      "industry_fit": {
+        "higher-education": "adjacent",
+        "k12-education": "adjacent",
+        "federal-government": "primary",
+        "federal-defense": "primary",
+        "financial-services": "adjacent",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "primary",
+        "healthcare-life-sciences": "primary",
+        "legal-services": "adjacent",
+        "oil-gas": "primary",
+        "retail-distribution": "adjacent",
+        "state-local-government": "primary",
+        "transportation-logistics": "primary",
+        "utilities-energy": "primary",
+        "general-enterprise": "adjacent"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "research-engineering": "primary",
+        "supply-chain-logistics": "adjacent",
+        "data-analytics": "primary",
+        "information-technology": "adjacent",
+        "finance": "adjacent"
+      },
+      "detail_what_it_does": "Combines sensor and operational data with GPU-accelerated data processing and machine learning to estimate failure risk, remaining useful life, or maintenance priority. The output is used to schedule inspection, repair, or replacement before an unplanned outage occurs.",
+      "detail_in_practice": {
+        "default": "Asset-intensive organizations use predictive maintenance to convert telemetry and maintenance history into earlier warning of likely failures so maintenance can be planned around operations instead of triggered by breakdowns.",
+        "general-manufacturing": "Plants predict failures in production equipment, motors, pumps, compressors, and automation systems to reduce downtime and protect throughput.",
+        "food-cpg-manufacturing": "Food and CPG manufacturers predict failures in packaging, refrigeration, processing, and utility equipment where downtime can disrupt production and spoilage controls.",
+        "transportation-logistics": "Fleets and transportation operators predict failures in tractors, trailers, reefer units, locomotives, aircraft components, and sortation equipment before service is interrupted.",
+        "utilities-energy": "Utilities predict failures in transformers, breakers, turbines, pumps, and treatment equipment to reduce outages and extend asset life.",
+        "oil-gas": "Operators predict failures in compressors, pumps, rotating equipment, lift systems, and processing assets to reduce unplanned field and plant downtime.",
+        "federal-government": "Defense and civilian agencies apply predictive maintenance to aircraft, vehicles, ships, air-traffic systems, hospital equipment, and facility assets where readiness and service continuity matter.",
+        "federal-defense": "Contractors use predictive maintenance across production equipment and fielded-system sustainment programs to improve readiness and protect performance-based support outcomes.",
+        "higher-education": "Campuses apply predictive maintenance to boilers, chillers, HVAC, and selected lab equipment to shift aging-facility maintenance from reactive to planned work.",
+        "k12-education": "Districts apply predictive maintenance to boilers, chillers, HVAC, and buses to reduce closures, route disruptions, and emergency repair costs."
+      },
+      "detail_infrastructure": "NVIDIA RAPIDS for GPU-accelerated data preparation and feature engineering, supported ML frameworks for forecasting or remaining-useful-life models, time-series and sensor-data pipelines, model serving, and integration with CMMS/EAM or operational systems."
+    },
+    {
+      "id": "route-optimization-cuopt",
+      "name": "Route & Scheduling Optimization with NVIDIA cuOpt",
+      "status": "active",
+      "nvidia_url": "https://www.nvidia.com/en-us/ai-data-science/ai-workflows/route-optimization/",
+      "use_case_category": "Quantitative & Risk Analytics",
+      "description": "Optimize routes, dispatch plans, pickup-and-delivery sequences, field schedules, and constrained resource assignments using NVIDIA cuOpt's GPU-accelerated routing and optimization solvers.",
+      "industry_fit": {
+        "higher-education": "adjacent",
+        "k12-education": "primary",
+        "federal-government": "primary",
+        "federal-defense": "adjacent",
+        "financial-services": "adjacent",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "adjacent",
+        "healthcare-life-sciences": "primary",
+        "legal-services": "adjacent",
+        "oil-gas": "primary",
+        "retail-distribution": "primary",
+        "state-local-government": "primary",
+        "transportation-logistics": "primary",
+        "utilities-energy": "primary",
+        "general-enterprise": "adjacent"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "supply-chain-logistics": "primary",
+        "data-analytics": "primary",
+        "finance": "adjacent",
+        "research-engineering": "adjacent",
+        "information-technology": "adjacent"
+      },
+      "detail_what_it_does": "Uses NVIDIA cuOpt to solve vehicle-routing, pickup-and-delivery, scheduling, and related optimization problems under real-world constraints such as time windows, capacity, operating hours, service requirements, and fleet availability.",
+      "detail_in_practice": {
+        "default": "Organizations use cuOpt when routes or schedules must be recalculated quickly as demand, staffing, capacity, traffic, service windows, or operating conditions change.",
+        "transportation-logistics": "Carriers, parcel networks, and 3PLs re-plan routes, loads, delivery sequences, and driver assignments as capacity, fuel, and service windows change.",
+        "retail-distribution": "Retailers and distributors optimize delivery routes, store replenishment, pickup windows, and field-service or installation schedules.",
+        "utilities-energy": "Utilities dispatch field crews, meter work, service orders, and storm-restoration teams in efficient sequences to reduce drive time and restore service faster.",
+        "state-local-government": "Public works, human-services, and emergency-response organizations optimize inspections, service routes, fleet assignments, and delivery schedules.",
+        "federal-government": "Agencies optimize logistics, supply distribution, field-service routes, and disaster-response deliveries, including scenarios where routes or resources are constrained.",
+        "k12-education": "Districts re-plan bus routes around bell times, driver availability, special-education transportation, and enrollment shifts to reduce fleet and operating cost.",
+        "food-cpg-manufacturing": "Food and CPG organizations optimize direct-store-delivery, plant-to-DC, and service routes where delivery windows, perishability, and fleet constraints matter.",
+        "healthcare-life-sciences": "Health systems and life-sciences organizations optimize specimen, pharmacy, home-care, field-service, or supply-distribution routes under time and handling constraints."
+      },
+      "detail_infrastructure": "NVIDIA cuOpt routing/optimization service or Python SDK, accelerated NVIDIA GPU infrastructure, routing and constraint data, mapping/travel-time integrations where required, and orchestration into TMS, field-service, dispatch, ERP, or custom planning applications."
+    },
+    {
+      "id": "metropolis-vision-ai",
+      "name": "Vision AI for Inspection, Safety & Physical Operations",
+      "status": "active",
+      "nvidia_url": "https://www.nvidia.com/en-us/autonomous-machines/intelligent-video-analytics-platform/",
+      "use_case_category": "Video & Sensor Intelligence",
+      "description": "Apply NVIDIA Metropolis vision AI to live or recorded camera streams for automated visual inspection, safety and security monitoring, object and event detection, and operational awareness across physical environments.",
+      "industry_fit": {
+        "higher-education": "adjacent",
+        "k12-education": "adjacent",
+        "federal-government": "primary",
+        "federal-defense": "primary",
+        "financial-services": "adjacent",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "primary",
+        "healthcare-life-sciences": "primary",
+        "legal-services": "adjacent",
+        "oil-gas": "primary",
+        "retail-distribution": "primary",
+        "state-local-government": "primary",
+        "transportation-logistics": "primary",
+        "utilities-energy": "primary",
+        "general-enterprise": "primary"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "cybersecurity": "adjacent",
+        "information-technology": "adjacent",
+        "supply-chain-logistics": "primary",
+        "research-engineering": "primary",
+        "data-analytics": "adjacent",
+        "legal-compliance": "adjacent"
+      },
+      "detail_what_it_does": "Uses NVIDIA Metropolis, vision models, and video analytics components to detect and classify objects, defects, unsafe conditions, intrusions, traffic patterns, or operational events in camera streams. Unlike VSS, which emphasizes search, summarization, and question answering over video, this use case emphasizes real-time perception and action in physical operations.",
+      "detail_in_practice": {
+        "default": "Organizations use vision AI where cameras can provide continuous operational signals — quality inspection, safety monitoring, physical security, traffic and queue analysis, or automated detection of conditions that would otherwise require manual observation.",
+        "general-manufacturing": "Manufacturers inspect products and components for visual defects, verify process conditions, and monitor worker or robot safety in real time.",
+        "food-cpg-manufacturing": "Food and CPG plants inspect packaging, labels, product appearance, PPE use, and line conditions while maintaining human review for exceptions.",
+        "utilities-energy": "Utilities analyze drone, substation, and field imagery for damaged equipment, vegetation, intrusion, smoke, fire, and worker-safety conditions.",
+        "transportation-logistics": "Operators inspect trucks, railcars, containers, yards, gates, and docks for asset identity, defects, unsafe behavior, and operational exceptions.",
+        "state-local-government": "Cities and agencies apply vision AI to traffic, transit, facilities, public works, and approved safety use cases under appropriate governance and privacy controls.",
+        "federal-government": "Federal mission teams apply vision AI to border, port, facility, inspection, logistics, and approved security workflows while keeping humans in the decision loop where required.",
+        "federal-defense": "Defense contractors and programs use vision AI for production quality, autonomy-supporting perception, test environments, and approved facility or operational monitoring.",
+        "healthcare-life-sciences": "Healthcare and life-sciences organizations use vision AI for selected safety, sterile-area, laboratory, logistics, and equipment-monitoring workflows subject to clinical and privacy governance.",
+        "higher-education": "Campuses use approved vision analytics for perimeter, door, facility, lab, and operational monitoring under institution-defined privacy and access policies.",
+        "k12-education": "Districts use limited, human-verified vision analytics for facility conditions and approved safety workflows under board policy, privacy controls, and documented false-positive handling."
+      },
+      "detail_infrastructure": "NVIDIA Metropolis, NVIDIA DeepStream, TAO Toolkit and/or supported vision models, GPU-accelerated edge or data-center inference, camera/video ingestion, event pipelines, and integration with operational, quality, safety, or security systems."
     }
   ]
 }
