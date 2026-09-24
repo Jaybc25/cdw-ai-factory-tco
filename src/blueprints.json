@@ -1,8 +1,8 @@
 {
   "meta": {
-    "version": "2.3",
+    "version": "2.4",
     "last_verified": "2026-09-24",
-    "blueprint_count": 52,
+    "blueprint_count": 54,
     "industries": [
       "higher-education",
       "k12-education",
@@ -1620,6 +1620,118 @@
         "food-cpg-manufacturing": "CPG brands localize product videos, training content, and marketing materials across export markets — a single content production scales to multiple languages automatically."
       },
       "detail_infrastructure": "NVIDIA Riva ASR and TTS, speaker diarization and voice cloning NIMs, lip-sync generation model, video processing pipeline, GPU-accelerated inference."
+    },
+    {
+      "id": "multimodal-document-extraction",
+      "name": "Multimodal Document & PDF Data Extraction",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline",
+      "use_case_category": "RAG & Knowledge Retrieval",
+      "description": "Extract structured data from complex enterprise documents — including scanned PDFs, forms, tables, charts, images, and mixed-layout files — so downstream workflows can use the information without manual re-keying.",
+      "industry_fit": {
+        "higher-education": "primary",
+        "k12-education": "primary",
+        "federal-government": "primary",
+        "federal-defense": "primary",
+        "financial-services": "primary",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "primary",
+        "healthcare-life-sciences": "primary",
+        "legal-services": "primary",
+        "oil-gas": "primary",
+        "retail-distribution": "primary",
+        "state-local-government": "primary",
+        "transportation-logistics": "primary",
+        "utilities-energy": "primary",
+        "general-enterprise": "primary"
+      },
+      "department_fit": {
+        "finance": "primary",
+        "human-resources": "adjacent",
+        "information-technology": "adjacent",
+        "legal-compliance": "primary",
+        "operations": "primary",
+        "supply-chain-logistics": "primary",
+        "customer-service": "adjacent",
+        "sales": "adjacent",
+        "data-analytics": "primary",
+        "research-engineering": "adjacent"
+      },
+      "detail_what_it_does": "Uses NVIDIA-accelerated multimodal document ingestion and vision-language components to identify and extract text, tables, charts, images, fields, and document structure from PDFs and other enterprise files. The extracted content can be normalized into structured records for analytics, workflow automation, RAG, reporting, or human review.",
+      "detail_in_practice": {
+        "default": "Organizations use multimodal document extraction to turn document-heavy processes into machine-readable workflows — reducing manual data entry while preserving the source document for review and audit.",
+        "healthcare-life-sciences": "Providers and payers extract data from referrals, outside records, prior-authorization packets, claims attachments, and clinical-trial documents to reduce manual abstraction and speed downstream review.",
+        "financial-services": "Banks and insurers extract data from tax returns, financial statements, loan packages, policy applications, and claim files to speed underwriting, servicing, and claims workflows.",
+        "transportation-logistics": "Carriers and brokers extract bills of lading, proof-of-delivery documents, rate confirmations, customs paperwork, and invoices to accelerate billing, compliance, and exception handling.",
+        "oil-gas": "Operators extract data from well files, scanned logs, land records, inspection reports, and acquired-asset documentation to make legacy information usable in modern workflows.",
+        "general-manufacturing": "Manufacturers extract engineering drawings, specifications, supplier certifications, customer RFQs, and customs documents to support quoting, qualification, and trade-compliance workflows.",
+        "state-local-government": "Agencies extract benefits applications, verification documents, permit packages, court filings, and scanned records to reduce processing backlogs and re-keying.",
+        "federal-government": "Federal agencies extract benefits applications, medical evidence, FOIA records, forms, and archival documents to reduce case-processing and records backlogs.",
+        "federal-defense": "Contractors extract RFPs, statements of work, CDRLs, technical data packages, and legacy drawings into structured requirements and searchable program data.",
+        "utilities-energy": "Utilities extract interconnection applications, engineering drawings, easements, permits, service-line records, and compliance documents to speed planning and regulatory work.",
+        "legal-services": "Legal teams extract parties, dates, obligations, clauses, and other facts from contracts, exhibits, leases, and document productions for due diligence and case work.",
+        "food-cpg-manufacturing": "Food and CPG teams extract lot codes, dates, quantities, supplier data, certificates, allergen declarations, bills of lading, and invoices to support traceability and quality workflows.",
+        "higher-education": "Institutions extract transcripts, transfer-credit records, financial-aid verification documents, and legacy files to speed enrollment and aid processing.",
+        "k12-education": "Districts extract IEPs, transfer records, enrollment and residency documents, and legacy student files to reduce manual entry and speed records workflows."
+      },
+      "detail_infrastructure": "NVIDIA NeMo Retriever / multimodal ingestion components, OCR and page-element extraction NIMs, vision-language models where needed, GPU-accelerated parsing and embedding, object storage, and downstream workflow or data-system integration."
+    },
+    {
+      "id": "structured-report-generation",
+      "name": "Structured Report Generation",
+      "status": "legacy",
+      "nvidia_url": "https://build.nvidia.com/langchain/structured-report-generation",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "Plan, research, draft, and assemble repeatable reports from trusted source data and defined templates — giving staff a reviewable first draft instead of starting each reporting cycle from a blank page.",
+      "industry_fit": {
+        "higher-education": "primary",
+        "k12-education": "primary",
+        "federal-government": "primary",
+        "federal-defense": "primary",
+        "financial-services": "primary",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "primary",
+        "healthcare-life-sciences": "primary",
+        "legal-services": "primary",
+        "oil-gas": "primary",
+        "retail-distribution": "adjacent",
+        "state-local-government": "primary",
+        "transportation-logistics": "adjacent",
+        "utilities-energy": "primary",
+        "general-enterprise": "primary"
+      },
+      "department_fit": {
+        "finance": "primary",
+        "human-resources": "adjacent",
+        "information-technology": "adjacent",
+        "legal-compliance": "primary",
+        "operations": "primary",
+        "supply-chain-logistics": "adjacent",
+        "customer-service": "adjacent",
+        "sales": "adjacent",
+        "marketing": "adjacent",
+        "data-analytics": "primary",
+        "research-engineering": "adjacent",
+        "communications": "primary"
+      },
+      "detail_what_it_does": "Uses an agentic report-planning and writing workflow to take a requested topic or report structure, gather approved source material, organize sections, synthesize findings, and draft a consistent report for human review. The original NVIDIA partner Blueprint is deprecated, but the pattern remains implementable with supported NVIDIA NIMs and modern agent frameworks.",
+      "detail_in_practice": {
+        "default": "Teams use structured report generation for recurring, template-driven deliverables where source material already exists and a human remains responsible for review, approval, and submission.",
+        "healthcare-life-sciences": "Provider, payer, and research teams draft prior-authorization requests, denial appeals, quality reports, registry submissions, and clinical-study reports from existing source data for staff review.",
+        "financial-services": "Banks and insurers draft credit memos, suspicious-activity narratives, claim summaries, regulatory reports, and board materials from approved underlying data.",
+        "transportation-logistics": "Transportation teams draft claims packets, safety and compliance reports, customer business reviews, and operational summaries from shipment and telematics data.",
+        "oil-gas": "Operators draft daily drilling and production reports, incident reports, turnaround summaries, and environmental or regulatory reports from field and enterprise data.",
+        "general-manufacturing": "Quality teams draft corrective-action reports, 8D and CAPA documents, PPAP packages, and customer quality reports from existing QMS, MES, and engineering data.",
+        "state-local-government": "Governments draft grant and federal-program reports, audit responses, legislative fiscal notes, council packets, and court summaries from approved records.",
+        "federal-government": "Agencies draft adjudication summaries, FOIA responses, congressional and inspector-general reports, and analytic products for staff review.",
+        "federal-defense": "Contractors draft proposal sections, program-status reports, CDRLs, compliance documentation, and recurring contract deliverables from controlled source repositories.",
+        "utilities-energy": "Utilities draft rate-case exhibits, wildfire-plan updates, NERC CIP evidence, water-quality reports, and major-outage reports from operational and compliance data.",
+        "legal-services": "Legal teams draft due-diligence reports, deposition summaries, case chronologies, and contract abstracts from the underlying record for attorney review.",
+        "food-cpg-manufacturing": "Food and CPG teams assemble traceability outputs, audit packages, recall documentation, and supplier scorecards from captured source data; AI drafts and organizes the output but does not replace missing source records.",
+        "higher-education": "Institutions draft accreditation self-study sections, compliance reports, grant progress reports, and board packets from existing institutional data.",
+        "k12-education": "Districts draft IEP progress reports and present-level summaries for educator review, along with state and federal compliance reports and board materials."
+      },
+      "detail_infrastructure": "NVIDIA NIM-served language models, an agent framework such as LangGraph, approved enterprise or web data connectors, retrieval where grounding is required, orchestration and audit logging, and human-review workflow integration."
     }
   ]
 }
