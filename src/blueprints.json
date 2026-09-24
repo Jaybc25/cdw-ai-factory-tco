@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "2.9",
+    "version": "3.0",
     "last_verified": "2026-09-24",
     "blueprint_count": 59,
     "industries": [
@@ -67,7 +67,7 @@
       },
       "department_fit": {
         "information-technology": "primary",
-        "operations": "primary",
+        "operations": "adjacent",
         "research-engineering": "adjacent"
       },
       "detail_what_it_does": "Creates a digital twin of AI factory infrastructure so teams can model facility layout, power, cooling, rack placement, and operational scenarios before deployment. The DSX Blueprint is specifically focused on AI factory and data center design and optimization rather than serving as a generic digital-twin reference for every physical asset.",
@@ -92,10 +92,11 @@
         "general-enterprise": "adjacent"
       },
       "department_fit": {
-        "sales": "primary",
+        "sales": "adjacent",
         "operations": "primary",
         "customer-service": "adjacent",
-        "finance": "adjacent"
+        "supply-chain-logistics": "adjacent",
+        "marketing": "primary"
       },
       "detail_what_it_does": "Deploys AI agents that can negotiate terms, process transactions, and complete commerce workflows autonomously — operating within merchant-defined rules and guardrails.",
       "detail_in_practice": {
@@ -128,7 +129,11 @@
         "human-resources": "primary",
         "sales": "adjacent",
         "operations": "adjacent",
-        "communications": "adjacent"
+        "communications": "adjacent",
+        "finance": "adjacent",
+        "information-technology": "adjacent",
+        "legal-compliance": "adjacent",
+        "supply-chain-logistics": "adjacent"
       },
       "detail_what_it_does": "Deploys a fully on-premises voice agent capable of understanding natural speech, reasoning over organizational knowledge, and responding in real time — with the option to self-host so sensitive conversations remain within the organization's controlled environment.",
       "detail_in_practice": {
@@ -152,8 +157,7 @@
         "federal-government": "adjacent"
       },
       "department_fit": {
-        "information-technology": "primary",
-        "operations": "primary",
+        "operations": "adjacent",
         "research-engineering": "adjacent"
       },
       "detail_what_it_does": "Uses an LLM-driven planner to translate wireless-network energy goals into auditable policy logic over RAN KPIs, recommend sleep/wake/no-action decisions for capacity cells, and validate the effect against throughput and QoS constraints in a VIAVI simulation environment.",
@@ -183,8 +187,7 @@
       },
       "department_fit": {
         "supply-chain-logistics": "primary",
-        "operations": "primary",
-        "information-technology": "adjacent"
+        "operations": "adjacent"
       },
       "detail_what_it_does": "Deploys coordinated AI agents that monitor warehouse inventory in real time, assign tasks to workers or robots, flag exceptions, and respond to natural language queries from floor staff.",
       "detail_in_practice": {
@@ -209,9 +212,9 @@
       },
       "department_fit": {
         "marketing": "primary",
-        "sales": "primary",
+        "sales": "adjacent",
         "operations": "adjacent",
-        "communications": "adjacent"
+        "supply-chain-logistics": "adjacent"
       },
       "detail_what_it_does": "Uses vision language models and generative AI to automatically generate product descriptions, extract structured attributes, create localized content, and produce lifestyle imagery from basic product photos.",
       "detail_in_practice": {
@@ -236,8 +239,6 @@
       },
       "department_fit": {
         "finance": "primary",
-        "data-analytics": "primary",
-        "research-engineering": "adjacent",
         "information-technology": "adjacent"
       },
       "detail_what_it_does": "Takes a large foundation model and distills it into a smaller, domain-tuned model trained on organizational financial data — achieving high accuracy at a fraction of the inference cost of a general-purpose LLM.",
@@ -259,9 +260,7 @@
         "financial-services": "primary"
       },
       "department_fit": {
-        "finance": "primary",
-        "data-analytics": "primary",
-        "research-engineering": "adjacent"
+        "finance": "primary"
       },
       "detail_what_it_does": "Applies GPU-parallelized optimization algorithms to portfolio construction — solving large-scale mean-variance, factor-based, and scenario-constrained optimization problems orders of magnitude faster than CPU-based approaches.",
       "detail_in_practice": {
@@ -289,7 +288,8 @@
       "department_fit": {
         "research-engineering": "primary",
         "operations": "adjacent",
-        "information-technology": "adjacent"
+        "information-technology": "adjacent",
+        "data-analytics": "adjacent"
       },
       "detail_what_it_does": "Uses vector search over massive video datasets to find semantically similar scenarios — enabling AV and robotics teams to surface rare edge cases, curate training data, and accelerate model iteration without manually reviewing petabytes of footage.",
       "detail_in_practice": {
@@ -314,8 +314,6 @@
         "federal-government": "primary"
       },
       "department_fit": {
-        "operations": "primary",
-        "human-resources": "adjacent",
         "customer-service": "adjacent",
         "data-analytics": "adjacent"
       },
@@ -344,7 +342,7 @@
         "federal-government": "adjacent"
       },
       "department_fit": {
-        "operations": "primary",
+        "operations": "adjacent",
         "research-engineering": "primary",
         "data-analytics": "adjacent"
       },
@@ -374,11 +372,9 @@
         "federal-government": "primary"
       },
       "department_fit": {
-        "legal-compliance": "primary",
+        "legal-compliance": "adjacent",
         "information-technology": "primary",
-        "cybersecurity": "primary",
-        "finance": "adjacent",
-        "human-resources": "adjacent"
+        "cybersecurity": "primary"
       },
       "detail_what_it_does": "Enables retrieval-augmented generation over sensitive document corpora while keeping all data encrypted — supporting compliance requirements in highly regulated environments that cannot use standard RAG pipelines.",
       "detail_in_practice": {
@@ -401,7 +397,7 @@
         "healthcare-life-sciences": "adjacent"
       },
       "department_fit": {
-        "customer-service": "primary",
+        "customer-service": "adjacent",
         "sales": "primary",
         "marketing": "adjacent"
       },
@@ -432,10 +428,10 @@
         "k12-education": "adjacent"
       },
       "department_fit": {
-        "operations": "primary",
-        "information-technology": "primary",
+        "operations": "adjacent",
         "data-analytics": "primary",
-        "research-engineering": "adjacent"
+        "research-engineering": "adjacent",
+        "communications": "adjacent"
       },
       "detail_what_it_does": "Ingests streaming data from sensors, APIs, and operational systems, continuously indexes it into a vector store, and exposes it through a RAG interface — enabling AI queries that reflect the current state of operations, not yesterday's data.",
       "detail_in_practice": {
@@ -491,8 +487,7 @@
         "federal-government": "adjacent"
       },
       "department_fit": {
-        "research-engineering": "primary",
-        "data-analytics": "adjacent"
+        "research-engineering": "primary"
       },
       "detail_what_it_does": "Combines AI-Q agentic reasoning with BioNeMo molecular models to enable researchers to query biomedical literature, screen molecular candidates, analyze protein interactions, and generate research hypotheses — accelerating drug discovery and disease research cycles.",
       "detail_in_practice": {
@@ -519,10 +514,7 @@
         "federal-government": "adjacent"
       },
       "department_fit": {
-        "information-technology": "primary",
-        "data-analytics": "primary",
-        "research-engineering": "primary",
-        "legal-compliance": "adjacent"
+        "research-engineering": "primary"
       },
       "detail_what_it_does": "Integrates Weights & Biases observability into the NVIDIA data flywheel — tracking model performance metrics, experiment results, drift signals, and retraining triggers across all production AI models in a unified dashboard.",
       "detail_in_practice": {
@@ -549,10 +541,7 @@
         "federal-government": "adjacent"
       },
       "department_fit": {
-        "information-technology": "primary",
-        "data-analytics": "primary",
-        "research-engineering": "primary",
-        "operations": "adjacent"
+        "research-engineering": "primary"
       },
       "detail_what_it_does": "Provides end-to-end MLOps orchestration — automates the pipeline from raw data ingestion through curation, training, evaluation, and deployment, with human feedback loops baked in to continuously improve models.",
       "detail_in_practice": {
@@ -581,9 +570,7 @@
         "federal-government": "primary"
       },
       "department_fit": {
-        "information-technology": "primary",
         "cybersecurity": "primary",
-        "legal-compliance": "primary",
         "data-analytics": "adjacent"
       },
       "detail_what_it_does": "Provides a reference architecture for deploying agentic AI safely — NeMo Guardrails for content and behavior control, privacy-preserving inference, access control policies, and comprehensive audit logging for compliance and forensics.",
@@ -609,7 +596,6 @@
       },
       "department_fit": {
         "information-technology": "primary",
-        "operations": "primary",
         "research-engineering": "adjacent"
       },
       "detail_what_it_does": "Deploys an AI agent that continuously monitors RAN performance metrics and autonomously adjusts configuration parameters — replacing the manual, expert-intensive process of network optimization.",
@@ -640,9 +626,10 @@
       "department_fit": {
         "finance": "primary",
         "legal-compliance": "primary",
-        "cybersecurity": "primary",
-        "operations": "adjacent",
-        "data-analytics": "adjacent"
+        "cybersecurity": "adjacent",
+        "human-resources": "adjacent",
+        "supply-chain-logistics": "adjacent",
+        "customer-service": "primary"
       },
       "detail_what_it_does": "Applies GPU-accelerated graph analytics and ensemble ML models to transaction streams in real time — detecting fraud rings, account takeover, synthetic identity fraud, and insider threats faster and more accurately than rule-based systems.",
       "detail_in_practice": {
@@ -674,13 +661,7 @@
         "federal-government": "primary"
       },
       "department_fit": {
-        "information-technology": "primary",
-        "data-analytics": "primary",
-        "operations": "adjacent",
-        "research-engineering": "adjacent",
-        "legal-compliance": "adjacent",
-        "finance": "adjacent",
-        "human-resources": "adjacent"
+        "research-engineering": "adjacent"
       },
       "detail_what_it_does": "Routes requests between conversational, shallow-research, and deep-research paths; can clarify a request, select sources, build a plan, dispatch concurrent researcher workers, and synthesize cited findings. It supports pluggable enterprise data sources, MCP tools, reusable skills, sandboxed code execution, and evaluation harnesses.",
       "detail_in_practice": {
@@ -711,7 +692,8 @@
       "department_fit": {
         "operations": "primary",
         "research-engineering": "primary",
-        "data-analytics": "primary"
+        "data-analytics": "primary",
+        "supply-chain-logistics": "adjacent"
       },
       "detail_what_it_does": "Runs GPU-accelerated atmospheric AI models — including NVIDIA FourCastNet and Pangu-Weather — to generate high-resolution forecasts, visualize multi-layered geospatial data, and support environmental analysis at speeds unachievable with traditional NWP.",
       "detail_in_practice": {
@@ -750,13 +732,16 @@
         "information-technology": "primary",
         "legal-compliance": "primary",
         "human-resources": "primary",
-        "finance": "adjacent",
-        "sales": "adjacent",
-        "customer-service": "adjacent",
-        "data-analytics": "adjacent",
-        "operations": "adjacent",
+        "finance": "primary",
+        "sales": "primary",
+        "customer-service": "primary",
+        "data-analytics": "primary",
+        "operations": "primary",
         "research-engineering": "adjacent",
-        "communications": "adjacent"
+        "communications": "primary",
+        "cybersecurity": "primary",
+        "supply-chain-logistics": "adjacent",
+        "marketing": "primary"
       },
       "detail_what_it_does": "Ingests documents, policies, research, contracts, and knowledge bases — chunks and embeds them into a vector store — then enables natural language Q&A that cites source documents and stays grounded in organizational knowledge with citations back to source documents.",
       "detail_in_practice": {
@@ -789,10 +774,13 @@
       },
       "department_fit": {
         "operations": "primary",
-        "cybersecurity": "primary",
+        "cybersecurity": "adjacent",
         "legal-compliance": "adjacent",
-        "supply-chain-logistics": "adjacent",
-        "data-analytics": "adjacent"
+        "data-analytics": "adjacent",
+        "human-resources": "adjacent",
+        "customer-service": "adjacent",
+        "marketing": "adjacent",
+        "communications": "primary"
       },
       "detail_what_it_does": "Builds video analytics agents that process live or archived streams in real time or batch, generate semantic captions and embeddings, search for events and actions, summarize long footage, answer questions, verify alerts, track objects, and fuse multimodal evidence through agent workflows.",
       "detail_in_practice": {
@@ -818,9 +806,8 @@
         "higher-education": "adjacent"
       },
       "department_fit": {
-        "marketing": "primary",
-        "research-engineering": "primary",
-        "operations": "adjacent"
+        "marketing": "adjacent",
+        "research-engineering": "primary"
       },
       "detail_what_it_does": "Converts text prompts or 2D photographs into production-quality 3D assets using GPU-accelerated generative models — eliminating the need for manual 3D modeling for many use cases.",
       "detail_in_practice": {
@@ -848,8 +835,7 @@
       },
       "department_fit": {
         "research-engineering": "primary",
-        "marketing": "primary",
-        "operations": "adjacent"
+        "marketing": "adjacent"
       },
       "detail_what_it_does": "Uses 3D scene geometry as control signals for generative AI — enabling spatially consistent image generation, design iteration, and visualization that respects real-world geometry rather than producing geometrically inconsistent outputs.",
       "detail_in_practice": {
@@ -877,11 +863,8 @@
         "k12-education": "adjacent"
       },
       "department_fit": {
-        "communications": "primary",
-        "human-resources": "primary",
-        "legal-compliance": "adjacent",
-        "sales": "adjacent",
-        "marketing": "adjacent"
+        "communications": "adjacent",
+        "human-resources": "adjacent"
       },
       "detail_what_it_does": "Ingests PDF documents, extracts and structures the key content, generates a natural conversational script, and synthesizes it as multi-voice audio — turning any document into a listenable briefing.",
       "detail_in_practice": {
@@ -912,9 +895,11 @@
       },
       "department_fit": {
         "customer-service": "primary",
-        "communications": "primary",
-        "human-resources": "adjacent",
-        "sales": "adjacent"
+        "communications": "adjacent",
+        "human-resources": "primary",
+        "finance": "adjacent",
+        "information-technology": "primary",
+        "legal-compliance": "adjacent"
       },
       "detail_what_it_does": "Deploys a text-based AI assistant that handles tier-1 and tier-2 inquiries, maintains conversation context, integrates with backend systems for live data, and escalates intelligently to human agents when needed.",
       "detail_in_practice": {
@@ -940,8 +925,7 @@
         "federal-government": "adjacent"
       },
       "department_fit": {
-        "research-engineering": "primary",
-        "data-analytics": "adjacent"
+        "research-engineering": "primary"
       },
       "detail_what_it_does": "Applies GPU-parallelized RAPIDS algorithms to single-cell sequencing data — reducing analysis time from hours or days to minutes for standard scRNA-seq workflows, enabling researchers to iterate faster.",
       "detail_in_practice": {
@@ -966,8 +950,7 @@
         "federal-government": "adjacent"
       },
       "department_fit": {
-        "research-engineering": "primary",
-        "data-analytics": "adjacent"
+        "research-engineering": "primary"
       },
       "detail_what_it_does": "Applies BioNeMo protein language models to predict protein structures, model binding interactions, design protein binders, and screen candidate compounds — compressing early-stage drug discovery and bioengineering research cycles.",
       "detail_in_practice": {
@@ -997,7 +980,9 @@
       "department_fit": {
         "information-technology": "primary",
         "data-analytics": "primary",
-        "research-engineering": "primary"
+        "research-engineering": "primary",
+        "cybersecurity": "adjacent",
+        "customer-service": "adjacent"
       },
       "detail_what_it_does": "Provides the foundational infrastructure for organizations to continuously improve their AI models using operational data — automating data curation, synthetic augmentation, fine-tuning, and evaluation in a governed loop.",
       "detail_in_practice": {
@@ -1025,8 +1010,7 @@
       },
       "department_fit": {
         "cybersecurity": "primary",
-        "information-technology": "primary",
-        "legal-compliance": "adjacent"
+        "information-technology": "primary"
       },
       "detail_what_it_does": "Provides reference architectures and implementation guides for hardening AI agent systems against adversarial manipulation, unauthorized data access, and tool misuse — with built-in audit logging satisfying enterprise and regulatory security requirements.",
       "detail_in_practice": {
@@ -1055,8 +1039,7 @@
       },
       "department_fit": {
         "cybersecurity": "primary",
-        "information-technology": "primary",
-        "legal-compliance": "adjacent"
+        "information-technology": "primary"
       },
       "detail_what_it_does": "Scans container images and software dependencies for known CVEs, uses AI to triage severity in context, and generates natural language remediation guidance — accelerating the vulnerability management cycle dramatically.",
       "detail_in_practice": {
@@ -1082,10 +1065,11 @@
         "higher-education": "adjacent"
       },
       "department_fit": {
-        "customer-service": "primary",
-        "communications": "primary",
+        "customer-service": "adjacent",
+        "communications": "adjacent",
         "human-resources": "adjacent",
-        "marketing": "adjacent"
+        "marketing": "adjacent",
+        "sales": "adjacent"
       },
       "detail_what_it_does": "Renders a photorealistic or stylized interactive avatar that speaks, listens, and reasons in real time — providing face-to-face style conversational assistance for scenarios where a chat interface feels too impersonal.",
       "detail_in_practice": {
@@ -1119,8 +1103,14 @@
         "legal-compliance": "primary",
         "finance": "primary",
         "data-analytics": "primary",
-        "communications": "adjacent",
-        "human-resources": "adjacent"
+        "communications": "primary",
+        "human-resources": "adjacent",
+        "information-technology": "adjacent",
+        "cybersecurity": "primary",
+        "supply-chain-logistics": "primary",
+        "customer-service": "adjacent",
+        "sales": "primary",
+        "marketing": "primary"
       },
       "detail_what_it_does": "Deploys an AI research agent that formulates search strategies, queries multiple internal and external sources, synthesizes findings, resolves conflicts between sources, and delivers a comprehensive cited research brief — replacing hours of manual research.",
       "detail_in_practice": {
@@ -1146,11 +1136,7 @@
         "federal-defense": "adjacent",
         "federal-government": "adjacent"
       },
-      "department_fit": {
-        "information-technology": "primary",
-        "data-analytics": "adjacent",
-        "finance": "adjacent"
-      },
+      "department_fit": {},
       "detail_what_it_does": "Analyzes incoming LLM queries and routes them to the optimal model in the fleet — routing simple queries to efficient small models and complex reasoning to larger ones, reducing cost while maintaining quality.",
       "detail_in_practice": {
         "default": "IT and AI platform teams use LLM routing to cut inference costs significantly without degrading user experience — simple lookups hit a small model, complex analysis hits a large one.",
@@ -1212,14 +1198,17 @@
       "department_fit": {
         "information-technology": "primary",
         "operations": "primary",
-        "cybersecurity": "adjacent",
-        "legal-compliance": "adjacent",
-        "finance": "adjacent",
-        "human-resources": "adjacent",
-        "supply-chain-logistics": "adjacent",
-        "customer-service": "adjacent",
+        "cybersecurity": "primary",
+        "legal-compliance": "primary",
+        "finance": "primary",
+        "human-resources": "primary",
+        "supply-chain-logistics": "primary",
+        "customer-service": "primary",
         "data-analytics": "adjacent",
-        "research-engineering": "adjacent"
+        "research-engineering": "adjacent",
+        "sales": "primary",
+        "marketing": "adjacent",
+        "communications": "adjacent"
       },
       "detail_what_it_does": "Provides a governed pattern for long-running AI agents that plan work, use approved tools, maintain task context, and execute repeatable workflows under runtime policy controls. NVIDIA NemoClaw/OpenShell provides the sandbox and policy layer; Hermes, LangChain Deep Agents, OpenClaw, or other compatible agent harnesses can supply the workflow logic. The customer-facing capability is the governed workflow agent, not the choice of harness.",
       "detail_in_practice": {
@@ -1259,9 +1248,16 @@
       "department_fit": {
         "data-analytics": "primary",
         "information-technology": "primary",
-        "finance": "adjacent",
+        "finance": "primary",
         "research-engineering": "adjacent",
-        "operations": "adjacent"
+        "operations": "adjacent",
+        "human-resources": "adjacent",
+        "cybersecurity": "adjacent",
+        "legal-compliance": "adjacent",
+        "supply-chain-logistics": "primary",
+        "customer-service": "adjacent",
+        "sales": "adjacent",
+        "marketing": "adjacent"
       },
       "detail_what_it_does": "Provides a reference implementation for executing SQL queries at GPU-accelerated speeds over massive datasets — using NVIDIA cuDF, nvCOMP, and NVLink-C2C to move query execution from CPU to GPU. Achieves up to 7.5x aggregate speedup and up to 25.5x per-query gains on large-scale benchmarks. Open-source architecture informs database engine design for teams embedding GPU acceleration into their own analytics stacks.",
       "detail_in_practice": {
@@ -1293,7 +1289,6 @@
       },
       "department_fit": {
         "research-engineering": "primary",
-        "information-technology": "primary",
         "data-analytics": "adjacent"
       },
       "detail_what_it_does": "Deploys a CUDA-aware AI coding assistant on DGX Spark that understands GPU programming patterns, NVIDIA APIs, and performance optimization techniques. Provides expert chat, real-time code completion, and retrieval-augmented answers grounded in NVIDIA documentation — running entirely on-premises so proprietary code never leaves the organization.",
@@ -1363,8 +1358,7 @@
       "department_fit": {
         "operations": "primary",
         "research-engineering": "primary",
-        "supply-chain-logistics": "primary",
-        "information-technology": "adjacent"
+        "supply-chain-logistics": "primary"
       },
       "detail_what_it_does": "Uses NVIDIA Omniverse, OpenUSD, and physical-AI simulation components to create a digital twin of an operational facility. Teams can test layout changes, throughput, material movement, automation, robot fleets, safety zones, and commissioning scenarios before changing the real site. NVIDIA Mega remains an important reference pattern for multi-robot and industrial automation, but the customer-facing use case is the broader operational digital twin.",
       "detail_in_practice": {
@@ -1400,8 +1394,7 @@
       },
       "department_fit": {
         "research-engineering": "primary",
-        "operations": "adjacent",
-        "data-analytics": "adjacent"
+        "operations": "adjacent"
       },
       "detail_what_it_does": "Provides a customer-facing pattern for interactive computer-aided engineering using GPU-accelerated physics solvers, NVIDIA PhysicsNeMo surrogate models, and Omniverse visualization. The current NVIDIA fluid-simulation Blueprint is the strongest direct anchor; adjacent thermal, aerodynamic, structural, and multiphysics applications should be validated against the specific solver and model stack rather than treated as identical implementations.",
       "detail_in_practice": {
@@ -1433,8 +1426,7 @@
         "federal-government": "adjacent"
       },
       "department_fit": {
-        "research-engineering": "primary",
-        "data-analytics": "adjacent"
+        "research-engineering": "primary"
       },
       "detail_what_it_does": "Uses the Evo 2 genomic foundation model — trained on billions of DNA sequences across the tree of life — to generate novel DNA sequences that can be translated into proteins with desired properties. Enables bioengineers and researchers to explore the sequence space of life computationally before committing to wet lab synthesis.",
       "detail_in_practice": {
@@ -1460,8 +1452,7 @@
         "federal-government": "adjacent"
       },
       "department_fit": {
-        "research-engineering": "primary",
-        "data-analytics": "adjacent"
+        "research-engineering": "primary"
       },
       "detail_what_it_does": "Starts from a target amino-acid sequence, predicts its 3D structure with OpenFold3, generates candidate binder backbones with RFdiffusion, designs compatible amino-acid sequences with ProteinMPNN, and uses OpenFold3 again to validate the resulting protein complex.",
       "detail_in_practice": {
@@ -1485,8 +1476,7 @@
         "federal-government": "adjacent"
       },
       "department_fit": {
-        "research-engineering": "primary",
-        "data-analytics": "adjacent"
+        "research-engineering": "primary"
       },
       "detail_what_it_does": "Chains BioNeMo NIM microservices — OpenFold2 for protein structure prediction, GenMol for drug-like molecule generation, DiffDock for binding pose prediction — to design small molecule drug candidates optimized for a specific protein target. Applicable to any protein target, not just reference cases.",
       "detail_in_practice": {
@@ -1512,9 +1502,11 @@
       "department_fit": {
         "finance": "primary",
         "data-analytics": "primary",
-        "legal-compliance": "adjacent",
         "cybersecurity": "adjacent",
-        "research-engineering": "adjacent"
+        "supply-chain-logistics": "adjacent",
+        "customer-service": "adjacent",
+        "sales": "adjacent",
+        "marketing": "primary"
       },
       "detail_what_it_does": "Trains a transformer model on sequences of tabular transaction data — producing rich behavioral embeddings that capture spending patterns, account relationships, and behavioral signals. The resulting foundation model can be fine-tuned for fraud detection, customer personalization, credit risk, AML, and other downstream tasks specific to the organization.",
       "detail_in_practice": {
@@ -1536,9 +1528,7 @@
         "financial-services": "primary"
       },
       "department_fit": {
-        "finance": "primary",
-        "data-analytics": "primary",
-        "research-engineering": "adjacent"
+        "finance": "primary"
       },
       "detail_what_it_does": "Deploys an AI agent that autonomously generates signal hypotheses from market data, executes backtests, evaluates statistical robustness, and refines candidates — compressing the signal research cycle that would otherwise require weeks of manual quant researcher effort.",
       "detail_in_practice": {
@@ -1568,8 +1558,12 @@
       "department_fit": {
         "marketing": "primary",
         "communications": "primary",
-        "human-resources": "adjacent",
-        "sales": "adjacent"
+        "human-resources": "primary",
+        "sales": "adjacent",
+        "cybersecurity": "adjacent",
+        "legal-compliance": "adjacent",
+        "operations": "adjacent",
+        "customer-service": "adjacent"
       },
       "detail_what_it_does": "Automatically translates spoken audio in video content, synthesizes translated speech preserving the original speaker voice, and applies lip-sync to match the translated audio to the speaker on screen — enabling professional-quality localization at a fraction of traditional dubbing cost and time.",
       "detail_in_practice": {
@@ -1608,15 +1602,17 @@
       },
       "department_fit": {
         "finance": "primary",
-        "human-resources": "adjacent",
+        "human-resources": "primary",
         "information-technology": "adjacent",
         "legal-compliance": "primary",
-        "operations": "primary",
+        "operations": "adjacent",
         "supply-chain-logistics": "primary",
-        "customer-service": "adjacent",
-        "sales": "adjacent",
+        "customer-service": "primary",
+        "sales": "primary",
         "data-analytics": "primary",
-        "research-engineering": "adjacent"
+        "research-engineering": "adjacent",
+        "cybersecurity": "primary",
+        "communications": "adjacent"
       },
       "detail_what_it_does": "Uses NVIDIA-accelerated multimodal document ingestion and vision-language components to identify and extract text, tables, charts, images, fields, and document structure from PDFs and other enterprise files. The extracted content can be normalized into structured records for analytics, workflow automation, RAG, reporting, or human review.",
       "detail_in_practice": {
@@ -1663,17 +1659,18 @@
       },
       "department_fit": {
         "finance": "primary",
-        "human-resources": "adjacent",
+        "human-resources": "primary",
         "information-technology": "adjacent",
         "legal-compliance": "primary",
         "operations": "primary",
         "supply-chain-logistics": "adjacent",
-        "customer-service": "adjacent",
-        "sales": "adjacent",
+        "customer-service": "primary",
+        "sales": "primary",
         "marketing": "adjacent",
         "data-analytics": "primary",
         "research-engineering": "adjacent",
-        "communications": "primary"
+        "communications": "primary",
+        "cybersecurity": "primary"
       },
       "detail_what_it_does": "Uses an agentic report-planning and writing workflow to take a requested topic or report structure, gather approved source material, organize sections, synthesize findings, and draft a consistent report for human review. The original NVIDIA partner Blueprint is deprecated, but the pattern remains implementable with supported NVIDIA NIMs and modern agent frameworks.",
       "detail_in_practice": {
@@ -1720,10 +1717,7 @@
       },
       "department_fit": {
         "cybersecurity": "primary",
-        "information-technology": "primary",
-        "legal-compliance": "adjacent",
-        "operations": "adjacent",
-        "data-analytics": "adjacent"
+        "information-technology": "primary"
       },
       "detail_what_it_does": "Uses NVIDIA Morpheus to build GPU-accelerated security analytics pipelines for filtering, processing, and classifying large volumes of streaming cybersecurity data. It can support anomaly detection, compromised-account detection, malicious activity triage, and analyst-assistance workflows while integrating with existing SIEM, telemetry, and response platforms.",
       "detail_in_practice": {
@@ -1763,11 +1757,8 @@
       },
       "department_fit": {
         "operations": "primary",
-        "research-engineering": "primary",
         "supply-chain-logistics": "adjacent",
-        "data-analytics": "primary",
-        "information-technology": "adjacent",
-        "finance": "adjacent"
+        "information-technology": "adjacent"
       },
       "detail_what_it_does": "Combines sensor and operational data with GPU-accelerated data processing and machine learning to estimate failure risk, remaining useful life, or maintenance priority. The output is used to schedule inspection, repair, or replacement before an unplanned outage occurs.",
       "detail_in_practice": {
@@ -1811,10 +1802,7 @@
       "department_fit": {
         "operations": "primary",
         "supply-chain-logistics": "primary",
-        "data-analytics": "primary",
-        "finance": "adjacent",
-        "research-engineering": "adjacent",
-        "information-technology": "adjacent"
+        "data-analytics": "primary"
       },
       "detail_what_it_does": "Uses NVIDIA cuOpt to solve vehicle-routing, pickup-and-delivery, scheduling, and related optimization problems under real-world constraints such as time windows, capacity, operating hours, service requirements, and fleet availability.",
       "detail_in_practice": {
@@ -1857,11 +1845,8 @@
       "department_fit": {
         "operations": "primary",
         "cybersecurity": "adjacent",
-        "information-technology": "adjacent",
-        "supply-chain-logistics": "primary",
-        "research-engineering": "primary",
-        "data-analytics": "adjacent",
-        "legal-compliance": "adjacent"
+        "supply-chain-logistics": "adjacent",
+        "research-engineering": "primary"
       },
       "detail_what_it_does": "Uses NVIDIA Metropolis, vision models, and video analytics components to detect and classify objects, defects, unsafe conditions, intrusions, traffic patterns, or operational events in camera streams. Unlike VSS, which emphasizes search, summarization, and question answering over video, this use case emphasizes real-time perception and action in physical operations.",
       "detail_in_practice": {
@@ -1908,7 +1893,6 @@
         "information-technology": "primary",
         "cybersecurity": "adjacent",
         "supply-chain-logistics": "adjacent",
-        "data-analytics": "adjacent",
         "research-engineering": "primary"
       },
       "detail_what_it_does": "Deploys trained AI models on GPU-accelerated systems near cameras, sensors, machines, vehicles, users, or devices so decisions can happen locally with lower latency and reduced dependence on WAN or cloud connectivity. The same pattern also helps keep sensitive data close to its source when policy or operational requirements call for local processing.",
@@ -1955,7 +1939,6 @@
         "research-engineering": "primary",
         "data-analytics": "primary",
         "operations": "adjacent",
-        "information-technology": "adjacent",
         "cybersecurity": "adjacent",
         "supply-chain-logistics": "adjacent"
       },
@@ -2000,8 +1983,7 @@
         "information-technology": "primary",
         "research-engineering": "primary",
         "data-analytics": "adjacent",
-        "cybersecurity": "adjacent",
-        "operations": "adjacent"
+        "cybersecurity": "adjacent"
       },
       "detail_what_it_does": "Uses an agentic coding harness to inspect repository context, plan implementation steps, edit files, run commands and tests, review results, and iterate on software changes under governed tool and filesystem policies. NVIDIA NemoClaw/OpenShell can provide the controlled execution environment; Nemotron or other supported models can be served through NIM; enterprise documentation and code knowledge can be added through retrieval; and MCP or approved developer-tool integrations can connect source control, CI/CD, issue tracking, and other engineering systems. Nsight Copilot remains the specialized NVIDIA path for CUDA and GPU-development assistance.",
       "detail_in_practice": {
