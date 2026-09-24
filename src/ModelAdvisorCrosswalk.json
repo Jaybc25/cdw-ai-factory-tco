@@ -1,7 +1,7 @@
 {
   "meta": {
-    "version": "0.6",
-    "source_blueprints_version": "2.7",
+    "version": "0.7",
+    "source_blueprints_version": "2.9",
     "purpose": "Single source of truth consumed by: Model Advisor tooltips, Use Case Explorer -> Model Advisor / GPU Sizing URL handoff, GPU Sizing routing/eligible-hardware logic.",
     "workload_families": [
       "Language / General GenAI",
@@ -696,6 +696,21 @@
       "specializedStack": "NVIDIA Omniverse / Isaac Sim / Replicator / Cosmos synthetic-data stack",
       "gpuWorkloadType": "synthetic-data-generation",
       "note": "Synthetic-data generation is a simulation and data-pipeline workload rather than a general open-weight LLM selection problem."
+    },
+    {
+      "id": "ai-coding-agent",
+      "explorerCategory": "Agentic AI & Automation",
+      "workloadFamily": "Agentic",
+      "modelAdvisorUmbrellas": [
+        "Coding",
+        "Agentic AI & Tool Use",
+        "RAG & Knowledge Retrieval"
+      ],
+      "primaryUmbrella": "Coding",
+      "routingClass": "general-model-selection",
+      "specializedStack": null,
+      "gpuWorkloadType": "code-inference",
+      "note": "Customer-facing coding-agent capability. Model selection is anchored on coding quality, with agentic tool use and optional repository/document retrieval as secondary requirements. Nsight Copilot remains a specialized CUDA/GPU-development implementation."
     }
   ]
 }
