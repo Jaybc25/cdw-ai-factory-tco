@@ -91,6 +91,42 @@ test("single GB200 NVL72 requires a scoped infrastructure review in workload mod
   await expect(confirm).toBeDisabled();
   await page.getByRole("textbox", { name: "Quote or existing-facility coverage reference" }).fill("CDW quote 123 / facility review 2026-09-23");
   await confirm.click();
-  await expect(page.getByText(/Review recorded for these inputs/)).toBeVisible();
-  await expect(page.getByText(/Infrastructure architecture review required\./)).toHaveCount(0);
+  await expect(page.getByText(/User review recorded for these inputs; the result remains directional/)).toBeVisible();
+  await expect(page.getByText(/NVL72 review recorded; result remains directional\./)).toBeVisible();
+  await expect(page.getByText(/3-YEAR MODELED DELTA · DIRECTIONAL/)).toBeVisible();
+  await expect(page.getByText(/3-YEAR SAVINGS · REFINED/)).toHaveCount(0);
+});
+
+test("NVL72 five-year retrofit accepts a quote beyond the old slider cap and still discloses renewal", async ({ page }) => {
+  await page.goto("/tco", { waitUntil: "domcontentloaded" });
+  await openRefine(page);
+  await page.getByRole("button", { name: "DGX GB300 NVL-72" }).click();
+  await page.getByRole("button", { name: "Self-hosted (retrofit)" }).click();
+  await page.getByRole("spinbutton", { name: /Facility retrofit \(one-time\)/i }).fill("4500000");
+  await expect(page.getByRole("spinbutton", { name: /Facility retrofit \(one-time\)/i })).toHaveValue("4500000");
+  await page.getByRole("button", { name: "5yr" }).click();
+  await expect(page.getByText(/Five-year software\/support renewal not included/)).toBeVisible();
+  await expect(page.getByText(/5-YEAR MODELED DELTA · DIRECTIONAL/)).toBeVisible();
+});
+
+test("same-value Equinix entry cannot clear the NVL72 review gate", async ({ page }) => {
+  await seedTcoSession(page, {
+    ownSys: "DGX GB200 NVL-72",
+    facility: "Equinix",
+    onPremRateOverrides: { "DGX GB200 NVL-72": { equinixMo: 11387 } },
+  });
+  await page.goto("/tco", { waitUntil: "domcontentloaded" });
+  await openRefine(page);
+  await page.getByRole("textbox", { name: "Quote or existing-facility coverage reference" }).fill("CDW colo quote 123");
+  const confirm = page.getByRole("button", { name: /I reviewed coverage and reflected the costs/i });
+  await expect(confirm).toBeDisabled();
+  const rateCard = page.getByRole("button", { name: /Rate card/i });
+  if ((await rateCard.getAttribute("aria-expanded")) !== "true") await rateCard.click();
+  await expect(page.getByRole("spinbutton", { name: /Equinix bundle \$\/system\/mo/i })).toHaveValue("11387");
+  await expect(confirm).toBeDisabled();
+  await page.getByRole("spinbutton", { name: /Equinix bundle \$\/system\/mo/i }).fill("12000");
+  await expect(confirm).toBeEnabled();
+  await confirm.click();
+  await expect(page.getByText(/User review recorded for these inputs; the result remains directional/)).toBeVisible();
+  await expect(page.getByText(/3-YEAR MODELED DELTA · DIRECTIONAL/)).toBeVisible();
 });

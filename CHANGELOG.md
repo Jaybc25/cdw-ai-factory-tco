@@ -82,6 +82,12 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+### September 24, 2026 - NVL72 review transparency and five-year cost caveats
+
+- A user-recorded NVL72 quote/coverage review now stays visibly directional in the TCO result, report, and audit; it cannot turn unchanged planning dollars into a refined savings claim. The supplied reference remains visible, scoped to the scenario, and unverified by the tool.
+- Five-year TCO scenarios with an initial three-year system commercial term disclose that post-term support or selected-software renewal is not included. Rack-scale retrofit input accepts a project-quoted amount above the former $2 million slider limit.
+- The Equinix NVL72 review requires a positive, distinct per-system bundle override; entering the generic default again no longer counts. A distinct input is still user supplied and does not prove a colo quote. No price, cost formula, or release tag changed.
+
 ### September 23, 2026 - NVL72 infrastructure cost readiness
 
 - Extended TCO infrastructure qualification to a single GB200 or GB300 NVL72 and to spend-derived NVL72 scenarios. A quote or documented existing-facility coverage reference and explicit review now accompany rack, cooling, power distribution, fabric, installation, selected software, and facility/operating assumptions. The review is bound to the selected design and modeled cost inputs; changing them invalidates it.
