@@ -26,12 +26,19 @@ test("specialized capability batch avoids misleading Model Advisor routing", asy
 
   expect(byId["metropolis-vision-ai"].routingClass).toBe("specialized-stack");
   expect(byId["metropolis-vision-ai"].gpuWorkloadType).toBe("real-time-vision-inference");
+  expect(byId["edge-ai-inference"].routingClass).toBe("platform-architecture");
+  expect(byId["edge-ai-inference"].gpuWorkloadType).toBe("edge-inference-deployment");
+
+  expect(byId["synthetic-data-generation"].routingClass).toBe("specialized-stack");
+  expect(byId["synthetic-data-generation"].gpuWorkloadType).toBe("synthetic-data-generation");
 
   for (const id of [
     "cybersecurity-threat-detection",
     "predictive-maintenance",
     "route-optimization-cuopt",
     "metropolis-vision-ai",
+    "edge-ai-inference",
+    "synthetic-data-generation",
   ]) {
     expect(byId[id].modelAdvisorUmbrellas).toEqual([]);
     expect(byId[id].primaryUmbrella).toBeNull();
