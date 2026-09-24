@@ -203,10 +203,8 @@ function CombinedSummaryInner() {
             ))}
 
             <div style={{ fontSize: 11, color: GRAY_TEXT, padding: 14, background: "#F7F7F7", borderRadius: 10, marginTop: 8, lineHeight: 1.5 }}>
-              This combined summary reflects the most recent saved result from each tool as of the dates shown above.
-              Unless every section was refreshed through the same tool journey, the sections may represent different scenarios.
-              Each section is a directional estimate from that tool, not a validated business case. Confirm with a CDW AI
-              Factory specialist before using these figures in a formal proposal.
+              These are the latest saved results and may describe different scenarios. Each is directional; confirm
+              the scenario and inputs with a CDW AI Factory specialist before using this summary in a formal proposal.
             </div>
 
             <div style={{ borderTop: `2px solid ${CHARCOAL}`, marginTop: 20, paddingTop: 10, display: "flex", justifyContent: "space-between" }}>

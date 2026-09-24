@@ -1979,8 +1979,8 @@ function AppInner() {
             <div style={{ background: "#3A3A3A", borderLeft: "3px solid #CC0000", borderRadius: 6, padding: "10px 12px", margin: "8px 0 10px" }}>
               <div style={{ ...mono, fontSize: 13, fontWeight: 700, color: "#FFFFFF" }}>{`NO COST CROSSOVER WITHIN THE SELECTED ${horizon}-YEAR HORIZON`}</div>
               <div style={{ fontSize: 12, color: "#D0D0D0", marginTop: 4 }}>
-                At these settings, staying in cloud is cheaper over {horizon} year{horizon > 1 ? "s" : ""} by {fmtM(-t.saveAdj)} — the fixed cluster overhead and transition costs outweigh the ownership advantage at this scale and horizon. A longer horizon may still cross — check the 3yr and 5yr views.{r.crossoverMo && r.crossoverMo > horizon * 12 ? ` Cumulative cash flows project crossover around month ${r.crossoverMo}.` : ""}
-                {minViable && minViable > bill ? ` On-prem starts to pencil around ${fmtM(minViable)}/mo at these settings.` : ""} An honest tool says so.
+                At these settings, cloud costs {fmtM(-t.saveAdj)} less over {horizon} year{horizon > 1 ? "s" : ""}. Fixed cluster and transition costs affect the comparison; compare the available horizons.{r.crossoverMo && r.crossoverMo > horizon * 12 ? ` Cumulative cash flows project crossover around month ${r.crossoverMo}.` : ""}
+                {minViable && minViable > bill ? ` On-prem starts to pencil around ${fmtM(minViable)}/mo at these settings.` : ""}
               </div>
             </div>
           )}

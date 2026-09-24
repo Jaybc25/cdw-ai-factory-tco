@@ -629,13 +629,12 @@ export default function InferenceEconomicsGuidedPreview() {
               <div style={takeawayBox}>
                 <div style={{ fontSize: 12, fontWeight: 900, color: "#666", textTransform: "uppercase", letterSpacing: ".04em" }}>What this means</div>
                 <div style={{ fontSize: 18, fontWeight: 850, lineHeight: 1.45, marginTop: 6 }}>
-                  Under these assumptions, private AI is modeled at {money(comparison.privateUsdPerMillionOutputTokens)} per 1M output tokens versus {money(comparison.managedApiUsdPerMillionOutputTokens)} for {apiModelLabel || "the selected managed API"}.
+                  {privateCostDirection === "the same"
+                    ? `Under these assumptions, private AI and ${apiModelLabel || "the selected managed API"} have the same modeled cost per 1M output tokens.`
+                    : `Under these assumptions, private AI is modeled to cost ${privateCostDirection === "lower" ? "less" : "more"} per 1M output tokens than ${apiModelLabel || "the selected managed API"}.`}
                 </div>
                 <div style={{ ...muted, fontSize: 13, marginTop: 7 }}>
-                  {privateCostDirection === "the same"
-                    ? "Both options are modeled at the same effective cost per 1M output tokens."
-                    : `Private AI is modeled ${money(modeledDifferenceUsdPerMillion)} per 1M output tokens ${privateCostDirection}, a ${modeledDifferencePctOfApi.toFixed(1)}% difference relative to the managed API cost.`}
-                  {" "}This is a cost comparison only and does not assert equivalent model capability.
+                  This compares cost per output token; it does not assume the models are equally capable.
                 </div>
               </div>
             ) : null}
@@ -660,9 +659,6 @@ export default function InferenceEconomicsGuidedPreview() {
                 <div style={{ fontSize: 12, fontWeight: 800, color: "#666" }}>Modeled cost difference</div>
                 <div style={{ fontSize: 24, fontWeight: 900, marginTop: 3 }}>
                   {money(modeledDifferenceUsdPerMillion)} / 1M output · {modeledDifferencePctOfApi.toFixed(1)}%
-                </div>
-                <div style={muted}>
-                  Private AI is modeled {privateCostDirection} than the selected managed API on this normalized output-token cost basis.
                 </div>
               </div>
             ) : null}
