@@ -1,7 +1,7 @@
 {
   "meta": {
-    "version": "0.5",
-    "source_blueprints_version": "2.6",
+    "version": "0.6",
+    "source_blueprints_version": "2.7",
     "purpose": "Single source of truth consumed by: Model Advisor tooltips, Use Case Explorer -> Model Advisor / GPU Sizing URL handoff, GPU Sizing routing/eligible-hardware logic.",
     "workload_families": [
       "Language / General GenAI",
@@ -476,21 +476,9 @@
       ],
       "primaryUmbrella": "Agentic AI & Tool Use",
       "routingClass": "general-model-selection",
-      "specializedStack": null,
-      "gpuWorkloadType": "agentic-orchestration-inference"
-    },
-    {
-      "id": "nemoclaw-langchain",
-      "explorerCategory": "Agentic AI & Automation",
-      "workloadFamily": "Agentic",
-      "modelAdvisorUmbrellas": [
-        "Agentic AI & Tool Use",
-        "Coding"
-      ],
-      "primaryUmbrella": "Agentic AI & Tool Use",
-      "routingClass": "general-model-selection",
-      "specializedStack": null,
-      "gpuWorkloadType": "agentic-orchestration-inference"
+      "specializedStack": "NVIDIA NemoClaw/OpenShell + compatible agent harness",
+      "gpuWorkloadType": "agentic-orchestration-inference",
+      "note": "Customer-facing master capability consolidated from the Hermes, LangChain Deep Agents, and OpenClaw implementation variants; the agent harness remains an implementation choice."
     },
     {
       "id": "gpu-query-engine",
@@ -517,18 +505,6 @@
       "gpuWorkloadType": "code-inference"
     },
     {
-      "id": "nemoclaw-openclaw",
-      "explorerCategory": "Agentic AI & Automation",
-      "workloadFamily": "Agentic",
-      "modelAdvisorUmbrellas": [
-        "Agentic AI & Tool Use"
-      ],
-      "primaryUmbrella": "Agentic AI & Tool Use",
-      "routingClass": "general-model-selection",
-      "specializedStack": null,
-      "gpuWorkloadType": "agentic-orchestration-inference"
-    },
-    {
       "id": "synthetic-manipulation-motion",
       "explorerCategory": "Digital Twins & Simulation",
       "workloadFamily": "Simulation / Digital Twin / Physical AI",
@@ -545,8 +521,9 @@
       "modelAdvisorUmbrellas": [],
       "primaryUmbrella": null,
       "routingClass": "infrastructure-first",
-      "specializedStack": "Omniverse + OpenUSD + Isaac ROS",
-      "gpuWorkloadType": "simulation-rendering"
+      "specializedStack": "NVIDIA Omniverse + OpenUSD + Mega/Isaac components as applicable",
+      "gpuWorkloadType": "simulation-rendering",
+      "note": "Broadened from the Mega multi-robot reference into a customer-facing factory/operational digital-twin capability while retaining Mega as a direct physical-AI implementation anchor."
     },
     {
       "id": "digital-twin-fluid-simulation",
@@ -555,8 +532,9 @@
       "modelAdvisorUmbrellas": [],
       "primaryUmbrella": null,
       "routingClass": "infrastructure-first",
-      "specializedStack": "CUDA-X solvers + PhysicsNeMo",
-      "gpuWorkloadType": "simulation-compute"
+      "specializedStack": "CUDA-X solvers + PhysicsNeMo + validated CAE stack",
+      "gpuWorkloadType": "simulation-compute",
+      "note": "Broadened from the direct fluid-simulation Blueprint into a customer-facing real-time CAE capability; adjacent thermal/structural/multiphysics applications require solver-specific validation."
     },
     {
       "id": "evo2-protein-design",

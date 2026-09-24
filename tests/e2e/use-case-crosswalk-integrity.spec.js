@@ -44,3 +44,18 @@ test("specialized capability batch avoids misleading Model Advisor routing", asy
     expect(byId[id].primaryUmbrella).toBeNull();
   }
 });
+
+
+test("consolidated use cases keep one customer-facing entry per capability", async () => {
+  const blueprintById = Object.fromEntries(blueprintData.blueprints.map((row) => [row.id, row]));
+  const crosswalkById = Object.fromEntries(crosswalkData.crosswalk.map((row) => [row.id, row]));
+
+  expect(blueprintById["nemoclaw-hermes"].name).toBe("Governed Workflow & Autonomous Agents");
+  expect(blueprintById["nemoclaw-langchain"]).toBeUndefined();
+  expect(blueprintById["nemoclaw-openclaw"]).toBeUndefined();
+  expect(crosswalkById["nemoclaw-langchain"]).toBeUndefined();
+  expect(crosswalkById["nemoclaw-openclaw"]).toBeUndefined();
+
+  expect(blueprintById["mega-multi-robot-fleet"].name).toBe("Factory & Operational Digital Twin");
+  expect(blueprintById["digital-twin-fluid-simulation"].name).toBe("Real-Time CAE Digital Twins");
+});

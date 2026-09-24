@@ -1,8 +1,8 @@
 {
   "meta": {
-    "version": "2.6",
+    "version": "2.7",
     "last_verified": "2026-09-24",
-    "blueprint_count": 60,
+    "blueprint_count": 58,
     "industries": [
       "higher-education",
       "k12-education",
@@ -1188,70 +1188,53 @@
     },
     {
       "id": "nemoclaw-hermes",
-      "name": "NemoClaw for Hermes Agent Blueprint",
+      "name": "Governed Workflow & Autonomous Agents",
       "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-for-hermes-agent",
       "use_case_category": "Agentic AI & Automation",
-      "description": "Deploy governed autonomous Hermes agents in enterprise environments — agents work with approved tools and data sources, learn team workflows, and turn repeatable guidance into durable reusable skills via NVIDIA OpenShell sandboxing.",
+      "description": "Deploy long-running, governed AI agents that can execute repeatable business and technical workflows with approved tools, data, memory, and policy controls — using NVIDIA NemoClaw/OpenShell patterns with agent frameworks such as Hermes, LangChain Deep Agents, or OpenClaw.",
       "industry_fit": {
         "general-enterprise": "primary",
         "financial-services": "primary",
         "state-local-government": "primary",
+        "federal-government": "primary",
         "federal-defense": "primary",
-        "healthcare-life-sciences": "adjacent",
+        "healthcare-life-sciences": "primary",
         "legal-services": "adjacent",
-        "general-manufacturing": "adjacent",
-        "federal-government": "primary",
+        "general-manufacturing": "primary",
+        "food-cpg-manufacturing": "primary",
+        "oil-gas": "adjacent",
+        "utilities-energy": "adjacent",
+        "transportation-logistics": "adjacent",
+        "retail-distribution": "adjacent",
         "higher-education": "adjacent",
         "k12-education": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
-        "cybersecurity": "primary",
-        "operations": "adjacent",
-        "legal-compliance": "adjacent",
-        "data-analytics": "adjacent"
-      },
-      "detail_what_it_does": "Deploys Hermes AI agents inside NVIDIA OpenShell sandboxes — giving enterprises policy-based control over which tools, data sources, and systems agents can touch. Agents learn team workflows through real usage, capture repeatable guidance as durable Hermes Skills, and improve future performance automatically. OpenShell guardrails enforce access boundaries and data handling policies at runtime.",
-      "detail_in_practice": {
-        "default": "Teams deploy governed agents for tasks like PR review, incident triage, product planning, and launch review — agents learn preferred approaches from corrections and feedback, compounding value over time without retraining.",
-        "financial-services": "Trading ops and technology teams deploy governed agents for regulatory research, exception handling, and workflow automation — with OpenShell enforcing strict boundaries around which data and systems agents can access.",
-        "state-local-government": "State DoIT offices deploy governed agents for cross-agency workflows — procurement review, policy research, incident triage — with OpenShell guardrails satisfying security review requirements before production.",
-        "federal-defense": "Defense IT teams deploy sandboxed agents for classified-environment automation — OpenShell policy enforcement provides the access control and audit trail required for ATO and security compliance."
-      },
-      "detail_infrastructure": "NVIDIA Nemotron models via NIM, NVIDIA OpenShell runtime (early preview), LangChain or Hermes agent harness, Hermes Skills registry, enterprise tool and data source connectors."
-    },
-    {
-      "id": "nemoclaw-langchain",
-      "name": "NemoClaw for LangChain Deep Agents Blueprint",
-      "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-langchain",
-      "use_case_category": "Agentic AI & Automation",
-      "description": "Reference architecture for building long-running enterprise agents combining LangChain Deep Agents Code, NVIDIA Nemotron 3 Ultra, and NVIDIA OpenShell — tuned for benchmark-leading agent performance at significantly lower inference cost.",
-      "industry_fit": {
-        "general-enterprise": "primary",
-        "financial-services": "primary",
-        "federal-defense": "primary",
-        "healthcare-life-sciences": "adjacent",
-        "general-manufacturing": "adjacent",
-        "federal-government": "primary",
-        "higher-education": "adjacent",
-        "k12-education": "adjacent"
-      },
-      "department_fit": {
-        "information-technology": "primary",
-        "data-analytics": "primary",
-        "research-engineering": "primary",
+        "operations": "primary",
         "cybersecurity": "adjacent",
-        "operations": "adjacent"
+        "legal-compliance": "adjacent",
+        "finance": "adjacent",
+        "human-resources": "adjacent",
+        "supply-chain-logistics": "adjacent",
+        "customer-service": "adjacent",
+        "data-analytics": "adjacent",
+        "research-engineering": "adjacent"
       },
-      "detail_what_it_does": "Provides a fully tuned enterprise agent stack — Nemotron 3 Ultra as the open model layer, LangChain Deep Agents as the harness for planning, tool use, memory, and long-running task execution, and OpenShell as the governed runtime. The three layers are tuned together, delivering strong agent benchmark performance at a fraction of the cost of frontier API models.",
+      "detail_what_it_does": "Provides a governed pattern for long-running AI agents that plan work, use approved tools, maintain task context, and execute repeatable workflows under runtime policy controls. NVIDIA NemoClaw/OpenShell provides the sandbox and policy layer; Hermes, LangChain Deep Agents, OpenClaw, or other compatible agent harnesses can supply the workflow logic. The customer-facing capability is the governed workflow agent, not the choice of harness.",
       "detail_in_practice": {
-        "default": "Engineering and AI platform teams use this as the reference architecture for building production-grade agentic systems — model, harness, runtime, and eval loop all specified and tuned together rather than assembled ad hoc.",
-        "financial-services": "Quant and technology teams build long-running research and workflow agents that operate within OpenShell access policies — tuning harness and model together for domain-specific performance at lower inference cost than cloud APIs.",
-        "federal-defense": "Defense AI teams build mission-specific agents on a fully on-premises open stack — no model weights or agent traces leave the secure environment, with OpenShell governing every tool interaction."
+        "default": "Teams use governed workflow agents to automate repeatable multi-step work such as case routing, exception handling, research, follow-up, status updates, and operational coordination while keeping tool access and data boundaries under enterprise control.",
+        "federal-government": "Agencies automate claims, HR, acquisition, records, and case-management steps such as routing, document requests, completeness checks, and status updates while keeping agent execution inside approved policy boundaries.",
+        "federal-defense": "Contractors use governed agents for contract administration, proposal workflows, timekeeping exceptions, subcontract flowdowns, program operations, and secure engineering tasks inside controlled environments.",
+        "healthcare-life-sciences": "Providers and payers use governed agents for eligibility, prior-authorization follow-up, denial work queues, scheduling, and revenue-cycle exception handling with human escalation for clinical or financial decisions.",
+        "financial-services": "Banks and insurers use governed agents for exception handling, research, compliance workflows, operations follow-up, and other multi-step tasks that require auditable access to sensitive systems.",
+        "general-manufacturing": "Manufacturers automate supplier follow-up, RFQ coordination, order changes, quality workflows, and service operations while constraining which ERP, MES, and document systems agents may access.",
+        "food-cpg-manufacturing": "Food and CPG teams automate retailer deductions, order exceptions, supplier onboarding, and recurring customer-operations workflows while retaining human review for financial or regulatory outcomes.",
+        "higher-education": "Institutions automate registrar, purchasing, HR, and student-service workflows such as enrollment-hold follow-up, onboarding, and routing of routine requests.",
+        "k12-education": "Districts automate repetitive central-office workflows such as HR onboarding, purchasing follow-up, records routing, and service-ticket coordination under district policy."
       },
-      "detail_infrastructure": "NVIDIA Nemotron 3 Ultra via NIM, LangChain Deep Agents Code (dcode), NVIDIA OpenShell runtime, GPU cluster for inference (Blackwell recommended for cost-performance), evaluation pipeline for harness tuning."
+      "detail_infrastructure": "NVIDIA NemoClaw/OpenShell governed runtime, NVIDIA NIM-served models, an agent harness such as Hermes, LangChain Deep Agents, or OpenClaw, enterprise tool/data connectors, policy configuration, audit logging, and on-premises or isolated deployment where required."
     },
     {
       "id": "gpu-query-engine",
@@ -1325,37 +1308,6 @@
       "detail_infrastructure": "NVIDIA DGX Spark (personal AI supercomputer), NIM microservices for LLM and embedding, RAG pipeline over NVIDIA GPU programming documentation, on-premises deployment."
     },
     {
-      "id": "nemoclaw-openclaw",
-      "name": "NemoClaw for OpenClaw Blueprint",
-      "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-for-openclaw",
-      "use_case_category": "Agentic AI & Automation",
-      "description": "Run always-on OpenClaw agents with greater enterprise control, privacy, and flexibility — installed with a single command via NVIDIA OpenShell for sandboxed, governed agentic execution.",
-      "industry_fit": {
-        "general-enterprise": "primary",
-        "federal-defense": "primary",
-        "financial-services": "primary",
-        "state-local-government": "adjacent",
-        "healthcare-life-sciences": "adjacent",
-        "federal-government": "primary",
-        "higher-education": "adjacent",
-        "k12-education": "adjacent"
-      },
-      "department_fit": {
-        "information-technology": "primary",
-        "cybersecurity": "primary",
-        "operations": "adjacent",
-        "data-analytics": "adjacent"
-      },
-      "detail_what_it_does": "Extends the popular open-source OpenClaw autonomous agent framework with NVIDIA OpenShell enterprise governance — adding policy-based access control, sandboxed execution, and privacy guardrails to always-on agents. Single-command installation wraps OpenClaw agents in enterprise-grade security without requiring a full rebuild of existing agent workflows.",
-      "detail_in_practice": {
-        "default": "Organizations already experimenting with OpenClaw agents use this to move from prototype to production — adding the governance, access control, and audit logging required for enterprise deployment without changing the underlying agent logic.",
-        "federal-defense": "Defense organizations deploy governed OpenClaw agents inside secure enclaves — OpenShell sandboxing ensures agents cannot access systems or data outside their defined authorization boundary.",
-        "financial-services": "Banks and insurers wrap existing agentic workflows in OpenShell governance — satisfying model risk management and audit requirements for AI agents operating near sensitive financial systems."
-      },
-      "detail_infrastructure": "NVIDIA OpenShell runtime (early preview), OpenClaw agent framework, NVIDIA NIM for model inference, policy configuration layer, on-premises or air-gapped deployment capable."
-    },
-    {
       "id": "synthetic-manipulation-motion",
       "name": "Synthetic Manipulation Motion Generation for Robotics Blueprint",
       "status": "active",
@@ -1392,20 +1344,22 @@
     },
     {
       "id": "mega-multi-robot-fleet",
-      "name": "Mega Blueprint — Test Multi-Robot Fleets for Industrial Automation",
+      "name": "Factory & Operational Digital Twin",
       "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/mega-multi-robot-fleets-for-industrial-automation",
       "use_case_category": "Digital Twins & Simulation",
-      "description": "Simulate, test, and optimize heterogeneous physical AI and robot fleets at scale in industrial digital twins before real-world deployment — built on NVIDIA Omniverse, OpenUSD, and Isaac ROS.",
+      "description": "Build a physics-based digital representation of factories, warehouses, plants, and other operational facilities to test layouts, material flow, automation, robot fleets, and operational changes before modifying the physical environment.",
       "industry_fit": {
         "general-manufacturing": "primary",
         "food-cpg-manufacturing": "primary",
         "retail-distribution": "primary",
         "transportation-logistics": "primary",
-        "utilities-energy": "adjacent",
+        "utilities-energy": "primary",
+        "oil-gas": "primary",
+        "federal-defense": "primary",
+        "healthcare-life-sciences": "adjacent",
         "state-local-government": "adjacent",
-        "federal-defense": "adjacent",
-        "oil-gas": "adjacent"
+        "general-enterprise": "adjacent"
       },
       "department_fit": {
         "operations": "primary",
@@ -1413,23 +1367,27 @@
         "supply-chain-logistics": "primary",
         "information-technology": "adjacent"
       },
-      "detail_what_it_does": "Builds a physics-accurate digital twin of industrial facilities — factories, warehouses, distribution centers — and simulates heterogeneous robot fleets (AMRs, humanoids, intelligent cameras, visual AI agents) operating together. Teams test fleet coordination, optimize layouts, validate performance, and catch failure modes before any robot touches the physical environment.",
+      "detail_what_it_does": "Uses NVIDIA Omniverse, OpenUSD, and physical-AI simulation components to create a digital twin of an operational facility. Teams can test layout changes, throughput, material movement, automation, robot fleets, safety zones, and commissioning scenarios before changing the real site. NVIDIA Mega remains an important reference pattern for multi-robot and industrial automation, but the customer-facing use case is the broader operational digital twin.",
       "detail_in_practice": {
-        "default": "Industrial operations teams use Mega to validate robot fleet deployments digitally — catching coordination failures, layout inefficiencies, and edge cases in simulation before committing to physical deployment.",
-        "general-manufacturing": "Automotive and electronics manufacturers simulate humanoid and AMR robot fleets on assembly lines — validating that robots can coordinate with human workers and each other before physical commissioning.",
-        "food-cpg-manufacturing": "CPG companies simulate automated picking, packing, and palletizing robot fleets across facility layouts before physical installation — optimizing throughput and identifying congestion points digitally.",
-        "retail-distribution": "Distribution center operators simulate AMR and humanoid robot fleets across warehouse layouts — testing fleet routing, task allocation, and human-robot interaction before deployment.",
-        "transportation-logistics": "Port, airport, and yard operators simulate autonomous vehicle and robot fleets in their facility digital twins — optimizing throughput and validating safety protocols before live operations."
+        "default": "Operations and engineering teams use a facility digital twin to validate changes before capital is committed or production is interrupted — testing layouts, automation, material flow, and operating scenarios in simulation first.",
+        "general-manufacturing": "Manufacturers simulate new lines, reshored capacity, robot cells, material flow, and staffing changes before physical commissioning, reducing rework and ramp risk.",
+        "food-cpg-manufacturing": "Food and CPG companies test new pack sizes, line layouts, automated handling, cold-chain movement, and changeover scenarios before modifying production.",
+        "retail-distribution": "Distribution operators test warehouse layouts, conveyors, AMR fleets, picking flows, and labor/automation mixes before deployment.",
+        "transportation-logistics": "Ports, airports, terminals, yards, and logistics operators simulate vehicle and robot movement, facility layouts, and throughput changes before live operations.",
+        "utilities-energy": "Utilities and plant operators model substations, treatment plants, and generation facilities to evaluate upgrades, maintenance access, operator training, and automation changes without touching live equipment.",
+        "oil-gas": "Operators model refineries, processing facilities, terminals, and offshore assets to plan turnarounds, layout changes, and operating scenarios before field execution.",
+        "federal-defense": "Defense manufacturers and sustainment organizations simulate production lines, depots, robot cells, and material flow to increase throughput and reduce commissioning risk.",
+        "healthcare-life-sciences": "Pharma and MedTech manufacturers simulate selected production, lab, logistics, and automation environments before facility or process changes."
       },
-      "detail_infrastructure": "NVIDIA Omniverse Enterprise, OpenUSD, Isaac ROS, Sensor RTX for sensor simulation, fleet management system integration via VDA5050, GPU cluster for real-time simulation."
+      "detail_infrastructure": "NVIDIA Omniverse Enterprise, OpenUSD, NVIDIA Mega/Isaac simulation components where robotics is involved, Sensor RTX and other simulation services as required, facility and process data, and GPU infrastructure sized for real-time visualization and physics simulation."
     },
     {
       "id": "digital-twin-fluid-simulation",
-      "name": "Digital Twin for Interactive Fluid Simulation Blueprint",
+      "name": "Real-Time CAE Digital Twins",
       "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/digital-twins-for-fluid-simulation",
       "use_case_category": "Digital Twins & Simulation",
-      "description": "Real-time interactive digital twin for computational fluid dynamics and external aerodynamics — combines GPU-accelerated solvers, PhysicsNeMo AI surrogate models, and Omniverse visualization for instant engineering simulation feedback.",
+      "description": "Accelerate engineering simulation with GPU-accelerated solvers, PhysicsNeMo surrogate models, and interactive visualization so engineers can explore fluid, thermal, aerodynamic, and related physics scenarios without waiting for long batch cycles.",
       "industry_fit": {
         "general-manufacturing": "primary",
         "oil-gas": "primary",
@@ -1446,16 +1404,19 @@
         "operations": "adjacent",
         "data-analytics": "adjacent"
       },
-      "detail_what_it_does": "Provides a reference workflow for building real-time CFD digital twins — combining CUDA-X accelerated physics solvers with NVIDIA PhysicsNeMo AI surrogate models to achieve up to 1,200x faster simulations and interactive visualization. Engineers can change geometry or boundary conditions and see updated flow field results in real time rather than waiting hours or days.",
+      "detail_what_it_does": "Provides a customer-facing pattern for interactive computer-aided engineering using GPU-accelerated physics solvers, NVIDIA PhysicsNeMo surrogate models, and Omniverse visualization. The current NVIDIA fluid-simulation Blueprint is the strongest direct anchor; adjacent thermal, aerodynamic, structural, and multiphysics applications should be validated against the specific solver and model stack rather than treated as identical implementations.",
       "detail_in_practice": {
-        "default": "Engineering teams use interactive CFD digital twins to compress design iteration cycles from days or weeks to minutes — testing design changes and seeing fluid dynamics results instantly rather than submitting batch jobs.",
-        "general-manufacturing": "Product engineers run interactive aerodynamic, thermal, and airflow simulations during design review — testing geometry changes in real time without submitting to a compute cluster queue.",
-        "oil-gas": "Reservoir and facilities engineers run interactive flow simulations for pipeline design, equipment optimization, and process engineering — compressing analysis cycles that previously required dedicated HPC time.",
-        "utilities-energy": "Power generation engineers simulate cooling, thermal management, and airflow for turbines, generators, and facility HVAC — enabling interactive design optimization without day-long batch runs.",
-        "federal-defense": "Aerospace and naval engineering programs simulate aerodynamic and hydrodynamic performance interactively — testing propulsion, hull, and airframe design variations in real time during the design process.",
-        "education": "University engineering programs give students and researchers interactive CFD simulation that previously required expensive dedicated HPC clusters — enabling hands-on fluid dynamics learning and research."
+        "default": "Engineering teams use interactive CAE to compress simulation iteration cycles from hours or days to minutes for design exploration, optimization, and review.",
+        "general-manufacturing": "Product engineers explore airflow, thermal, aerodynamic, and other supported engineering scenarios interactively during design review, reducing reliance on sequential batch runs and physical prototypes.",
+        "oil-gas": "Process and facilities engineers accelerate supported flow, thermal, pipeline, and equipment simulations for design changes and debottlenecking.",
+        "utilities-energy": "Generation and water engineers accelerate supported turbine, cooling, hydraulic, and thermal analysis for plant upgrades and uprates.",
+        "federal-defense": "Aerospace, naval, and mission engineering teams accelerate supported aerodynamic, hydrodynamic, thermal, and other CAE workloads during iterative design.",
+        "federal-government": "NASA, DOE laboratories, and other research agencies can use accelerated CAE patterns for supported fluid, thermal, aerodynamic, and related engineering simulations.",
+        "higher-education": "Engineering programs use accelerated CAE for research and teaching in fluid, thermal, aerodynamic, and other supported simulation disciplines.",
+        "food-cpg-manufacturing": "Packaging and process engineers accelerate supported thermal, flow, and packaging simulations for material reduction and new product formats.",
+        "transportation-logistics": "Vehicle and transportation engineering teams accelerate supported aerodynamic, thermal, and flow simulation for design and operational studies."
       },
-      "detail_infrastructure": "NVIDIA CUDA-X accelerated solvers, NVIDIA PhysicsNeMo physics-AI framework, NVIDIA Omniverse for visualization, high-memory GPU nodes (GH200 or H100 recommended), integration with existing CAE software (Ansys, Siemens, Altair, Cadence)."
+      "detail_infrastructure": "NVIDIA CUDA-X accelerated solvers, NVIDIA PhysicsNeMo, NVIDIA Omniverse for visualization, high-memory GPU nodes, and integration with validated CAE software and solver stacks such as Ansys, Siemens, Altair, Cadence, or domain-specific tools."
     },
     {
       "id": "evo2-protein-design",
