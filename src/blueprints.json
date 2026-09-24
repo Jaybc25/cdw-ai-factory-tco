@@ -1,7 +1,7 @@
 {
   "meta": {
-    "version": "2.1",
-    "last_verified": "2026-08-14",
+    "version": "2.2",
+    "last_verified": "2026-09-24",
     "blueprint_count": 52,
     "industries": [
       "education",
@@ -50,31 +50,31 @@
       "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/omniverse-dsx-blueprint-for-ai-factories",
       "use_case_category": "Digital Twins & Simulation",
-      "description": "Design, simulate, and optimize physical infrastructure using digital twins built on NVIDIA Omniverse. Combines real-time sensor data, physics simulation, and AI to mirror real-world environments.",
+      "description": "Design, simulate, and optimize AI factory and data center infrastructure using NVIDIA Omniverse digital twins — validating facility layouts, power and cooling constraints, and operational changes before physical deployment.",
       "industry_fit": {
-        "general-manufacturing": "primary",
-        "food-cpg-manufacturing": "primary",
-        "utilities-energy": "primary",
-        "oil-gas": "primary",
-        "state-local-government": "primary",
-        "federal-defense": "primary",
+        "general-enterprise": "primary",
+        "general-manufacturing": "adjacent",
+        "utilities-energy": "adjacent",
+        "oil-gas": "adjacent",
+        "state-local-government": "adjacent",
+        "federal-defense": "adjacent",
         "transportation-logistics": "adjacent",
-        "healthcare-life-sciences": "adjacent"
+        "healthcare-life-sciences": "adjacent",
+        "education": "adjacent"
       },
       "department_fit": {
+        "information-technology": "primary",
         "operations": "primary",
-        "research-engineering": "primary",
-        "information-technology": "adjacent",
-        "supply-chain-logistics": "adjacent"
+        "research-engineering": "adjacent"
       },
-      "detail_what_it_does": "Creates a live digital replica of physical facilities or infrastructure. Integrates sensor feeds, CAD/BIM data, and AI models to simulate operations, test changes, and predict failures before they happen in the real world.",
+      "detail_what_it_does": "Creates a digital twin of AI factory infrastructure so teams can model facility layout, power, cooling, rack placement, and operational scenarios before deployment. The DSX Blueprint is specifically focused on AI factory and data center design and optimization rather than serving as a generic digital-twin reference for every physical asset.",
       "detail_in_practice": {
-        "default": "Organizations use digital twins to reduce unplanned downtime, optimize energy use, and rehearse emergency scenarios without touching production systems.",
-        "state-local-government": "State agencies use this to model capitol campuses, correctional facilities, and DOT asset networks — enabling maintenance planning, energy optimization, and emergency simulation without physical disruption.",
-        "utilities-energy": "Utilities model generation facilities and grid infrastructure to predict failures, optimize dispatch, and simulate storm response before it happens.",
-        "general-manufacturing": "Manufacturers build digital replicas of production lines to test layout changes, predict maintenance needs, and optimize throughput without stopping operations."
+        "default": "Infrastructure teams use DSX to validate AI factory design decisions before construction or change windows — testing layout, power, cooling, and operational scenarios digitally to reduce deployment risk.",
+        "state-local-government": "State and local IT organizations planning high-density AI infrastructure can model data center or AI factory layouts, power and cooling constraints, and deployment scenarios before making physical changes.",
+        "utilities-energy": "Utility IT teams building GPU-intensive AI environments can validate data center layout, power delivery, cooling, and operational changes before deployment.",
+        "general-manufacturing": "Manufacturers building private AI infrastructure can model the AI factory or data center environment supporting production AI workloads before physical deployment."
       },
-      "detail_infrastructure": "NVIDIA Omniverse Enterprise, Isaac Sim, high-memory GPU nodes (H100/B200 recommended for real-time simulation), high-bandwidth sensor data ingestion pipeline."
+      "detail_infrastructure": "NVIDIA Omniverse-based DSX digital-twin workflow, AI factory/data center design data, facility power and cooling inputs, and GPU-accelerated visualization and simulation infrastructure."
     },
     {
       "id": "retail-agentic-commerce",
@@ -138,31 +138,25 @@
     {
       "id": "ran-energy-efficiency",
       "name": "Intent-Driven RAN Energy Efficiency Blueprint",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/viavi/intent-driven-ran-energy-efficiency",
       "use_case_category": "Agentic AI & Automation",
-      "description": "Closed-loop agentic workflow that autonomously optimizes energy consumption across radio access networks and physical infrastructure by continuously monitoring and adjusting configuration parameters.",
+      "description": "Closed-loop agentic workflow for wireless RAN energy optimization — interprets operator intent, evaluates network KPIs, recommends cell sleep/wake actions, and validates them against QoS constraints in simulation.",
       "industry_fit": {
-        "utilities-energy": "primary",
-        "state-local-government": "primary",
-        "oil-gas": "adjacent",
-        "general-manufacturing": "adjacent",
         "federal-defense": "adjacent",
-        "transportation-logistics": "adjacent"
+        "general-enterprise": "adjacent"
       },
       "department_fit": {
+        "information-technology": "primary",
         "operations": "primary",
-        "research-engineering": "primary",
-        "information-technology": "adjacent",
-        "finance": "adjacent"
+        "research-engineering": "adjacent"
       },
-      "detail_what_it_does": "An AI agent continuously monitors energy consumption patterns across networked infrastructure and autonomously adjusts configuration parameters to minimize usage while maintaining performance SLAs.",
+      "detail_what_it_does": "Uses an LLM-driven planner to translate wireless-network energy goals into auditable policy logic over RAN KPIs, recommend sleep/wake/no-action decisions for capacity cells, and validate the effect against throughput and QoS constraints in a VIAVI simulation environment.",
       "detail_in_practice": {
-        "default": "Facilities and network operations teams use this to drive down energy spend and meet sustainability mandates without manual monitoring.",
-        "utilities-energy": "Grid operators and telcos optimize power consumption across distributed network infrastructure automatically, reducing OpEx and carbon footprint.",
-        "state-local-government": "State facilities offices deploy this across state-owned buildings and data centers to hit sustainability mandates and reduce utility spend without manual intervention."
+        "default": "Telecom and private-network engineering teams use this pattern to prototype intent-driven RAN energy optimization while preserving service-quality guardrails.",
+        "federal-defense": "Mission-network and private-5G teams can adapt the pattern to evaluate energy-saving policies for RAN environments where capacity, coverage, and QoS must remain within defined thresholds."
       },
-      "detail_infrastructure": "NVIDIA NIM microservices, agentic orchestration framework, real-time telemetry ingestion, integration with building management or network management systems."
+      "detail_infrastructure": "NVIDIA NIM-served LLMs, VIAVI AI RAN Scenario Generator (AI RSG), normalized RAN KPI data, SQL-based policy evaluation, and integration with RAN simulation or network-management systems."
     },
     {
       "id": "multi-agent-warehouse",
@@ -328,7 +322,7 @@
     {
       "id": "flood-intelligence",
       "name": "Flood Intelligence Blueprint (H2O.ai)",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/h2o/flood-intelligence",
       "use_case_category": "Video & Sensor Intelligence",
       "description": "Real-time AI-powered disaster risk intelligence — flood prediction, severity mapping, and emergency response coordination at scale using geospatial and sensor data.",
@@ -356,7 +350,7 @@
     {
       "id": "cyborg-enterprise-rag",
       "name": "Cyborg Enterprise RAG Blueprint",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/cyborg/cyborg-enterprise-rag",
       "use_case_category": "RAG & Knowledge Retrieval",
       "description": "Secure multimodal RAG with encryption-in-use — extract, embed, and index sensitive documents while keeping data encrypted throughout the retrieval and inference pipeline.",
@@ -496,7 +490,7 @@
     {
       "id": "ai-observability-data-flywheel",
       "name": "AI Observability for Data Flywheel Blueprint (W&B)",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/wandb/ai-observability-for-data-flywheel",
       "use_case_category": "Data Flywheel & Model Ops",
       "description": "Streamlines evaluation, monitoring, and continuous optimization of AI models in production — tracking performance, detecting drift, and logging experiments through Weights & Biases integration.",
@@ -525,7 +519,7 @@
     {
       "id": "ai-orchestration-data-flywheel",
       "name": "AI Orchestration for Data Flywheel Blueprint",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/iguazio/ai-orchestration-for-data-flywheel",
       "use_case_category": "Data Flywheel & Model Ops",
       "description": "Orchestrates the full AI data flywheel lifecycle — data ingestion, curation, model training, evaluation, and deployment — using MLRun and NVIDIA NeMo microservices.",
@@ -554,7 +548,7 @@
     {
       "id": "safety-for-agentic-ai",
       "name": "Safety for Agentic AI Blueprint",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/nvidia/safety-for-agentic-ai",
       "use_case_category": "Data Flywheel & Model Ops",
       "description": "Comprehensive safety, security, and privacy framework for agentic AI systems — covering guardrails, access control, content safety, privacy preservation, and audit logging.",
@@ -643,7 +637,7 @@
       "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/aiq",
       "use_case_category": "Agentic AI & Automation",
-      "description": "Foundational agentic AI infrastructure — connects AI agents to enterprise data sources, enables multi-step reasoning, and delivers trusted, actionable insights across organizational knowledge.",
+      "description": "Deployable enterprise research-agent system for fast cited answers and deeper report-style research across trusted data sources, with configurable agents, tools, policies, evaluation, MCP integration, and reusable skills.",
       "industry_fit": {
         "general-enterprise": "primary",
         "financial-services": "primary",
@@ -664,13 +658,13 @@
         "finance": "adjacent",
         "human-resources": "adjacent"
       },
-      "detail_what_it_does": "Provides the reasoning, retrieval, and orchestration foundation for enterprise AI agents — connects to databases, document stores, APIs, and structured data sources, then reasons across them to answer complex multi-step questions.",
+      "detail_what_it_does": "Routes requests between conversational, shallow-research, and deep-research paths; can clarify a request, select sources, build a plan, dispatch concurrent researcher workers, and synthesize cited findings. It supports pluggable enterprise data sources, MCP tools, reusable skills, sandboxed code execution, and evaluation harnesses.",
       "detail_in_practice": {
         "default": "Platform and IT teams deploy AI-Q as the core intelligence layer that all business-specific agents are built on top of — reducing the work of building each new agent from scratch.",
         "state-local-government": "State DoIT offices deploy AI-Q as the foundational platform that agency-specific agents run on — a shared infrastructure investment that multiplies as each new agency use case comes online.",
         "healthcare-life-sciences": "Health systems use AI-Q as the connective tissue between clinical systems, protocols, and research data — powering agents that reason across the full knowledge base rather than a single system."
       },
-      "detail_infrastructure": "NVIDIA NIM LLM and embedding microservices, NeMo Retriever, multi-agent orchestration, enterprise data connectors, vector database."
+      "detail_infrastructure": "NVIDIA NeMo Agent Toolkit, NVIDIA Nemotron models served through NIM, enterprise search/RAG and MCP connectors, optional NVIDIA OpenShell or Modal sandbox execution, deployment-owned authentication, policy, storage, and observability."
     },
     {
       "id": "earth2-weather-analytics",
@@ -752,7 +746,7 @@
       "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/video-search-and-summarization",
       "use_case_category": "Video & Sensor Intelligence",
-      "description": "Ingest, analyze, and query massive volumes of video — live or archived — to extract insights, detect events, generate summaries, and enable interactive Q&A over video content.",
+      "description": "Ingest and analyze live or archived video for natural-language search, summarization, interactive Q&A, alerts, event verification, object tracking, and multimodal video intelligence.",
       "industry_fit": {
         "retail-distribution": "primary",
         "transportation-logistics": "primary",
@@ -770,14 +764,14 @@
         "supply-chain-logistics": "adjacent",
         "data-analytics": "adjacent"
       },
-      "detail_what_it_does": "Uses vision language models and vector search to make video content semantically searchable — find specific events, faces, objects, or behaviors across thousands of hours of footage without frame-by-frame manual review.",
+      "detail_what_it_does": "Builds video analytics agents that process live or archived streams in real time or batch, generate semantic captions and embeddings, search for events and actions, summarize long footage, answer questions, verify alerts, track objects, and fuse multimodal evidence through agent workflows.",
       "detail_in_practice": {
         "default": "Security, operations, and legal teams use video search to find specific incidents in large archives in minutes rather than days of manual review.",
         "state-local-government": "State police and corrections agencies search body cam and facility surveillance footage for specific events — dramatically reducing evidence review time for investigations.",
         "transportation-logistics": "Fleet operators and port authorities detect incidents, safety violations, and cargo exceptions across camera networks without requiring 24/7 human monitoring.",
         "general-manufacturing": "Plant operations teams detect quality defects, safety violations, and process anomalies in production line camera feeds in real time."
       },
-      "detail_infrastructure": "NVIDIA Cosmos vision language models, NeMo Retriever multimodal, GPU-accelerated video ingestion, multimodal vector database, streaming or batch processing pipeline."
+      "detail_infrastructure": "NVIDIA VSS reference workflow with Cosmos Reason vision-language models, Nemotron models via NIM, scalable video ingestion and analytics services, vector/graph retrieval, message-broker integration, and MCP-accessible video tools."
     },
     {
       "id": "3d-object-generation",
@@ -839,7 +833,7 @@
     {
       "id": "pdf-to-podcast",
       "name": "PDF to Podcast Blueprint",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/nvidia/pdf-to-podcast",
       "use_case_category": "Agentic AI & Automation",
       "description": "Transforms PDF documents into engaging AI-generated podcast-style audio — making dense documents accessible as on-the-go audio content.",
@@ -870,8 +864,8 @@
     {
       "id": "ai-virtual-assistant",
       "name": "AI Virtual Assistant for Customer Service Blueprint",
-      "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/ai-virtual-assistant",
+      "status": "legacy",
+      "nvidia_url": "https://build.nvidia.com/nvidia/ai-virtual-assistant-for-customer-service",
       "use_case_category": "Agentic AI & Automation",
       "description": "Customizable AI virtual assistant for customer service — handles common inquiries, routes complex issues, and maintains contextually aware conversations across channels.",
       "industry_fit": {
@@ -1100,7 +1094,7 @@
     {
       "id": "llm-router",
       "name": "LLM Router Blueprint",
-      "status": "active",
+      "status": "legacy",
       "nvidia_url": "https://build.nvidia.com/nvidia/llm-router",
       "use_case_category": "Data Flywheel & Model Ops",
       "description": "Intelligently routes LLM inference requests to the most appropriate model based on query complexity, cost constraints, and performance requirements — optimizing quality and cost across a fleet of models.",
@@ -1439,7 +1433,7 @@
       "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/protein-binder-design-for-drug-discovery",
       "use_case_category": "Life Sciences & Genomics",
-      "description": "Multi-stage generative AI pipeline for designing protein binders — combines AlphaFold2 structure prediction, RFdiffusion conformation exploration, and ProteinMPNN sequence generation to design therapeutic molecules faster.",
+      "description": "Multi-stage generative AI pipeline for designing protein binders — uses OpenFold3 for target structure prediction and validation, RFdiffusion for binder-backbone generation, and ProteinMPNN for sequence design.",
       "industry_fit": {
         "healthcare-life-sciences": "primary",
         "education": "adjacent",
@@ -1449,13 +1443,13 @@
         "research-engineering": "primary",
         "data-analytics": "adjacent"
       },
-      "detail_what_it_does": "Orchestrates a sequence of BioNeMo NIM microservices — AlphaFold2 for target structure prediction, RFdiffusion for binder conformation generation, ProteinMPNN for sequence design — to design protein therapeutics that bind a target protein. The pipeline is 5x faster than CPU equivalents and compresses months of traditional trial-and-error into a computational workflow.",
+      "detail_what_it_does": "Starts from a target amino-acid sequence, predicts its 3D structure with OpenFold3, generates candidate binder backbones with RFdiffusion, designs compatible amino-acid sequences with ProteinMPNN, and uses OpenFold3 again to validate the resulting protein complex.",
       "detail_in_practice": {
         "default": "Drug discovery teams use this pipeline to computationally design protein binders for a target — narrowing a near-infinite sequence space down to testable candidates before expensive wet lab synthesis.",
         "healthcare-life-sciences": "Biopharma and biotech teams design novel antibody-like binders, peptide therapeutics, and protein drugs computationally — getting to synthesis-ready candidates in days rather than months of iterative lab work.",
         "education": "Academic medical centers and research universities use this pipeline for translational research — giving faculty access to frontier protein design AI tools for grant-funded therapeutic discovery programs."
       },
-      "detail_infrastructure": "NVIDIA BioNeMo NIMs (AlphaFold2, RFdiffusion, ProteinMPNN), high-memory GPU nodes for molecular simulation, protein structure visualization pipeline."
+      "detail_infrastructure": "NVIDIA BioNeMo NIMs for OpenFold3, RFdiffusion, and ProteinMPNN, plus GPU-accelerated molecular inference and protein-structure workflow integration."
     },
     {
       "id": "generative-virtual-screening",

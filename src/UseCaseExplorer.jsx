@@ -541,7 +541,7 @@ function CategorySection({ category, blueprints, fit, onSelect, open, onToggle }
       >
         <span style={{ fontWeight: 700, fontSize: 14, color: CDW_DARK }}>{category}</span>
         <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ fontSize: 12, color: "#666", fontWeight: 500 }}>{blueprints.length} blueprint{blueprints.length !== 1 ? "s" : ""}</span>
+          <span style={{ fontSize: 12, color: "#666", fontWeight: 500 }}>{blueprints.length} use case{blueprints.length !== 1 ? "s" : ""}</span>
           <span style={{ fontSize: 12, transform: open ? "rotate(90deg)" : "none", transition: "transform 0.2s", display: "inline-block" }}>▶</span>
         </span>
       </button>
@@ -636,7 +636,7 @@ function DetailModal({ bp, contextLabel, contextDisplayName, contextFit, trigger
 
         {bp.status === "legacy" && (
           <div style={{ background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: 8, padding: "10px 14px", fontSize: 13, color: "#92400e" }}>
-            <strong>Legacy blueprint:</strong> NVIDIA no longer actively maintains this Blueprint. It is retained here because the underlying use case remains relevant.
+            <strong>Legacy NVIDIA reference:</strong> NVIDIA no longer actively maintains this Blueprint. The use case is retained because the underlying NVIDIA-accelerated capability remains relevant; current implementation should use supported components and architecture.
           </div>
         )}
 
@@ -838,7 +838,7 @@ function UseCaseExplorerInner() {
           <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             <div style={{ textAlign: "center" }}>
               <h1 style={{ fontSize: 26, fontWeight: 800, color: CDW_DARK, margin: "0 0 10px" }}>Explore AI Use Cases</h1>
-              <p style={{ fontSize: 15, color: "#666", margin: 0, maxWidth: 540, marginInline: "auto", lineHeight: 1.6 }}>Match NVIDIA AI Blueprints to your organization. Choose how you'd like to explore.</p>
+              <p style={{ fontSize: 15, color: "#666", margin: 0, maxWidth: 540, marginInline: "auto", lineHeight: 1.6 }}>Explore NVIDIA-accelerated AI use cases by industry or business function. Current Blueprints are used where available, and relevant legacy patterns are retained when the underlying capability remains supported.</p>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               {[
@@ -863,7 +863,7 @@ function UseCaseExplorerInner() {
               {/* Fix (accessibility, axe-core color-contrast finding): #aaa on
                   this page's #f9f9f9 background measured 2.21:1, well below
                   the 4.5:1 WCAG AA requirement. #707070 measures 4.70:1. */}
-              {ALL_BLUEPRINTS.length} NVIDIA AI Blueprints · CDW AI Factory · Last verified {blueprintData.meta.last_verified}
+              {ALL_BLUEPRINTS.length} curated NVIDIA-accelerated use cases · CDW AI Factory · Last verified {blueprintData.meta.last_verified}
             </p>
           </div>
         )}
@@ -873,7 +873,7 @@ function UseCaseExplorerInner() {
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: CDW_DARK, margin: "0 0 6px" }}>Choose your industry</h2>
-              <p style={{ fontSize: 14, color: "#666", margin: 0 }}>See which NVIDIA AI Blueprints are most relevant to your sector.</p>
+              <p style={{ fontSize: 14, color: "#666", margin: 0 }}>See which NVIDIA-accelerated AI use cases are most relevant to your sector.</p>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
               {INDUSTRIES.map(ind => (
@@ -894,7 +894,7 @@ function UseCaseExplorerInner() {
           <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             <div>
               <h2 style={{ fontSize: 22, fontWeight: 800, color: CDW_DARK, margin: "0 0 6px" }}>Choose your business function</h2>
-              <p style={{ fontSize: 14, color: "#666", margin: 0 }}>See which NVIDIA AI Blueprints fit your team's work — regardless of industry.</p>
+              <p style={{ fontSize: 14, color: "#666", margin: 0 }}>See which NVIDIA-accelerated AI use cases fit your team's work — regardless of industry.</p>
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 12 }}>
               {BUSINESS_FUNCTIONS.map(fn => (
@@ -925,7 +925,7 @@ function UseCaseExplorerInner() {
                 <span style={{ fontSize: 12, color: "#aaa" }}>Gov equivalent: {selectedFunction.gov}</span>
               )}
               <span style={{ fontSize: 13, color: "#999", marginTop: 2 }}>
-                {activeBlueprints.length} blueprint{activeBlueprints.length !== 1 ? "s" : ""} matched
+                {activeBlueprints.length} use case{activeBlueprints.length !== 1 ? "s" : ""} matched
                 &nbsp;·&nbsp;
                 {activeBlueprints.filter(bp => (view === "industry-results" ? bp.industry_fit?.[selectedIndustry?.id] : bp.department_fit?.[selectedFunction?.id]) === "primary").length} best fit
                 &nbsp;·&nbsp;
@@ -959,7 +959,7 @@ function UseCaseExplorerInner() {
 
             {filteredBlueprints.length === 0 && (
               <div style={{ textAlign: "center", padding: "48px 0", color: "#aaa", fontSize: 14 }}>
-                No blueprints in this category for the selected {view === "industry-results" ? "industry" : "function"}.
+                No use cases in this category for the selected {view === "industry-results" ? "industry" : "function"}.
               </div>
             )}
           </div>
