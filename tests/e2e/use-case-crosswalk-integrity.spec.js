@@ -59,3 +59,15 @@ test("consolidated use cases keep one customer-facing entry per capability", asy
   expect(blueprintById["mega-multi-robot-fleet"].name).toBe("Factory & Operational Digital Twin");
   expect(blueprintById["digital-twin-fluid-simulation"].name).toBe("Real-Time CAE Digital Twins");
 });
+
+
+test("education taxonomy has no legacy generic education examples", async () => {
+  for (const blueprint of blueprintData.blueprints) {
+    expect(blueprint.detail_in_practice?.education).toBeUndefined();
+  }
+});
+
+test("federal contractor label preserves non-defense federal contractor scope", async ({ page }) => {
+  await page.goto("/use-cases", { waitUntil: "domcontentloaded" });
+  await expect(page.getByText("Federal & Defense Contractors", { exact: true })).toBeVisible();
+});
