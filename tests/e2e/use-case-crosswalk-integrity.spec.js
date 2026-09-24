@@ -91,3 +91,46 @@ test("Earth-2 is not mapped to K-12", async () => {
   expect(blueprintById["earth2-weather-analytics"].industry_fit["k12-education"]).toBeUndefined();
   expect(blueprintById["earth2-weather-analytics"].industry_fit["higher-education"]).toBe("adjacent");
 });
+
+
+test("business-function mappings match the audited target profile", async () => {
+  const expectedCounts = {
+    finance: { total: 13, primary: 11, adjacent: 2 },
+    "human-resources": { total: 13, primary: 7, adjacent: 6 },
+    "information-technology": { total: 21, primary: 14, adjacent: 7 },
+    cybersecurity: { total: 20, primary: 10, adjacent: 10 },
+    "legal-compliance": { total: 12, primary: 6, adjacent: 6 },
+    operations: { total: 25, primary: 12, adjacent: 13 },
+    "supply-chain-logistics": { total: 20, primary: 7, adjacent: 13 },
+    "customer-service": { total: 17, primary: 7, adjacent: 10 },
+    sales: { total: 13, primary: 6, adjacent: 7 },
+    marketing: { total: 14, primary: 6, adjacent: 8 },
+    "data-analytics": { total: 22, primary: 12, adjacent: 10 },
+    "research-engineering": { total: 35, primary: 25, adjacent: 10 },
+    communications: { total: 12, primary: 5, adjacent: 7 },
+  };
+
+  for (const [businessFunction, expected] of Object.entries(expectedCounts)) {
+    const rows = blueprintData.blueprints.filter((row) => row.department_fit?.[businessFunction]);
+    const primary = rows.filter((row) => row.department_fit[businessFunction] === "primary");
+    const adjacent = rows.filter((row) => row.department_fit[businessFunction] === "adjacent");
+
+    expect(rows).toHaveLength(expected.total);
+    expect(primary).toHaveLength(expected.primary);
+    expect(adjacent).toHaveLength(expected.adjacent);
+  }
+});
+
+test("business-function audit keeps representative promotions and prunes stretches", async () => {
+  const byId = Object.fromEntries(blueprintData.blueprints.map((row) => [row.id, row]));
+
+  expect(byId["nemoclaw-hermes"].department_fit.sales).toBe("primary");
+  expect(byId["enterprise-rag"].department_fit["customer-service"]).toBe("primary");
+  expect(byId["gpu-query-engine"].department_fit.finance).toBe("primary");
+  expect(byId["aiq-research-assistant"].department_fit.communications).toBe("primary");
+
+  expect(byId["earth2-weather-analytics"].department_fit.marketing).toBeUndefined();
+  expect(byId["route-optimization-cuopt"].department_fit.sales).toBeUndefined();
+  expect(byId["route-optimization-cuopt"].department_fit["customer-service"]).toBeUndefined();
+  expect(byId["nsight-copilot"].department_fit["information-technology"]).toBeUndefined();
+});
