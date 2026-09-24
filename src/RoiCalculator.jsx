@@ -1058,8 +1058,7 @@ function RoiCalculatorInner() {
           ) : null}
           . Adjust the workload fields below to see the full ROI case.
           <div style={{ marginTop: 6, color: "#666" }}>
-            These costs and the task-automation inputs below are independent: make sure the workflow you're describing
-            here is actually what that infrastructure spend is meant to accelerate, this tool doesn't verify that for you.
+            Confirm these costs cover the task being modeled; ROI cannot verify that match.
           </div>
         </div>
       )}
@@ -1252,7 +1251,7 @@ function RoiCalculatorInner() {
                   </span>
                 </div>
                 <div style={styles.note}>
-                  Simplified estimate based on average Year-1 realized benefit, spread evenly across 12 months. Actual timing will vary with implementation timing and the shape of the adoption ramp — not a worst-case figure.
+                  Payback spreads average Year-1 realized benefit evenly across 12 months; actual rollout timing may change it.
                 </div>
                 <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", gap: 8, marginTop: 14 }}>
                   <button
