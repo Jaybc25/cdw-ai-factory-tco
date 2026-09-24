@@ -178,7 +178,8 @@
         "state-local-government": "adjacent",
         "healthcare-life-sciences": "adjacent",
         "federal-defense": "adjacent",
-        "federal-government": "adjacent"
+        "federal-government": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "supply-chain-logistics": "primary",
@@ -427,7 +428,8 @@
         "federal-defense": "primary",
         "transportation-logistics": "primary",
         "healthcare-life-sciences": "adjacent",
-        "federal-government": "primary"
+        "federal-government": "primary",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "operations": "primary",
@@ -632,7 +634,8 @@
         "retail-distribution": "adjacent",
         "federal-defense": "adjacent",
         "general-enterprise": "adjacent",
-        "federal-government": "primary"
+        "federal-government": "primary",
+        "higher-education": "primary"
       },
       "department_fit": {
         "finance": "primary",
@@ -702,7 +705,9 @@
         "federal-defense": "primary",
         "food-cpg-manufacturing": "adjacent",
         "general-manufacturing": "adjacent",
-        "federal-government": "adjacent"
+        "federal-government": "adjacent",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "operations": "primary",
@@ -1046,7 +1051,8 @@
         "financial-services": "primary",
         "healthcare-life-sciences": "adjacent",
         "general-manufacturing": "adjacent",
-        "federal-government": "primary"
+        "federal-government": "primary",
+        "higher-education": "adjacent"
       },
       "department_fit": {
         "cybersecurity": "primary",
@@ -1195,7 +1201,9 @@
         "healthcare-life-sciences": "adjacent",
         "legal-services": "adjacent",
         "general-manufacturing": "adjacent",
-        "federal-government": "primary"
+        "federal-government": "primary",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -1226,7 +1234,9 @@
         "federal-defense": "primary",
         "healthcare-life-sciences": "adjacent",
         "general-manufacturing": "adjacent",
-        "federal-government": "primary"
+        "federal-government": "primary",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -1260,7 +1270,9 @@
         "federal-defense": "adjacent",
         "healthcare-life-sciences": "adjacent",
         "general-enterprise": "primary",
-        "federal-government": "adjacent"
+        "federal-government": "adjacent",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "data-analytics": "primary",
@@ -1325,7 +1337,9 @@
         "financial-services": "primary",
         "state-local-government": "adjacent",
         "healthcare-life-sciences": "adjacent",
-        "federal-government": "primary"
+        "federal-government": "primary",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
