@@ -52,7 +52,7 @@ test("Use Case Explorer handoff replaces Advisor-owned workload context but pres
   });
 
   await page.goto(
-    "/model-advisor?sourceUseCase=new-use-case&workloads=rag,chat&primary=rag",
+    "/model-advisor?sourceUseCase=new-use-case&workloads=rag,chat&primary=rag&multimodal=image-text",
     { waitUntil: "domcontentloaded" },
   );
 
@@ -63,7 +63,7 @@ test("Use Case Explorer handoff replaces Advisor-owned workload context but pres
   });
   expect(saved.qualityPriority).toBe("economical");
   expect(saved.contextWindow).toBe("128k+");
-  expect(saved.multimodal).toBe("text-only");
+  expect(saved.multimodal).toBe("image-text");
   expect(saved.governance).toBe("us-only");
   expect(saved.optimizationPriority).toBe("infrastructure-efficiency");
   expect(new URL(page.url()).search).toBe("");
@@ -212,4 +212,29 @@ test("fresh TCO handoff replaces ROI investment costs and provenance while prese
   expect(saved.inputs.recurringCost).toBe(333333);
   expect(saved.tcoOriginalValues).toEqual({ initialCost: 2222222, recurringCost: 333333 });
   expect(saved.inputs.people).toBe(411);
+});
+
+
+test("new document extraction use case carries classification and multimodal context into Model Advisor", async ({ page }) => {
+  await seedSession(page, "/model-advisor", KEYS.advisor, {
+    checkedWorkloads: ["coding"],
+    primaryWorkload: "coding",
+    multimodal: "text-only",
+    qualityPriority: "strong",
+    sourceUseCase: "old-use-case",
+  });
+
+  await page.goto(
+    "/model-advisor?sourceUseCase=multimodal-document-extraction&workloads=classification&primary=classification&multimodal=image-text",
+    { waitUntil: "domcontentloaded" },
+  );
+
+  const saved = await waitForSession(page, KEYS.advisor, {
+    sourceUseCase: "multimodal-document-extraction",
+    checkedWorkloads: ["classification"],
+    primaryWorkload: "classification",
+    multimodal: "image-text",
+  });
+  expect(saved.qualityPriority).toBe("strong");
+  expect(new URL(page.url()).search).toBe("");
 });
