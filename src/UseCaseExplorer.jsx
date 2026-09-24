@@ -98,7 +98,9 @@ const CDW_BG     = "#f5f5f5";
 
 // ─── industry + function lists ────────────────────────────────────────────────
 const INDUSTRIES = [
-  { id: "education",               label: "Education" },
+  { id: "higher-education",        label: "Higher Education" },
+  { id: "k12-education",           label: "K–12 Education" },
+  { id: "federal-government",      label: "Federal Government" },
   { id: "federal-defense",         label: "Federal / Defense Contractors" },
   { id: "financial-services",      label: "Financial Services" },
   { id: "food-cpg-manufacturing",  label: "Food & CPG Manufacturing" },
@@ -132,31 +134,52 @@ const BUSINESS_FUNCTIONS = [
 const CATEGORIES = blueprintData.meta.use_case_categories;
 const ALL_BLUEPRINTS = blueprintData.blueprints;
 
-// ─── context profiles (26 total: 13 industry + 13 function) ──────────────────
+// ─── context profiles (28 total: 15 industry + 13 function) ──────────────────
 const CONTEXT_PROFILES = {
 
   // ── INDUSTRIES ──────────────────────────────────────────────────────────────
 
-  "education": {
-    headline: "Where AI creates value in Education",
-    relevance: "Most relevant when: your institution manages high volumes of student or staff inquiries, runs computationally intensive research, or needs to scale content and knowledge access without proportional staff growth.",
-    summary: "Educational institutions manage complex webs of student services, research operations, administrative workflows, and compliance obligations — often with constrained staff and IT resources. AI can help expand access to institutional knowledge, reduce administrative burden on faculty and staff, accelerate research in computationally intensive disciplines, and improve the student experience without proportional headcount growth.",
+  "higher-education": {
+    headline: "Where AI creates value in Higher Education",
+    relevance: "Most relevant when: your institution must protect service levels through budget pressure, reduce administrative workload, or expand research computing and AI capabilities without exposing sensitive student or research data.",
+    summary: "Higher education combines student-facing operations with research, teaching, compliance, and campus infrastructure. AI can reduce repetitive enrollment and administrative work, improve access to institutional knowledge, strengthen fraud and cyber defenses, and give research universities an owned platform for scientific AI, simulation, and specialized GPU workloads.",
     benefits: [
-      { title: "Student & Staff Services", text: "Make policy, program, and support information easier to find and act on, reducing the volume of routine inquiries that reach staff." },
-      { title: "Research Acceleration", text: "Apply GPU-accelerated computing to genomics, simulation, robotics, and scientific computing workloads that require specialized compute capacity." },
-      { title: "Operational Efficiency", text: "Reduce time spent on documentation, content creation, and administrative processes so faculty and staff can focus on higher-value work." },
+      { title: "Enrollment & Student Services", text: "Make admissions, financial aid, registration, advising, and support information easier to access while reducing repetitive staff workload." },
+      { title: "Research Acceleration", text: "Support genomics, life sciences, simulation, climate, robotics, and other GPU-intensive research on institution-controlled infrastructure." },
+      { title: "Campus Efficiency & Security", text: "Automate document-heavy workflows, accelerate reporting and analytics, and strengthen cyber and physical operations across the institution." },
+    ],
+  },
+
+  "k12-education": {
+    headline: "Where AI creates value in K–12 Education",
+    relevance: "Most relevant when: your district needs to protect student data, reduce central-office workload, improve family service, or control rising transportation, facilities, and staffing costs.",
+    summary: "K–12 districts face tight budgets, uneven staffing, growing cybersecurity and privacy obligations, and increasing demand for safe AI use in classrooms and administration. AI can improve transportation planning, family communications, records and special-education workflows, knowledge access, attendance analytics, and operational resilience under district policy and human oversight.",
+    benefits: [
+      { title: "District Operations", text: "Reduce repetitive work across transportation, enrollment, HR, facilities, and central-office processes while keeping staff focused on exceptions." },
+      { title: "Family & Staff Service", text: "Provide multilingual answers and support for enrollment, transportation, nutrition, policy, and IT questions without expanding call-center workload." },
+      { title: "Safe, Governed AI", text: "Give districts greater control over student data, approved AI use, cybersecurity, and safety analytics with local policy and human review." },
+    ],
+  },
+
+  "federal-government": {
+    headline: "Where AI creates value in Federal Government",
+    relevance: "Most relevant when: an agency must deliver mission outcomes with constrained staffing, protect sensitive or classified data, modernize legacy systems, or accelerate scientific and analytic workloads.",
+    summary: "Federal agencies span citizen services, defense and intelligence missions, law enforcement, and advanced scientific research. AI can reduce document and case-processing backlogs, improve knowledge access and research, strengthen cyber defense, support secure mission analytics at the edge, and accelerate scientific computing in appropriately authorized environments.",
+    benefits: [
+      { title: "Mission Delivery & Casework", text: "Automate document-heavy processes, research, reporting, and routine service interactions so constrained teams can focus on complex mission work." },
+      { title: "Secure Mission AI", text: "Run AI on sensitive workloads within agency-controlled and appropriately authorized environments, from data centers to disconnected or tactical edges." },
+      { title: "Science & Modernization", text: "Accelerate software modernization, simulation, genomics, weather, analytics, and other GPU-intensive workloads across research and mission agencies." },
     ],
   },
 
   "federal-defense": {
-    headline: "Where AI creates value in Federal and Defense",
-    relevance: "Most relevant when: your organization manages large volumes of program documentation, operates sensitive development environments, or is building or fielding autonomous systems.",
-    summary: "Federal agencies and defense contractors operate in environments defined by strict security requirements, complex documentation obligations, and the need to maintain operational advantage. AI can compress the time required for knowledge-intensive tasks, strengthen software and infrastructure security, enable autonomous system development, and support engineering simulation — while preserving the access controls and audit requirements these environments demand.",
+    headline: "Where AI creates value for Federal & Defense Contractors",
+    relevance: "Most relevant when: your company must win and deliver government work faster, protect CUI or export-controlled data, or accelerate engineering, manufacturing, autonomy, and sustainment programs.",
+    summary: "Defense primes, government integrators, defense technology firms, and suppliers operate under demanding security, margin, schedule, and production constraints. AI can accelerate capture and proposal work, improve fixed-price delivery productivity, support secure software and mission development, and increase engineering, manufacturing, and sustainment throughput.",
     benefits: [
-      { title: "Mission & Program Intelligence", text: "Make acquisition documents, technical orders, requirements traceability, and program history queryable so analysts and engineers spend less time hunting and more time acting." },
-      { title: "Secure Software & Infrastructure", text: "Accelerate vulnerability triage, container security analysis, and DevSecOps workflows across large and complex software portfolios." },
-      { title: "Autonomous Systems & Simulation", text: "Develop, train, and test autonomous vehicle, robotics, and unmanned system capabilities using synthetic data and digital twin environments before physical deployment." },
-      { title: "Governed Agent Execution", text: "Deploy AI agents in sandboxed, policy-controlled environments designed to support security review, access control, and audit requirements in sensitive development contexts." },
+      { title: "Capture & Program Delivery", text: "Compress RFP analysis, research, proposal drafting, reporting, and repetitive program operations to improve speed and margin." },
+      { title: "Secure Engineering & Software", text: "Support governed AI development, software modernization, cybersecurity, autonomy, and mission analytics on company-controlled infrastructure." },
+      { title: "Production & Sustainment", text: "Use simulation, digital twins, analytics, and AI-assisted operations to improve manufacturing throughput, supply visibility, and fielded-system readiness." },
     ],
   },
 

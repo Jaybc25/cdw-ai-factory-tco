@@ -1,10 +1,12 @@
 {
   "meta": {
-    "version": "2.2",
+    "version": "2.3",
     "last_verified": "2026-09-24",
     "blueprint_count": 52,
     "industries": [
-      "education",
+      "higher-education",
+      "k12-education",
+      "federal-government",
       "federal-defense",
       "financial-services",
       "food-cpg-manufacturing",
@@ -60,7 +62,8 @@
         "federal-defense": "adjacent",
         "transportation-logistics": "adjacent",
         "healthcare-life-sciences": "adjacent",
-        "education": "adjacent"
+        "higher-education": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -114,10 +117,11 @@
         "state-local-government": "primary",
         "retail-distribution": "primary",
         "financial-services": "primary",
-        "education": "primary",
         "transportation-logistics": "adjacent",
         "utilities-energy": "adjacent",
-        "general-enterprise": "primary"
+        "general-enterprise": "primary",
+        "higher-education": "primary",
+        "k12-education": "primary"
       },
       "department_fit": {
         "customer-service": "primary",
@@ -144,7 +148,8 @@
       "description": "Closed-loop agentic workflow for wireless RAN energy optimization — interprets operator intent, evaluates network KPIs, recommends cell sleep/wake actions, and validates them against QoS constraints in simulation.",
       "industry_fit": {
         "federal-defense": "adjacent",
-        "general-enterprise": "adjacent"
+        "general-enterprise": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -172,7 +177,9 @@
         "transportation-logistics": "primary",
         "state-local-government": "adjacent",
         "healthcare-life-sciences": "adjacent",
-        "federal-defense": "adjacent"
+        "federal-defense": "adjacent",
+        "federal-government": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "supply-chain-logistics": "primary",
@@ -198,7 +205,6 @@
         "retail-distribution": "primary",
         "food-cpg-manufacturing": "primary",
         "general-manufacturing": "adjacent",
-        "education": "adjacent",
         "general-enterprise": "adjacent"
       },
       "department_fit": {
@@ -277,7 +283,8 @@
         "general-manufacturing": "primary",
         "federal-defense": "primary",
         "state-local-government": "adjacent",
-        "oil-gas": "adjacent"
+        "oil-gas": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -303,7 +310,8 @@
         "healthcare-life-sciences": "primary",
         "state-local-government": "primary",
         "federal-defense": "adjacent",
-        "education": "adjacent"
+        "higher-education": "adjacent",
+        "federal-government": "primary"
       },
       "department_fit": {
         "operations": "primary",
@@ -332,7 +340,8 @@
         "federal-defense": "primary",
         "oil-gas": "adjacent",
         "transportation-logistics": "adjacent",
-        "general-enterprise": "adjacent"
+        "general-enterprise": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "operations": "primary",
@@ -360,7 +369,9 @@
         "legal-services": "primary",
         "federal-defense": "primary",
         "state-local-government": "primary",
-        "education": "adjacent"
+        "higher-education": "adjacent",
+        "k12-education": "adjacent",
+        "federal-government": "primary"
       },
       "department_fit": {
         "legal-compliance": "primary",
@@ -387,8 +398,7 @@
       "description": "AI-powered shopping advisor with multi-agent architecture, real-time streaming responses, image-based product search, and intelligent cart management.",
       "industry_fit": {
         "retail-distribution": "primary",
-        "healthcare-life-sciences": "adjacent",
-        "education": "adjacent"
+        "healthcare-life-sciences": "adjacent"
       },
       "department_fit": {
         "customer-service": "primary",
@@ -417,7 +427,9 @@
         "state-local-government": "primary",
         "federal-defense": "primary",
         "transportation-logistics": "primary",
-        "healthcare-life-sciences": "adjacent"
+        "healthcare-life-sciences": "adjacent",
+        "federal-government": "primary",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "operations": "primary",
@@ -447,7 +459,9 @@
         "state-local-government": "primary",
         "healthcare-life-sciences": "adjacent",
         "financial-services": "adjacent",
-        "education": "adjacent"
+        "higher-education": "adjacent",
+        "k12-education": "adjacent",
+        "federal-government": "primary"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -472,8 +486,9 @@
       "industry_fit": {
         "healthcare-life-sciences": "primary",
         "federal-defense": "adjacent",
-        "education": "adjacent",
-        "state-local-government": "adjacent"
+        "state-local-government": "adjacent",
+        "higher-education": "primary",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -500,7 +515,8 @@
         "healthcare-life-sciences": "primary",
         "state-local-government": "primary",
         "federal-defense": "adjacent",
-        "education": "adjacent"
+        "higher-education": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -529,7 +545,8 @@
         "healthcare-life-sciences": "primary",
         "state-local-government": "primary",
         "general-manufacturing": "adjacent",
-        "federal-defense": "adjacent"
+        "federal-defense": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -559,7 +576,9 @@
         "state-local-government": "primary",
         "federal-defense": "primary",
         "legal-services": "primary",
-        "education": "adjacent"
+        "higher-education": "adjacent",
+        "k12-education": "adjacent",
+        "federal-government": "primary"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -585,7 +604,8 @@
       "industry_fit": {
         "utilities-energy": "adjacent",
         "federal-defense": "adjacent",
-        "transportation-logistics": "adjacent"
+        "transportation-logistics": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -613,7 +633,9 @@
         "healthcare-life-sciences": "primary",
         "retail-distribution": "adjacent",
         "federal-defense": "adjacent",
-        "general-enterprise": "adjacent"
+        "general-enterprise": "adjacent",
+        "federal-government": "primary",
+        "higher-education": "primary"
       },
       "department_fit": {
         "finance": "primary",
@@ -644,10 +666,12 @@
         "healthcare-life-sciences": "primary",
         "state-local-government": "primary",
         "federal-defense": "primary",
-        "education": "primary",
         "legal-services": "primary",
         "general-manufacturing": "adjacent",
-        "retail-distribution": "adjacent"
+        "retail-distribution": "adjacent",
+        "higher-education": "primary",
+        "k12-education": "adjacent",
+        "federal-government": "primary"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -680,7 +704,10 @@
         "transportation-logistics": "primary",
         "federal-defense": "primary",
         "food-cpg-manufacturing": "adjacent",
-        "general-manufacturing": "adjacent"
+        "general-manufacturing": "adjacent",
+        "federal-government": "adjacent",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "operations": "primary",
@@ -708,7 +735,6 @@
         "healthcare-life-sciences": "primary",
         "financial-services": "primary",
         "state-local-government": "primary",
-        "education": "primary",
         "legal-services": "primary",
         "federal-defense": "primary",
         "general-manufacturing": "primary",
@@ -716,7 +742,10 @@
         "utilities-energy": "primary",
         "retail-distribution": "adjacent",
         "transportation-logistics": "adjacent",
-        "food-cpg-manufacturing": "adjacent"
+        "food-cpg-manufacturing": "adjacent",
+        "higher-education": "primary",
+        "k12-education": "primary",
+        "federal-government": "primary"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -755,7 +784,9 @@
         "healthcare-life-sciences": "adjacent",
         "general-manufacturing": "primary",
         "utilities-energy": "adjacent",
-        "education": "adjacent"
+        "higher-education": "primary",
+        "k12-education": "adjacent",
+        "federal-government": "primary"
       },
       "department_fit": {
         "operations": "primary",
@@ -785,7 +816,7 @@
         "general-manufacturing": "primary",
         "food-cpg-manufacturing": "adjacent",
         "federal-defense": "adjacent",
-        "education": "adjacent"
+        "higher-education": "adjacent"
       },
       "department_fit": {
         "marketing": "primary",
@@ -838,12 +869,13 @@
       "use_case_category": "Agentic AI & Automation",
       "description": "Transforms PDF documents into engaging AI-generated podcast-style audio — making dense documents accessible as on-the-go audio content.",
       "industry_fit": {
-        "education": "primary",
         "state-local-government": "primary",
         "general-enterprise": "primary",
         "healthcare-life-sciences": "adjacent",
         "financial-services": "adjacent",
-        "legal-services": "adjacent"
+        "legal-services": "adjacent",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "communications": "primary",
@@ -873,10 +905,11 @@
         "financial-services": "primary",
         "healthcare-life-sciences": "primary",
         "state-local-government": "primary",
-        "education": "primary",
         "utilities-energy": "primary",
         "general-enterprise": "primary",
-        "transportation-logistics": "adjacent"
+        "transportation-logistics": "adjacent",
+        "higher-education": "primary",
+        "k12-education": "primary"
       },
       "department_fit": {
         "customer-service": "primary",
@@ -902,9 +935,10 @@
       "description": "GPU-accelerated single-cell RNA and DNA sequencing analysis — dramatically speeds up the processing and analysis of large single-cell datasets for genomics research.",
       "industry_fit": {
         "healthcare-life-sciences": "primary",
-        "education": "primary",
         "federal-defense": "adjacent",
-        "state-local-government": "adjacent"
+        "state-local-government": "adjacent",
+        "higher-education": "primary",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -929,7 +963,8 @@
         "healthcare-life-sciences": "primary",
         "food-cpg-manufacturing": "adjacent",
         "federal-defense": "adjacent",
-        "education": "adjacent"
+        "higher-education": "primary",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -957,7 +992,8 @@
         "state-local-government": "primary",
         "general-manufacturing": "primary",
         "federal-defense": "primary",
-        "education": "adjacent"
+        "higher-education": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -985,7 +1021,8 @@
         "state-local-government": "primary",
         "federal-defense": "primary",
         "healthcare-life-sciences": "primary",
-        "legal-services": "primary"
+        "legal-services": "primary",
+        "federal-government": "primary"
       },
       "department_fit": {
         "cybersecurity": "primary",
@@ -1013,7 +1050,9 @@
         "state-local-government": "primary",
         "financial-services": "primary",
         "healthcare-life-sciences": "adjacent",
-        "general-manufacturing": "adjacent"
+        "general-manufacturing": "adjacent",
+        "federal-government": "primary",
+        "higher-education": "adjacent"
       },
       "department_fit": {
         "cybersecurity": "primary",
@@ -1038,10 +1077,10 @@
       "industry_fit": {
         "retail-distribution": "primary",
         "healthcare-life-sciences": "primary",
-        "education": "primary",
         "state-local-government": "primary",
         "general-enterprise": "adjacent",
-        "transportation-logistics": "adjacent"
+        "transportation-logistics": "adjacent",
+        "higher-education": "adjacent"
       },
       "department_fit": {
         "customer-service": "primary",
@@ -1071,8 +1110,10 @@
         "legal-services": "primary",
         "state-local-government": "primary",
         "healthcare-life-sciences": "primary",
-        "education": "primary",
-        "federal-defense": "primary"
+        "federal-defense": "primary",
+        "higher-education": "primary",
+        "k12-education": "adjacent",
+        "federal-government": "primary"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -1103,7 +1144,8 @@
         "financial-services": "adjacent",
         "state-local-government": "adjacent",
         "healthcare-life-sciences": "adjacent",
-        "federal-defense": "adjacent"
+        "federal-defense": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -1128,8 +1170,9 @@
       "industry_fit": {
         "healthcare-life-sciences": "primary",
         "federal-defense": "primary",
-        "education": "primary",
-        "state-local-government": "adjacent"
+        "state-local-government": "adjacent",
+        "higher-education": "primary",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -1157,7 +1200,10 @@
         "federal-defense": "primary",
         "healthcare-life-sciences": "adjacent",
         "legal-services": "adjacent",
-        "general-manufacturing": "adjacent"
+        "general-manufacturing": "adjacent",
+        "federal-government": "primary",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -1187,7 +1233,10 @@
         "financial-services": "primary",
         "federal-defense": "primary",
         "healthcare-life-sciences": "adjacent",
-        "general-manufacturing": "adjacent"
+        "general-manufacturing": "adjacent",
+        "federal-government": "primary",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -1220,7 +1269,10 @@
         "state-local-government": "adjacent",
         "federal-defense": "adjacent",
         "healthcare-life-sciences": "adjacent",
-        "general-enterprise": "primary"
+        "general-enterprise": "primary",
+        "federal-government": "adjacent",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "data-analytics": "primary",
@@ -1251,10 +1303,11 @@
         "federal-defense": "primary",
         "general-manufacturing": "primary",
         "oil-gas": "primary",
-        "education": "primary",
         "financial-services": "adjacent",
         "healthcare-life-sciences": "adjacent",
-        "utilities-energy": "adjacent"
+        "utilities-energy": "adjacent",
+        "higher-education": "adjacent",
+        "federal-government": "primary"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -1283,7 +1336,10 @@
         "federal-defense": "primary",
         "financial-services": "primary",
         "state-local-government": "adjacent",
-        "healthcare-life-sciences": "adjacent"
+        "healthcare-life-sciences": "adjacent",
+        "federal-government": "primary",
+        "higher-education": "adjacent",
+        "k12-education": "adjacent"
       },
       "department_fit": {
         "information-technology": "primary",
@@ -1313,9 +1369,10 @@
         "transportation-logistics": "primary",
         "federal-defense": "primary",
         "healthcare-life-sciences": "adjacent",
-        "education": "adjacent",
         "utilities-energy": "adjacent",
-        "oil-gas": "adjacent"
+        "oil-gas": "adjacent",
+        "higher-education": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -1381,7 +1438,8 @@
         "transportation-logistics": "primary",
         "food-cpg-manufacturing": "adjacent",
         "state-local-government": "adjacent",
-        "education": "adjacent"
+        "higher-education": "adjacent",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -1409,9 +1467,10 @@
       "industry_fit": {
         "healthcare-life-sciences": "primary",
         "food-cpg-manufacturing": "adjacent",
-        "education": "adjacent",
         "federal-defense": "adjacent",
-        "state-local-government": "adjacent"
+        "state-local-government": "adjacent",
+        "higher-education": "primary",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -1436,8 +1495,9 @@
       "description": "Multi-stage generative AI pipeline for designing protein binders — uses OpenFold3 for target structure prediction and validation, RFdiffusion for binder-backbone generation, and ProteinMPNN for sequence design.",
       "industry_fit": {
         "healthcare-life-sciences": "primary",
-        "education": "adjacent",
-        "federal-defense": "adjacent"
+        "federal-defense": "adjacent",
+        "higher-education": "primary",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -1460,8 +1520,9 @@
       "description": "Generative AI pipeline for designing and screening optimized small molecule drug candidates — combines protein structure prediction, molecular generation, and docking to accelerate early-stage drug discovery.",
       "industry_fit": {
         "healthcare-life-sciences": "primary",
-        "education": "adjacent",
-        "federal-defense": "adjacent"
+        "federal-defense": "adjacent",
+        "higher-education": "primary",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "research-engineering": "primary",
@@ -1534,13 +1595,15 @@
       "use_case_category": "Agentic AI & Automation",
       "description": "Localize and translate media content at scale — translates audio and video, syncs speaker lip movements to translated audio, and preserves speaker identity across languages for broadcast, streaming, and enterprise content.",
       "industry_fit": {
-        "education": "primary",
         "retail-distribution": "primary",
         "food-cpg-manufacturing": "primary",
         "general-manufacturing": "adjacent",
         "healthcare-life-sciences": "adjacent",
         "state-local-government": "adjacent",
-        "general-enterprise": "primary"
+        "general-enterprise": "primary",
+        "higher-education": "adjacent",
+        "k12-education": "primary",
+        "federal-government": "adjacent"
       },
       "department_fit": {
         "marketing": "primary",
