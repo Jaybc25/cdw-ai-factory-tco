@@ -1,8 +1,8 @@
 {
   "meta": {
-    "version": "2.8",
+    "version": "2.9",
     "last_verified": "2026-09-24",
-    "blueprint_count": 58,
+    "blueprint_count": 59,
     "industries": [
       "higher-education",
       "k12-education",
@@ -706,8 +706,7 @@
         "food-cpg-manufacturing": "adjacent",
         "general-manufacturing": "adjacent",
         "federal-government": "adjacent",
-        "higher-education": "adjacent",
-        "k12-education": "adjacent"
+        "higher-education": "adjacent"
       },
       "department_fit": {
         "operations": "primary",
@@ -1974,6 +1973,50 @@
         "higher-education": "Research labs generate simulated data for robotics, autonomy, computer vision, and scientific experimentation without the cost of collecting every real-world scenario."
       },
       "detail_infrastructure": "NVIDIA Omniverse and simulation tooling such as Isaac Sim/Replicator and Cosmos where appropriate, GPU-accelerated rendering or world simulation, domain randomization and labeling pipelines, storage for generated datasets, and validation against representative real-world data."
+    },
+    {
+      "id": "ai-coding-agent",
+      "name": "AI-Assisted Coding & Software Engineering Agent",
+      "status": "active",
+      "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-langchain",
+      "use_case_category": "Agentic AI & Automation",
+      "description": "A governed software-engineering agent that can understand a codebase, plan changes, write and refactor code, run tests, inspect results, and use approved development tools while keeping source code and execution inside enterprise-controlled infrastructure.",
+      "industry_fit": {
+        "general-enterprise": "primary",
+        "federal-government": "primary",
+        "federal-defense": "primary",
+        "financial-services": "primary",
+        "general-manufacturing": "primary",
+        "healthcare-life-sciences": "primary",
+        "higher-education": "primary",
+        "oil-gas": "adjacent",
+        "utilities-energy": "adjacent",
+        "transportation-logistics": "adjacent",
+        "state-local-government": "adjacent",
+        "retail-distribution": "adjacent",
+        "food-cpg-manufacturing": "adjacent"
+      },
+      "department_fit": {
+        "information-technology": "primary",
+        "research-engineering": "primary",
+        "data-analytics": "adjacent",
+        "cybersecurity": "adjacent",
+        "operations": "adjacent"
+      },
+      "detail_what_it_does": "Uses an agentic coding harness to inspect repository context, plan implementation steps, edit files, run commands and tests, review results, and iterate on software changes under governed tool and filesystem policies. NVIDIA NemoClaw/OpenShell can provide the controlled execution environment; Nemotron or other supported models can be served through NIM; enterprise documentation and code knowledge can be added through retrieval; and MCP or approved developer-tool integrations can connect source control, CI/CD, issue tracking, and other engineering systems. Nsight Copilot remains the specialized NVIDIA path for CUDA and GPU-development assistance.",
+      "detail_in_practice": {
+        "default": "Software teams use an AI coding agent to accelerate implementation, refactoring, test creation, debugging, documentation, and modernization while keeping code, tool access, and execution within enterprise-controlled boundaries.",
+        "federal-government": "Agency software teams use governed coding agents to modernize legacy applications, implement approved changes, generate tests, and support secure software factories without sending sensitive code to public AI services.",
+        "federal-defense": "Defense contractors use coding agents inside controlled development environments for mission software, DevSecOps, modernization, test automation, and secure engineering workflows.",
+        "financial-services": "Banks and insurers use governed coding agents for application modernization, test generation, debugging, and engineering productivity while keeping proprietary code and regulated data inside controlled environments.",
+        "general-manufacturing": "Manufacturers use coding agents across enterprise software, MES integrations, automation support, embedded systems, and digital-engineering workflows, with human review for production and safety-critical changes.",
+        "healthcare-life-sciences": "Healthcare, payer, MedTech, and life-sciences software teams use coding agents for application development, analytics pipelines, device and platform software, and test automation under organizational security and validation controls.",
+        "higher-education": "University IT teams, research programmers, and computer-science or engineering groups use governed coding agents for application development, research software, teaching environments, and campus HPC workflows.",
+        "oil-gas": "Engineering and software teams use coding agents for data pipelines, operational applications, geoscience software, and automation-support tooling while retaining review for production and control-system changes.",
+        "utilities-energy": "Utility software and engineering teams use coding agents for enterprise applications, data platforms, grid analytics, and selected OT-support tooling under change-management and security controls.",
+        "transportation-logistics": "Transportation and logistics engineering teams use coding agents for fleet, routing, warehouse, terminal, and customer-facing software, plus testing and modernization work."
+      },
+      "detail_infrastructure": "NVIDIA NemoClaw/OpenShell governed runtime, an agent harness such as LangChain Deep Agents Code, NVIDIA NIM-served reasoning/coding models, optional NeMo Retriever/RAG over internal engineering knowledge, MCP or approved integrations for source control and CI/CD, and enterprise GPU infrastructure sized for interactive coding-agent inference. Nsight Copilot can be added for CUDA/GPU-specific development."
     }
   ]
 }
