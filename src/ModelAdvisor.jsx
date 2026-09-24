@@ -332,6 +332,14 @@ function getInitialPrimaryWorkload(checked) {
   return checked[0];
 }
 
+const VALID_MULTIMODAL_VALUES = ["none", "text-only", "image-text"];
+
+function getInitialMultimodal() {
+  const params = getIncomingParams();
+  const value = params?.get("multimodal");
+  return VALID_MULTIMODAL_VALUES.includes(value) ? value : "none";
+}
+
 function getInitialSourceUseCase() {
   const params = getIncomingParams();
   return params?.get("sourceUseCase") || null;
@@ -379,7 +387,9 @@ function ModelAdvisorInner() {
   ));
   const [qualityPriority, setQualityPriority] = useState(saved?.qualityPriority ?? "strong");
   const [contextWindow, setContextWindow] = useState(saved?.contextWindow ?? "none");
-  const [multimodal, setMultimodal] = useState(saved?.multimodal ?? "none");
+  const [multimodal, setMultimodal] = useState(() => (
+    hasFreshSourceUseCase ? getInitialMultimodal() : saved?.multimodal ?? getInitialMultimodal()
+  ));
   const [reasoningIntensity, setReasoningIntensity] = useState(saved?.reasoningIntensity ?? "normal");
   const [fineTuning, setFineTuning] = useState(saved?.fineTuning ?? "none");
   const [license, setLicense] = useState(saved?.license ?? "need-to-check");
