@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import fs from "node:fs";
 import blueprintData from "../../src/blueprints.json" with { type: "json" };
 import crosswalkData from "../../src/ModelAdvisorCrosswalk.json" with { type: "json" };
 
@@ -58,4 +59,17 @@ test("consolidated use cases keep one customer-facing entry per capability", asy
 
   expect(blueprintById["mega-multi-robot-fleet"].name).toBe("Factory & Operational Digital Twin");
   expect(blueprintById["digital-twin-fluid-simulation"].name).toBe("Real-Time CAE Digital Twins");
+});
+
+
+test("education taxonomy has no legacy generic education examples", async () => {
+  for (const blueprint of blueprintData.blueprints) {
+    expect(blueprint.detail_in_practice?.education).toBeUndefined();
+  }
+});
+
+test("federal contractor label preserves non-defense federal contractor scope", async () => {
+  const explorerSource = fs.readFileSync(new URL("../../src/UseCaseExplorer.jsx", import.meta.url), "utf8");
+  expect(explorerSource).toContain('label: "Federal & Defense Contractors"');
+  expect(explorerSource).not.toContain('label: "Federal / Defense Contractors"');
 });

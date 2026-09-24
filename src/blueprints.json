@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": "2.7",
+    "version": "2.8",
     "last_verified": "2026-09-24",
     "blueprint_count": 58,
     "industries": [
@@ -887,9 +887,9 @@
       "detail_what_it_does": "Ingests PDF documents, extracts and structures the key content, generates a natural conversational script, and synthesizes it as multi-voice audio — turning any document into a listenable briefing.",
       "detail_in_practice": {
         "default": "Communications and learning teams use this to make dense content more accessible — employees actually consume audio briefings during commutes rather than ignoring PDF attachments.",
-        "education": "Universities convert course materials, research papers, and reading lists into audio for students who prefer listening — improving engagement with dense academic content.",
         "state-local-government": "Legislative staff, agency communicators, and field employees convert budget documents, policy updates, and regulatory guidance into audio briefings consumable during travel.",
-        "healthcare-life-sciences": "Clinical education teams convert clinical protocols, drug formulary updates, and training materials into audio for staff who can't pause patient care to read."
+        "healthcare-life-sciences": "Clinical education teams convert clinical protocols, drug formulary updates, and training materials into audio for staff who can't pause patient care to read.",
+        "higher-education": "Universities convert course materials, research papers, and reading lists into audio for students who prefer listening — improving engagement with dense academic content."
       },
       "detail_infrastructure": "NVIDIA NIM LLM for script generation, Riva TTS or ElevenLabs NIM for voice synthesis, document extraction pipeline."
     },
@@ -1093,7 +1093,7 @@
         "default": "Customer experience and communications teams use digital humans in kiosks, web experiences, and training scenarios where an interactive human presence matters.",
         "retail-distribution": "Retailers deploy digital human sales associates in stores and online — providing expert, personalized assistance without requiring staff to be physically present.",
         "state-local-government": "State agencies deploy digital human kiosks in high-traffic offices — DMV, social services lobbies — providing accessible, interactive guidance to walk-in citizens.",
-        "education": "Universities use digital humans for interactive student onboarding, advising support, and tutoring experiences."
+        "higher-education": "Universities use digital humans for interactive student onboarding, advising support, and tutoring experiences."
       },
       "detail_infrastructure": "NVIDIA ACE (Avatar Cloud Engine), Riva ASR/TTS, Nemotron reasoning model, real-time rendering GPU (RTX or L40S), avatar rendering pipeline."
     },
@@ -1300,10 +1300,10 @@
       "detail_what_it_does": "Deploys a CUDA-aware AI coding assistant on DGX Spark that understands GPU programming patterns, NVIDIA APIs, and performance optimization techniques. Provides expert chat, real-time code completion, and retrieval-augmented answers grounded in NVIDIA documentation — running entirely on-premises so proprietary code never leaves the organization.",
       "detail_in_practice": {
         "default": "Engineering and HPC teams use Nsight Copilot to accelerate GPU code development — getting expert-level guidance on CUDA optimization, kernel design, and NVIDIA library usage without requiring every developer to have deep GPU expertise.",
-        "education": "University HPC centers and engineering programs deploy Nsight Copilot to support researchers and students moving workloads to CUDA — reducing the expertise barrier for GPU-accelerated computational science.",
         "federal-defense": "Defense software organizations use on-premises Nsight Copilot for classified GPU development environments — expert CUDA assistance without sending proprietary code or queries to external APIs.",
         "general-manufacturing": "Manufacturers developing simulation, vision, or digital-twin code internally use Nsight Copilot to accelerate GPU optimization without building a dedicated GPU programming team.",
-        "oil-gas": "Seismic processing and reservoir simulation developers use Nsight Copilot to optimize GPU kernels for high-performance geoscience computing workflows."
+        "oil-gas": "Seismic processing and reservoir simulation developers use Nsight Copilot to optimize GPU kernels for high-performance geoscience computing workflows.",
+        "higher-education": "University HPC centers and engineering programs deploy Nsight Copilot to support researchers and students moving workloads to CUDA — reducing the expertise barrier for GPU-accelerated computational science."
       },
       "detail_infrastructure": "NVIDIA DGX Spark (personal AI supercomputer), NIM microservices for LLM and embedding, RAG pipeline over NVIDIA GPU programming documentation, on-premises deployment."
     },
@@ -1442,8 +1442,8 @@
         "default": "Life sciences research teams use Evo 2 to explore genomic design space computationally — generating candidate sequences for novel proteins, enzymes, and therapeutic targets without exhaustive wet lab screening.",
         "healthcare-life-sciences": "Biopharma and biotech researchers use Evo 2 for therapeutic protein design, enzyme engineering, and functional genomics — generating and screening candidates computationally before synthesis.",
         "food-cpg-manufacturing": "Food science and agricultural biotech teams use Evo 2 for enzyme design, fermentation optimization, and crop bioengineering research.",
-        "education": "Major research universities give faculty and graduate researchers access to frontier genomic AI tools for translational research and drug discovery programs.",
-        "state-local-government": "State public health labs and agricultural agencies use Evo 2 for pathogen characterization, agricultural disease research, and biosurveillance genomic analysis."
+        "state-local-government": "State public health labs and agricultural agencies use Evo 2 for pathogen characterization, agricultural disease research, and biosurveillance genomic analysis.",
+        "higher-education": "Major research universities give faculty and graduate researchers access to frontier genomic AI tools for translational research and drug discovery programs."
       },
       "detail_infrastructure": "NVIDIA Evo 2 model via BioNeMo NIM, high-memory GPU nodes for genomic inference, bioinformatics pipeline integration."
     },
@@ -1468,7 +1468,7 @@
       "detail_in_practice": {
         "default": "Drug discovery teams use this pipeline to computationally design protein binders for a target — narrowing a near-infinite sequence space down to testable candidates before expensive wet lab synthesis.",
         "healthcare-life-sciences": "Biopharma and biotech teams design novel antibody-like binders, peptide therapeutics, and protein drugs computationally — getting to synthesis-ready candidates in days rather than months of iterative lab work.",
-        "education": "Academic medical centers and research universities use this pipeline for translational research — giving faculty access to frontier protein design AI tools for grant-funded therapeutic discovery programs."
+        "higher-education": "Academic medical centers and research universities use this pipeline for translational research — giving faculty access to frontier protein design AI tools for grant-funded therapeutic discovery programs."
       },
       "detail_infrastructure": "NVIDIA BioNeMo NIMs for OpenFold3, RFdiffusion, and ProteinMPNN, plus GPU-accelerated molecular inference and protein-structure workflow integration."
     },
@@ -1493,7 +1493,7 @@
       "detail_in_practice": {
         "default": "Drug discovery teams use generative virtual screening to design optimized small molecule candidates computationally — replacing early-stage screening of large compound libraries with AI-generated, target-optimized candidates.",
         "healthcare-life-sciences": "Pharma and biotech teams run generative virtual screening against novel targets to produce optimized lead candidates for synthesis — compressing hit identification from months to days.",
-        "education": "Research universities run generative virtual screening pipelines for academic drug discovery programs — enabling faculty and graduate students to pursue computational hit identification without access to large compound libraries."
+        "higher-education": "Research universities run generative virtual screening pipelines for academic drug discovery programs — enabling faculty and graduate students to pursue computational hit identification without access to large compound libraries."
       },
       "detail_infrastructure": "NVIDIA BioNeMo NIMs (OpenFold2, GenMol, DiffDock), GPU-accelerated molecular docking, high-memory GPU nodes, chemistry informatics pipeline integration."
     },
@@ -1575,10 +1575,11 @@
       "detail_what_it_does": "Automatically translates spoken audio in video content, synthesizes translated speech preserving the original speaker voice, and applies lip-sync to match the translated audio to the speaker on screen — enabling professional-quality localization at a fraction of traditional dubbing cost and time.",
       "detail_in_practice": {
         "default": "Marketing and communications teams use this to localize video content across languages without manual dubbing — training materials, product demos, and corporate communications reach global audiences at scale.",
-        "education": "Universities and e-learning platforms localize course video content across languages — making lectures, tutorials, and educational materials accessible to international students without manual translation projects.",
         "retail-distribution": "Retailers localize product video content, training materials, and marketing across regional markets — the same product demo reaches multiple language markets without reshooting.",
         "state-local-government": "State agencies localize public-facing video communications — emergency instructions, benefits guidance, and civic information — for multilingual communities without per-language production budgets.",
-        "food-cpg-manufacturing": "CPG brands localize product videos, training content, and marketing materials across export markets — a single content production scales to multiple languages automatically."
+        "food-cpg-manufacturing": "CPG brands localize product videos, training content, and marketing materials across export markets — a single content production scales to multiple languages automatically.",
+        "higher-education": "Universities and e-learning platforms localize course video content across languages — making lectures, tutorials, and educational materials accessible to international students without manual translation projects.",
+        "k12-education": "Districts localize family communications, orientation videos, and instructional content into the languages families speak at home — expanding access without requiring a separate manual dubbing project for every language."
       },
       "detail_infrastructure": "NVIDIA Riva ASR and TTS, speaker diarization and voice cloning NIMs, lip-sync generation model, video processing pipeline, GPU-accelerated inference."
     },

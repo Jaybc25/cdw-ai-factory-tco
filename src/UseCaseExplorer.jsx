@@ -102,7 +102,7 @@ const INDUSTRIES = [
   { id: "higher-education",        label: "Higher Education" },
   { id: "k12-education",           label: "K–12 Education" },
   { id: "federal-government",      label: "Federal Government" },
-  { id: "federal-defense",         label: "Federal / Defense Contractors" },
+  { id: "federal-defense",         label: "Federal & Defense Contractors" },
   { id: "financial-services",      label: "Financial Services" },
   { id: "food-cpg-manufacturing",  label: "Food & CPG Manufacturing" },
   { id: "general-manufacturing",   label: "General Manufacturing" },
