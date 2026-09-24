@@ -1,8 +1,8 @@
 {
   "meta": {
-    "version": "2.5",
+    "version": "2.6",
     "last_verified": "2026-09-24",
-    "blueprint_count": 58,
+    "blueprint_count": 60,
     "industries": [
       "higher-education",
       "k12-education",
@@ -1917,6 +1917,101 @@
         "k12-education": "Districts use limited, human-verified vision analytics for facility conditions and approved safety workflows under board policy, privacy controls, and documented false-positive handling."
       },
       "detail_infrastructure": "NVIDIA Metropolis, NVIDIA DeepStream, TAO Toolkit and/or supported vision models, GPU-accelerated edge or data-center inference, camera/video ingestion, event pipelines, and integration with operational, quality, safety, or security systems."
+    },
+    {
+      "id": "edge-ai-inference",
+      "name": "Edge AI Inference",
+      "status": "active",
+      "nvidia_url": "https://www.nvidia.com/en-us/edge-computing/",
+      "use_case_category": "Video & Sensor Intelligence",
+      "description": "Run AI inference close to where data is created — in plants, campuses, vehicles, field sites, medical environments, utilities, and other distributed locations — when latency, connectivity, privacy, or local autonomy make centralized inference impractical.",
+      "industry_fit": {
+        "higher-education": "primary",
+        "k12-education": "primary",
+        "federal-government": "primary",
+        "federal-defense": "primary",
+        "financial-services": "adjacent",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "primary",
+        "healthcare-life-sciences": "primary",
+        "legal-services": "adjacent",
+        "oil-gas": "primary",
+        "retail-distribution": "primary",
+        "state-local-government": "primary",
+        "transportation-logistics": "primary",
+        "utilities-energy": "primary",
+        "general-enterprise": "primary"
+      },
+      "department_fit": {
+        "operations": "primary",
+        "information-technology": "primary",
+        "cybersecurity": "adjacent",
+        "supply-chain-logistics": "adjacent",
+        "data-analytics": "adjacent",
+        "research-engineering": "primary"
+      },
+      "detail_what_it_does": "Deploys trained AI models on GPU-accelerated systems near cameras, sensors, machines, vehicles, users, or devices so decisions can happen locally with lower latency and reduced dependence on WAN or cloud connectivity. The same pattern also helps keep sensitive data close to its source when policy or operational requirements call for local processing.",
+      "detail_in_practice": {
+        "default": "Organizations use edge inference when AI must keep working close to the physical environment — even when network links are slow, intermittent, expensive, or intentionally isolated.",
+        "general-manufacturing": "Plants run vision, maintenance, robotics, and process models on local servers so decisions happen in milliseconds and production does not depend on a corporate WAN connection.",
+        "food-cpg-manufacturing": "Food and CPG plants run inspection, maintenance, and safety models locally so line decisions stay fast even when connectivity to corporate systems is limited.",
+        "oil-gas": "Operators run vision, maintenance, and safety models at well pads, compressor stations, and offshore sites where connectivity is constrained and local response matters.",
+        "utilities-energy": "Utilities run inspection, security, and control analytics at substations, treatment plants, and generation sites where data locality and response time matter.",
+        "transportation-logistics": "Transportation operators run perception, yard, fleet, and facility analytics close to vehicles, terminals, depots, and distribution operations.",
+        "federal-government": "Agencies run AI at tactical, border, port, ship, aircraft, laboratory, and field locations where connectivity is disconnected, intermittent, or limited and data may need to remain local.",
+        "federal-defense": "Defense contractors deploy models into vehicles, aircraft, ships, test ranges, and forward sites where mission workloads cannot rely on continuous connectivity.",
+        "healthcare-life-sciences": "Providers and MedTech organizations run imaging, monitoring, device, and surgical AI beside the point of care where latency matters and sensitive data may need to stay local.",
+        "higher-education": "Universities run building, lab, research, and video analytics on campus edge systems where bandwidth is limited or local data handling is preferred.",
+        "k12-education": "Districts run selected safety, building, and network analytics inside schools so services can continue locally and student data can remain closer to the campus environment."
+      },
+      "detail_infrastructure": "NVIDIA edge GPU platforms and certified systems, containerized model serving, local data ingestion, optional camera/sensor integrations, orchestration and fleet management, and secure synchronization with central AI infrastructure when connectivity is available."
+    },
+    {
+      "id": "synthetic-data-generation",
+      "name": "Synthetic Data Generation for AI Training",
+      "status": "active",
+      "nvidia_url": "https://developer.nvidia.com/isaac/sim",
+      "use_case_category": "Digital Twins & Simulation",
+      "description": "Generate realistic simulated images, scenes, sensor data, and rare-event examples for training and testing AI systems when real-world data is scarce, sensitive, expensive, dangerous, or too slow to collect.",
+      "industry_fit": {
+        "higher-education": "primary",
+        "k12-education": "adjacent",
+        "federal-government": "primary",
+        "federal-defense": "primary",
+        "financial-services": "adjacent",
+        "food-cpg-manufacturing": "primary",
+        "general-manufacturing": "primary",
+        "healthcare-life-sciences": "primary",
+        "legal-services": "adjacent",
+        "oil-gas": "primary",
+        "retail-distribution": "adjacent",
+        "state-local-government": "adjacent",
+        "transportation-logistics": "primary",
+        "utilities-energy": "primary",
+        "general-enterprise": "adjacent"
+      },
+      "department_fit": {
+        "research-engineering": "primary",
+        "data-analytics": "primary",
+        "operations": "adjacent",
+        "information-technology": "adjacent",
+        "cybersecurity": "adjacent",
+        "supply-chain-logistics": "adjacent"
+      },
+      "detail_what_it_does": "Uses simulation and generative techniques to create labeled training and validation data representing objects, scenes, defects, hazards, operating conditions, and sensor observations. It complements rather than replaces real data, helping teams expand coverage for rare, restricted, or difficult-to-capture scenarios.",
+      "detail_in_practice": {
+        "default": "AI teams use synthetic data to expand training coverage, create rare-event examples, and test models before enough real-world data exists — while retaining real data for validation and production monitoring.",
+        "general-manufacturing": "Manufacturers generate realistic images of parts, defects, tools, robots, and factory scenes to train inspection and automation models without waiting months to capture enough edge cases.",
+        "food-cpg-manufacturing": "Food and CPG teams generate examples of rare defects, contaminants, packaging errors, and plant conditions for inspection models.",
+        "oil-gas": "Operators generate images of leaks, flares, equipment faults, and hazardous conditions to train detection models without waiting for rare real events.",
+        "utilities-energy": "Utilities generate images of damaged equipment, vegetation conditions, fire and smoke scenarios, and inspection edge cases to improve detection coverage.",
+        "transportation-logistics": "Transportation teams generate vehicle, yard, roadway, warehouse, and sensor scenarios for perception, inspection, autonomy, and operational AI.",
+        "federal-government": "Agencies generate realistic training data for detection, inspection, autonomy, and mission systems when real data is classified, scarce, sensitive, or dangerous to collect.",
+        "federal-defense": "Defense contractors create synthetic imagery and sensor scenarios for autonomy, perception, mission testing, and manufacturing quality when field data is limited or restricted.",
+        "healthcare-life-sciences": "MedTech and research teams generate simulated training data for surgical robotics, device vision, imaging, and other applications where real patient data is constrained.",
+        "higher-education": "Research labs generate simulated data for robotics, autonomy, computer vision, and scientific experimentation without the cost of collecting every real-world scenario."
+      },
+      "detail_infrastructure": "NVIDIA Omniverse and simulation tooling such as Isaac Sim/Replicator and Cosmos where appropriate, GPU-accelerated rendering or world simulation, domain randomization and labeling pipelines, storage for generated datasets, and validation against representative real-world data."
     }
   ]
 }
