@@ -634,7 +634,7 @@ export default function InferenceEconomicsGuidedPreview() {
                     : `Under these assumptions, private AI is modeled to cost ${privateCostDirection === "lower" ? "less" : "more"} per 1M output tokens than ${apiModelLabel || "the selected managed API"}.`}
                 </div>
                 <div style={{ ...muted, fontSize: 13, marginTop: 7 }}>
-                  This compares cost per output token; it does not assume the models are equally capable.
+                  This is a cost comparison only and does not assert equivalent model capability.
                 </div>
               </div>
             ) : null}
