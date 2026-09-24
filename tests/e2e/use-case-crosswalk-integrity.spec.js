@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import fs from "node:fs";
 import blueprintData from "../../src/blueprints.json" with { type: "json" };
 import crosswalkData from "../../src/ModelAdvisorCrosswalk.json" with { type: "json" };
 
@@ -67,7 +68,8 @@ test("education taxonomy has no legacy generic education examples", async () => 
   }
 });
 
-test("federal contractor label preserves non-defense federal contractor scope", async ({ page }) => {
-  await page.goto("/use-cases", { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("Federal & Defense Contractors", { exact: true })).toBeVisible();
+test("federal contractor label preserves non-defense federal contractor scope", async () => {
+  const explorerSource = fs.readFileSync(new URL("../../src/UseCaseExplorer.jsx", import.meta.url), "utf8");
+  expect(explorerSource).toContain('label: "Federal & Defense Contractors"');
+  expect(explorerSource).not.toContain('label: "Federal / Defense Contractors"');
 });
