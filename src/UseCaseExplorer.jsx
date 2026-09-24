@@ -52,6 +52,7 @@ function buildHandoffLinks(bp) {
   const modelAdvisorParams = new URLSearchParams({ sourceUseCase: row.id });
   if (workloadValues.length) modelAdvisorParams.set("workloads", workloadValues.join(","));
   if (primaryValue) modelAdvisorParams.set("primary", primaryValue);
+  if (row.modelAdvisorMultimodal) modelAdvisorParams.set("multimodal", row.modelAdvisorMultimodal);
 
   const gpuSizingParams = new URLSearchParams({ sourceUseCase: row.id });
   if (row.gpuWorkloadType) gpuSizingParams.set("workloadType", row.gpuWorkloadType);
