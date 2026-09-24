@@ -73,3 +73,21 @@ test("federal contractor label preserves non-defense federal contractor scope", 
   expect(explorerSource).toContain('label: "Federal & Defense Contractors"');
   expect(explorerSource).not.toContain('label: "Federal / Defense Contractors"');
 });
+
+
+test("AI coding agent is a distinct customer-facing capability", async () => {
+  const blueprintById = Object.fromEntries(blueprintData.blueprints.map((row) => [row.id, row]));
+  const crosswalkById = Object.fromEntries(crosswalkData.crosswalk.map((row) => [row.id, row]));
+
+  expect(blueprintById["ai-coding-agent"].name).toBe("AI-Assisted Coding & Software Engineering Agent");
+  expect(blueprintById["ai-coding-agent"].department_fit["information-technology"]).toBe("primary");
+  expect(crosswalkById["ai-coding-agent"].routingClass).toBe("general-model-selection");
+  expect(crosswalkById["ai-coding-agent"].primaryUmbrella).toBe("Coding");
+  expect(crosswalkById["ai-coding-agent"].modelAdvisorUmbrellas).toContain("Agentic AI & Tool Use");
+});
+
+test("Earth-2 is not mapped to K-12", async () => {
+  const blueprintById = Object.fromEntries(blueprintData.blueprints.map((row) => [row.id, row]));
+  expect(blueprintById["earth2-weather-analytics"].industry_fit["k12-education"]).toBeUndefined();
+  expect(blueprintById["earth2-weather-analytics"].industry_fit["higher-education"]).toBe("adjacent");
+});
