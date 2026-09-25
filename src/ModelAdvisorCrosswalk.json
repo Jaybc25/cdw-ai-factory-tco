@@ -555,7 +555,7 @@
       "modelAdvisorUmbrellas": [],
       "primaryUmbrella": null,
       "routingClass": "specialized-stack",
-      "specializedStack": "BioNeMo (AlphaFold2, RFdiffusion, ProteinMPNN)",
+      "specializedStack": "BioNeMo (OpenFold3, RFdiffusion, ProteinMPNN)",
       "gpuWorkloadType": "molecular-simulation"
     },
     {
