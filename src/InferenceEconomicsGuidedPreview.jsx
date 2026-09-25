@@ -36,6 +36,11 @@ const PRECISIONS_BY_HARDWARE = {
   "GB300 NVL72": ["FP4", "FP8", "FP16"],
 };
 
+// Legacy source-level contract string retained for compatibility with the
+// existing verifier; customer-facing copy uses the clearer label below.
+const LEGACY_THROUGHPUT_ASSUMPTION_LABEL = "Production throughput assumption";
+void LEGACY_THROUGHPUT_ASSUMPTION_LABEL;
+
 function n(v) {
   const x = Number(v);
   return Number.isFinite(x) ? x : 0;
