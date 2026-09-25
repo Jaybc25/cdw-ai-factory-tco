@@ -139,6 +139,32 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 
 
 
+
+test("Model Advisor handoff keeps the recommended model across Inference and Training toggles", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/gpu-sizing?model=nvidia-nemotron-nano-2-vl", { waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => !!sessionStorage.getItem("ai-factory-session:gpu-sizing"));
+
+  let saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:gpu-sizing")));
+  expect(saved.infModelId).toBe("nvidia-nemotron-nano-2-vl");
+  expect(saved.trainModelId).toBe("nvidia-nemotron-nano-2-vl");
+  expect(saved.modelAdvisorRecommendedId).toBe("nvidia-nemotron-nano-2-vl");
+
+  await page.getByRole("button", { name: "Training / fine-tuning sizing" }).click();
+  let bodyText = await page.locator("body").innerText();
+  expect(bodyText).toMatch(/Model pre-set to .*Nemotron/i);
+  expect(bodyText).not.toMatch(/you're currently sizing .* after an adjustment/i);
+
+  await page.getByRole("button", { name: "Inference sizing" }).click();
+  bodyText = await page.locator("body").innerText();
+  expect(bodyText).toMatch(/Model pre-set to .*Nemotron/i);
+  expect(bodyText).not.toMatch(/you're currently sizing .* after an adjustment/i);
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("Explorer specialized routing context persists in GPU Sizing and only model-training presets Training", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
