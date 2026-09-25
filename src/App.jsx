@@ -11,7 +11,6 @@ import CombinedSummary from "./CombinedSummary.jsx";
 import LoginFrontDoor from "./LoginFrontDoor.jsx";
 import ModelCatalogVisibilityRoute from "./ModelCatalogVisibilityRoute.jsx";
 import HybridSequenceStateTestRoute from "./HybridSequenceStateTestRoute.jsx";
-import InferenceEconomicsPreview from "./InferenceEconomicsPreview.jsx";
 import InferenceEconomicsGuidedPreview from "./InferenceEconomicsGuidedPreview.jsx";
 import SharedToolShell from "./SharedToolShell.jsx";
 import "./print-overrides.css";
@@ -116,32 +115,8 @@ function ToolRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/tco" element={<TcoRoute />} />
       <Route path="/inference-economics" element={<InferenceEconomicsRoute />} />
-      <Route
-        path="/tco/inference-economics-preview"
-        element={(
-          <SharedToolShell
-            title="Inference Economics Preview"
-            backHref="/tco"
-            backLabel="TCO Calculator"
-            toolKey="inference-economics-preview"
-          >
-            <InferenceEconomicsPreview />
-          </SharedToolShell>
-        )}
-      />
-      <Route
-        path="/tco/inference-economics-preview-guided"
-        element={(
-          <SharedToolShell
-            title="Guided Inference Economics Preview"
-            backHref="/tco"
-            backLabel="TCO Calculator"
-            toolKey="inference-economics-preview-guided"
-          >
-            <InferenceEconomicsGuidedPreview />
-          </SharedToolShell>
-        )}
-      />
+      <Route path="/tco/inference-economics-preview" element={<Navigate to="/inference-economics?source=tco" replace />} />
+      <Route path="/tco/inference-economics-preview-guided" element={<Navigate to="/inference-economics?source=tco" replace />} />
       <Route
         path="/gpu-sizing"
         element={(
