@@ -1490,7 +1490,7 @@ function AppInner() {
             <Row label="Ongoing operations" value={`${fmt(r.adj.opex)}/mo`} sub={facility === "Equinix" ? "Equinix colo bundle incl. managed services" : "power, facility, admin, storage support"} />
             <Row label="Simple payback" value={r.payback ? `${r.payback.toFixed(0)} months` : "—"} sub={r.isWorkloadMode ? "capex + one-time vs. estimated workload-equivalent cloud cost" : "capex + one-time vs. current monthly cloud bill"} />
             <Row label="Residual value credit" value={`−${fmt(r.adj.resid)}`} sub={`${Math.round(residPct * 100)}% of systems + storage capex at horizon`} />
-            {r.cap.available !== false && r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} concurrent users`} sub={`${modelDisplay} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
+            {!r.isWorkloadMode && r.cap.available !== false && r.cap.fits && <Row label="Serving capacity (est.)" value={`~${r.cap.users.toLocaleString()} concurrent users`} sub={`${modelDisplay} @ ${quant} · rule-of-thumb estimate, not a sizing exercise`} />}
             {r.isWorkloadMode ? (
               <>
                 <Row label="Technical workload requirement" value={`${r.sysAdj} × ${ownSys}`} sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- ${gpuSizingBasis === "higher-growth" ? "user-selected higher-growth alternative" : "GPU Sizing recommended configuration"}; fleet size is duty-cycle-independent`} />
@@ -1562,8 +1562,10 @@ function AppInner() {
                   ["On-prem opex", `${fmt(r.adj.opex)}/mo`],
                   [`Cloud vs on-prem (${horizon}yr)`, `${fmt(t.cloud)} vs ${fmt(t.onAdj)}${r.isWorkloadMode ? ` (floor cloud: ${fmt(t.cloudFloor)})` : ""}`],
                   ["Savings (adjusted / floor)", `${fmt(t.saveAdj)} / ${fmt(t.saveFlr)}`],
-                  ["Model / quantization (capacity est.)", `${modelDisplay} / ${quant}`],
-                  ["Est. concurrent users", r.cap.fits ? r.cap.users.toLocaleString() : r.cap.available === false ? "unavailable — Rubin inference benchmark pending" : "model does not fit fleet"],
+                  ...(r.isWorkloadMode ? [] : [
+                    ["Model / quantization (capacity est.)", `${modelDisplay} / ${quant}`],
+                    ["Est. concurrent users", r.cap.fits ? r.cap.users.toLocaleString() : r.cap.available === false ? "unavailable — Rubin inference benchmark pending" : "model does not fit fleet"],
+                  ]),
                   ["Rate card overrides", editedCount > 0 ? Object.keys(ov).join(", ") : "none — all defaults"],
                   ...(r.isWorkloadMode ? [] : [["Spend/storage reconciliation", `${fmt(r.cloudStorage)}/mo implied vs ${fmt(r.storageBudget)}/mo non-compute budget — ${r.cloudStorage > r.storageBudget * 1.02 ? `OVERALLOCATED by ${fmt(r.cloudStorage - r.storageBudget)}` : "within tolerance"}`]]),
                   ["Crossover (cumulative) / static payback", `${r.crossoverMo ? `month ${r.crossoverMo}` : "none ≤60mo"} / ${r.payback ? r.payback.toFixed(0) + " mo" : "n/a"}`],
@@ -1875,7 +1877,7 @@ function AppInner() {
               verified={"perSysCost" in ov ? null : fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT)}
             />
             <AuditSourceRow label="Generational capability factor" value={`${r.genPF.toFixed(2)}×`} source={isRubinPhase1 ? "Held at 1.00×; qualifying absolute Rubin inference benchmark unavailable" : "MLPerf-derived benchmark ratio"} confidence={isRubinPhase1 ? "Conservative evidence gate" : "Directional -- workload-dependent"} />
-            {r.cap.available !== false && r.cap.fits && <AuditSourceRow label="Serving capacity estimate" value={`~${r.cap.users.toLocaleString()} users`} source="Rule-of-thumb sizing, not a benchmark" est />}
+            {!r.isWorkloadMode && r.cap.available !== false && r.cap.fits && <AuditSourceRow label="Serving capacity estimate" value={`~${r.cap.users.toLocaleString()} users`} source="Rule-of-thumb sizing, not a benchmark" est />}
             <div style={{ fontSize: 10.5, color: C.sub, marginTop: 12, lineHeight: 1.5 }}>
               All figures on this page are directional planning estimates derived from the inputs and rate card shown above, using the same calculation the main report already ran. They are intended to support scenario planning and internal decision-making, not to serve as a final quote or binding proposal. Confirm current pricing, technical specifications, and implementation timelines with your CDW account team before finalizing any purchase or budget decision.
             </div>

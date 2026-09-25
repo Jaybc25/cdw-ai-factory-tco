@@ -113,6 +113,24 @@ test("TCO workload growth consumes GPU Sizing headroom before buying another sys
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 
+
+test("TCO workload mode suppresses standalone serving-capacity estimates", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+  await page.goto(
+    "/tco?ownSys=DGX%20B200&gpuCount=8&gpuDemandCount=1&sourceClass=B200&workingDayHours=10&concurrentUsers=200&targetTokPerUser=30",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  await expect(page.getByText("Serving capacity (est.)", { exact: true })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
+  await expect(page.getByText("Serving capacity estimate", { exact: true })).toHaveCount(0);
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("TCO handoff persists ROI values and provenance after query consumption and reload", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
