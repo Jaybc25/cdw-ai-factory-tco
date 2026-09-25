@@ -2030,7 +2030,7 @@ function AppInner() {
             {[
               ["FLEET", `${r.sysAdj} sys`, r.fleetAdj[horizon - 1] > r.sysAdj ? `${Math.round(r.headroom * 100)}% headroom → ${r.fleetAdj[horizon - 1]} sys by yr ${horizon}` : `${Math.round(r.headroom * 100)}% headroom`],
               ["CAPEX + 1-TIME", fmtM(r.adj.capex + r.oneTime), `${fmtM(r.oneTime)} transition`],
-              ["CROSSOVER", r.crossoverMo ? `mo ${r.crossoverMo}` : "none ≤60mo", `static payback ${r.payback ? r.payback.toFixed(0) + "mo" : "n/a"} · ${t.onAdj > 0 ? Math.round((t.saveAdj / t.onAdj) * 100) : 0}% ROI`],
+              ["CROSSOVER", r.crossoverMo ? `mo ${r.crossoverMo}` : "none ≤60mo", `static payback ${r.payback ? r.payback.toFixed(0) + "mo" : "n/a"} · savings ${t.onAdj > 0 ? Math.round((t.saveAdj / t.onAdj) * 100) : 0}% of on-prem cost`],
             ].map(([k, v, s]) => (
               <div key={k} style={{ background: "#1F1F1F", borderRadius: 8, padding: "8px 10px" }}>
                 <div style={{ ...mono, fontSize: 9, letterSpacing: 1.2, color: "#ABABAB" }}>{k}</div>

@@ -131,6 +131,23 @@ test("TCO workload mode suppresses standalone serving-capacity estimates", async
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 
+
+test("TCO labels savings ratio distinctly from ROI", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+  await page.goto(
+    "/tco?ownSys=DGX%20B200&gpuCount=8&gpuDemandCount=1&sourceClass=B200&workingDayHours=10&concurrentUsers=200&targetTokPerUser=30",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  const bodyText = await page.locator("body").innerText();
+  expect(bodyText).toMatch(/savings\s+-?\d+% of on-prem cost/i);
+  expect(bodyText).not.toMatch(/static payback[^\n]*\bROI\b/i);
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("TCO handoff persists ROI values and provenance after query consumption and reload", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
