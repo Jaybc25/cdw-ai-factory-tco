@@ -144,6 +144,26 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 
 
 
+test("Inference Economics keeps Technical assumptions open while typing 0.5", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/inference-economics", { waitUntil: "domcontentloaded" });
+  const technicalAssumptions = page.locator("details").filter({ hasText: "Technical assumptions" }).first();
+  if (!(await technicalAssumptions.evaluate((element) => element.open))) {
+    await technicalAssumptions.locator("summary").click();
+  }
+
+  const servingFactorInput = technicalAssumptions.getByPlaceholder("Required for capacity check, e.g. 0.5");
+  await servingFactorInput.fill("");
+  await servingFactorInput.type("0.5");
+
+  expect(await servingFactorInput.inputValue()).toBe("0.5");
+  expect(await technicalAssumptions.evaluate((element) => element.open)).toBe(true);
+  await expect(servingFactorInput).toBeFocused();
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("Inference Economics uses customer-facing throughput wording and errors", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
