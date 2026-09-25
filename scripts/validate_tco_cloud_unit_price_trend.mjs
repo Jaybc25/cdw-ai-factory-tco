@@ -10,9 +10,9 @@ assert(close(cloudGpuUnitPriceFactor(5, 2), 1.1025), "+5% year 3 factor must com
 assert(close(cloudGpuUnitPriceFactor(-5, 2), 0.9025), "-5% year 3 factor must compound to 0.9025");
 assert(close(cloudGpuUnitPriceFactor(20, 1), 1.20), "+20% must mean +20%, not +2000%");
 
-// Workload growth and unit-price trend compound independently.
-assert(close(trendCloudGpuCompute(100, .25, -10, 1), 112.5), "25% workload growth with -10% unit-price trend must equal 112.5");
-assert(close(trendCloudGpuCompute(100, .25, 10, 1), 137.5), "25% workload growth with +10% unit-price trend must equal 137.5");
+// TCO uses a flat-demand baseline; unit-price trend remains an independent forward-looking price assumption.
+assert(close(trendCloudGpuCompute(100, 0, -10, 1), 90), "Flat demand with -10% unit-price trend must equal 90");
+assert(close(trendCloudGpuCompute(100, 0, 10, 1), 110), "Flat demand with +10% unit-price trend must equal 110");
 assert(close(trendCloudGpuCompute(100, .25, 5, 2), 172.265625), "+5% percentage-point input must compound correctly across three modeled years");
 
 const s=fs.readFileSync("src/TcoCalculator.jsx","utf8");
@@ -23,3 +23,6 @@ assert(s.includes("saved?.cloudUnitPriceTrend ?? 0"), "trend must persist with d
 assert(s.includes('min="-20" max="20" step="5"'), "UI trend control must remain percentage points");
 assert(s.includes("CLOUD GPU PRICE SENSITIVITY"), "production control must sit in calculator flow");
 console.log("TCO cloud unit-price trend PASS");
+
+assert(!s.includes('label="Annual compute growth"'), "TCO should not expose an annual workload-growth slider.");
+assert(s.includes('label="Cloud GPU unit-price trend"'), "Cloud GPU unit-price trend slider must remain available.");
