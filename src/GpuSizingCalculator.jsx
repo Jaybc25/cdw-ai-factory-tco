@@ -159,6 +159,20 @@ function getHigherGrowthSubtitle(higherGrowth) {
     : "Different deployable configuration with more total capacity for additional headroom";
 }
 
+function gpuClassDisplayLabel(id) {
+  if (id === "Auto-recommend") return "Auto-recommend";
+  if (id === "Rubin NVL8") return "NVIDIA DGX Rubin NVL8";
+  if (id === "Vera Rubin NVL72") return "NVIDIA DGX Vera Rubin NVL72";
+  return `NVIDIA ${id}`;
+}
+
+function gpuClassOptions(specs) {
+  return [
+    { value: "Auto-recommend", label: gpuClassDisplayLabel("Auto-recommend") },
+    ...specs.map((gpu) => ({ value: gpu.id, label: gpuClassDisplayLabel(gpu.id) })),
+  ];
+}
+
 function getHigherGrowthAuditText(higherGrowth, mode) {
   if (!higherGrowth?.class) return "none -- no valid node-rounded capacity step above the recommendation is available.";
   const capacityMetric = mode === "Inference" ? "throughput" : "training compute";
@@ -445,9 +459,10 @@ function Select({ value, onChange, options }) {
         className="w-full appearance-none border border-gray-300 rounded-lg px-3 py-2 pr-9 text-sm bg-white focus:outline-none focus:ring-2"
         style={{ "--tw-ring-color": RED }}
       >
-        {options.map((o) => (
-          <option key={o} value={o}>{o}</option>
-        ))}
+        {options.map((option) => {
+          const normalized = typeof option === "string" ? { value: option, label: option } : option;
+          return <option key={normalized.value} value={normalized.value}>{normalized.label}</option>;
+        })}
       </select>
       <ChevronDown className="w-4 h-4 absolute right-3 top-2.5 text-gray-400 pointer-events-none" />
     </div>
@@ -1468,7 +1483,7 @@ function GPUSizingCalculatorInner() {
                   </summary>
                   <div className="border-t border-gray-100 px-4 pt-4 pb-1">
                     <Field label="Quantization" tipKey="quant"><Select value={quant} onChange={setQuant} options={["FP16", "FP8", "FP4"]} /></Field>
-                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={["Auto-recommend", ...GPU_SPECS.map((g) => g.id)]} /></Field>
+                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={infGpuOverride} onChange={setInfGpuOverride} options={gpuClassOptions(GPU_SPECS)} /></Field>
                     <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
                       <strong>Rubin exact sizing:</strong> {RUBIN_INFERENCE_NAMES} are not selectable for benchmark-qualified GPU counts yet because a qualifying absolute per-GPU inference-throughput anchor is still unavailable. For rack-scale Blackwell results, the tool now surfaces Rubin separately as a provisional architecture-evaluation advisory without inventing a Rubin GPU count.
                     </div>
@@ -1505,7 +1520,7 @@ function GPUSizingCalculatorInner() {
                   </summary>
                   <div className="border-t border-gray-100 px-4 pt-4 pb-1">
                     <Field label="Precision" tipKey="precision"><Select value={precision} onChange={setPrecision} options={["BF16", "FP8"]} /></Field>
-                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={trainGpuOverride} onChange={setTrainGpuOverride} options={["Auto-recommend", ...TRAINING_GPU_SPECS.map((g) => g.id)]} /></Field>
+                    <Field label="GPU class" tipKey="infGpuOverride"><Select value={trainGpuOverride} onChange={setTrainGpuOverride} options={gpuClassOptions(TRAINING_GPU_SPECS)} /></Field>
                     <div className="mb-3 text-xs text-gray-500">Rubin training uses NVIDIA-published preliminary 288 GB HBM4, 4,000 BF16 TFLOPS, and 17,500 FP8/FP6 TFLOPS per GPU. The existing 40% MFU remains an explicit planning assumption and is not yet validated specifically on Rubin silicon.</div>
                   </div>
                 </details>
