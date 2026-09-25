@@ -194,9 +194,17 @@ test("TCO workload timing uses the same 250 active-days basis as Inference Econo
   );
   await page.waitForLoadState("networkidle").catch(() => {});
 
-  const bodyText = await page.locator("body").innerText();
-  expect(bodyText).toMatch(/10 hrs\/day × 250 active days\/year ÷ 12/i);
-  expect(bodyText).toMatch(/1,667 GPU-hrs\/mo/i);
+  await page.getByRole("button", { name: /Get the full report/i }).click();
+  const reportGate = page.getByRole("button", { name: "View my report" });
+  if (await reportGate.count()) {
+    await page.locator('input[placeholder="Full name"]:visible').fill("Test User");
+    await page.locator('input[placeholder="Company"]:visible').fill("CDW");
+    await page.locator('input[placeholder="Work email"]:visible').fill("test@example.com");
+    await reportGate.click();
+  }
+  const reportText = await page.locator("body").innerText();
+  expect(reportText).toMatch(/10 hrs\/day × 250 active days\/year ÷ 12/i);
+  expect(reportText).toMatch(/1,667 GPU-hrs\/mo/i);
 
   await page.goto("/inference-economics", { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle").catch(() => {});
