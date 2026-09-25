@@ -110,7 +110,7 @@ export default function InferenceEconomicsGuidedPreview() {
   const [attributableTcoUsd, setAttributableTcoUsd] = useState(handoff?.attributableTcoUsd ?? saved?.attributableTcoUsd ?? "");
   const [horizonYears, setHorizonYears] = useState(handoff?.horizonYears ?? saved?.horizonYears ?? 3);
   const [activeHoursPerDay, setActiveHoursPerDay] = useState(handoff?.activeHoursPerDay ?? saved?.activeHoursPerDay ?? 8);
-  const [activeDaysPerYear, setActiveDaysPerYear] = useState(saved?.activeDaysPerYear ?? 250);
+  const [activeDaysPerYear, setActiveDaysPerYear] = useState(handoff?.activeDaysPerYear ?? saved?.activeDaysPerYear ?? 250);
   const [productionServingFactor, setProductionServingFactor] = useState(saved?.productionServingFactor ?? "");
   const [technicalAssumptionsOpen, setTechnicalAssumptionsOpen] = useState(!(saved?.productionServingFactor ?? ""));
   const [demandGrowthRate, setDemandGrowthRate] = useState(handoff?.demandGrowthRate ?? saved?.demandGrowthRate ?? 0);
@@ -517,7 +517,7 @@ export default function InferenceEconomicsGuidedPreview() {
               <input style={input} type="number" min="1" max="24" value={activeHoursPerDay} onChange={(ev) => setActiveHoursPerDay(ev.target.value)} disabled={Boolean(handoff?.activeHoursPerDay)} />
             </Field>
             <Field label="Serving days per year" help="Days per year the service is expected to operate. The default is 250 active days/year, aligned with TCO's business-hours workload basis; change it for 24/7 or seasonal services.">
-              <input style={input} type="number" min="1" max="366" value={activeDaysPerYear} onChange={(ev) => setActiveDaysPerYear(ev.target.value)} />
+              <input style={input} type="number" min="1" max="366" value={activeDaysPerYear} onChange={(ev) => setActiveDaysPerYear(ev.target.value)} disabled={Boolean(handoff?.activeDaysPerYear)} />
             </Field>
           </div>
         </details>
