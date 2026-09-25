@@ -1153,12 +1153,19 @@ function GPUSizingCalculatorInner() {
           <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}</div>
           <div className="text-xs text-gray-500 mb-6">{new Date().toLocaleDateString()} &middot; {mode} sizing &middot; {modelLabel}</div>
           <div className="mb-6"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2">{result.confidence.note}</p></div>
-          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Recommended configuration</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{effectiveTcoSelection === "higher-growth" ? "Selected configuration for TCO" : "Recommended configuration"}</div>
           <div className="flex flex-wrap gap-3 mb-6">
             <ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" />
-            <ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent />
+            <ResultCard
+              icon={effectiveTcoSelection === "higher-growth" ? TrendingUp : Zap}
+              title={effectiveTcoSelection === "higher-growth" ? "Selected for TCO · Higher-growth" : "Recommended"}
+              gpuClass={tcoSelectedClass}
+              gpus={tcoSelectedCount}
+              subtitle={effectiveTcoSelection === "higher-growth" ? getHigherGrowthSubtitle(result.higherGrowth) : "Node-rounded for production"}
+              accent
+            />
           </div>
-          <BudgetPanel budget={result.budget} />
+          <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
 {mode === "Inference" && result.rubinAdvisory && (
   <div className="mb-6 rounded-xl p-4 border border-amber-300 bg-amber-50 text-xs text-amber-900">
     <div className="font-bold uppercase tracking-wide mb-1">Rubin architecture evaluation recommended · PROVISIONAL</div>
@@ -1322,7 +1329,19 @@ function GPUSizingCalculatorInner() {
 
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. Node Rounding, Budget &amp; Alternatives</div>
           <AuditFormula label="Recommended (node-rounded) configuration" formula="recommended = CEILING(minTechnical ÷ nodeSize) × nodeSize" substituted={`= CEILING(${result.minTechnical} ÷ ${result.selectedNodeSize}) × ${result.selectedNodeSize}`} result={`${result.recommended} × ${result.selectedClass}`} />
-          <AuditFormula label="Loaded system budget" formula="budget = recommended × loadedCostPerGPU" substituted={`= ${result.recommended} × ${result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount / result.recommended) : "—"}/GPU`} result={result.budget.recommended ? fmtUsdPrecise(result.budget.recommended.amount) : isRubinClass(result.selectedClass) ? "See Phase 1 TCO" : "—"} />
+          <AuditRow label="TCO selection basis" value={effectiveTcoSelection === "higher-growth" ? "User-selected higher-growth alternative" : "Recommended configuration"} />
+          <AuditFormula
+            label="Selected configuration for TCO"
+            formula={effectiveTcoSelection === "higher-growth" ? "selected = higher-growth deployment chosen by the user" : "selected = recommended node-rounded configuration"}
+            substituted={effectiveTcoSelection === "higher-growth" ? getHigherGrowthAuditText(result.higherGrowth, mode) : `${result.recommended} × ${result.selectedClass}`}
+            result={`${tcoSelectedCount} × ${tcoSelectedClass}`}
+          />
+          <AuditFormula
+            label="Selected loaded system budget"
+            formula="budget = selectedGpuCount × loadedCostPerGPU"
+            substituted={`= ${tcoSelectedCount} × ${selectedBudget ? fmtUsdPrecise(selectedBudget.amount / tcoSelectedCount) : "—"}/GPU`}
+            result={selectedBudget ? fmtUsdPrecise(selectedBudget.amount) : isRubinClass(tcoSelectedClass) ? "See Phase 1 TCO" : "—"}
+          />
           <div className="text-xs text-gray-500 mb-2 mt-2"><b>Lower-cost alternative:</b> {result.lowerCost.class ? `${result.lowerCost.class}, the cheapest other class in the catalog that is genuinely cheaper as a deployed (node-rounded) solution than the recommendation.` : "none -- the recommendation is already the cheapest deployed option in the current catalog or the selected class does not yet have loaded-cost economics."}</div>
           <div className="text-xs text-gray-500 mb-4"><b>Higher-growth alternative:</b> {getHigherGrowthAuditText(result.higherGrowth, mode)}</div>
 
@@ -1339,6 +1358,18 @@ function GPUSizingCalculatorInner() {
                 <ReconCheck label="Minimum technical requirement" parts={mode === "Inference" ? [{ label: "Memory-bound GPUs", value: selected.gpusMem.toLocaleString() }, { label: "Performance-bound GPUs", value: selected.gpusPerf.toLocaleString() }] : [{ label: "GPUs to fit the model", value: selected.gpusFit.toLocaleString() }, { label: "GPUs to hit the time target", value: selected.gpusTime.toLocaleString() }]} calculated={minTechCalc} engineValue={result.minTechnical} format="count" />
                 <ReconCheck label="Recommended (node-rounded) count" parts={[{ label: "Minimum technical requirement", value: result.minTechnical.toLocaleString() }, { label: `Node size (${result.selectedClass})`, value: result.selectedNodeSize.toLocaleString() }]} calculated={recommendedCalc} engineValue={result.recommended} format="count" />
                 <ReconCheck label="Loaded system budget" parts={[{ label: "Recommended GPU count", value: result.recommended.toLocaleString() }, { label: `Catalog price per GPU (${result.selectedClass})`, value: unitPrice != null ? fmtUsdPrecise(unitPrice) : isRubinClass(result.selectedClass) ? "System-level Phase 1 TCO" : "—" }]} calculated={budgetCalc} engineValue={result.budget.recommended ? result.budget.recommended.amount : null} format="currency" />
+                {selectedBudget && (
+                  <ReconCheck
+                    label="Selected-for-TCO budget"
+                    parts={[
+                      { label: "Selected GPU count", value: tcoSelectedCount.toLocaleString() },
+                      { label: `Catalog price per GPU (${tcoSelectedClass})`, value: fmtUsdPrecise(selectedBudget.amount / tcoSelectedCount) },
+                    ]}
+                    calculated={tcoSelectedCount * (selectedBudget.amount / tcoSelectedCount)}
+                    engineValue={selectedBudget.amount}
+                    format="currency"
+                  />
+                )}
               </>
             );
           })()}

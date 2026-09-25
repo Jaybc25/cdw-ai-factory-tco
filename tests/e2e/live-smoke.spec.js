@@ -65,6 +65,45 @@ test("landing page exposes all six customer-journey tools", async ({ page }) => 
   }
 });
 
+
+test("GPU Sizing report and audit honor the Higher-growth selection", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  const higherGrowthButton = page.getByRole("button").filter({ hasText: "Higher-growth alternative" });
+  await expect(higherGrowthButton).toHaveCount(1);
+  const higherGrowthText = await higherGrowthButton.innerText();
+  const countMatch = higherGrowthText.match(/(\d[\d,]*)\s+GPUs?/i);
+  expect(countMatch).not.toBeNull();
+  const selectedCount = countMatch[1].replace(/,/g, "");
+  await higherGrowthButton.click();
+  await expect(higherGrowthButton).toHaveAttribute("aria-pressed", "true");
+
+  await page.getByRole("button", { name: "Get the full sizing report" }).click();
+  if (await page.getByRole("button", { name: "View my report" }).count()) {
+    await page.locator('input[placeholder="Full name"]:visible').fill("Test User");
+    await page.locator('input[placeholder="Company"]:visible').fill("CDW");
+    await page.locator('input[placeholder="Work email"]:visible').fill("test@example.com");
+    await page.getByRole("button", { name: "View my report" }).click();
+  }
+  const reportText = await page.locator("body").innerText();
+  expect(reportText).toMatch(/Selected configuration for TCO/i);
+  expect(reportText).toContain("SELECTED FOR TCO · HIGHER-GROWTH");
+  expect(reportText).toMatch(new RegExp(`\\b${selectedCount}\\s+GPUs?\\b`, "i"));
+
+  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
+  const auditText = await page.locator("body").innerText();
+  expect(auditText).toContain("TCO selection basis");
+  expect(auditText).toContain("User-selected higher-growth alternative");
+  expect(auditText).toContain("Selected configuration for TCO");
+  expect(auditText).toContain("Selected loaded system budget");
+  expect(auditText).toContain("Selected-for-TCO budget");
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("GPU Sizing handoff persists TCO workload anchor after query consumption and reload", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
