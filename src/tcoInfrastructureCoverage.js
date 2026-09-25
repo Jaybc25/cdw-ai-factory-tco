@@ -98,7 +98,7 @@ export function getTcoInfrastructureCoverage({
       ? "Storage capacity is an explicit workload assumption."
       : "Storage capacity is not derived from GPU count, model size, or training tokens; the current values are planning inputs that must be confirmed or edited for this workload.",
     architectureNote: isRubinPhase1
-      ? "Rubin Phase 1 still excludes quoted high-density infrastructure; confirm rack, cooling, power distribution, fabric, installation, software, and facility costs in a project-specific design before client use."
+      ? "Rubin planning TCO excludes quoted high-density infrastructure; confirm rack, cooling, power distribution, fabric, installation, software, and facility costs in a project-specific design and quote."
       : isRackScaleSystem && highDensityReviewConfirmed
       ? "User-reported quote/coverage review recorded for these inputs. The tool has not verified the reference or reconciled its costs; the modeled delta remains directional pending project-specific validation."
       : isRackScaleSystem && !highDensityReviewConfirmed
