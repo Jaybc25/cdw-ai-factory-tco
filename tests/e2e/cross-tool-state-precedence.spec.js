@@ -194,6 +194,45 @@ test("fresh Model Advisor handoff updates the active GPU sizing model and supers
   await expect(page.getByText(/Model Advisor recommended Meta Muse Glimmer 30B.*currently sizing Gemma 3 27B/i)).toBeVisible();
 });
 
+test("pending Model Advisor recommendation survives refresh before visiting the other sizing mode", async ({ page }) => {
+  await seedSession(page, "/gpu-sizing", KEYS.gpu, {
+    mode: "Training",
+    infModelId: "deepseek-r1",
+    trainModelId: "llama-3.1-70b",
+    modelAdvisorRecommendedId: null,
+  });
+
+  await page.goto("/gpu-sizing?model=muse-glimmer-30b", { waitUntil: "domcontentloaded" });
+
+  let saved = await waitForSession(page, KEYS.gpu, {
+    mode: "Training",
+    trainModelId: "muse-glimmer-30b",
+    modelAdvisorRecommendedId: "muse-glimmer-30b",
+  });
+  expect(saved.infModelId).toBe("deepseek-r1");
+  expect(saved.advisorAppliedModes).toEqual({ Inference: false, Training: true });
+  expect(new URL(page.url()).search).toBe("");
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+
+  saved = await waitForSession(page, KEYS.gpu, {
+    mode: "Training",
+    trainModelId: "muse-glimmer-30b",
+    modelAdvisorRecommendedId: "muse-glimmer-30b",
+  });
+  expect(saved.infModelId).toBe("deepseek-r1");
+  expect(saved.advisorAppliedModes).toEqual({ Inference: false, Training: true });
+
+  await page.getByRole("button", { name: "Inference sizing" }).click();
+
+  saved = await waitForSession(page, KEYS.gpu, {
+    mode: "Inference",
+    infModelId: "muse-glimmer-30b",
+    modelAdvisorRecommendedId: "muse-glimmer-30b",
+  });
+  expect(saved.advisorAppliedModes).toEqual({ Inference: true, Training: true });
+});
+
 test("fresh TCO handoff replaces ROI investment costs and provenance while preserving ROI business assumptions", async ({ page }) => {
   await seedSession(page, "/roi", KEYS.roi, {
     arrivedFromTco: true,
