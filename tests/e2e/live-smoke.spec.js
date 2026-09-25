@@ -141,6 +141,29 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 
 
 
+
+test("Model Advisor distinguishes enforced governance from planning-only inputs", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/model-advisor", { waitUntil: "domcontentloaded" });
+  await page.getByText("Deployment requirements", { exact: true }).click();
+
+  const governanceField = page.locator("label").filter({ hasText: "Governance / origin restriction" }).first();
+  const governanceSelect = governanceField.locator("select");
+  await expect(governanceSelect).toBeVisible();
+  await governanceSelect.selectOption("approved-vendor-families");
+
+  const sensitivityField = page.locator("label").filter({ hasText: "Data sensitivity (planning only)" }).first();
+  await expect(sensitivityField).toBeVisible();
+
+  await page.getByRole("button", { name: /Calculation methodology|Audit trail|How this works/i }).click().catch(() => {});
+  const bodyText = await page.locator("body").innerText();
+  expect(bodyText).toMatch(/Approved vendor families \(planning only\)/i);
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("Model Advisor text-only requirement does not exclude multimodal-capable models", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
