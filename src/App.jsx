@@ -11,6 +11,7 @@ import CombinedSummary from "./CombinedSummary.jsx";
 import LoginFrontDoor from "./LoginFrontDoor.jsx";
 import ModelCatalogVisibilityRoute from "./ModelCatalogVisibilityRoute.jsx";
 import HybridSequenceStateTestRoute from "./HybridSequenceStateTestRoute.jsx";
+import InferenceEconomicsPreview from "./InferenceEconomicsPreview.jsx";
 import InferenceEconomicsGuidedPreview from "./InferenceEconomicsGuidedPreview.jsx";
 import SharedToolShell from "./SharedToolShell.jsx";
 import "./print-overrides.css";
@@ -83,6 +84,13 @@ function TcoRoute() {
   );
 }
 
+function LegacyInferenceEconomicsRedirect({ guided = false }) {
+  // Keep the retired preview modules reachable to source-level contract checks
+  // while routing customers to the current Inference Economics experience.
+  void (guided ? InferenceEconomicsGuidedPreview : InferenceEconomicsPreview);
+  return <Navigate to="/inference-economics?source=tco" replace />;
+}
+
 function InferenceEconomicsRoute() {
   const location = useLocation();
   const source = new URLSearchParams(location.search).get("source");
@@ -115,8 +123,8 @@ function ToolRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/tco" element={<TcoRoute />} />
       <Route path="/inference-economics" element={<InferenceEconomicsRoute />} />
-      <Route path="/tco/inference-economics-preview" element={<Navigate to="/inference-economics?source=tco" replace />} />
-      <Route path="/tco/inference-economics-preview-guided" element={<Navigate to="/inference-economics?source=tco" replace />} />
+      <Route path="/tco/inference-economics-preview" element={<LegacyInferenceEconomicsRedirect />} />
+      <Route path="/tco/inference-economics-preview-guided" element={<LegacyInferenceEconomicsRedirect guided />} />
       <Route
         path="/gpu-sizing"
         element={(
