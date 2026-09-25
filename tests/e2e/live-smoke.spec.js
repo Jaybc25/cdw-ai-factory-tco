@@ -137,6 +137,25 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 });
 
 
+
+test("B200 memory is consistent between GPU Sizing and TCO", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle").catch(() => {});
+  const gpuSizingText = await page.locator("body").innerText();
+  expect(gpuSizingText).toMatch(/B200/);
+
+  await page.goto("/tco?ownSys=DGX%20B200&gpuCount=8&sourceClass=B200", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle").catch(() => {});
+  await page.getByRole("button", { name: /Performance factors|Capacity/i }).count().catch(() => 0);
+  const tcoText = await page.locator("body").innerText();
+  expect(tcoText).not.toMatch(/DGX B200 \(192 GB\/GPU/i);
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("TCO workload growth consumes GPU Sizing headroom before buying another system", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
