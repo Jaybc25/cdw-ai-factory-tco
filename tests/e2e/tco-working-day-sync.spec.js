@@ -72,6 +72,6 @@ test("24-hour duty cycle does not say not 24/7", async ({ page }) => {
     await reportGate.click();
   }
 
-  await expect(page.getByText("24 hrs/day × 250 active days/year ÷ 12; aligned with Inference Economics default", { exact: true })).toBeVisible();
+  await expect(page.getByText("24 hrs/day × 365 active days/year ÷ 12; aligned with Inference Economics", { exact: true })).toBeVisible();
   await expect(page.getByText(/full-day operation/i)).toHaveCount(0);
 });
