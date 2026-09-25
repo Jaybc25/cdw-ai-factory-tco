@@ -54,9 +54,9 @@ function buildHandoffLinks(bp) {
   if (primaryValue) modelAdvisorParams.set("primary", primaryValue);
   if (row.modelAdvisorMultimodal) modelAdvisorParams.set("multimodal", row.modelAdvisorMultimodal);
 
-  const gpuSizingParams = new URLSearchParams({ sourceUseCase: row.id });
+  const gpuSizingParams = new URLSearchParams({ sourceUseCase: row.id, routingClass: row.routingClass });
   if (row.gpuWorkloadType) gpuSizingParams.set("workloadType", row.gpuWorkloadType);
-  if (row.workloadFamily === "Specialized Science" || row.gpuWorkloadType === "model-training") {
+  if (row.gpuWorkloadType === "model-training") {
     gpuSizingParams.set("mode", "Training");
   }
 

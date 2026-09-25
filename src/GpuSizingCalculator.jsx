@@ -822,6 +822,13 @@ function getInitialWorkloadType() {
   return params?.get("workloadType") || null;
 }
 
+function getInitialRoutingClass() {
+  const raw = getIncomingParams()?.get("routingClass");
+  return ["general-model-selection", "infrastructure-first", "specialized-stack", "platform-architecture"].includes(raw)
+    ? raw
+    : null;
+}
+
 function getInitialInfModel() {
   const params = getIncomingParams();
   const modelId = params?.get("model");
@@ -899,10 +906,11 @@ function GPUSizingCalculatorInner() {
     if (incomingModelId) return freshSourceUseCase;
     return freshSourceUseCase ?? saved?.sourceUseCase ?? null;
   });
-  const [incomingWorkloadType] = useState(getInitialWorkloadType);
+  const [incomingWorkloadType] = useState(() => getInitialWorkloadType() ?? saved?.incomingWorkloadType ?? null);
+  const [incomingRoutingClass] = useState(() => getInitialRoutingClass() ?? saved?.incomingRoutingClass ?? null);
 
   useEffect(() => {
-    if ((sourceUseCase || incomingWorkloadType || incomingModelId) && typeof window !== "undefined") {
+    if ((sourceUseCase || incomingWorkloadType || incomingRoutingClass || incomingModelId) && typeof window !== "undefined") {
       window.history.replaceState(null, "", window.location.pathname);
     }
   }, []);
@@ -958,13 +966,15 @@ function GPUSizingCalculatorInner() {
       customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
       trainModelId: trainModel.id, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,
       sourceUseCase,
+      incomingWorkloadType,
+      incomingRoutingClass,
       modelAdvisorRecommendedId,
     });
   }, [mode, pathLevel, infModel, quant, concurrentUsers, targetTokPerUser, environment,
       avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,
       customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
       trainModel, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,
-      sourceUseCase, modelAdvisorRecommendedId]);
+      sourceUseCase, incomingWorkloadType, incomingRoutingClass, modelAdvisorRecommendedId]);
 
   const infInputs = {
     model: infModel,
@@ -1419,7 +1429,7 @@ function GPUSizingCalculatorInner() {
               if (activeModel.id === recommendedModel.id) return <>Model pre-set to <strong>{recommendedModel.label}</strong>, carried over from Model Advisor. Adjust anything below to refine the estimate.</>;
               return <>Model Advisor recommended <strong>{recommendedModel.label}</strong>; you're currently sizing <strong>{activeModel.label}</strong> after an adjustment in GPU Sizing.</>;
             })()}
-            {sourceUseCase && <>Arrived from Use Case Explorer ({sourceUseCase}).{" "}{incomingWorkloadType && /simulation|molecular|genomics|geospatial|vision|avatar|analytics-acceleration|scanning|pipeline|optimization|mlops|serving|governance|rendering/.test(incomingWorkloadType) ? <>This workload type ({incomingWorkloadType}) isn't fully represented in this calculator yet -- it's scoped for LLM inference and training today. Use the numbers below as a rough compute-scale reference, and confirm with a CDW AI Factory specialist for this workload.</> : <>Mode pre-set to <strong>{mode}</strong> based on that use case. Adjust anything below to refine the estimate.</>}</>}
+            {sourceUseCase && <>Arrived from Use Case Explorer ({sourceUseCase}).{" "}{incomingRoutingClass === "infrastructure-first" || incomingRoutingClass === "specialized-stack" ? <>This workload type{incomingWorkloadType ? <> (<strong>{incomingWorkloadType}</strong>)</> : null} isn't fully represented in this calculator yet -- GPU Sizing is currently calibrated for LLM inference and training. Use the numbers below as a directional compute-scale reference, and confirm the specialized architecture with a CDW AI Factory specialist.</> : <>Mode pre-set to <strong>{mode}</strong> based on that use case. Adjust anything below to refine the estimate.</>}</>}
           </div>
         )}
         <div className="flex gap-2 mb-6">{["Inference", "Training"].map((m) => (<button key={m} onClick={() => setMode(m)} className="px-5 py-2 rounded-lg text-sm font-bold transition-colors" style={mode === m ? { background: RED, color: "white" } : { background: "#F2F2F2", color: CHARCOAL }}>{m === "Inference" ? "Inference sizing" : "Training / fine-tuning sizing"}</button>))}</div>
