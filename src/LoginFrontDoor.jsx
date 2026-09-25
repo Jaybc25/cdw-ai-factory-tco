@@ -24,6 +24,7 @@ const TOOL_CARDS = [
   { Icon: Layers3, name: "Open-Weight Model Advisor", desc: "Recommend open-weight models by workload, then hand off to GPU sizing." },
   { Icon: Cpu, name: "GPU Sizing Tool", desc: "Right-size GPU class, count, and cluster shape for a target workload." },
   { Icon: Cloud, name: "Cloud vs On-Prem TCO Calculator", desc: "Translate cloud AI spend into on-prem infrastructure cost and payback." },
+  { Icon: Target, name: "Inference Economics", desc: "Compare effective private-AI inference cost per 1M output tokens with managed-API pricing." },
   { Icon: BarChart3, name: "AI Use Case ROI Calculator", desc: "Translate workload acceleration into capacity created and economic value." },
   { Icon: CheckSquare, name: "AI Readiness Checklists", desc: "Work through what data, security, and infrastructure need before deployment." },
 ];
@@ -146,7 +147,7 @@ function LoginFrontDoorInner({ children }) {
         .afd-tools-section{height:218px;border-top:1px solid #E3E6E9;padding:14px 0 18px;background:#fff}
         .afd-tools-heading{display:flex;align-items:center;gap:20px;color:#69717C;font-size:10.5px;letter-spacing:.29em;font-weight:750;text-transform:uppercase;margin-bottom:13px}
         .afd-tools-heading:before,.afd-tools-heading:after{content:"";height:1px;background:#D9DDE1;flex:1}
-        .afd-tools{display:grid;grid-template-columns:repeat(6,1fr);gap:14px}
+        .afd-tools{display:grid;grid-template-columns:repeat(7,1fr);gap:12px}
         .afd-tool{min-height:158px;border-radius:10px;background:linear-gradient(180deg,#FBFBFC,#F7F8F9);padding:11px 9px 9px;text-align:center;color:#20242B}
         .afd-tool-icon{width:39px;height:39px;margin:0 auto 7px;border-radius:10px;background:#FFF0F0;color:var(--red);display:flex;align-items:center;justify-content:center}
         .afd-tool-icon svg{width:23px;height:23px;stroke-width:2}
@@ -224,7 +225,7 @@ function LoginFrontDoorInner({ children }) {
         </main>
 
         <section className="afd-tools-section" aria-label="AI Factory tools">
-          <div className="afd-tools-heading">Six tools. End-to-end clarity.</div>
+          <div className="afd-tools-heading">Seven tools. End-to-end clarity.</div>
           <div className="afd-tools">
             {TOOL_CARDS.map(({ Icon, name: toolName, desc }) => (
               <div className="afd-tool" key={toolName}>

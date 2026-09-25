@@ -132,7 +132,7 @@ function CombinedSummaryInner() {
         {!authLoading && !isLoggedIn && (
           <div style={{ textAlign: "center", padding: "48px 0", color: GRAY_TEXT }}>
             <p style={{ fontSize: 15, marginBottom: 4 }}>Sign in above to view your combined summary.</p>
-            <p style={{ fontSize: 13 }}>This pulls together everything you've worked on across the AI Factory tools, no need to remember which ones you already downloaded a report from.</p>
+            <p style={{ fontSize: 13 }}>This pulls together the latest saved results from the five snapshot-backed AI Factory tools included in My Summary. Inference Economics and Use Case Explorer are not included in this summary.</p>
           </div>
         )}
 
@@ -149,7 +149,7 @@ function CombinedSummaryInner() {
         {isLoggedIn && !needsSetup && !loadingSnapshots && ordered.length === 0 && (
           <div style={{ textAlign: "center", padding: "48px 0", color: GRAY_TEXT }}>
             <p style={{ fontSize: 15, marginBottom: 4 }}>Nothing to summarize yet.</p>
-            <p style={{ fontSize: 13 }}>Visit any AI Factory tool and start adjusting inputs, your progress saves automatically and shows up here.</p>
+            <p style={{ fontSize: 13 }}>Run one of the five snapshot-backed tools included in My Summary and your latest saved result will appear here.</p>
           </div>
         )}
 
