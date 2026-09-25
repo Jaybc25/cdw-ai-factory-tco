@@ -101,7 +101,8 @@ function checkContext(model, requirement) {
 }
 
 function checkModality(model, requirement) {
-  if (requirement === "text-only") return model.modality === "text" ? "PASS" : "FAIL";
+  // "text-only" describes the user's input requirement, not a restriction on model capability.
+  // Multimodal models can still satisfy text-only workloads; only image+text requires multimodal support.
   if (requirement === "image-text") return model.modality === "multimodal" ? "PASS" : "FAIL";
   return "PASS";
 }

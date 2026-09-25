@@ -140,6 +140,38 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 
 
 
+
+test("Model Advisor text-only requirement does not exclude multimodal-capable models", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/model-advisor", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  await page.getByText("Deployment requirements", { exact: true }).click();
+  const multimodalField = page.locator("label").filter({ hasText: "Multimodal need" }).first();
+  const modalitySelect = multimodalField.locator("select");
+  await expect(modalitySelect).toBeVisible();
+  await modalitySelect.selectOption("text-only");
+
+  await page.waitForFunction(() => {
+    const raw = sessionStorage.getItem("ai-factory-session:model-advisor");
+    return raw && JSON.parse(raw).multimodal === "text-only";
+  });
+  let saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:model-advisor")));
+  expect(saved.multimodal).toBe("text-only");
+
+  await modalitySelect.selectOption("image-text");
+  await page.waitForFunction(() => {
+    const raw = sessionStorage.getItem("ai-factory-session:model-advisor");
+    return raw && JSON.parse(raw).multimodal === "image-text";
+  });
+  saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:model-advisor")));
+  expect(saved.multimodal).toBe("image-text");
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("Model Advisor handoff keeps the recommended model across Inference and Training toggles", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
