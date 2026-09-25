@@ -164,6 +164,24 @@ test("Inference Economics uses customer-facing throughput wording and errors", a
 
 
 
+
+test("mobile form controls avoid iOS focus zoom sizing", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+  const select = page.locator("select").first();
+  await expect(select).toBeVisible();
+  expect(parseFloat(await select.evaluate((el) => getComputedStyle(el).fontSize))).toBeGreaterThanOrEqual(16);
+});
+
+test("Use Case Explorer fits a 320px viewport without horizontal overflow", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto("/use-cases", { waitUntil: "domcontentloaded" });
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
 test("GPU class selectors show customer-friendly labels while preserving values", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
