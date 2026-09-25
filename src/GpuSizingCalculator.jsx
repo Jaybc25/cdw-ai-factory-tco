@@ -925,7 +925,7 @@ function GPUSizingCalculatorInner() {
     return saved?.modelAdvisorRecommendedId ?? null;
   });
   const [infModel, setInfModel] = useState(() => {
-    if (incomingModelId) return modelHandoff.model;
+    if (incomingModelId && mode === "Inference") return modelHandoff.model;
     return getModelById(saved?.infModelId) || modelHandoff.model;
   });
   const [quant, setQuant] = useState(saved?.quant ?? "FP8");
@@ -944,7 +944,7 @@ function GPUSizingCalculatorInner() {
   const [workingDayHours, setWorkingDayHours] = useState(saved?.workingDayHours ?? 10);
 
   const [trainModel, setTrainModel] = useState(() => {
-    if (incomingModelId) return modelHandoff.model;
+    if (incomingModelId && mode === "Training") return modelHandoff.model;
     return getModelById(saved?.trainModelId) || getDefaultModel();
   });
   const [taskType, setTaskType] = useState(saved?.taskType ?? "Full fine-tune");
@@ -953,6 +953,20 @@ function GPUSizingCalculatorInner() {
   const [targetDays, setTargetDays] = useState(saved?.targetDays ?? 14);
   const [mfu, setMfu] = useState(saved?.mfu ?? 0.4);
   const [trainGpuOverride, setTrainGpuOverride] = useState(saved?.trainGpuOverride ?? "Auto-recommend");
+  const [advisorAppliedModes, setAdvisorAppliedModes] = useState(() => ({
+    Inference: !incomingModelId || mode === "Inference",
+    Training: !incomingModelId || mode === "Training",
+  }));
+
+  function changeMode(nextMode) {
+    if (nextMode === mode) return;
+    if (incomingModelId && !advisorAppliedModes[nextMode] && modelHandoff.matched) {
+      if (nextMode === "Inference") setInfModel(modelHandoff.model);
+      else setTrainModel(modelHandoff.model);
+      setAdvisorAppliedModes((prev) => ({ ...prev, [nextMode]: true }));
+    }
+    setMode(nextMode);
+  }
 
   const [view, setView] = useState("calc");
   const [lead, setLead] = useState({ name: "", company: "", email: "" });
@@ -1432,7 +1446,7 @@ function GPUSizingCalculatorInner() {
             {sourceUseCase && <>Arrived from Use Case Explorer ({sourceUseCase}).{" "}{incomingRoutingClass === "infrastructure-first" || incomingRoutingClass === "specialized-stack" ? <>This workload type{incomingWorkloadType ? <> (<strong>{incomingWorkloadType}</strong>)</> : null} isn't fully represented in this calculator yet -- GPU Sizing is currently calibrated for LLM inference and training. Use the numbers below as a directional compute-scale reference, and confirm the specialized architecture with a CDW AI Factory specialist.</> : <>Mode pre-set to <strong>{mode}</strong> based on that use case. Adjust anything below to refine the estimate.</>}</>}
           </div>
         )}
-        <div className="flex gap-2 mb-6">{["Inference", "Training"].map((m) => (<button key={m} onClick={() => setMode(m)} className="px-5 py-2 rounded-lg text-sm font-bold transition-colors" style={mode === m ? { background: RED, color: "white" } : { background: "#F2F2F2", color: CHARCOAL }}>{m === "Inference" ? "Inference sizing" : "Training / fine-tuning sizing"}</button>))}</div>
+        <div className="flex gap-2 mb-6">{["Inference", "Training"].map((m) => (<button key={m} onClick={() => changeMode(m)} className="px-5 py-2 rounded-lg text-sm font-bold transition-colors" style={mode === m ? { background: RED, color: "white" } : { background: "#F2F2F2", color: CHARCOAL }}>{m === "Inference" ? "Inference sizing" : "Training / fine-tuning sizing"}</button>))}</div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div>
             <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: RED }}>Workload requirements</div>
