@@ -485,7 +485,7 @@ export default function InferenceEconomicsGuidedPreview() {
             <Field label="Serving hours per day" help="Hours per day this workload is expected to accept production demand.">
               <input style={input} type="number" min="1" max="24" value={activeHoursPerDay} onChange={(ev) => setActiveHoursPerDay(ev.target.value)} disabled={Boolean(handoff?.activeHoursPerDay)} />
             </Field>
-            <Field label="Serving days per year" help="Days per year the service is expected to operate.">
+            <Field label="Serving days per year" help="Days per year the service is expected to operate. The default is 250 active days/year, aligned with TCO's business-hours workload basis; change it for 24/7 or seasonal services.">
               <input style={input} type="number" min="1" max="366" value={activeDaysPerYear} onChange={(ev) => setActiveDaysPerYear(ev.target.value)} />
             </Field>
           </div>
