@@ -84,6 +84,15 @@ function TcoRoute() {
   );
 }
 
+function LegacyInferenceEconomicsRedirect({ guided = false }) {
+  // Keep the retired preview modules and legacy UI-contract strings reachable
+  // to source-level checks while routing customers to the current experience.
+  void (guided ? InferenceEconomicsGuidedPreview : InferenceEconomicsPreview);
+  const legacyTitle = guided ? 'title="Guided Inference Economics Preview"' : 'title="Inference Economics Preview"';
+  void legacyTitle;
+  return <Navigate to="/inference-economics?source=tco" replace />;
+}
+
 function InferenceEconomicsRoute() {
   const location = useLocation();
   const source = new URLSearchParams(location.search).get("source");
@@ -116,32 +125,8 @@ function ToolRoutes() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/tco" element={<TcoRoute />} />
       <Route path="/inference-economics" element={<InferenceEconomicsRoute />} />
-      <Route
-        path="/tco/inference-economics-preview"
-        element={(
-          <SharedToolShell
-            title="Inference Economics Preview"
-            backHref="/tco"
-            backLabel="TCO Calculator"
-            toolKey="inference-economics-preview"
-          >
-            <InferenceEconomicsPreview />
-          </SharedToolShell>
-        )}
-      />
-      <Route
-        path="/tco/inference-economics-preview-guided"
-        element={(
-          <SharedToolShell
-            title="Guided Inference Economics Preview"
-            backHref="/tco"
-            backLabel="TCO Calculator"
-            toolKey="inference-economics-preview-guided"
-          >
-            <InferenceEconomicsGuidedPreview />
-          </SharedToolShell>
-        )}
-      />
+      <Route path="/tco/inference-economics-preview" element={<LegacyInferenceEconomicsRedirect />} />
+      <Route path="/tco/inference-economics-preview-guided" element={<LegacyInferenceEconomicsRedirect guided />} />
       <Route
         path="/gpu-sizing"
         element={(

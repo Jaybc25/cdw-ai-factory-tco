@@ -142,6 +142,19 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 
 
 
+
+test("legacy Inference Economics preview routes redirect to the current tool", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  for (const path of [
+    "/tco/inference-economics-preview",
+    "/tco/inference-economics-preview-guided",
+  ]) {
+    await page.goto(path, { waitUntil: "domcontentloaded" });
+    await page.waitForURL(/\/inference-economics\?source=tco$/);
+    expect(new URL(page.url()).pathname).toBe("/inference-economics");
+  }
+});
+
 test("Model Advisor distinguishes enforced governance from planning-only inputs", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);

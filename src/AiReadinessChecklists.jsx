@@ -525,7 +525,7 @@ function AiReadinessChecklistsInner() {
                         These checklists record what you tell them and organize the gaps. They don't certify, validate, or verify anything,
                         and they aren't legal or compliance advice — the teams named on each question determine what applies to your organization.
                       </p>
-                      <p style={{ margin: 0 }}>CDW AI Factory · Draft for internal, seller-assisted use · Content version {checklistData.content_version}</p>
+                      <p style={{ margin: 0 }}>CDW AI Factory · Readiness planning checklist · Content version {checklistData.content_version}</p>
                     </div>
                   </div>
                 )}
@@ -566,7 +566,7 @@ function AiReadinessChecklistsInner() {
             These checklists record what you tell them and organize the gaps. They don't certify, validate, or verify anything,
             and they aren't legal or compliance advice — the teams named on each question determine what applies to your organization.
           </p>
-          <p style={{ margin: 0 }}>CDW AI Factory · Draft for internal, seller-assisted use · Content version {checklistData.content_version}</p>
+          <p style={{ margin: 0 }}>CDW AI Factory · Readiness planning checklist · Content version {checklistData.content_version}</p>
         </footer>
       </div>
     </div>
