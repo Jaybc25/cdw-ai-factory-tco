@@ -151,7 +151,7 @@ test("Inference Economics uses customer-facing throughput wording and errors", a
   await page.goto("/inference-economics", { waitUntil: "domcontentloaded" });
   const technicalAssumptions = page.locator("details").filter({ hasText: "Technical assumptions" }).first();
   await technicalAssumptions.locator("summary").click();
-  const throughputField = technicalAssumptions.locator("label").filter({ hasText: "Sustained share of benchmark throughput" }).first();
+  const throughputField = technicalAssumptions.getByText("Sustained share of benchmark throughput", { exact: true }).first();
   await expect(throughputField).toBeVisible();
 
   const bodyText = await page.locator("body").innerText();
