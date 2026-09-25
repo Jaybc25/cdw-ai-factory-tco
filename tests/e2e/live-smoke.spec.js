@@ -138,6 +138,54 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 
 
 
+
+test("Explorer specialized routing context persists in GPU Sizing and only model-training presets Training", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto(
+    "/gpu-sizing?sourceUseCase=predictive-maintenance&workloadType=predictive-maintenance-ml&routingClass=infrastructure-first",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForFunction(() => !!sessionStorage.getItem("ai-factory-session:gpu-sizing"));
+  let bodyText = await page.locator("body").innerText();
+  expect(bodyText).toMatch(/predictive-maintenance-ml/i);
+  expect(bodyText).toMatch(/isn't fully represented in this calculator yet/i);
+  let saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:gpu-sizing")));
+  expect(saved.incomingWorkloadType).toBe("predictive-maintenance-ml");
+  expect(saved.incomingRoutingClass).toBe("infrastructure-first");
+  expect(saved.mode).toBe("Inference");
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  bodyText = await page.locator("body").innerText();
+  expect(bodyText).toMatch(/predictive-maintenance-ml/i);
+  expect(bodyText).toMatch(/isn't fully represented in this calculator yet/i);
+
+  await page.goto(
+    "/gpu-sizing?sourceUseCase=earth2-weather-analytics&workloadType=scientific-model-inference&routingClass=specialized-stack",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForFunction(() => {
+    const raw = sessionStorage.getItem("ai-factory-session:gpu-sizing");
+    return raw && JSON.parse(raw).sourceUseCase === "earth2-weather-analytics";
+  });
+  saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:gpu-sizing")));
+  expect(saved.mode).toBe("Inference");
+
+  await page.goto(
+    "/gpu-sizing?sourceUseCase=transaction-foundation-model&workloadType=model-training&routingClass=specialized-stack&mode=Training",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForFunction(() => {
+    const raw = sessionStorage.getItem("ai-factory-session:gpu-sizing");
+    return raw && JSON.parse(raw).sourceUseCase === "transaction-foundation-model";
+  });
+  saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:gpu-sizing")));
+  expect(saved.mode).toBe("Training");
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("B200 memory is consistent between GPU Sizing and TCO", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
