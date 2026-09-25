@@ -88,6 +88,7 @@ function checkLicense(model, requirement) {
 
 function checkGovernance(model, requirement) {
   if (requirement === "none") return "PASS";
+  if (requirement === "approved-vendor-families") return "NOT_EVALUATED";
   if (!model.developer_country) return "REQUIRES_VERIFICATION";
   if (requirement === "us-only") return model.developer_country === "us" ? "PASS" : "FAIL";
   return "PASS";
