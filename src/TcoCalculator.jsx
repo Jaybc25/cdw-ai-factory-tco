@@ -2142,7 +2142,9 @@ function AppInner() {
             <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
               {cloudGpuClassOverridden
                 ? `Cloud comparison is a user override: ${gpuClass}, while GPU Sizing is based on ${sourceClass}. This changes cloud pricing and workload-equivalent rental hours only.`
-                : `Matched to ${sourceClass} from GPU Sizing for a like-for-like starting comparison. Change this only if the actual or proposed cloud rental uses a different GPU class.`}
+                : isRubinPhase1
+                  ? `No cloud rate is available for ${sourceClass}. The cloud side currently uses ${gpuClass} as a placeholder with no Rubin performance credit; select the GPU class you would actually rent.`
+                  : `Matched to ${sourceClass} from GPU Sizing for a like-for-like starting comparison. Change this only if the actual or proposed cloud rental uses a different GPU class.`}
             </div>
           ) : (
             <div style={{ fontSize: 11, color: C.sub, marginTop: -2 }}>
