@@ -40,7 +40,7 @@ async function openCapacitySection(page) {
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
 }
 
-test("TCO exposes cloud GPU price sensitivity separately from workload growth", async ({ page }) => {
+test("TCO exposes cloud GPU price sensitivity with flat workload demand", async ({ page }) => {
   await seedTcoSession(page, { mode: "spend", cloudUnitPriceTrend: 0 });
   await page.reload({ waitUntil: "domcontentloaded" });
   await expect(page.getByText("CLOUD GPU PRICE SENSITIVITY", { exact: true })).toBeVisible();
@@ -61,7 +61,7 @@ test("cloud unit-price trend is a persisted production sensitivity input", async
   await expect(page.getByText("+20%/yr", { exact: true })).toBeVisible();
 
   // Regression guard: changing the sensitivity must trigger the TCO persistence effect.
-  const saved = await waitForTcoSession(page, { cloudUnitPriceTrend: 20, growth: 0.25, horizon: 3 });
+  const saved = await waitForTcoSession(page, { cloudUnitPriceTrend: 20, horizon: 3 });
   expect(saved.cloudUnitPriceTrend).toBe(20);
   expect(saved.growth).toBeUndefined();
   expect(saved.horizon).toBe(3);
