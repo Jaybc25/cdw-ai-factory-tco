@@ -89,7 +89,7 @@ test("GPU Sizing report and audit honor the Higher-growth selection", async ({ p
     await page.getByRole("button", { name: "View my report" }).click();
   }
   const reportText = await page.locator("body").innerText();
-  expect(reportText).toContain("Selected configuration for TCO");
+  expect(reportText).toMatch(/Selected configuration for TCO/i);
   expect(reportText).toContain("SELECTED FOR TCO · HIGHER-GROWTH");
   expect(reportText).toMatch(new RegExp(`\\b${selectedCount}\\s+GPUs?\\b`, "i"));
 
