@@ -161,6 +161,22 @@ test("TCO handoff persists ROI values and provenance after query consumption and
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 
+
+test("TCO to ROI handoff discloses its narrower cost basis", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+  await page.goto(
+    "/roi?initialCost=1250000&recurringCost=180000&planningBasis=workload",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  await expect(page.getByText(/This prefill uses TCO's current upfront cost plus Year-1 operating cost/i)).toBeVisible();
+  await expect(page.getByText(/excludes later-year fleet expansion and operating-cost growth modeled in TCO/i)).toBeVisible();
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("malformed ROI handoff does not manufacture TCO provenance or zero-dollar costs", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);

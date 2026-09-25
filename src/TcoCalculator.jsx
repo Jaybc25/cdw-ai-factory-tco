@@ -2466,7 +2466,7 @@ function AppInner() {
               <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, color: C.green, textTransform: "uppercase", marginBottom: 4 }}>Option B · Build the business case</div>
               <div style={{ fontSize: 12, color: "#444", lineHeight: 1.5, marginBottom: 10 }}>
                 Choose this path when you want to translate this infrastructure investment ({fmt(r.adj.capex + r.oneTime)} upfront, {fmt(r.adj.opex * 12)}/yr ongoing) into task-level ROI and business value.
-                {r.isWorkloadMode ? " Based on the Workload Requirement fleet, not your reported cloud spend." : " Based on your reported cloud spend."}
+                {r.isWorkloadMode ? " Based on the Workload Requirement fleet, not your reported cloud spend." : " Based on your reported cloud spend."} The ROI prefill uses current upfront cost plus Year-1 operating cost; it excludes later-year fleet expansion and operating-cost growth modeled in this TCO analysis.
               </div>
               <a
                 href={`/roi?initialCost=${Math.round(r.adj.capex + r.oneTime)}&recurringCost=${Math.round(r.adj.opex * 12)}&planningBasis=${r.isWorkloadMode ? "workload" : "spend"}`}
