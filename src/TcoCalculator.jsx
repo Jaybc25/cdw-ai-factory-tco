@@ -789,6 +789,11 @@ function getInitialSizingBasis() {
   return raw === "higher-growth" ? "higher-growth" : "recommended";
 }
 
+function getInitialGpuSizingMode() {
+  const raw = getIncomingParams()?.get("gpuSizingMode");
+  return raw === "Inference" || raw === "Training" ? raw : null;
+}
+
 // The GPU class the handoff's count was actually computed at (GPU Sizing's
 // naming, e.g. "H100", "B200", "GB200 NVL72"). Needed because ownSys's
 // underlying class isn't always the same class the count was sized for --
@@ -933,6 +938,7 @@ function AppInner() {
   const [gpuSizingDemandCount] = useState(() => arrivedFromGpuSizing ? getInitialGpuDemandCount() : saved?.gpuSizingDemandCount ?? null);
   const [sourceClass] = useState(() => getInitialSourceClass() ?? saved?.sourceClass ?? null);
   const [gpuSizingBasis] = useState(() => arrivedFromGpuSizing ? getInitialSizingBasis() : saved?.gpuSizingBasis ?? "recommended");
+  const [gpuSizingMode] = useState(() => arrivedFromGpuSizing ? getInitialGpuSizingMode() : saved?.gpuSizingMode ?? null);
   const matchedCloudGpuClass = sourceClass ? normalizeSourceClass(sourceClass) : null;
   const [workingDayHours, setWorkingDayHours] = useState(() => getInitialWorkingDayHours() ?? saved?.workingDayHours ?? null);
   // F2: these are technical demand facts owned by GPU Sizing. On a fresh
@@ -1022,7 +1028,11 @@ function AppInner() {
     return next;
   });
   const [mode, setMode] = useState(() => (arrivedFromGpuSizing ? (gpuSizingCount ? "workload" : "spend") : saved?.mode ?? (gpuSizingCount ? "workload" : "spend"))); // v2.9: bake-off (spend-derived) vs workload (technical-requirement-driven)
-  const [trainShare, setTrainShare] = useState(saved?.trainShare ?? 0.5);
+  const [trainShare, setTrainShare] = useState(() => {
+    if (arrivedFromGpuSizing && gpuSizingMode === "Inference") return 0;
+    if (arrivedFromGpuSizing && gpuSizingMode === "Training") return 1;
+    return saved?.trainShare ?? 0.5;
+  });
   const [odShare, setOdShare] = useState(saved?.odShare ?? 0);
   const [storageAuto, setStorageAuto] = useState(saved?.storageAuto ?? true); // v2.3: Tier 1 derives storage from the bill; manual entry = Tier 2/3
   // M5: workload storage is not derivable from GPU count/model metadata. A new
@@ -1104,12 +1114,12 @@ function AppInner() {
       // which is the actual root cause of the workload-anchor loss -- see
       // the comment above their useState calls near the top of this
       // component for the full explanation.
-      gpuSizingCount, gpuSizingDemandCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, gpuSizingScaleoutClassification,
+      gpuSizingCount, gpuSizingDemandCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingMode, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, gpuSizingScaleoutClassification,
     });
   }, [ov, cloudRateOverrides, onPremRateOverrides, cloudGpuClassOverridden, bill, provider, gpuClass, ownSys, mode, trainShare, odShare, storageAuto, workloadStorageConfirmed, quoteReview,
       fastPBm, bulkPBm, egressPct, computeShare, growth, cloudUnitPriceTrend, facility, powerRate, util,
       fNet, fSw, fNvaie, tier3Hrs, horizon, retrofit, migration, dualRun, redundancy,
-      residPct, modelId, modelParamsB, quant, gpuSizingCount, gpuSizingDemandCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, gpuSizingScaleoutClassification]);
+      residPct, modelId, modelParamsB, quant, gpuSizingCount, gpuSizingDemandCount, sourceClass, workingDayHours, gpuSizingBasis, gpuSizingMode, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, gpuSizingScaleoutClassification]);
 
   async function submitLead() {
     if (!lead.name || !lead.email || !lead.company) { setLeadStatus("Please fill in all three fields."); return; }
@@ -1178,7 +1188,7 @@ function AppInner() {
   const bulkPB = effectiveStorageAuto ? Math.round(autoPB * 0.75 * 100) / 100 : bulkPBm;
   const setFastPB = (v) => { setStorageAuto(false); setFastPBm(v); if (mode === "workload") setWorkloadStorageConfirmed(true); if (effectiveStorageAuto) setBulkPBm(bulkPB); };
   const setBulkPB = (v) => { setStorageAuto(false); setBulkPBm(v); if (mode === "workload") setWorkloadStorageConfirmed(true); if (effectiveStorageAuto) setFastPBm(fastPB); };
-  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, gpuSizingDemandCount, sourceClass, workingDayHours, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, workloadStorageConfirmed, quoteReview, coloRateOverridden: hasDistinctNvl72ColoOverride };
+  const inputsObj = { bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, mode, gpuSizingCount, gpuSizingDemandCount, gpuSizingBasis, gpuSizingMode, sourceClass, workingDayHours, gpuSizingConcurrentUsers, gpuSizingTargetTokPerUser, workloadStorageConfirmed, quoteReview, coloRateOverridden: hasDistinctNvl72ColoOverride };
   const r = useMemo(
     () => run(inputsObj, rc),
     [bill, computeShare, odShare, gpuClass, ownSys, trainShare, util, fastPB, bulkPB, egressPct, storageAuto, workloadStorageConfirmed, quoteReview, onPremRateOverrides, growth, cloudUnitPriceTrend, facility, powerRate, fNet, fSw, fNvaie, tier3Hrs, retrofit, migration, dualRun, redundancy, residPct, modelId, modelParamsB, quant, horizon, provider, ov, mode, gpuSizingCount, gpuSizingDemandCount, sourceClass, workingDayHours]

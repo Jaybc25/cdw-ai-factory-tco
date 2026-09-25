@@ -746,7 +746,7 @@ function TcoHandoff({ selectedClass, recommended, gpuDemandCount, sizingBasis = 
       </div>
     );
   }
-  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });
+  const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis, gpuSizingMode: mode });
   if (Number.isFinite(Number(gpuDemandCount)) && Number(gpuDemandCount) > 0) params.set("gpuDemandCount", String(gpuDemandCount));
   if (model?.id) params.set("model", model.id);
   if (Number.isFinite(Number(modelParamsB)) && Number(modelParamsB) > 0) params.set("modelParamsB", String(modelParamsB));

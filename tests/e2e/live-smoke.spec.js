@@ -153,6 +153,37 @@ test("TCO workload growth consumes GPU Sizing headroom before buying another sys
 });
 
 
+
+test("GPU Sizing mode sets TCO workload mix on fresh handoff", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto(
+    "/tco?ownSys=DGX%20B200&gpuCount=8&gpuDemandCount=1&sourceClass=B200&sizingBasis=recommended&gpuSizingMode=Inference&workingDayHours=10",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForFunction(() => !!sessionStorage.getItem("ai-factory-session:tco"));
+  let saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:tco")));
+  expect(saved.trainShare).toBe(0);
+  expect(saved.gpuSizingMode).toBe("Inference");
+
+  await page.goto(
+    "/tco?ownSys=DGX%20B200&gpuCount=8&gpuDemandCount=1&sourceClass=B200&sizingBasis=recommended&gpuSizingMode=Training",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForFunction(() => {
+    const raw = sessionStorage.getItem("ai-factory-session:tco");
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return parsed.gpuSizingMode === "Training";
+  });
+  saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:tco")));
+  expect(saved.trainShare).toBe(1);
+  expect(saved.gpuSizingMode).toBe("Training");
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("TCO workload mode suppresses standalone serving-capacity estimates", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
