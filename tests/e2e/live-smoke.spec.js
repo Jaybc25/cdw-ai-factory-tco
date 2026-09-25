@@ -140,6 +140,29 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 
 
 
+
+test("Model Advisor text-only requirement does not exclude multimodal-capable models", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/model-advisor", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  const modalitySelect = page.locator('select').filter({ has: page.locator('option[value="text-only"]') }).first();
+  await expect(modalitySelect).toBeVisible();
+  await modalitySelect.selectOption("text-only");
+
+  await page.getByRole("button", { name: /Get recommendations|See recommendations|Recommend/i }).click().catch(() => {});
+  const textOnlyBody = await page.locator("body").innerText();
+  expect(textOnlyBody).toMatch(/Text only \(image input not required\)/i);
+
+  await modalitySelect.selectOption("image-text");
+  const selected = await modalitySelect.inputValue();
+  expect(selected).toBe("image-text");
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("Model Advisor handoff keeps the recommended model across Inference and Training toggles", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
