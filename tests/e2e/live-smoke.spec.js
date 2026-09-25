@@ -144,23 +144,30 @@ test("Model Advisor handoff keeps the recommended model across Inference and Tra
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
 
-  await page.goto("/gpu-sizing?model=nvidia-nemotron-nano-2-vl", { waitUntil: "domcontentloaded" });
+  await page.goto("/gpu-sizing?model=muse-glimmer-30b", { waitUntil: "domcontentloaded" });
   await page.waitForFunction(() => !!sessionStorage.getItem("ai-factory-session:gpu-sizing"));
 
   let saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:gpu-sizing")));
-  expect(saved.infModelId).toBe("nvidia-nemotron-nano-2-vl");
-  expect(saved.trainModelId).toBe("nvidia-nemotron-nano-2-vl");
-  expect(saved.modelAdvisorRecommendedId).toBe("nvidia-nemotron-nano-2-vl");
+  expect(saved.infModelId).toBe("muse-glimmer-30b");
+  expect(saved.modelAdvisorRecommendedId).toBe("muse-glimmer-30b");
 
   await page.getByRole("button", { name: "Training / fine-tuning sizing" }).click();
+  await page.waitForFunction(() => {
+    const raw = sessionStorage.getItem("ai-factory-session:gpu-sizing");
+    return raw && JSON.parse(raw).trainModelId === "muse-glimmer-30b";
+  });
   let bodyText = await page.locator("body").innerText();
-  expect(bodyText).toMatch(/Model pre-set to .*Nemotron/i);
+  expect(bodyText).toMatch(/Model pre-set to Meta Muse Glimmer 30B, carried over from Model Advisor/i);
   expect(bodyText).not.toMatch(/you're currently sizing .* after an adjustment/i);
 
   await page.getByRole("button", { name: "Inference sizing" }).click();
   bodyText = await page.locator("body").innerText();
-  expect(bodyText).toMatch(/Model pre-set to .*Nemotron/i);
+  expect(bodyText).toMatch(/Model pre-set to Meta Muse Glimmer 30B, carried over from Model Advisor/i);
   expect(bodyText).not.toMatch(/you're currently sizing .* after an adjustment/i);
+
+  saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:gpu-sizing")));
+  expect(saved.infModelId).toBe("muse-glimmer-30b");
+  expect(saved.trainModelId).toBe("muse-glimmer-30b");
 
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
