@@ -931,12 +931,13 @@ function GPUSizingCalculatorInner() {
   }, []);
 
   const [hasFreshSourceUseCase] = useState(() => !!getInitialSourceUseCase());
-  const [mode, setMode] = useState(() => ((hasFreshSourceUseCase || incomingWorkloadType) ? getInitialMode() : saved?.mode ?? getInitialMode()));
+  const [hasFreshWorkloadType] = useState(() => !!getInitialWorkloadType());
+  const [mode, setMode] = useState(() => ((hasFreshSourceUseCase || hasFreshWorkloadType) ? getInitialMode() : saved?.mode ?? getInitialMode()));
   const [pathLevel, setPathLevel] = useState(saved?.pathLevel ?? "simple");
   const [modelHandoff] = useState(getInitialInfModel);
   const [modelAdvisorRecommendedId] = useState(() => {
     if (incomingModelId) return modelHandoff.matched ? modelHandoff.model.id : incomingModelId;
-    if (hasFreshSourceUseCase || incomingWorkloadType) return null;
+    if (hasFreshSourceUseCase || hasFreshWorkloadType) return null;
     return saved?.modelAdvisorRecommendedId ?? null;
   });
   const [infModel, setInfModel] = useState(() => {
