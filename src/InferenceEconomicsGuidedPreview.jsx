@@ -103,6 +103,7 @@ export default function InferenceEconomicsGuidedPreview() {
   const [activeHoursPerDay, setActiveHoursPerDay] = useState(handoff?.activeHoursPerDay ?? saved?.activeHoursPerDay ?? 8);
   const [activeDaysPerYear, setActiveDaysPerYear] = useState(saved?.activeDaysPerYear ?? 250);
   const [productionServingFactor, setProductionServingFactor] = useState(saved?.productionServingFactor ?? "");
+  const [technicalAssumptionsOpen, setTechnicalAssumptionsOpen] = useState(!(saved?.productionServingFactor ?? ""));
   const [demandGrowthRate, setDemandGrowthRate] = useState(handoff?.demandGrowthRate ?? saved?.demandGrowthRate ?? 0);
 
   const [demandBasis, setDemandBasis] = useState(saved?.demandBasis ?? OUTPUT_TOKEN_DEMAND_BASIS.MEASURED_MONTHLY);
@@ -485,7 +486,11 @@ export default function InferenceEconomicsGuidedPreview() {
           <InlineHelp text="This assumption is used to confirm the private configuration can meet expected demand. It does not continuously change the $/1M result. If the resulting production capacity falls below demand, the economics result is suppressed instead of quoting an undersized design." />
         </div>
 
-        <details style={details} open={!productionServingFactor}>
+        <details
+          style={details}
+          open={technicalAssumptionsOpen}
+          onToggle={(ev) => setTechnicalAssumptionsOpen(ev.currentTarget.open)}
+        >
           <summary style={summaryLink}>Technical assumptions</summary>
           <div style={{ ...twoCol, marginTop: 14 }}>
             <Field label="Deployed GPUs evaluated" help="Exact benchmark counts use direct evidence. Whole multiples of a benchmark-sized group may be modeled as independent serving replicas when one group can host the selected model.">
