@@ -36,7 +36,7 @@ function baseField(key, label, format = null, options = {}) {
 export const PRESENTATION_SCHEMA = {
   tco: [
     baseField("savings", "Savings", money),
-    baseField("floorCaseSavings", "Floor-Case Savings", money),
+    baseField("floorCaseSavings", "Savings Without Performance Credit", money),
     baseField("planningBasis", "Planning Basis"),
     baseField("provider", "Cloud Provider"),
     baseField("gpuClass", "Cloud GPU Class"),
