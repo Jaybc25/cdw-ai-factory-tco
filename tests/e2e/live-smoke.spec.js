@@ -161,6 +161,18 @@ test("Inference Economics uses customer-facing throughput wording and errors", a
 });
 
 
+
+test("TCO labels the conservative baseline without performance credit", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/tco", { waitUntil: "domcontentloaded" });
+  const bodyText = await page.locator("body").innerText();
+  expect(bodyText).not.toContain("floor case");
+  expect(bodyText).toMatch(/without performance credit/i);
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("customer-facing tool and catalog counts use consistent scope wording", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
