@@ -488,21 +488,24 @@ test("B200 memory is consistent between GPU Sizing and TCO", async ({ page }) =>
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 
-test("TCO workload growth consumes GPU Sizing headroom before buying another system", async ({ page }) => {
+test("TCO flat-demand baseline keeps the on-prem fleet fixed while retaining cloud price trend", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
-  const pageErrors = capturePageErrors(page);
   await page.goto(
-    "/tco?ownSys=DGX%20B200&gpuCount=8&gpuDemandCount=1&sourceClass=B200&workingDayHours=10&concurrentUsers=200&targetTokPerUser=30",
+    "/tco?source=gpu-sizing&mode=workload&ownSys=DGX%20B200&gpuCount=8&gpuDemandCount=8&sourceClass=B200&workingDayHours=8&model=llama-3.1-70b&quant=FP8",
     { waitUntil: "domcontentloaded" },
   );
-  await page.waitForLoadState("networkidle").catch(() => {});
 
-  const bodyText = await page.locator("body").innerText();
-  expect(bodyText).toContain("88% headroom");
-  expect(bodyText).not.toMatch(/88% headroom\s*→\s*2 sys by yr 3/i);
-  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+  await expect(page.getByText("Annual compute growth", { exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Cloud GPU unit-price trend")).toBeVisible();
+
+  await page.getByLabel("Cloud GPU unit-price trend").fill("20");
+  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
+
+  const auditText = await page.locator("body").innerText();
+  expect(auditText).toContain("fixed fleet 8 GPUs from GPU Sizing");
+  expect(auditText).toContain("Workload demand is held flat");
+  expect(auditText).not.toContain("Annual compute growth");
 });
-
 
 
 test("GPU Sizing mode sets TCO workload mix on fresh handoff", async ({ page }) => {
@@ -661,7 +664,7 @@ test("TCO to ROI handoff discloses its narrower cost basis", async ({ page }) =>
   await page.waitForLoadState("networkidle").catch(() => {});
 
   await expect(page.getByText(/This prefill uses TCO's current upfront cost plus Year-1 operating cost/i)).toBeVisible();
-  await expect(page.getByText(/excludes later-year fleet expansion and operating-cost growth modeled in TCO/i)).toBeVisible();
+  await expect(page.getByText(/excludes later-year operating-cost escalation modeled in TCO/i)).toBeVisible();
 
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
