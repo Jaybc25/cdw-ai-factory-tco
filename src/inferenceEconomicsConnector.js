@@ -56,6 +56,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   horizonYears,
   onPremTcoUsd,
   workingDayHours = null,
+  activeDaysPerYear = null,
   isInferenceWorkloadHandoff = false,
   trainShare = null,
   growth = null,
@@ -76,6 +77,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   const horizon = finitePositive(horizonYears);
   const tco = finitePositive(onPremTcoUsd);
   const hours = finitePositive(workingDayHours);
+  const days = finitePositive(activeDaysPerYear);
   const trainingShare = validShare(trainShare);
   const inferenceShare = isInferenceWorkloadHandoff
     ? 1
@@ -130,6 +132,7 @@ export function buildInferenceEconomicsPreviewHandoff({
   if (quant) params.set("quant", quant);
   if (horizon) params.set("horizon", String(horizon));
   if (hours && hours <= 24) params.set("activeHours", String(hours));
+  if (days && days <= 366) params.set("activeDays", String(days));
   params.set("demandGrowth", String(demandGrowthRate));
   if (inferenceShare != null) params.set("inferenceShare", String(inferenceShare));
   if (tco) params.set("fullTco", String(Math.round(tco)));
@@ -160,6 +163,7 @@ export function buildInferenceEconomicsPreviewHandoff({
     fleetSystemsByYear: horizonFleet,
     fleetGrowthConservative: fleetChanges,
     workingDayHours: hours && hours <= 24 ? hours : null,
+    activeDaysPerYear: days && days <= 366 ? days : null,
     blockers,
     href: `/inference-economics?${params.toString()}`,
   };
@@ -228,6 +232,7 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
   const attributableTcoUsd = finitePositive(params.get("tco"));
   const fullTcoUsd = finitePositive(params.get("fullTco"));
   const activeHoursPerDay = finitePositive(params.get("activeHours"));
+  const activeDaysPerYear = finitePositive(params.get("activeDays"));
   const inferenceShare = validShare(params.get("inferenceShare"));
   const demandGrowthRate = validGrowth(params.get("demandGrowth"));
   const allocationMethod = params.get("tcoAllocation") || null;
@@ -270,6 +275,8 @@ export function parseInferenceEconomicsPreviewHandoff(search) {
     fleetGrowthConservative,
     activeHoursPerDay:
       activeHoursPerDay && activeHoursPerDay <= 24 ? activeHoursPerDay : null,
+    activeDaysPerYear:
+      activeDaysPerYear && activeDaysPerYear <= 366 ? activeDaysPerYear : null,
     blockers,
   };
 }

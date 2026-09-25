@@ -283,6 +283,22 @@ test("GPU Sizing shows a concise confidence summary", async ({ page }) => {
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 
+test("24-hour workload mode uses a 365-day cloud duty cycle and carries it to IE", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  await page.goto(
+    "/tco?source=gpu-sizing&mode=workload&ownSys=DGX%20B200&gpuCount=8&gpuDemandCount=8&sourceClass=B200&workingDayHours=24&model=llama-3.1-70b&quant=FP8",
+    { waitUntil: "domcontentloaded" },
+  );
+
+  const bodyText = await page.locator("body").innerText();
+  expect(bodyText).toContain("full 24-hour/day, 365-day/year duty cycle");
+
+  const ieLink = page.getByRole("link", { name: /Compare inference economics/i });
+  const href = await ieLink.getAttribute("href");
+  expect(href).toContain("activeHours=24");
+  expect(href).toContain("activeDays=365");
+});
+
 test("TCO labels the conservative baseline without performance credit", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);

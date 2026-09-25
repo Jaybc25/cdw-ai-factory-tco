@@ -60,7 +60,7 @@ test("24-hour duty cycle does not say not 24/7", async ({ page }) => {
   });
   await page.goto(`/tco?${params}`, { waitUntil: "domcontentloaded" });
 
-  await expect(page.getByText(/full 24-hour\/day duty cycle shared with GPU Sizing/i)).toBeVisible();
+  await expect(page.getByText(/full 24-hour\/day, 365-day\/year duty cycle shared with GPU Sizing/i)).toBeVisible();
   await expect(page.getByText(/not 24\/7/i)).toHaveCount(0);
 
   await page.getByRole("button", { name: /Get the full report/i }).click();

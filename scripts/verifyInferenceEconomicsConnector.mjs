@@ -20,6 +20,7 @@ const clean = buildInferenceEconomicsPreviewHandoff({
   horizonYears: 3,
   onPremTcoUsd: 1_250_000,
   workingDayHours: 8,
+  activeDaysPerYear: 250,
   isInferenceWorkloadHandoff: true,
   trainShare: 0,
   growth: 0.25,
@@ -52,12 +53,36 @@ assert.equal(parsedClean.quant, "FP8");
 assert.equal(parsedClean.horizonYears, 3);
 assert.equal(parsedClean.attributableTcoUsd, 1_250_000);
 assert.equal(parsedClean.activeHoursPerDay, 8);
+assert.equal(parsedClean.activeDaysPerYear, 250);
 assert.equal(parsedClean.demandGrowthRate, 0.25);
 assert.equal(parsedClean.roiInitialCostUsd, 900_000);
 assert.equal(parsedClean.roiRecurringCostUsd, 140_000);
 assert.equal(parsedClean.roiPlanningBasis, "workload");
 assert.equal(parsedClean.scaleoutClassification, "REPLICA_CAPACITY_SCALEOUT");
 assert.deepEqual(parsedClean.fleetSystemsByYear, [1, 1, 1]);
+
+
+const continuous = buildInferenceEconomicsPreviewHandoff({
+  ownSys: "DGX B200",
+  systemCount: 1,
+  gpusPerSystem: 8,
+  fleetSystemsByYear: [1, 1, 1],
+  modelId: "llama-3.1-70b",
+  quant: "FP8",
+  horizonYears: 3,
+  onPremTcoUsd: 1_250_000,
+  workingDayHours: 24,
+  activeDaysPerYear: 365,
+  isInferenceWorkloadHandoff: true,
+  trainShare: 0,
+  growth: 0,
+});
+const parsedContinuous = parseInferenceEconomicsPreviewHandoff(
+  continuous.href.slice(continuous.href.indexOf("?"))
+);
+assert.equal(parsedContinuous.activeHoursPerDay, 24);
+assert.equal(parsedContinuous.activeDaysPerYear, 365);
+assert.ok(continuous.href.includes("activeDays=365"));
 
 // Mixed workload: use TCO's known inference share as a MODELED allocation.
 const mixed = buildInferenceEconomicsPreviewHandoff({
