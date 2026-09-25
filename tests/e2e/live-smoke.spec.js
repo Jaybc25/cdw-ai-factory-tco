@@ -148,17 +148,26 @@ test("Model Advisor text-only requirement does not exclude multimodal-capable mo
   await page.goto("/model-advisor", { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle").catch(() => {});
 
-  const modalitySelect = page.locator('select').filter({ has: page.locator('option[value="text-only"]') }).first();
+  await page.getByText("Deployment requirements", { exact: true }).click();
+  const multimodalField = page.locator("label").filter({ hasText: "Multimodal need" }).first();
+  const modalitySelect = multimodalField.locator("select");
   await expect(modalitySelect).toBeVisible();
   await modalitySelect.selectOption("text-only");
 
-  await page.getByRole("button", { name: /Get recommendations|See recommendations|Recommend/i }).click().catch(() => {});
-  const textOnlyBody = await page.locator("body").innerText();
-  expect(textOnlyBody).toMatch(/Text only \(image input not required\)/i);
+  await page.waitForFunction(() => {
+    const raw = sessionStorage.getItem("ai-factory-session:model-advisor");
+    return raw && JSON.parse(raw).multimodal === "text-only";
+  });
+  let saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:model-advisor")));
+  expect(saved.multimodal).toBe("text-only");
 
   await modalitySelect.selectOption("image-text");
-  const selected = await modalitySelect.inputValue();
-  expect(selected).toBe("image-text");
+  await page.waitForFunction(() => {
+    const raw = sessionStorage.getItem("ai-factory-session:model-advisor");
+    return raw && JSON.parse(raw).multimodal === "image-text";
+  });
+  saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:model-advisor")));
+  expect(saved.multimodal).toBe("image-text");
 
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
