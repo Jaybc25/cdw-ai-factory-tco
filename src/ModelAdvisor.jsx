@@ -564,7 +564,7 @@ function ModelAdvisorInner() {
             Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}
           </div>
           <div className="text-xs text-gray-500 mb-6">
-            {new Date().toLocaleDateString()} &middot; {result.eligibleCount} of {result.totalCount} tracked models met stated requirements
+            {new Date().toLocaleDateString()} &middot; {result.eligibleCount} of {result.totalCount} current new-deployment models evaluated met stated requirements
           </div>
 
           <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Selected workloads</div>
@@ -735,7 +735,7 @@ function ModelAdvisorInner() {
                   </div>
                 </div>
                 <div className="text-[11px] text-gray-500 mb-3">
-                  Of {result.totalCount} tracked models: {result.eligibleCount} clearly satisfy every stated requirement, {result.verificationCount} have data too uncertain to safely treat as eligible without confirmation (never silently treated as passing or failing), and {failedModels.length} have known evidence against a stated requirement.
+                  Of {result.totalCount} current new-deployment models evaluated: {result.eligibleCount} clearly satisfy every stated requirement, {result.verificationCount} have data too uncertain to safely treat as eligible without confirmation (never silently treated as passing or failing), and {failedModels.length} have known evidence against a stated requirement.
                 </div>
                 {failedModels.length > 0 && (
                   <div className="rounded-lg border border-gray-200 p-3 mb-3 text-xs">
@@ -887,7 +887,7 @@ function ModelAdvisorInner() {
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>6. Sources, Heuristics &amp; Limitations</div>
           <DecisionRow label="Model specs last synced" value={new Date(CATALOG_META.specsSyncedAt).toLocaleDateString()} />
           <DecisionRow label="Capability scores last synced" value={new Date(CATALOG_META.capabilitySyncedAt).toLocaleDateString()} />
-          <DecisionRow label="Models tracked" value={CATALOG_META.recordCount} />
+          <DecisionRow label="Models in full tracked catalog" value={CATALOG_META.recordCount} />
           <div className="text-xs text-gray-500 mt-3 mb-2 leading-relaxed">
             <b style={{ color: CHARCOAL }}>Capability scores:</b> intelligence_index, coding_index, and agentic_index are capability indices from the tracked capability registry above -- composite indicators, not a single externally standardized benchmark. Treat point differences as directional, not as a precise, universally comparable scale.
           </div>
@@ -1025,7 +1025,7 @@ function ModelAdvisorInner() {
 
           <div>
             <div className="text-sm text-gray-500 mb-3">
-              {result.eligibleCount} of {result.totalCount} tracked models meet your stated requirements
+              {result.eligibleCount} of {result.totalCount} current new-deployment models evaluated meet your stated requirements
               {result.verificationCount > 0 && `, ${result.verificationCount} need verification`}.
             </div>
 
