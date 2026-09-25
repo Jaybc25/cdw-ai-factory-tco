@@ -734,7 +734,7 @@ const TCO_OWN_SYS_FOR_CLASS = {
   "Vera Rubin NVL72": "DGX Vera Rubin NVL72",
 };
 
-function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", mode, workingDayHours, concurrentUsers, targetTokPerUser, model, modelParamsB, quant, scaleoutClassification }) {
+function TcoHandoff({ selectedClass, recommended, gpuDemandCount, sizingBasis = "recommended", mode, workingDayHours, concurrentUsers, targetTokPerUser, model, modelParamsB, quant, scaleoutClassification }) {
   const ownSys = TCO_OWN_SYS_FOR_CLASS[selectedClass];
   if (!ownSys) {
     return (
@@ -747,6 +747,7 @@ function TcoHandoff({ selectedClass, recommended, sizingBasis = "recommended", m
     );
   }
   const params = new URLSearchParams({ ownSys, gpuCount: String(recommended), sourceClass: selectedClass, sizingBasis });
+  if (Number.isFinite(Number(gpuDemandCount)) && Number(gpuDemandCount) > 0) params.set("gpuDemandCount", String(gpuDemandCount));
   if (model?.id) params.set("model", model.id);
   if (Number.isFinite(Number(modelParamsB)) && Number(modelParamsB) > 0) params.set("modelParamsB", String(modelParamsB));
   if (mode === "Inference" && quant) params.set("quant", quant);
@@ -1495,7 +1496,7 @@ function GPUSizingCalculatorInner() {
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
               <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Sizing method:</strong> {mode === "Inference" ? `Meet both ${result.totalMemoryGB.toFixed(1)} GB of modeled memory and ${result.totalThroughputNeeded.toLocaleString()} tok/s of aggregate demand, then round up to a ${result.selectedNodeSize}-GPU node. MLPerf Offline throughput does not establish per-request response speed (TTFT/TPOT).` : `Fit ${result.trainingMemoryGB.toFixed(1)} GB of modeled training state and meet the training time target, then round up to a ${result.selectedNodeSize}-GPU node. Activation and temporary-workspace memory are not separately modeled.`} See the calculation audit for evidence and detailed assumptions.</div>
-              <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} scaleoutClassification={tcoScaleoutClassification} />
+              <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} gpuDemandCount={effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.workload : result?.minTechnical} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} scaleoutClassification={tcoScaleoutClassification} />
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
                 <button onClick={requestReport} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
                 <button onClick={openAudit} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 bg-white" style={{ color: CHARCOAL }}>Calculation Methodology &amp; Audit Trail</button>
