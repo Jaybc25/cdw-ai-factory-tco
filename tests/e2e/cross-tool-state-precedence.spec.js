@@ -215,6 +215,45 @@ test("fresh TCO handoff replaces ROI investment costs and provenance while prese
 });
 
 
+
+test("retail multimodal use cases carry image-text context into Model Advisor", async ({ page }) => {
+  for (const scenario of [
+    {
+      sourceUseCase: "retail-catalog-enrichment",
+      workloads: "summarization",
+      primary: "summarization",
+    },
+    {
+      sourceUseCase: "retail-shopping-assistant",
+      workloads: "agentic",
+      primary: "agentic",
+    },
+  ]) {
+    await seedSession(page, "/model-advisor", KEYS.advisor, {
+      checkedWorkloads: ["coding"],
+      primaryWorkload: "coding",
+      multimodal: "text-only",
+      sourceUseCase: "old-use-case",
+    });
+
+    const params = new URLSearchParams({
+      sourceUseCase: scenario.sourceUseCase,
+      workloads: scenario.workloads,
+      primary: scenario.primary,
+      multimodal: "image-text",
+    });
+    await page.goto(`/model-advisor?${params.toString()}`, { waitUntil: "domcontentloaded" });
+
+    const saved = await waitForSession(page, KEYS.advisor, {
+      sourceUseCase: scenario.sourceUseCase,
+      primaryWorkload: scenario.primary,
+      multimodal: "image-text",
+    });
+    expect(saved.checkedWorkloads).toContain(scenario.primary);
+    expect(new URL(page.url()).search).toBe("");
+  }
+});
+
 test("new document extraction use case carries classification and multimodal context into Model Advisor", async ({ page }) => {
   await seedSession(page, "/model-advisor", KEYS.advisor, {
     checkedWorkloads: ["coding"],

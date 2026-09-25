@@ -108,7 +108,8 @@
       "primaryUmbrella": "Vision & Multimodal",
       "routingClass": "general-model-selection",
       "specializedStack": null,
-      "gpuWorkloadType": "vision-language-inference"
+      "gpuWorkloadType": "vision-language-inference",
+      "modelAdvisorMultimodal": "image-text"
     },
     {
       "id": "ai-model-distillation-financial",
@@ -188,7 +189,8 @@
       "primaryUmbrella": "Agentic AI & Tool Use",
       "routingClass": "general-model-selection",
       "specializedStack": null,
-      "gpuWorkloadType": "multi-model-inference"
+      "gpuWorkloadType": "multi-model-inference",
+      "modelAdvisorMultimodal": "image-text"
     },
     {
       "id": "streaming-data-to-rag",
