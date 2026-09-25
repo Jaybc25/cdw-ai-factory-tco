@@ -1,0 +1,32 @@
+/* Mobile usability guardrails.
+   iOS Safari can zoom focused form controls rendered below 16px. Keep desktop
+   typography unchanged while ensuring mobile inputs remain focus-safe. */
+@media (max-width: 768px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Use Case Explorer has a few inline desktop paddings/grid assumptions. At the
+   narrowest supported phone width, reduce chrome padding and stack the entry
+   choices instead of masking overflow. */
+@media (max-width: 360px) {
+  .uce-header,
+  .uce-account-row,
+  .uce-breadcrumbs {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .uce-content {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+
+  .uce-entry-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+}
