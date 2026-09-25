@@ -62,6 +62,20 @@ test("consolidated use cases keep one customer-facing entry per capability", asy
 });
 
 
+
+test("active blueprint stack references use current new-deployment GPU classes", async () => {
+  const stale = blueprintData.blueprints
+    .filter((row) => row.status === "active")
+    .filter((row) => /\bA100\b|\bH100\b/.test(row.detail_infrastructure || ""));
+  expect(stale.map((row) => row.id)).toEqual([]);
+});
+
+test("protein binder crosswalk matches the OpenFold3 blueprint stack", async () => {
+  const row = crosswalkData.crosswalk.find((item) => item.id === "generative-protein-binder");
+  expect(row?.specializedStack).toMatch(/OpenFold3/);
+  expect(row?.specializedStack).not.toMatch(/AlphaFold2/);
+});
+
 test("education taxonomy has no legacy generic education examples", async () => {
   for (const blueprint of blueprintData.blueprints) {
     expect(blueprint.detail_in_practice?.education).toBeUndefined();
