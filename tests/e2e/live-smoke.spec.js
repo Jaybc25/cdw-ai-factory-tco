@@ -164,6 +164,60 @@ test("Inference Economics keeps Technical assumptions open while typing 0.5", as
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 
+test("Inference Economics humanizes invalid serving and demand inputs", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/inference-economics", { waitUntil: "domcontentloaded" });
+
+  const technicalAssumptions = page.locator("details").filter({ hasText: "Technical assumptions" }).first();
+  if (!(await technicalAssumptions.evaluate((element) => element.open))) {
+    await technicalAssumptions.locator("summary").click();
+  }
+
+  // Make the other required inputs valid so each validation branch can be
+  // exercised independently instead of being masked by an earlier blocker.
+  await page.getByPlaceholder("e.g. 1200000").fill("1200000");
+  const monthlyTokens = page.getByPlaceholder("e.g. 2000000000");
+  await monthlyTokens.fill("1000000");
+
+  const servingFactorInput = technicalAssumptions.getByPlaceholder("Required for capacity check, e.g. 0.5");
+  await servingFactorInput.fill("1.5");
+
+  const bodyAfterServing = await page.locator("body").innerText();
+  expect(bodyAfterServing).toContain("Set the sustained share of benchmark throughput between 1% and 100%.");
+  expect(bodyAfterServing).not.toContain("productionServingFactor must be > 0 and <= 1.");
+
+  await servingFactorInput.fill("0.5");
+  await monthlyTokens.fill("0");
+  const bodyAfterDemand = await page.locator("body").innerText();
+  expect(bodyAfterDemand).toContain("Enter output tokens per month greater than zero.");
+  expect(bodyAfterDemand).not.toContain("measuredMonthlyOutputTokens must be > 0.");
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
+test("Inference Economics reports the actually missing cost before horizon", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/inference-economics", { waitUntil: "domcontentloaded" });
+
+  const technicalAssumptions = page.locator("details").filter({ hasText: "Technical assumptions" }).first();
+  if (!(await technicalAssumptions.evaluate((element) => element.open))) {
+    await technicalAssumptions.locator("summary").click();
+  }
+  await technicalAssumptions.getByPlaceholder("Required for capacity check, e.g. 0.5").fill("0.5");
+  await page.getByPlaceholder("e.g. 2000000000").fill("1000000");
+
+  const bodyText = await page.locator("body").innerText();
+  expect(bodyText).toContain("Enter the portion of TCO assigned to this inference workload.");
+  expect(bodyText).not.toContain("Select a planning horizon greater than zero.");
+  expect(bodyText).not.toContain("attributableTcoUsd and horizonYears must be > 0.");
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("Inference Economics uses customer-facing throughput wording and errors", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);

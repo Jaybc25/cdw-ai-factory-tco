@@ -45,13 +45,22 @@ function n(v) {
   const x = Number(v);
   return Number.isFinite(x) ? x : 0;
 }
-function humanizeIeErrors(errors = []) {
+function humanizeIeErrors(errors = [], context = {}) {
   return errors.map((message) => {
     const text = String(message);
-    if (text.includes("throughputTokPerSec must be > 0")) return "A valid benchmark throughput is required for this hardware, model, and precision combination.";
-    if (text.includes("throughputUtilization must be > 0 and <= 1")) return "Set the sustained share of benchmark throughput between 1% and 100%.";
+    if (text.includes("throughputTokPerSec must be > 0") || text.includes("effectiveOutputThroughputTokPerSec must be > 0")) return "A valid benchmark throughput is required for this hardware, model, and precision combination.";
+    if (text.includes("throughputUtilization must be > 0 and <= 1") || text.includes("productionServingFactor must be > 0 and <= 1")) return "Set the sustained share of benchmark throughput between 1% and 100%.";
     if (text.includes("activeHoursPerDay must be > 0 and <= 24")) return "Serving hours per day must be between 1 and 24.";
     if (text.includes("activeDaysPerYear must be > 0 and <= 366")) return "Serving days per year must be between 1 and 366.";
+    if (text.includes("measuredMonthlyOutputTokens must be > 0")) return "Enter output tokens per month greater than zero.";
+    if (text.includes("annualOutputTokens must be > 0")) return "Enter annual output tokens greater than zero.";
+    if (text.includes("requestsPerDay and averageOutputTokensPerRequest must be > 0")) return "Enter both requests per day and average output tokens per request greater than zero.";
+    if (text.includes("deployedGpuCount must be > 0")) return "Enter a deployed GPU count greater than zero.";
+    if (text.includes("attributableTcoUsd and horizonYears must be > 0")) {
+      if (!(Number(context.attributableTcoUsd) > 0)) return "Enter the portion of TCO assigned to this inference workload.";
+      if (!(Number(context.horizonYears) > 0)) return "Select a planning horizon greater than zero.";
+      return "Enter a positive assigned TCO and planning horizon.";
+    }
     if (text.includes("horizonYears must be > 0")) return "Select a planning horizon greater than zero.";
     if (text.includes("attributableTcoUsd must be > 0")) return "Enter the portion of TCO assigned to this inference workload.";
     return text;
@@ -481,7 +490,7 @@ export default function InferenceEconomicsGuidedPreview() {
 
         <div style={{ ...sourceLine, marginTop: 16 }}>
           <span>
-            <b>Capacity check:</b> {productionServingFactor ? `${Math.round(n(productionServingFactor) * 100)}% production-throughput assumption set` : "production-throughput assumption required"}
+            <b>Capacity check:</b> {productionServingFactor ? `${Math.round(n(productionServingFactor) * 100)}% sustained share of benchmark throughput set` : "sustained share of benchmark throughput required"}
           </span>
           <InlineHelp text="This assumption is used to confirm the private configuration can meet expected demand. It does not continuously change the $/1M result. If the resulting production capacity falls below demand, the economics result is suppressed instead of quoting an undersized design." />
         </div>
@@ -585,7 +594,7 @@ export default function InferenceEconomicsGuidedPreview() {
             <b>{e?.reason === "UNDERSIZED_FOR_DEMAND" ? "This configuration does not meet the stated demand." : "Complete the inputs above to calculate private-AI economics."}</b>
             <div style={{ marginTop: 6 }}>
               {!productionServingFactor
-                ? "Set the production throughput assumption under Technical assumptions to complete the capacity check."
+                ? "Set the sustained share of benchmark throughput under Technical assumptions to complete the capacity check."
                 : e?.reason === "UNDERSIZED_FOR_DEMAND"
                   ? (
                     <>
@@ -598,10 +607,13 @@ export default function InferenceEconomicsGuidedPreview() {
                           : ""}
                         Peak annual shortfall: {compact(e.annualShortfallTokens)} output tokens.
                       </div>
-                      <div style={{ marginTop: 5 }}>{humanizeIeErrors(e.errors)}</div>
+                      <div style={{ marginTop: 5 }}>{humanizeIeErrors(e.errors, { attributableTcoUsd, horizonYears })}</div>
                     </>
                   )
-                  : humanizeIeErrors(e?.errors?.length ? e.errors : result.demand?.errors?.length ? result.demand.errors : result.capacity?.errors?.length ? result.capacity.errors : result.throughput?.errors || [])}
+                  : humanizeIeErrors(
+                    e?.errors?.length ? e.errors : result.demand?.errors?.length ? result.demand.errors : result.capacity?.errors?.length ? result.capacity.errors : result.throughput?.errors || [],
+                    { attributableTcoUsd, horizonYears }
+                  )}
             </div>
           </div>
         )}
