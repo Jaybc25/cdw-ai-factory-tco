@@ -194,7 +194,6 @@ test("TCO workload timing uses the same 250 active-days basis as Inference Econo
   );
   await page.waitForLoadState("networkidle").catch(() => {});
 
-  await page.getByRole("button", { name: "Get the full report" }).click().catch(() => {});
   const bodyText = await page.locator("body").innerText();
   expect(bodyText).toMatch(/10 hrs\/day × 250 active days\/year ÷ 12/i);
   expect(bodyText).toMatch(/1,667 GPU-hrs\/mo/i);
