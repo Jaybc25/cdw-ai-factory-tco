@@ -925,7 +925,7 @@ function GPUSizingCalculatorInner() {
     return saved?.modelAdvisorRecommendedId ?? null;
   });
   const [infModel, setInfModel] = useState(() => {
-    if (incomingModelId && mode === "Inference") return modelHandoff.model;
+    if (incomingModelId) return modelHandoff.model;
     return getModelById(saved?.infModelId) || modelHandoff.model;
   });
   const [quant, setQuant] = useState(saved?.quant ?? "FP8");
@@ -944,7 +944,7 @@ function GPUSizingCalculatorInner() {
   const [workingDayHours, setWorkingDayHours] = useState(saved?.workingDayHours ?? 10);
 
   const [trainModel, setTrainModel] = useState(() => {
-    if (incomingModelId && mode === "Training") return modelHandoff.model;
+    if (incomingModelId) return modelHandoff.model;
     return getModelById(saved?.trainModelId) || getDefaultModel();
   });
   const [taskType, setTaskType] = useState(saved?.taskType ?? "Full fine-tune");
