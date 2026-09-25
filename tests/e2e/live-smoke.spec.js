@@ -157,9 +157,15 @@ test("Model Advisor distinguishes enforced governance from planning-only inputs"
   const sensitivityField = page.locator("label").filter({ hasText: "Data sensitivity (planning only)" }).first();
   await expect(sensitivityField).toBeVisible();
 
-  await page.getByRole("button", { name: /Calculation methodology|Audit trail|How this works/i }).click().catch(() => {});
-  const bodyText = await page.locator("body").innerText();
-  expect(bodyText).toMatch(/Approved vendor families \(planning only\)/i);
+  await page.waitForFunction(() => {
+    const raw = sessionStorage.getItem("ai-factory-session:model-advisor");
+    return raw && JSON.parse(raw).governance === "approved-vendor-families";
+  });
+  const selectedLabel = await governanceSelect.locator("option:checked").innerText();
+  expect(selectedLabel).toMatch(/Approved vendor families \(planning only\)/i);
+
+  const saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:model-advisor")));
+  expect(saved.governance).toBe("approved-vendor-families");
 
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
