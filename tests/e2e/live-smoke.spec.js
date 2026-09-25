@@ -187,6 +187,26 @@ test("TCO labels savings ratio distinctly from ROI", async ({ page }) => {
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 
+
+test("Rubin workload handoff labels cloud GPU as a placeholder, not like-for-like", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+  await page.goto(
+    "/tco?ownSys=DGX%20Vera%20Rubin%20NVL72&gpuCount=72&gpuDemandCount=72&sourceClass=Vera%20Rubin%20NVL72&workingDayHours=10",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  await page.getByRole("button", { name: /Refine when known/i }).click();
+  const refineText = await page.locator("body").innerText();
+  expect(refineText).toMatch(/No cloud rate is available for Vera Rubin NVL72/i);
+  expect(refineText).toMatch(/cloud side currently uses H100 as a placeholder with no Rubin performance credit/i);
+  expect(refineText).toMatch(/select the GPU class you would actually rent/i);
+  expect(refineText).not.toMatch(/like-for-like starting comparison/i);
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("TCO handoff persists ROI values and provenance after query consumption and reload", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
