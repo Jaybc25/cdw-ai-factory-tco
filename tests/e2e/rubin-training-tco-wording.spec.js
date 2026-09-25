@@ -7,9 +7,9 @@ function resultCard(page, title) {
   return page.getByText(title, { exact: true }).first().locator("..").locator("..");
 }
 
-const canonical = "Technical sizing uses NVIDIA-published memory and training FLOPS. Phase 1 TCO is available using transparent EST/PROVISIONAL planning assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains a quote/Phase 2 activity.";
+const canonical = "Technical sizing uses NVIDIA-published memory and training FLOPS. Planning TCO is available using transparent EST/PROVISIONAL assumptions; detailed fabric, liquid-cooling, rack, and facility engineering remains project-specific and quote-based.";
 
-test("Rubin training consistently presents Phase 1 TCO as available", async ({ page }) => {
+test("Rubin training consistently presents planning TCO as available", async ({ page }) => {
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
   await page.getByRole("button", { name: "Training / fine-tuning sizing" }).click();
 
@@ -25,8 +25,8 @@ test("Rubin training consistently presents Phase 1 TCO as available", async ({ p
   await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
   // AuditFormula renders result values with a leading "= ", so match the
   // visible line rather than requiring a standalone text node.
-  await expect(page.getByText(/See Phase 1 TCO/)).toBeVisible();
-  await expect(page.getByText("Modeled in Phase 1 TCO", { exact: true })).toBeVisible();
+  await expect(page.getByText(/See planning TCO/)).toBeVisible();
+  await expect(page.getByText("Modeled in planning TCO", { exact: true })).toBeVisible();
   await expect(page.getByText(/Not yet activated/i)).toHaveCount(0);
   await expect(page.getByText(/economics remain gated/i)).toHaveCount(0);
   await expect(page.getByText(canonical, { exact: false })).toBeVisible();
