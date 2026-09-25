@@ -1442,7 +1442,7 @@ function AppInner() {
           <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12, padding: 16, marginBottom: 14 }}>
             <div style={{ ...disp, fontWeight: 700, fontSize: 17, marginBottom: 4 }}>Get the full TCO report</div>
             <div style={{ fontSize: 12, color: C.sub, marginBottom: 10 }}>
-              The report includes the fleet build, full assumption ledger with sources, and the floor-case analysis. On the production site this will also be emailed to you as a PDF.
+              The report includes the fleet build, full assumption ledger with sources, and the comparison without performance credit. On the production site this will also be emailed to you as a PDF.
             </div>
             {/* Fix (Bug 6, bonus, same as ROI's identical lead-gate pattern):
                 placeholder-only inputs aren't announced by screen readers as
@@ -1483,7 +1483,7 @@ function AppInner() {
               <div style={{ background: C.greenSoft, borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
                 <div style={{ ...mono, fontSize: 11, color: C.green }}>{!r.infrastructureCoverage.clientReady ? `${horizon}-YEAR MODELED DELTA — INFRASTRUCTURE INPUTS NOT YET QUALIFIED` : `${horizon}-YEAR PROJECTED SAVINGS`}</div>
                 <div style={{ ...mono, fontSize: 32, fontWeight: 600, color: C.green }}>{fmtM(t.saveAdj)}</div>
-                <div style={{ fontSize: 12, color: C.ink }}>vs. staying in cloud ({fmtM(t.cloud)}) · even without performance credit: {fmtM(t.saveFlr)}</div>
+                <div style={{ fontSize: 12, color: C.ink }}>vs. staying in cloud ({fmtM(t.cloud)}) · savings without performance credit: {fmtM(t.saveFlr)}</div>
               </div>
             ) : (
               <div style={{ background: "#F1F1F1", borderLeft: "3px solid #CC0000", borderRadius: 10, padding: "12px 14px", marginBottom: 12 }}>
@@ -1573,13 +1573,13 @@ function AppInner() {
                   ["Migration / dual-run / retrofit", `${fmtM(migration)} / ${dualRun}mo / ${facility === "Self-hosted (retrofit)" ? fmtM(retrofit) : "n/a"}`],
                   ["Redundancy / residual", `${redundancy ? "N+1 on" : "off"} / ${Math.round(residPct * 100)}%`],
                   [r.isWorkloadMode ? "Technical GPU-hours (target class)" : "Reconstructed GPU-hours", `${Math.round(r.gpuHrs).toLocaleString()}/mo`],
-                  ["Systems (adjusted / floor)", `${r.sysAdj} / ${r.sysFloor}`],
+                  ["Systems (modeled / without performance credit)", `${r.sysAdj} / ${r.sysFloor}`],
                   ...(gpuSizingSystems && !r.isWorkloadMode ? [["GPU Sizing technical recommendation", `${gpuSizingSystems} × ${ownSys} (${gpuSizingCount} GPUs, node-rounded)`]] : []),
                   ["Fleet by year (adjusted)", r.fleetAdj.slice(0, horizon).join(" → ")],
                   ["Capex / one-time / residual credit", `${fmt(r.adj.capex)} / ${fmt(r.oneTime)} / −${fmt(r.adj.resid)}`],
                   ["On-prem opex", `${fmt(r.adj.opex)}/mo`],
-                  [`Cloud vs on-prem (${horizon}yr)`, `${fmt(t.cloud)} vs ${fmt(t.onAdj)}${r.isWorkloadMode ? ` (floor cloud: ${fmt(t.cloudFloor)})` : ""}`],
-                  ["Savings (adjusted / floor)", `${fmt(t.saveAdj)} / ${fmt(t.saveFlr)}`],
+                  [`Cloud vs on-prem (${horizon}yr)`, `${fmt(t.cloud)} vs ${fmt(t.onAdj)}${r.isWorkloadMode ? ` (cloud without performance credit: ${fmt(t.cloudFloor)})` : ""}`],
+                  ["Savings (modeled / without performance credit)", `${fmt(t.saveAdj)} / ${fmt(t.saveFlr)}`],
                   ...(r.isWorkloadMode ? [] : [
                     ["Model / quantization (capacity est.)", `${modelDisplay} / ${quant}`],
                     ["Est. concurrent users", r.cap.fits ? r.cap.users.toLocaleString() : r.cap.available === false ? "unavailable — Rubin inference benchmark pending" : "model does not fit fleet"],
