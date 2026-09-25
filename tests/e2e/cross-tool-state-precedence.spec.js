@@ -112,6 +112,38 @@ test("Use Case Explorer handoff changes GPU sizing mode without erasing mode-spe
   expect(new URL(page.url()).search).toBe("");
 });
 
+test("Explorer-set Training mode persists after URL cleanup and refresh", async ({ page }) => {
+  await seedSession(page, "/gpu-sizing", KEYS.gpu, {
+    mode: "Inference",
+    incomingWorkloadType: null,
+    incomingRoutingClass: null,
+    sourceUseCase: null,
+  });
+
+  await page.goto(
+    "/gpu-sizing?sourceUseCase=transaction-foundation-model&workloadType=model-training&routingClass=specialized-stack&mode=Training",
+    { waitUntil: "domcontentloaded" },
+  );
+
+  let saved = await waitForSession(page, KEYS.gpu, {
+    mode: "Training",
+    sourceUseCase: "transaction-foundation-model",
+    incomingWorkloadType: "model-training",
+    incomingRoutingClass: "specialized-stack",
+  });
+  expect(new URL(page.url()).search).toBe("");
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+
+  saved = await waitForSession(page, KEYS.gpu, {
+    mode: "Training",
+    sourceUseCase: "transaction-foundation-model",
+    incomingWorkloadType: "model-training",
+    incomingRoutingClass: "specialized-stack",
+  });
+  expect(saved.mode).toBe("Training");
+});
+
 test("fresh Model Advisor handoff updates the active GPU sizing model and supersedes unrelated stale Explorer provenance", async ({ page }) => {
   await seedSession(page, "/gpu-sizing", KEYS.gpu, {
     mode: "Training",
