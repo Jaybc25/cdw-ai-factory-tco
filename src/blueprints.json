@@ -142,7 +142,7 @@
         "healthcare-life-sciences": "Health systems use voice agents for appointment scheduling, prescription refill requests, and post-discharge care check-ins with a self-hosted deployment option for organizations that need to keep PHI within their controlled environment.",
         "financial-services": "Banks and insurers handle account inquiries, claims status, and fraud alerts via voice agents that authenticate callers and resolve tier-1 issues instantly."
       },
-      "detail_infrastructure": "NVIDIA Riva ASR/TTS, Nemotron reasoning model via NIM, real-time inference GPU (L40S or H100 recommended), telephony integration layer."
+      "detail_infrastructure": "NVIDIA Riva ASR/TTS, Nemotron reasoning model via NIM, real-time inference GPU (L40S or H200-class recommended), telephony integration layer."
     },
     {
       "id": "ran-energy-efficiency",
@@ -247,7 +247,7 @@
         "financial-services": "Asset managers and banks create proprietary signal-generation models trained on their own trading data, news feeds, and financial filings — running entirely on-premises.",
         "state-local-government": "State budget offices distill models from appropriations history, revenue data, and economic indicators to generate fiscal intelligence for analysts without cloud data exposure."
       },
-      "detail_infrastructure": "NVIDIA NeMo distillation pipeline, NIM for inference, GPU cluster for training (H100/B200), data curation and annotation tooling."
+      "detail_infrastructure": "NVIDIA NeMo distillation pipeline, NIM for inference, GPU cluster for training (H200/B200-class), data curation and annotation tooling."
     },
     {
       "id": "quantitative-portfolio-optimization",
@@ -268,7 +268,7 @@
         "financial-services": "Hedge funds and asset managers run intraday portfolio rebalancing, stress testing, and factor exposure optimization at speeds that enable true real-time risk management.",
         "state-local-government": "State pension funds and treasury offices optimize fund allocations and run scenario analysis on GPU infrastructure — dramatically accelerating what were previously overnight batch jobs."
       },
-      "detail_infrastructure": "NVIDIA cuOpt, RAPIDS libraries, high-memory GPU nodes (A100/H100), integration with portfolio management and risk systems."
+      "detail_infrastructure": "NVIDIA cuOpt, RAPIDS libraries, high-memory GPU nodes (H200/B200-class), integration with portfolio management and risk systems."
     },
     {
       "id": "cosmos-dataset-search",
@@ -933,7 +933,7 @@
         "healthcare-life-sciences": "Biotech and pharma researchers analyze tumor microenvironments, cell type compositions, and gene expression at single-cell resolution — with results in minutes rather than overnight.",
         "state-local-government": "State public health labs apply GPU-accelerated genomics to disease surveillance — processing pathogen sequencing data fast enough to inform real-time outbreak response."
       },
-      "detail_infrastructure": "NVIDIA RAPIDS (cuDF, cuML, cuGraph), high-memory GPU nodes (A100/H100), Jupyter or pipeline integration for genomics workflows."
+      "detail_infrastructure": "NVIDIA RAPIDS (cuDF, cuML, cuGraph), high-memory GPU nodes (H200/B200-class), Jupyter or pipeline integration for genomics workflows."
     },
     {
       "id": "bionemo-protein-engineering",
@@ -1169,7 +1169,7 @@
         "healthcare-life-sciences": "Clinical genomics labs support real-time diagnosis of rare diseases, infectious disease outbreak tracking, and pharmacogenomics with whole-genome analysis in under 30 minutes.",
         "state-local-government": "State public health labs run GPU-accelerated genomic surveillance for infectious disease — processing pathogen sequencing data in near-real-time to inform outbreak response."
       },
-      "detail_infrastructure": "NVIDIA Parabricks, high-memory GPU nodes (A100/H100), genomics data pipeline, integration with LIMS and bioinformatics tools."
+      "detail_infrastructure": "NVIDIA Parabricks, high-memory GPU nodes (H200/B200-class), genomics data pipeline, integration with LIMS and bioinformatics tools."
     },
     {
       "id": "nemoclaw-hermes",
@@ -1334,7 +1334,7 @@
         "retail-distribution": "E-commerce fulfillment operators training robotic picking systems generate synthetic trajectories covering the full SKU diversity of their catalog without physically demonstrating each item handling scenario.",
         "federal-defense": "Defense robotics programs generate synthetic manipulation datasets for hazardous or operationally constrained scenarios that cannot be safely demonstrated repeatedly in the real world."
       },
-      "detail_infrastructure": "NVIDIA Isaac GR00T-Mimic, NVIDIA Omniverse, NVIDIA Cosmos world foundation models, spatial computing device for initial demonstrations (Apple Vision Pro or equivalent), H100 GPU or higher with 80GB VRAM."
+      "detail_infrastructure": "NVIDIA Isaac GR00T-Mimic, NVIDIA Omniverse, NVIDIA Cosmos world foundation models, spatial computing device for initial demonstrations (Apple Vision Pro or equivalent), H200-class or newer GPU with sufficient VRAM for the target workload."
     },
     {
       "id": "mega-multi-robot-fleet",
@@ -1515,7 +1515,7 @@
         "state-local-government": "State revenue and benefits agencies train transaction models on benefits disbursement, tax payment, and procurement data — powering fraud detection that understands their own population and payment patterns.",
         "retail-distribution": "Retailers train transaction models on purchase history to power proprietary recommendation, loyalty, and loss-prevention systems — behavioral intelligence trained on their own customers."
       },
-      "detail_infrastructure": "NVIDIA NeMo for transformer training, GPU cluster for training (H100/B200), tabular data preprocessing pipeline, fine-tuning framework for downstream tasks."
+      "detail_infrastructure": "NVIDIA NeMo for transformer training, GPU cluster for training (H200/B200-class), tabular data preprocessing pipeline, fine-tuning framework for downstream tasks."
     },
     {
       "id": "quantitative-signal-discovery",
