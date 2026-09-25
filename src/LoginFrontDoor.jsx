@@ -212,7 +212,7 @@ function LoginFrontDoorInner({ children }) {
                   <div className="afd-switch"><button type="button" onClick={() => { setMode(mode === "password" ? "magic" : "password"); setPassword(""); setLinkSent(false); setError(""); }}>{mode === "password" ? "Use a sign-in link instead" : "Use password instead"}</button></div>
                   {error && <div className="afd-error" role="alert">{error}</div>}
                   <div className="afd-legal">By continuing, you agree to CDW's <a href={SITE_USE_URL} target="_blank" rel="noreferrer">Site Use</a> and <a href={PRIVACY_URL} target="_blank" rel="noreferrer">Privacy Notice</a>.</div>
-                  <div className="afd-temp-note">Password sign-in is a temporary compatibility option for provisioned users while corporate email delivery is being finalized.</div>
+                  <div className="afd-temp-note">You can sign in with either a secure email link or a password, depending on how your account was provisioned.</div>
                 </form>
               )}
             </div>
