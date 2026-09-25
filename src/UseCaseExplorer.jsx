@@ -821,7 +821,7 @@ function UseCaseExplorerInner() {
           change. (This page's h1, "Explore AI Use Cases", already exists
           further down, so no heading fix was needed here.) */}
       {/* header */}
-      <div style={{ background: "#fff", borderBottom: "3px solid #e8e8e8", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 }}>
+      <div className="uce-header" style={{ background: "#fff", borderBottom: "3px solid #e8e8e8", padding: "12px 24px", display: "flex", alignItems: "center", gap: 12 }}>
         <a href="/" style={{ display: "flex", alignItems: "center", flexShrink: 0 }} aria-label="AI Factory Tools home">
           <img src={cdwLogo} alt="CDW" style={{ height: 36, width: "auto" }} />
         </a>
@@ -831,13 +831,13 @@ function UseCaseExplorerInner() {
         </div>
       </div>
 
-      <div style={{ background: "#fff", borderBottom: `1px solid ${CDW_BORDER}`, padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+      <div className="uce-account-row" style={{ background: "#fff", borderBottom: `1px solid ${CDW_BORDER}`, padding: "8px 24px", display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
         <AuthWidget />
       </div>
 
       {/* breadcrumb */}
       {view !== "home" && (
-        <div style={{ background: "#fff", borderBottom: `1px solid ${CDW_BORDER}`, padding: "10px 24px", display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
+        <div className="uce-breadcrumbs" style={{ background: "#fff", borderBottom: `1px solid ${CDW_BORDER}`, padding: "10px 24px", display: "flex", gap: 6, alignItems: "center", fontSize: 13 }}>
           <button onClick={resetToHome} style={{ background: "none", border: "none", cursor: "pointer", color: CDW_RED, fontWeight: 600, padding: 0, fontSize: 13 }}>Home</button>
           <span style={{ color: "#bbb" }}>›</span>
           {(view === "industry-pick" || view === "industry-results") && (
@@ -855,7 +855,7 @@ function UseCaseExplorerInner() {
         </div>
       )}
 
-      <div style={{ maxWidth: 860, margin: "0 auto", padding: "28px 20px" }}>
+      <div className="uce-content" style={{ maxWidth: 860, margin: "0 auto", padding: "28px 20px" }}>
 
         {/* HOME */}
         {view === "home" && (
@@ -864,7 +864,7 @@ function UseCaseExplorerInner() {
               <h1 style={{ fontSize: 26, fontWeight: 800, color: CDW_DARK, margin: "0 0 10px" }}>Explore AI Use Cases</h1>
               <p style={{ fontSize: 15, color: "#666", margin: 0, maxWidth: 540, marginInline: "auto", lineHeight: 1.6 }}>Explore NVIDIA-accelerated AI use cases by industry or business function. Current Blueprints are used where available, and relevant legacy patterns are retained when the underlying capability remains supported.</p>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+            <div className="uce-entry-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
               {[
                 { label: "By Industry", sub: "What are organizations like mine doing with AI?", count: `${INDUSTRIES.length} industries`, icon: "🏢", action: () => setView("industry-pick") },
                 { label: "By Business Function", sub: "What can AI do for my team?", count: `${BUSINESS_FUNCTIONS.length} functions`, icon: "🧩", action: () => setView("function-pick") },
