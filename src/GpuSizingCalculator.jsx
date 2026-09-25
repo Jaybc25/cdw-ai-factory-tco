@@ -969,16 +969,31 @@ function GPUSizingCalculatorInner() {
   const [targetDays, setTargetDays] = useState(saved?.targetDays ?? 14);
   const [mfu, setMfu] = useState(saved?.mfu ?? 0.4);
   const [trainGpuOverride, setTrainGpuOverride] = useState(saved?.trainGpuOverride ?? "Auto-recommend");
-  const [advisorAppliedModes, setAdvisorAppliedModes] = useState(() => ({
-    Inference: !incomingModelId || mode === "Inference",
-    Training: !incomingModelId || mode === "Training",
-  }));
+  const [advisorAppliedModes, setAdvisorAppliedModes] = useState(() => {
+    if (incomingModelId) {
+      return {
+        Inference: mode === "Inference",
+        Training: mode === "Training",
+      };
+    }
+    if (saved?.advisorAppliedModes) {
+      return {
+        Inference: saved.advisorAppliedModes.Inference !== false,
+        Training: saved.advisorAppliedModes.Training !== false,
+      };
+    }
+    return { Inference: true, Training: true };
+  });
+
+  const advisorRecommendedModel = modelAdvisorRecommendedId
+    ? getModelById(modelAdvisorRecommendedId)
+    : null;
 
   function changeMode(nextMode) {
     if (nextMode === mode) return;
-    if (incomingModelId && !advisorAppliedModes[nextMode] && modelHandoff.matched) {
-      if (nextMode === "Inference") setInfModel(modelHandoff.model);
-      else setTrainModel(modelHandoff.model);
+    if (modelAdvisorRecommendedId && !advisorAppliedModes[nextMode] && advisorRecommendedModel) {
+      if (nextMode === "Inference") setInfModel(advisorRecommendedModel);
+      else setTrainModel(advisorRecommendedModel);
       setAdvisorAppliedModes((prev) => ({ ...prev, [nextMode]: true }));
     }
     setMode(nextMode);
@@ -999,12 +1014,13 @@ function GPUSizingCalculatorInner() {
       incomingWorkloadType,
       incomingRoutingClass,
       modelAdvisorRecommendedId,
+      advisorAppliedModes,
     });
   }, [mode, pathLevel, infModel, quant, concurrentUsers, targetTokPerUser, environment,
       avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride,
       customParamsB, customLayers, customKvHeads, customHeadDim, workingDayHours,
       trainModel, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride,
-      sourceUseCase, incomingWorkloadType, incomingRoutingClass, modelAdvisorRecommendedId]);
+      sourceUseCase, incomingWorkloadType, incomingRoutingClass, modelAdvisorRecommendedId, advisorAppliedModes]);
 
   const infInputs = {
     model: infModel,
