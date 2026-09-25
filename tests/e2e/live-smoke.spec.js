@@ -184,6 +184,29 @@ test("GPU Sizing mode sets TCO workload mix on fresh handoff", async ({ page }) 
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 
+
+test("TCO workload timing uses the same 250 active-days basis as Inference Economics", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+  await page.goto(
+    "/tco?ownSys=DGX%20B200&gpuCount=8&gpuDemandCount=1&sourceClass=B200&gpuSizingMode=Inference&workingDayHours=10",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  await page.getByRole("button", { name: "Get the full report" }).click().catch(() => {});
+  const bodyText = await page.locator("body").innerText();
+  expect(bodyText).toMatch(/10 hrs\/day × 250 active days\/year ÷ 12/i);
+  expect(bodyText).toMatch(/1,667 GPU-hrs\/mo/i);
+
+  await page.goto("/inference-economics", { waitUntil: "domcontentloaded" });
+  await page.waitForLoadState("networkidle").catch(() => {});
+  const daysInput = page.getByLabel("Serving days per year");
+  await expect(daysInput).toHaveValue("250");
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("TCO workload mode suppresses standalone serving-capacity estimates", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
