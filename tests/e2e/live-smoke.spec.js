@@ -141,6 +141,35 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 
 
 
+
+test("Model Advisor distinguishes enforced governance from planning-only inputs", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/model-advisor", { waitUntil: "domcontentloaded" });
+  await page.getByText("Deployment requirements", { exact: true }).click();
+
+  const governanceField = page.locator("label").filter({ hasText: "Governance / origin restriction" }).first();
+  const governanceSelect = governanceField.locator("select");
+  await expect(governanceSelect).toBeVisible();
+  await governanceSelect.selectOption("approved-vendor-families");
+
+  const sensitivityField = page.locator("label").filter({ hasText: "Data sensitivity (planning only)" }).first();
+  await expect(sensitivityField).toBeVisible();
+
+  await page.waitForFunction(() => {
+    const raw = sessionStorage.getItem("ai-factory-session:model-advisor");
+    return raw && JSON.parse(raw).governance === "approved-vendor-families";
+  });
+  const selectedLabel = await governanceSelect.locator("option:checked").innerText();
+  expect(selectedLabel).toMatch(/Approved vendor families \(planning only\)/i);
+
+  const saved = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:model-advisor")));
+  expect(saved.governance).toBe("approved-vendor-families");
+
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("Model Advisor text-only requirement does not exclude multimodal-capable models", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);

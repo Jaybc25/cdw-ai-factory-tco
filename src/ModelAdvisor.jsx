@@ -36,8 +36,8 @@ const TIPS = {
   reasoningIntensity: "How much complex, multi-step reasoning your workload needs. This helps us understand your use case for future planning -- it doesn't currently affect which models are recommended, since no dedicated reasoning benchmark exists yet in our data.",
   fineTuning: "Whether you plan to fine-tune the model on your own data. This helps inform future deployment planning -- it doesn't currently affect which models are recommended, since we don't yet track fine-tuning support per model.",
   license: "Whether you need clear commercial-use rights, or research-only is fine. If a model's license can't be confidently classified, it's flagged for manual review rather than guessed at.",
-  governance: "Whether the model's developer needs to be headquartered in a specific country. This reflects the developing organization's HQ, not necessarily where training took place.",
-  dataSensitivity: "How sensitive the data this model will touch is. Regulated or air-gapped answers will prompt you to also set a governance requirement above, since those often go together but aren't automatically the same thing.",
+  governance: "U.S.-developed only is enforced using the tracked developer-country field. Approved vendor families is planning context only in this version because no customer-specific approved-vendor list is configured.",
+  dataSensitivity: "Planning context only. This does not change model eligibility or ranking today; regulated or air-gapped selections only prompt you to consider whether a governance/origin restriction is also required.",
   optimizationPriority: "What matters most when we pick your single best-fit recommendation: raw capability, model size efficiency, or a balance of both.",
 };
 
@@ -187,7 +187,7 @@ const LICENSE_OPTIONS = [
 const GOVERNANCE_OPTIONS = [
   { value: "none", label: "No restriction" },
   { value: "us-only", label: "U.S.-developed only" },
-  { value: "approved-vendor-families", label: "Approved vendor families only" },
+  { value: "approved-vendor-families", label: "Approved vendor families (planning only)" },
 ];
 
 const SENSITIVITY_OPTIONS = [
@@ -748,7 +748,7 @@ function ModelAdvisorInner() {
                 )}
                 {topModel && topDetails && (
                   <div className="text-xs text-gray-500 mb-4">
-                    <b style={{ color: CHARCOAL }}>{modelLabel(topModel)}</b> cleared every check: license {topDetails.licenseState}, governance {topDetails.govState}, context window {topDetails.contextState}, modality {topDetails.modalityState}.
+                    <b style={{ color: CHARCOAL }}>{modelLabel(topModel)}</b> eligibility checks: license {topDetails.licenseState}, governance {topDetails.govState === "NOT_EVALUATED" ? "not evaluated for approved vendor families" : topDetails.govState}, context window {topDetails.contextState}, modality {topDetails.modalityState}.
                   </div>
                 )}
               </>
@@ -895,7 +895,7 @@ function ModelAdvisorInner() {
             <b style={{ color: CHARCOAL }}>License-permissiveness heuristic:</b> a license is treated as permitting commercial use when its text matches a known-permissive pattern (Apache, MIT, Llama 3.1/3.3/4, Gemma, Mixtral). This is a simplified check, not a legal determination -- Meta's Llama licenses in particular carry a &gt;700M-monthly-active-user commercial exception most customers won't hit, but a customer at that scale would need separate legal review. A license CDW's data doesn't recognize, or has no license on record, is marked "verification required," never silently passed or failed.
           </div>
           <div className="text-xs text-gray-500 mb-2 leading-relaxed">
-            <b style={{ color: CHARCOAL }}>Governance / developer-origin check:</b> based on a tracked developer-country field. The "approved vendor families" governance option is informational only in this version -- no specific vendor-family list is enforced.
+            <b style={{ color: CHARCOAL }}>Governance / developer-origin check:</b> "U.S.-developed only" is enforced using the tracked developer-country field. "Approved vendor families" is marked not evaluated and remains planning-only because no customer-specific approved-vendor list is configured.
           </div>
           <div className="text-xs text-gray-500 mb-2 leading-relaxed">
             <b style={{ color: CHARCOAL }}>Missing-data treatment:</b> a requirement is only marked FAIL when known evidence contradicts it. When the underlying data is missing or unverified, the result is "verification required," never collapsed into a pass or a fail.
@@ -987,7 +987,7 @@ function ModelAdvisorInner() {
                   <Select value={governance} onChange={setGovernance} options={GOVERNANCE_OPTIONS} />
                 </Field>
 
-                <Field label="Data sensitivity" tipKey="dataSensitivity">
+                <Field label="Data sensitivity (planning only)" tipKey="dataSensitivity">
                   <Select value={dataSensitivity} onChange={setDataSensitivity} options={SENSITIVITY_OPTIONS} />
                 </Field>
                 {showGovernanceNudge && (
