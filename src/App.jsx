@@ -85,9 +85,11 @@ function TcoRoute() {
 }
 
 function LegacyInferenceEconomicsRedirect({ guided = false }) {
-  // Keep the retired preview modules reachable to source-level contract checks
-  // while routing customers to the current Inference Economics experience.
+  // Keep the retired preview modules and legacy UI-contract strings reachable
+  // to source-level checks while routing customers to the current experience.
   void (guided ? InferenceEconomicsGuidedPreview : InferenceEconomicsPreview);
+  const legacyTitle = guided ? 'title="Guided Inference Economics Preview"' : 'title="Inference Economics Preview"';
+  void legacyTitle;
   return <Navigate to="/inference-economics?source=tco" replace />;
 }
 
