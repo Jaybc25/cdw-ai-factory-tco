@@ -69,7 +69,7 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
   await page.goto(
-    "/tco?ownSys=DGX%20B200&gpuCount=8&sourceClass=B200&workingDayHours=8",
+    "/tco?ownSys=DGX%20B200&gpuCount=8&gpuDemandCount=1&sourceClass=B200&workingDayHours=8",
     { waitUntil: "domcontentloaded" },
   );
   await page.waitForFunction(() => !!sessionStorage.getItem("ai-factory-session:tco"));
@@ -80,6 +80,7 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
   const first = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:tco")));
   expect(first.ownSys).toBe("DGX B200");
   expect(first.gpuSizingCount).toBe(8);
+  expect(first.gpuSizingDemandCount).toBe(1);
   expect(first.sourceClass).toBe("B200");
   expect(first.workingDayHours).toBe(8);
   expect(first.mode).toBe("workload");
@@ -89,9 +90,26 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
   const afterReload = await page.evaluate(() => JSON.parse(sessionStorage.getItem("ai-factory-session:tco")));
   expect(afterReload.ownSys).toBe("DGX B200");
   expect(afterReload.gpuSizingCount).toBe(8);
+  expect(afterReload.gpuSizingDemandCount).toBe(1);
   expect(afterReload.sourceClass).toBe("B200");
   expect(afterReload.workingDayHours).toBe(8);
   expect(afterReload.mode).toBe("workload");
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
+
+test("TCO workload growth consumes GPU Sizing headroom before buying another system", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+  await page.goto(
+    "/tco?ownSys=DGX%20B200&gpuCount=8&gpuDemandCount=1&sourceClass=B200&workingDayHours=10&concurrentUsers=200&targetTokPerUser=30",
+    { waitUntil: "domcontentloaded" },
+  );
+  await page.waitForLoadState("networkidle").catch(() => {});
+
+  const bodyText = await page.locator("body").innerText();
+  expect(bodyText).toContain("88% headroom");
+  expect(bodyText).not.toMatch(/88% headroom\s*→\s*2 sys by yr 3/i);
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 
