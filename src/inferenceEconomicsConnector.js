@@ -39,11 +39,9 @@ function validGrowth(value) {
  *   inference share = 1 - training share;
  * - the modeled allocation is prefilled but remains overrideable in Preview.
  *
- * Growth:
- * - TCO workload growth is carried into Preview demand growth;
- * - if TCO's physical fleet changes during the selected horizon, attributable
- *   TCO is withheld because IE still requires exact benchmark-sized deployment
- *   evidence and does not infer multi-system scaling efficiency.
+ * Demand basis:
+ * - current TCO handoffs use a flat-demand baseline (0% demand growth);
+ * - the connector retains the growth field for backward compatibility with older links.
  */
 export function buildInferenceEconomicsPreviewHandoff({
   ownSys,
