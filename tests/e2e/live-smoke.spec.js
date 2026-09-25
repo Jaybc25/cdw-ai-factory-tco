@@ -82,6 +82,12 @@ test("GPU Sizing report and audit honor the Higher-growth selection", async ({ p
   await expect(higherGrowthButton).toHaveAttribute("aria-pressed", "true");
 
   await page.getByRole("button", { name: "Get the full sizing report" }).click();
+  if (await page.getByRole("button", { name: "View my report" }).count()) {
+    await page.getByPlaceholder("Full name").fill("Test User");
+    await page.getByPlaceholder("Company").fill("CDW");
+    await page.getByPlaceholder("Work email").fill("test@example.com");
+    await page.getByRole("button", { name: "View my report" }).click();
+  }
   const reportText = await page.locator("body").innerText();
   expect(reportText).toContain("Selected configuration for TCO");
   expect(reportText).toContain("SELECTED FOR TCO · HIGHER-GROWTH");
