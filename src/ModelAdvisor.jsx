@@ -32,7 +32,7 @@ const TIPS = {
   primaryWorkload: "Of the workloads you checked, which matters most for this decision? We rank models using the benchmark that best matches this specific workload where one exists.",
   qualityPriority: "How much you're willing to trade raw capability for a smaller, cheaper-to-run model. Frontier-like stays close to the top score; Economical allows a much wider range of models to qualify as \"efficient enough.\"",
   contextWindow: "The largest amount of text (prompt + conversation history) the model needs to handle at once. If you're not sure, 32K covers most chat and document use cases comfortably.",
-  multimodal: "Whether you need the model to understand images, not just text. Leave as Text only unless your use case specifically involves image input.",
+  multimodal: "Whether your use case requires image input. Text only means image understanding is not required; multimodal models that also handle text remain eligible. Choose Image + text only when image input is required.",
   reasoningIntensity: "How much complex, multi-step reasoning your workload needs. This helps us understand your use case for future planning -- it doesn't currently affect which models are recommended, since no dedicated reasoning benchmark exists yet in our data.",
   fineTuning: "Whether you plan to fine-tune the model on your own data. This helps inform future deployment planning -- it doesn't currently affect which models are recommended, since we don't yet track fine-tuning support per model.",
   license: "Whether you need clear commercial-use rights, or research-only is fine. If a model's license can't be confidently classified, it's flagged for manual review rather than guessed at.",
@@ -162,7 +162,7 @@ const CONTEXT_OPTIONS = [
 
 const MULTIMODAL_OPTIONS = [
   { value: "none", label: "No preference" },
-  { value: "text-only", label: "Text only" },
+  { value: "text-only", label: "Text only (image input not required)" },
   { value: "image-text", label: "Image + text" },
 ];
 
