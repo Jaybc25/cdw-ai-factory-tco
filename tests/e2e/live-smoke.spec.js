@@ -664,7 +664,7 @@ test("TCO to ROI handoff discloses its narrower cost basis", async ({ page }) =>
   await page.waitForLoadState("networkidle").catch(() => {});
 
   await expect(page.getByText(/This prefill uses TCO's current upfront cost plus Year-1 operating cost/i)).toBeVisible();
-  await expect(page.getByText(/It excludes later-year fleet expansion and operating-cost growth modeled in TCO/i)).toBeVisible();
+  await expect(page.getByText(/It excludes later-year operating-cost escalation modeled in TCO/i)).toBeVisible();
 
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
