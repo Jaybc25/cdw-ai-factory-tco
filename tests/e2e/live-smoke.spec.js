@@ -160,6 +160,17 @@ test("Inference Economics uses customer-facing throughput wording and errors", a
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
 });
 
+
+test("customer-facing tool and catalog counts use consistent scope wording", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/model-advisor", { waitUntil: "domcontentloaded" });
+  const advisorText = await page.locator("body").innerText();
+  expect(advisorText).toContain("current new-deployment models evaluated");
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("legacy Inference Economics preview routes redirect to the current tool", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   for (const path of [
