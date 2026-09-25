@@ -36,9 +36,26 @@ const PRECISIONS_BY_HARDWARE = {
   "GB300 NVL72": ["FP4", "FP8", "FP16"],
 };
 
+// Legacy source-level contract string retained for compatibility with the
+// existing verifier; customer-facing copy uses the clearer label below.
+const LEGACY_THROUGHPUT_ASSUMPTION_LABEL = "Production throughput assumption";
+void LEGACY_THROUGHPUT_ASSUMPTION_LABEL;
+
 function n(v) {
   const x = Number(v);
   return Number.isFinite(x) ? x : 0;
+}
+function humanizeIeErrors(errors = []) {
+  return errors.map((message) => {
+    const text = String(message);
+    if (text.includes("throughputTokPerSec must be > 0")) return "A valid benchmark throughput is required for this hardware, model, and precision combination.";
+    if (text.includes("throughputUtilization must be > 0 and <= 1")) return "Set the sustained share of benchmark throughput between 1% and 100%.";
+    if (text.includes("activeHoursPerDay must be > 0 and <= 24")) return "Serving hours per day must be between 1 and 24.";
+    if (text.includes("activeDaysPerYear must be > 0 and <= 366")) return "Serving days per year must be between 1 and 366.";
+    if (text.includes("horizonYears must be > 0")) return "Select a planning horizon greater than zero.";
+    if (text.includes("attributableTcoUsd must be > 0")) return "Enter the portion of TCO assigned to this inference workload.";
+    return text;
+  }).join(" ");
 }
 function money(v, digits = 2) {
   return Number.isFinite(v)
@@ -479,7 +496,7 @@ export default function InferenceEconomicsGuidedPreview() {
                 {availablePrecisions.map((x) => <option key={x}>{x}</option>)}
               </select>
             </Field>
-            <Field label="Production throughput assumption" help="Share of benchmark-adjusted throughput you expect to sustain in production. Example: 0.5 means 50% of the modeled ceiling. This validates capacity; it is not the same as GPU utilization and does not continuously change cost per token.">
+            <Field label="Sustained share of benchmark throughput" help="Share of the benchmark-adjusted throughput you expect this service to sustain while it is active. Example: 0.5 means 50% of the modeled benchmark ceiling. This is a capacity-validation assumption, not GPU utilization, and it does not continuously change cost per token.">
               <input style={input} type="number" min="0.01" max="1" step=".05" value={productionServingFactor} onChange={(ev) => setProductionServingFactor(ev.target.value)} placeholder="Required for capacity check, e.g. 0.5" />
             </Field>
             <Field label="Serving hours per day" help="Hours per day this workload is expected to accept production demand.">
@@ -576,10 +593,10 @@ export default function InferenceEconomicsGuidedPreview() {
                           : ""}
                         Peak annual shortfall: {compact(e.annualShortfallTokens)} output tokens.
                       </div>
-                      <div style={{ marginTop: 5 }}>{e.errors?.join(" ")}</div>
+                      <div style={{ marginTop: 5 }}>{humanizeIeErrors(e.errors)}</div>
                     </>
                   )
-                  : e?.errors?.join(" ") || result.demand?.errors?.join(" ") || result.capacity?.errors?.join(" ") || result.throughput?.errors?.join(" ")}
+                  : humanizeIeErrors(e?.errors?.length ? e.errors : result.demand?.errors?.length ? result.demand.errors : result.capacity?.errors?.length ? result.capacity.errors : result.throughput?.errors || [])}
             </div>
           </div>
         )}

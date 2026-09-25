@@ -143,6 +143,23 @@ test("GPU Sizing handoff persists TCO workload anchor after query consumption an
 
 
 
+
+test("Inference Economics uses customer-facing throughput wording and errors", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/inference-economics", { waitUntil: "domcontentloaded" });
+  const technicalAssumptions = page.locator("details").filter({ hasText: "Technical assumptions" }).first();
+  if (!(await technicalAssumptions.evaluate((element) => element.open))) {
+    await technicalAssumptions.locator("summary").click();
+  }
+
+  const bodyText = await page.locator("body").innerText();
+  expect(bodyText).toContain("Sustained share of benchmark throughput");
+  expect(bodyText).not.toMatch(/throughputTokPerSec must be > 0|throughputUtilization must be > 0 and <= 1/i);
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("legacy Inference Economics preview routes redirect to the current tool", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   for (const path of [
