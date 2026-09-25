@@ -32,6 +32,7 @@ const KV_OVERHEAD = 1.2;      // memory overhead for KV cache / activations (EST
 const TOK_PER_USER = 10;      // sustained tok/s per concurrent interactive user (EST)
 
 const RES_MULT = 0.60; // 1-yr reserved = 40% off list (estimated for all; exact for AWS B200)
+const WORKLOAD_ACTIVE_DAYS_PER_YEAR = 250; // business-hours inference basis; aligned with Inference Economics default
 const RATES_ASOF = fmtVerifiedDate(CLOUD_RATES_VERIFIED_AT); // human-readable, matches prior "Jul–Aug 2026" style display
 const ONPREM_ASOF = fmtVerifiedDate(ONPREM_PRICING_VERIFIED_AT);
 const cloudRatesStaleness = stalenessOf(CLOUD_RATES_VERIFIED_AT);
@@ -283,10 +284,12 @@ function run(inp, RC) {
     const demandGpuHrsForFleet = demandGpuCount * RC.hrsMo * inp.util;
     gpuHrs = demandGpuHrsForFleet;
 
-    // Cloud-pricing hours remain based on the handed-off deployed design in this narrow fix.
-    // That preserves existing cloud-equivalence semantics while correcting only owned-fleet
-    // growth/headroom behavior.
-    const cloudHrsPerMonth = inp.workingDayHours ? inp.workingDayHours * 30.44 : RC.hrsMo * inp.util;
+    // Cloud-pricing hours use the same business-hours annual basis as Inference Economics:
+    // working-day hours × 250 active days/year ÷ 12 months. This avoids silently treating a
+    // business-hours workload as if it runs 365 days/year.
+    const cloudHrsPerMonth = inp.workingDayHours
+      ? inp.workingDayHours * WORKLOAD_ACTIVE_DAYS_PER_YEAR / 12
+      : RC.hrsMo * inp.util;
     const technicalGpuHrsForCloud = deployedGpuCount * cloudHrsPerMonth;
     gpuHrsCloud = technicalGpuHrsForCloud;
 
@@ -1504,7 +1507,7 @@ function AppInner() {
             {r.isWorkloadMode ? (
               <>
                 <Row label="Technical workload requirement" value={`${r.sysAdj} × ${ownSys}`} sub={`${gpuSizingCount} GPUs${r.sourceConversion ? ` at ${sourceClass} (normalized ${r.sourceConversion.toFixed(2)}x)` : ` at ${ownSys}`} -- ${gpuSizingBasis === "higher-growth" ? "user-selected higher-growth alternative" : "GPU Sizing recommended configuration"}; fleet size is duty-cycle-independent`} />
-                <Row label="Cloud-pricing basis" value={`${Math.round(r.gpuHrsCloud).toLocaleString()} GPU-hrs/mo`} sub={workingDayHours ? (workingDayHours === 24 ? "24 hrs/day duty cycle shared with GPU Sizing (full-day operation)" : `${workingDayHours} hrs/day duty cycle shared with GPU Sizing (not 24/7)`) : `no duty-cycle data from GPU Sizing -- assumes ${Math.round(util * 100)}% of all hours, likely an overstatement`} />
+                <Row label="Cloud-pricing basis" value={`${Math.round(r.gpuHrsCloud).toLocaleString()} GPU-hrs/mo`} sub={workingDayHours ? `${workingDayHours} hrs/day × ${WORKLOAD_ACTIVE_DAYS_PER_YEAR} active days/year ÷ 12; aligned with Inference Economics default` : `no duty-cycle data from GPU Sizing -- assumes ${Math.round(util * 100)}% of all hours, likely an overstatement`} />
               </>
             ) : (
               <>
@@ -1517,7 +1520,7 @@ function AppInner() {
             <div className="report-methodology-full" style={{ fontSize: 11, color: C.sub, marginTop: 12 }}>
               {r.isWorkloadMode ? (
                 <>
-                  Methodology (Workload Requirement mode, v2.9): cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). The initial on-prem fleet is fixed to the GPU Sizing deployed configuration ({gpuSizingCount} GPUs{r.sourceConversion ? ` at ${sourceClass}, normalized to ${ownSys} using a ${r.sourceConversion.toFixed(2)}x generational capability ratio since the recommended class isn't sold new as that system` : ` at ${ownSys}`}). Annual workload growth is applied to GPU Sizing's unrounded technical demand ({gpuSizingDemandCount || gpuSizingCount} GPUs), so installed headroom is consumed before another system is added; fleet size remains independent of duty cycle, since owned hardware must be present whether or not it's continuously in use. The cloud-side estimate instead uses {workingDayHours ? `a ${workingDayHours}-hour/day duty cycle from GPU Sizing's own workload timing` : `the on-prem target utilization (${Math.round(util * 100)}%) as a fallback, since no duty-cycle data came through with this handoff -- likely an overstatement for a business-hours workload`}, converted into rented {gpuClass} hours using ONLY the hardware generational capability factor ({r.genPF.toFixed(2)}x, {isRubinPhase1 ? "held at 1.00x with no Rubin performance credit because absolute inference throughput is not yet verified" : `benchmark-derived from MLPerf-class throughput ratios for ${ownSys} vs ${gpuClass} -- directional and workload-normalized, not a universal physical conversion constant`}). Network, scheduling, and inference-stack efficiency factors (fNet/fSw/fNvaie) are deliberately excluded from this conversion, since those are advantages of owning infrastructure, not something a cloud renter gets; applying them to price a rental would be circular. The floor case instead assumes zero generational credit (1.00x), the conservative case if that capability ratio is overstated. Storage is a direct input (no bill to auto-scale it from). On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}); residual value applies to hardware only. This is a directional analysis for a workload that may not yet exist at this scale in your current cloud environment.
+                  Methodology (Workload Requirement mode, v2.9): cash-flow TCO in nominal dollars (not accounting depreciation, not discounted NPV). The initial on-prem fleet is fixed to the GPU Sizing deployed configuration ({gpuSizingCount} GPUs{r.sourceConversion ? ` at ${sourceClass}, normalized to ${ownSys} using a ${r.sourceConversion.toFixed(2)}x generational capability ratio since the recommended class isn't sold new as that system` : ` at ${ownSys}`}). Annual workload growth is applied to GPU Sizing's unrounded technical demand ({gpuSizingDemandCount || gpuSizingCount} GPUs), so installed headroom is consumed before another system is added; fleet size remains independent of duty cycle, since owned hardware must be present whether or not it's continuously in use. The cloud-side estimate instead uses {workingDayHours ? `a ${workingDayHours}-hour/day duty cycle over ${WORKLOAD_ACTIVE_DAYS_PER_YEAR} active days/year, aligned with the Inference Economics default` : `the on-prem target utilization (${Math.round(util * 100)}%) as a fallback, since no duty-cycle data came through with this handoff -- likely an overstatement for a business-hours workload`}, converted into rented {gpuClass} hours using ONLY the hardware generational capability factor ({r.genPF.toFixed(2)}x, {isRubinPhase1 ? "held at 1.00x with no Rubin performance credit because absolute inference throughput is not yet verified" : `benchmark-derived from MLPerf-class throughput ratios for ${ownSys} vs ${gpuClass} -- directional and workload-normalized, not a universal physical conversion constant`}). Network, scheduling, and inference-stack efficiency factors (fNet/fSw/fNvaie) are deliberately excluded from this conversion, since those are advantages of owning infrastructure, not something a cloud renter gets; applying them to price a rental would be circular. The floor case instead assumes zero generational credit (1.00x), the conservative case if that capability ratio is overstated. Storage is a direct input (no bill to auto-scale it from). On-prem pricing per NVIDIA DGX TCO reference ({ONPREM_ASOF}); residual value applies to hardware only. This is a directional analysis for a workload that may not yet exist at this scale in your current cloud environment.
                 </>
               ) : (
                 <>
