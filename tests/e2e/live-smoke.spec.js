@@ -163,6 +163,24 @@ test("Inference Economics uses customer-facing throughput wording and errors", a
 
 
 
+
+test("GPU class selectors show customer-friendly labels while preserving values", async ({ page }) => {
+  test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
+  const pageErrors = capturePageErrors(page);
+
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+  const deploymentAssumptions = page.locator("details").filter({ hasText: "Deployment assumptions" }).first();
+  if (!(await deploymentAssumptions.evaluate((element) => element.open))) {
+    await deploymentAssumptions.locator("summary").click();
+  }
+  const gpuSelect = deploymentAssumptions.locator("select").filter({ has: page.locator('option[value="B200"]') }).first();
+  const optionText = await gpuSelect.locator('option[value="B200"]').innerText();
+  expect(optionText).toBe("NVIDIA B200");
+  await gpuSelect.selectOption("B200");
+  expect(await gpuSelect.inputValue()).toBe("B200");
+  expect(pageErrors, pageErrors.join("\n")).toEqual([]);
+});
+
 test("GPU Sizing shows a concise confidence summary", async ({ page }) => {
   test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
   const pageErrors = capturePageErrors(page);
