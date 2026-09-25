@@ -208,7 +208,8 @@ test("TCO workload timing uses the same 250 active-days basis as Inference Econo
 
   await page.goto("/inference-economics", { waitUntil: "domcontentloaded" });
   await page.waitForLoadState("networkidle").catch(() => {});
-  const daysInput = page.getByLabel("Serving days per year");
+  const daysField = page.locator("div").filter({ hasText: /^Serving days per year/ }).first();
+  const daysInput = daysField.locator('input[type="number"]');
   await expect(daysInput).toHaveValue("250");
 
   expect(pageErrors, pageErrors.join("\n")).toEqual([]);
