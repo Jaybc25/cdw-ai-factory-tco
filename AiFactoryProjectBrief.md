@@ -4,6 +4,54 @@
 
 ---
 
+## September 26, 2026 Final Internal-Review Readiness Addendum
+
+This addendum supersedes the September 22 orientation for current-state readiness while preserving all earlier addenda as historical context. The current documentation checkpoint follows PR #191 on `main`, squash commit `1a15b8344fe63bc125ba3113f717d9bcde7bd034`. The intended October 5, 2026 internal CDW review environment is the existing Vercel deployment at `https://cdw-ai-factory-tco.vercel.app`. The custom `cdwaifactory.com` domain remains intentionally post-approval and is not an October 5 readiness dependency.
+
+### Final acceptance posture
+
+- Claude's September 26 final acceptance review returned **READY** with no material findings.
+- The review reported all nine targeted remediation checks passing: IE 0.5 input stability, IE validation humanization, Explorer-to-GPU mode persistence, Model Advisor pending recommendation persistence, 24-hour/365-day calendar handling, internal terminology cleanup, without-performance-credit wording, PR #190 flat-demand TCO semantics, and cloud GPU unit-price trend retention.
+- All eight tested core handoffs passed: Explorer -> Model Advisor, Explorer -> GPU Sizing, Model Advisor -> GPU Sizing, GPU Sizing -> TCO, TCO -> Inference Economics, TCO -> ROI, Inference Economics -> ROI, and My Summary/snapshot presentation where testable.
+- Numerical review independently reconciled representative GPU Sizing, TCO, Inference Economics, and ROI outputs. The TCO review covered 45 scenario/horizon/price-trend combinations and found no difference beyond rounding.
+- Runtime review found no console errors or uncaught exceptions in the tested build, and malformed URLs were handled safely.
+- This remains an **internal acceptance state**, not external certification or approval. Signed-in production persistence, physical Safari/iPhone, real magic-link delivery, Slack/report-download edge behavior, actual PDF printer-driver output, and fresh external source/pricing/benchmark research were outside that final pass.
+
+### TCO flat-demand baseline - PR #190
+
+The TCO baseline now compares the **same workload across the selected horizon**. This was an intentional methodology simplification made before the October 5 review.
+
+- Annual workload-demand growth is no longer a TCO input.
+- Cloud/GPUaaS GPU-hour demand remains flat across the selected horizon for the modeled workload.
+- The on-prem fleet remains fixed to the selected technical design; TCO does not automatically purchase additional systems because of assumed future demand growth.
+- GPU Sizing's explicit **Higher-growth alternative** remains valid upstream. If a user intentionally selects that larger deployment, TCO prices that selected design; TCO itself no longer predicts future growth.
+- The **Cloud GPU unit-price trend** remains active, persisted, report-visible, and independent. It may raise or lower modeled cloud GPU compute prices over time without changing workload quantity or fleet size.
+- Existing non-compute and on-prem recurring-cost escalation remains a separate disclosed nominal-cost assumption.
+- A 24-hour/day workload uses 365 active days/year; workloads below 24 hours/day use 250 active days/year. The basis carries through TCO reporting and TCO -> Inference Economics handoff.
+
+### September 25-26 remediation sequence
+
+- **PR #183 / N1:** IE Technical assumptions no longer collapses while typing required serving-factor values such as `0.5`.
+- **PR #184 / M16:** IE engine validation strings are humanized for customer-facing use.
+- **PR #185 / N2:** Explorer-selected GPU Sizing mode survives URL cleanup, refresh, back/forward navigation, and revisit.
+- **PR #186 / M10:** Model Advisor pending recommendation state survives refresh and applies exactly once to an untouched inactive GPU Sizing mode.
+- **PR #187 / N3:** 24-hour workloads use a 365-day basis and carry that basis into IE.
+- **PR #188 / M15:** residual customer-facing internal/project-stage terminology was removed while preserving EST/PROVISIONAL and quote-validation cautions.
+- **PR #189 / M18:** residual customer-facing “floor” terminology was replaced by neutral **modeled** / **without performance credit** wording.
+- **PR #190:** flat-demand TCO baseline; cloud GPU unit-price trend retained as a separate price sensitivity.
+- **PR #191:** final wording cleanup in TCO print/audit output and the offline client PPTX generator. No calculations changed.
+
+### October 5 freeze policy
+
+After this documentation checkpoint, treat the repository as **frozen for the October 5 internal review**.
+
+- Do not add features, broaden scope, or make discretionary methodology/copy changes.
+- Reopen code only for a genuinely material correctness, stability, routing/persistence, customer-facing credibility, or production-use defect.
+- Continue normal read-only/maintenance monitoring, but do not convert maintenance observations into pre-meeting product churn unless they meet the materiality threshold.
+- Documentation, meeting narrative, and reviewer guidance may continue to be prepared without changing validated product behavior.
+
+---
+
 ## September 22, 2026 Current-State Addendum
 
 This is the current orientation for the September 9-22 tranche at `main` commit `1de011309a1b9fe3fb5332dc51e5d050227b104b` (PR #112). The September 9 checkpoint and earlier addenda remain historical. Post-`AI Factory Suite 2026.09.1` changes are **Unreleased**; the merge did not create or move a validated release tag. Source review establishes the behavior described here. The production site has been reported live and apparently healthy, but broader internal CDW review and external approval have not been completed by this documentation update.
