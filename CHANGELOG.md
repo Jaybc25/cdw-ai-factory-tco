@@ -82,6 +82,17 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+### September 26, 2026 - Final October 5 internal-review acceptance checkpoint
+
+- Completed the final targeted remediation sequence through PRs #183-#191. The tranche fixed Inference Economics input stability and error humanization; GPU Sizing and Model Advisor persistence; the 24-hour/365-day calendar basis; residual internal/customer-facing terminology; TCO performance-credit wording; and final acceptance-copy cleanup.
+- PR #190 intentionally changed the TCO baseline to **flat workload demand** across the selected horizon. TCO no longer assumes annual workload growth or automatically purchases future systems as modeled demand grows. The on-prem fleet remains fixed to the selected technical design, and cloud/GPUaaS consumption remains fixed for the same workload.
+- The separate **Cloud GPU unit-price trend** remains an explicit production sensitivity input. It changes modeled cloud GPU compute pricing over time without changing workload quantity, fleet size, or technical demand. Other disclosed recurring-cost escalation remains separate from workload growth.
+- PR #191 removed the last stale acceptance wording: the spend-mode printed TCO summary no longer calls the without-performance-credit case “conservative,” the audit formula no longer refers to “grown workload demand,” and the offline client PPTX generator now labels the field “Savings Without Performance Credit.”
+- Claude's September 26 final acceptance review of `main` at PR #190 returned **READY**, with no material findings. It reported all nine targeted regressions and all eight core journey handoffs passing, 45 TCO scenario/horizon/price-trend combinations reconciling, and representative GPU Sizing, Inference Economics, and ROI calculations matching independently recomputed values within rounding.
+- Remaining review limitations are environmental rather than known material defects: the signed-in production site, physical iPhone/Safari, real magic-link/account persistence, Slack/report-download edge behavior, printer/PDF-driver output, and external pricing/benchmark re-research were not exercised in that final Claude pass.
+- After this documentation checkpoint, the intended posture is **October 5 internal-review freeze**: no feature work or discretionary methodology changes before the meeting; only genuinely material correctness, stability, or credibility defects should reopen the codebase.
+- `cdwaifactory.com` remains intentionally post-approval. The October 5 review target is the existing Vercel deployment at `https://cdw-ai-factory-tco.vercel.app`.
+
 ### September 24, 2026 - NVL72 review transparency and five-year cost caveats
 
 - A user-recorded NVL72 quote/coverage review now stays visibly directional in the TCO result, report, and audit; it cannot turn unchanged planning dollars into a refined savings claim. The supplied reference remains visible, scoped to the scenario, and unverified by the tool.
