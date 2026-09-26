@@ -1532,7 +1532,7 @@ function AppInner() {
               <b>Methodology summary:</b>{" "}
               {r.isWorkloadMode
                 ? `On-prem capacity is sized from the GPU Sizing technical requirement; the cloud alternative prices that same workload using its duty cycle and the benchmark-derived generational capability factor.`
-                : `Reported cloud spend is normalized to GPU-hours at current reference rates; the comparable on-prem fleet is sized at ${Math.round(util * 100)}% target utilization and evaluated with an adjusted case plus a conservative case without performance credit.`}
+                : `Reported cloud spend is normalized to GPU-hours at current reference rates; the comparable on-prem fleet is sized at ${Math.round(util * 100)}% target utilization and evaluated with an adjusted case plus a case without performance credit.`}
               {" "}Cash-flow TCO is shown in nominal dollars. Detailed assumptions, pricing provenance, caveats, and the reproducibility ledger appear in the appendix.
             </div>
             <div style={{ marginTop: 16 }}>
@@ -1758,7 +1758,7 @@ function AppInner() {
             <div style={{ ...mono, fontSize: 11, letterSpacing: 1, color: C.ink, marginTop: 18, marginBottom: 8, borderBottom: `2px solid ${C.ink}`, paddingBottom: 4 }}>3. HOW THE ON-PREM FLEET AND COST WAS CALCULATED</div>
             <AuditFormula
               label="System count"
-              formula={r.isWorkloadMode ? "systems = MAX(GPU Sizing deployed fleet, CEILING(grown workload demand / perSystemCapacity))" : "systems = CEILING(technicalGpuHrs / perSystemHrs)"}
+              formula={r.isWorkloadMode ? "systems = MAX(GPU Sizing deployed fleet, CEILING(workload demand / perSystemCapacity))" : "systems = CEILING(technicalGpuHrs / perSystemHrs)"}
               substituted={r.isWorkloadMode ? `fixed fleet ${gpuSizingCount} GPUs from GPU Sizing` : "fixed fleet sized from workload-equivalent hours at target utilization"}
               result={`${r.sysAdj} × ${ownSys}${redundancy ? " (incl. N+1)" : ""}`}
             />
