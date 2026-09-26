@@ -8,7 +8,7 @@ For architecture, history, validation findings, conventions, and durable project
 
 For a human-readable history of meaningful milestones and current open items, read `CHANGELOG.md`.
 
-For the September 22 current state, read the newest addendum in `AiFactoryProjectBrief.md`. The earlier shared-shell and navigation checkpoint is preserved in `docs/history/2026-09-09-current-state-checkpoint.md`.
+For the September 26 final internal-review readiness state, read the newest addendum in `AiFactoryProjectBrief.md`. The earlier shared-shell and navigation checkpoint is preserved in `docs/history/2026-09-09-current-state-checkpoint.md`.
 
 For the current model catalog, architecture-aware sizing state, capability-evidence rules, and Model Advisor -> GPU Sizing -> TCO ownership contract, read `docs/MODEL_MODERNIZATION_CURRENT_STATE.md`.
 
@@ -18,7 +18,7 @@ Versioning is an internal engineering, audit, maintenance, and recovery mechanis
 
 **Current validated releases:** `v2026.09` remains the immutable September 1 baseline, followed by `AI Factory Suite 2026.09.1` released September 4, 2026. Existing release tags/releases are immutable.
 
-**Current source checkpoint for this documentation update:** `main` at `1de011309a1b9fe3fb5332dc51e5d050227b104b` on September 22, 2026, the merge of PR #112. Post-2026.09.1 work includes the September 9 UX tranche, Rubin/Blackwell evidence and guarded hardware activation, cross-tool sizing/TCO/ROI fixes, and Guided Inference Economics with its report, audit trail, managed API comparison, and regression coverage. These changes remain `Unreleased` until a new validated tag is created. The production site has been reported live and apparently healthy; broader internal CDW review is pending.
+**Current source checkpoint for this documentation update:** `main` at `1a15b8344fe63bc125ba3113f717d9bcde7bd034` on September 26, 2026, the merge of PR #191. Post-2026.09.1 work includes the September 9 UX tranche, Rubin/Blackwell evidence and guarded hardware activation, Guided Inference Economics, cross-tool remediation through PR #189, the PR #190 flat-demand TCO baseline, and PR #191 final acceptance-copy cleanup. These changes remain `Unreleased` until a new validated tag is created. Claude's September 26 final internal acceptance review returned **READY** with no material findings. The intended October 5 internal review target is the existing Vercel deployment; `cdwaifactory.com` remains intentionally post-approval.
 
 The suite uses calendar versioning for validated releases:
 
@@ -56,11 +56,13 @@ TCO retains its infrastructure cash-flow comparison and clearly labeled directio
 
 For GB200 and GB300 NVL72, even a single rack has a directional TCO result in both workload and spend modes. A user can record a project quote or existing-facility coverage reference for rack, cooling, power distribution, fabric, installation, selected software, and facility/operating costs; that review remains labeled directional because the tool does not validate the evidence or edit the costs. The generic Equinix bundle needs a positive, distinct NVL72 rate before a review can be recorded. Changing the fleet, facility, storage, or rate-card inputs invalidates the review. Rack-scale retrofit amounts can be entered directly without a generic $2 million cap. Five-year scenarios disclose that renewal after an initial three-year system commercial term is excluded. Rubin Phase 1 remains directional because its quoted high-density infrastructure is excluded. Smaller B200/B300 designs retain their existing planning allowances; workload storage still requires explicit confirmation, and large fleets still require architecture review.
 
-## Current TCO growth/pricing contract
+## Current TCO demand/pricing contract
 
 GPU Sizing's node-rounded Recommended production design remains the default, with an explicit Higher-growth alternative selectable for TCO when available. TCO receives the exact selected class/count plus sizing-basis provenance and remains the economics layer rather than re-sizing the workload.
 
-Current TCO production economics treat **workload growth** and **cloud GPU unit price trend** separately. Workload growth changes modeled consumption over time. Cloud GPU unit-price trend changes modeled cloud GPU compute unit rates over time and is now a production sensitivity input, defaulting to **0%/year** so prior economics remain unchanged unless the user explicitly adjusts it. Non-compute cloud costs retain their established escalation treatment. The selected trend is persisted and represented in TCO report/audit language.
+Current TCO production economics use a **flat workload-demand baseline** across the selected horizon. TCO does not assume annual workload growth, increase cloud GPU-hour consumption because of speculative demand growth, or automatically add future on-prem systems when headroom would otherwise be exhausted. The selected on-prem fleet stays fixed to the user-selected technical design. GPU Sizing's explicit Higher-growth alternative remains an upstream sizing choice and, when selected, is priced as that larger fixed design.
+
+The separate **Cloud GPU unit-price trend** remains a production sensitivity input, defaulting to **0%/year**. It changes modeled cloud GPU compute unit rates over time without changing workload quantity, GPU-hours, or on-prem fleet size. Non-compute cloud costs and on-prem recurring operating costs retain their separately disclosed escalation treatment. The selected cloud GPU price trend is persisted and represented in TCO report/audit language.
 
 ## Current model-catalog state
 
@@ -171,16 +173,17 @@ The permanent GitHub quality gate, TCO Excel-to-JavaScript parity suite, PR-loca
 
 Current priorities are:
 
-1. Continue the current UX simplification only where it meaningfully improves enterprise presales usability without altering validated methodology.
-2. Review My Summary / workflow guidance next while preserving its latest-snapshot semantics and existing consistency warnings.
-3. Keep TCO progressive-disclosure restructuring intentionally deferred until its large monolithic presentation layer can be refactored and parity-validated safely before any hierarchy change.
-4. Maintain the shared pricing registry and continue provider-by-provider refreshes with explicit `LISTED`, `NODE-NORM`, `EST`, and `QUOTE` confidence.
-5. Refresh NVIDIA DGX/GPU hardware evidence before the deferred hardware/evidence modernization tranche proceeds.
-6. Keep NIM compatibility manual until the NVIDIA endpoint is production-validated.
-7. Maintain the current model-modernization baseline as model policy, source evidence, sizing methodology, or handoff semantics evolve. New models must clear source qualification, architecture/methodology review, Advisor calibration, visibility/handoff checks, and the exact-head permanent quality gate before customer-facing activation.
-8. For the next validated release, preserve the same release discipline: release record, package metadata, merged-tree gate, deployed-scope verification, and exact immutable tag/commit identity.
-9. Keep all post-2026.09.1 work under `Unreleased` until an explicit next validated tag is created.
-10. Execute controlled Vite/esbuild and React Router upgrades separately with regression testing; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo mitigation.
+1. **October 5 internal-review freeze:** no feature work, discretionary methodology changes, or broad UX/copy churn before the meeting. Reopen code only for a genuinely material correctness, stability, routing/persistence, customer-facing credibility, or production-use defect.
+2. Prepare October 5 reviewer guidance, meeting narrative, and documentation without changing validated product behavior.
+3. After the internal review, resume deferred UX simplification and My Summary/workflow improvements only if they meaningfully improve enterprise presales usability without altering validated methodology.
+4. Keep TCO progressive-disclosure restructuring intentionally deferred until its large monolithic presentation layer can be refactored and parity-validated safely before any hierarchy change.
+5. Maintain the shared pricing registry and continue provider-by-provider refreshes with explicit `LISTED`, `NODE-NORM`, `EST`, and `QUOTE` confidence.
+6. Refresh NVIDIA DGX/GPU hardware evidence before the deferred hardware/evidence modernization tranche proceeds.
+7. Keep NIM compatibility manual until the NVIDIA endpoint is production-validated.
+8. Maintain the current model-modernization baseline as model policy, source evidence, sizing methodology, or handoff semantics evolve. New models must clear source qualification, architecture/methodology review, Advisor calibration, visibility/handoff checks, and the exact-head permanent quality gate before customer-facing activation.
+9. For the next validated release, preserve the same release discipline: release record, package metadata, merged-tree gate, deployed-scope verification, and exact immutable tag/commit identity.
+10. Keep all post-2026.09.1 work under `Unreleased` until an explicit next validated tag is created.
+11. Execute controlled Vite/esbuild and React Router upgrades separately with regression testing; continue monitoring the PptxGenJS/image-size upstream path while retaining the client-logo mitigation.
 
 See `AiFactoryProjectBrief.md` for the detailed defect history, architecture, prior validation record, and release history. See `docs/history/2026-09-09-current-state-checkpoint.md` for the latest source checkpoint and `docs/MODEL_MODERNIZATION_CURRENT_STATE.md` for the current model-catalog and architecture-aware sizing baseline.
 
