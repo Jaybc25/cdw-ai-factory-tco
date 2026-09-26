@@ -284,7 +284,7 @@ const DETAIL_FIELD_ORDER = {
     { group: "Comparison", fields: [
       ["planningBasis", "Planning Basis"], ["recommendedFleet", "Recommended Fleet"],
       ["gpuSizingFleet", "GPU Sizing Fleet"], ["savings", "Savings (Adjusted)"],
-      ["floorCaseSavings", "Savings (Floor Case)"], ["cloudCost", "Cloud Cost"], ["onPremCost", "On-Prem Cost"],
+      ["floorCaseSavings", "Savings Without Performance Credit"], ["cloudCost", "Cloud Cost"], ["onPremCost", "On-Prem Cost"],
     ] },
     { group: "Investment", fields: [
       ["capexPlusOneTime", "Capex + One-Time"], ["monthlyOpex", "Monthly Opex"],
