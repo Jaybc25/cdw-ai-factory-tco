@@ -1058,7 +1058,7 @@ function RoiCalculatorInner() {
           ) : null}
           . Adjust the workload fields below to see the full ROI case.
           <div style={{ marginTop: 6, color: "#666" }}>
-            This prefill uses TCO's current upfront cost plus Year-1 operating cost. It excludes later-year fleet expansion and operating-cost growth modeled in TCO.
+            This prefill uses TCO's current upfront cost plus Year-1 operating cost. It excludes later-year operating-cost escalation modeled in TCO.
           </div>
           <div style={{ marginTop: 4, color: "#666" }}>
             Confirm these costs cover the task being modeled; ROI cannot verify that match.

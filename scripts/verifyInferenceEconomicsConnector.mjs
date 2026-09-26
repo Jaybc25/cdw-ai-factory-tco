@@ -23,7 +23,7 @@ const clean = buildInferenceEconomicsPreviewHandoff({
   activeDaysPerYear: 250,
   isInferenceWorkloadHandoff: true,
   trainShare: 0,
-  growth: 0.25,
+  growth: 0,
   roiInitialCostUsd: 900_000,
   roiRecurringCostUsd: 140_000,
   roiPlanningBasis: "workload",
@@ -34,7 +34,7 @@ assert.equal(clean.hardwareClass, "B200");
 assert.equal(clean.gpuCount, 8);
 assert.equal(clean.attributableTcoUsd, 1_250_000);
 assert.equal(clean.inferenceShare, 1);
-assert.equal(clean.demandGrowthRate, 0.25);
+assert.equal(clean.demandGrowthRate, 0);
 assert.equal(clean.allocationMethod, "DIRECT_INFERENCE_WORKLOAD");
 assert.ok(clean.href.startsWith("/inference-economics?"));
 assert.ok(clean.href.includes("source=tco"));
@@ -54,7 +54,7 @@ assert.equal(parsedClean.horizonYears, 3);
 assert.equal(parsedClean.attributableTcoUsd, 1_250_000);
 assert.equal(parsedClean.activeHoursPerDay, 8);
 assert.equal(parsedClean.activeDaysPerYear, 250);
-assert.equal(parsedClean.demandGrowthRate, 0.25);
+assert.equal(parsedClean.demandGrowthRate, 0);
 assert.equal(parsedClean.roiInitialCostUsd, 900_000);
 assert.equal(parsedClean.roiRecurringCostUsd, 140_000);
 assert.equal(parsedClean.roiPlanningBasis, "workload");
@@ -95,13 +95,13 @@ const mixed = buildInferenceEconomicsPreviewHandoff({
   horizonYears: 3,
   onPremTcoUsd: 1_250_000,
   trainShare: 0.5,
-  growth: 0.25,
+  growth: 0,
 });
 assert.deepEqual(mixed.blockers, []);
 assert.equal(mixed.inferenceShare, 0.5);
 assert.equal(mixed.attributableTcoUsd, 625_000);
 assert.equal(mixed.allocationMethod, "WORKLOAD_SHARE_MODELED");
-assert.equal(mixed.demandGrowthRate, 0.25);
+assert.equal(mixed.demandGrowthRate, 0);
 assert.ok(mixed.href.includes("tco=625000"));
 assert.ok(mixed.href.includes("inferenceShare=0.5"));
 
@@ -117,7 +117,7 @@ const fleetGrowth = buildInferenceEconomicsPreviewHandoff({
   horizonYears: 3,
   onPremTcoUsd: 1_500_000,
   trainShare: 0.5,
-  growth: 0.25,
+  growth: 0,
 });
 assert.equal(fleetGrowth.blockers.includes("FLEET_GROWTH_NOT_MODELED"), false);
 assert.equal(fleetGrowth.fleetGrowthConservative, true);
@@ -139,7 +139,7 @@ const twoSystemFleet = buildInferenceEconomicsPreviewHandoff({
   horizonYears: 3,
   onPremTcoUsd: 3_547_569,
   trainShare: 0,
-  growth: 0.25,
+  growth: 0,
 });
 assert.equal(twoSystemFleet.gpuCount, 16);
 assert.equal(twoSystemFleet.totalDeployedGpuCount, 16);
