@@ -1,7 +1,7 @@
 {
   "meta": {
     "version": "3.0",
-    "last_verified": "2026-09-24",
+    "last_verified": "2026-09-28",
     "blueprint_count": 59,
     "industries": [
       "higher-education",
@@ -708,7 +708,7 @@
       "id": "enterprise-rag",
       "name": "NVIDIA RAG Blueprint",
       "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/rag",
+      "nvidia_url": "https://build.nvidia.com/nvidia/build-an-enterprise-rag-pipeline",
       "use_case_category": "RAG & Knowledge Retrieval",
       "description": "Foundational retrieval-augmented generation pipeline — index enterprise documents, query them with natural language, and get accurate, cited answers grounded in your organization's own knowledge.",
       "industry_fit": {
@@ -795,7 +795,7 @@
       "id": "3d-object-generation",
       "name": "3D Object Generation Blueprint",
       "status": "legacy",
-      "nvidia_url": "https://build.nvidia.com/nvidia/3d-object-generation",
+      "nvidia_url": "https://build.nvidia.com/nvidia/object-generation-3d",
       "use_case_category": "Digital Twins & Simulation",
       "description": "Generate high-quality 3D assets from text descriptions or 2D images — accelerating 3D content creation for product visualization, simulation seeding, training data generation, and digital twin population.",
       "industry_fit": {
@@ -822,7 +822,7 @@
       "id": "3d-guided-genai-rtx",
       "name": "3D-Guided Generative AI Blueprint",
       "status": "legacy",
-      "nvidia_url": "https://build.nvidia.com/nvidia/3d-guided-genai-rtx",
+      "nvidia_url": "https://build.nvidia.com/nvidia/genai-3d-guided",
       "use_case_category": "Digital Twins & Simulation",
       "description": "RTX-accelerated generative AI guided by 3D spatial context — use depth maps, normals, and 3D scene structure to control image and content generation with geometric precision.",
       "industry_fit": {
@@ -937,9 +937,9 @@
     },
     {
       "id": "bionemo-protein-engineering",
-      "name": "BioNeMo Protein Engineering Blueprint",
+      "name": "BioNeMo Protein Engineering",
       "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/bionemo-protein-engineering",
+      "nvidia_url": "https://build.nvidia.com/explore/biology",
       "use_case_category": "Life Sciences & Genomics",
       "description": "AI-assisted protein structure prediction, binding site analysis, and protein-ligand interaction modeling using NVIDIA BioNeMo generative and predictive models.",
       "industry_fit": {
@@ -964,7 +964,7 @@
       "id": "enterprise-data-flywheel",
       "name": "Enterprise Data Flywheel Core Blueprint",
       "status": "legacy",
-      "nvidia_url": "https://build.nvidia.com/nvidia/enterprise-data-flywheel",
+      "nvidia_url": "https://build.nvidia.com/nvidia/build-an-enterprise-data-flywheel",
       "use_case_category": "Data Flywheel & Model Ops",
       "description": "Core infrastructure for building a continuous AI improvement loop — data ingestion, curation, synthetic data generation, model fine-tuning, and evaluation, powered by NVIDIA NeMo.",
       "industry_fit": {
@@ -994,9 +994,9 @@
     },
     {
       "id": "securing-agentic-ai",
-      "name": "Securing Agentic AI Blueprint",
+      "name": "Agentic AI Security & Guardrails",
       "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/securing-agentic-ai",
+      "nvidia_url": "https://build.nvidia.com/explore/safety-moderation",
       "use_case_category": "Data Flywheel & Model Ops",
       "description": "Security hardening framework for agentic AI systems — covers prompt injection defense, access control, tool use boundaries, audit logging, and red-teaming for production agent deployments.",
       "industry_fit": {
@@ -1024,7 +1024,7 @@
       "id": "vulnerability-analysis",
       "name": "Vulnerability Analysis Blueprint",
       "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/vulnerability-analysis",
+      "nvidia_url": "https://build.nvidia.com/nvidia/vulnerability-analysis-for-container-security",
       "use_case_category": "Data Flywheel & Model Ops",
       "description": "AI-accelerated container and software vulnerability scanning — uses generative AI to rapidly identify, triage, and explain security vulnerabilities across containerized infrastructure.",
       "industry_fit": {
@@ -1082,9 +1082,9 @@
     },
     {
       "id": "aiq-research-assistant",
-      "name": "AI-Q Research Assistant Blueprint",
+      "name": "NVIDIA AI-Q Blueprint for Intelligent Agents",
       "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/aiq-research-assistant",
+      "nvidia_url": "https://build.nvidia.com/nvidia/aiq",
       "use_case_category": "RAG & Knowledge Retrieval",
       "description": "Deep research agent that autonomously searches, synthesizes, and summarizes information from multiple enterprise data sources — delivering comprehensive, cited research briefs on any topic.",
       "industry_fit": {
@@ -1173,7 +1173,7 @@
     },
     {
       "id": "nemoclaw-hermes",
-      "name": "Governed Workflow & Autonomous Agents",
+      "name": "NemoClaw for Hermes Agent",
       "status": "active",
       "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-for-hermes-agent",
       "use_case_category": "Agentic AI & Automation",
@@ -1466,7 +1466,7 @@
       "id": "generative-virtual-screening",
       "name": "Generative Virtual Screening Pipeline Blueprint",
       "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/generative-virtual-screening",
+      "nvidia_url": "https://build.nvidia.com/nvidia/generative-virtual-screening-for-drug-discovery",
       "use_case_category": "Life Sciences & Genomics",
       "description": "Generative AI pipeline for designing and screening optimized small molecule drug candidates — combines protein structure prediction, molecular generation, and docking to accelerate early-stage drug discovery.",
       "industry_fit": {
@@ -1961,7 +1961,7 @@
       "id": "ai-coding-agent",
       "name": "AI-Assisted Coding & Software Engineering Agent",
       "status": "active",
-      "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-langchain",
+      "nvidia_url": "https://build.nvidia.com/nvidia/nemoclaw-for-langchain-deep-agents-code",
       "use_case_category": "Agentic AI & Automation",
       "description": "A governed software-engineering agent that can understand a codebase, plan changes, write and refactor code, run tests, inspect results, and use approved development tools while keeping source code and execution inside enterprise-controlled infrastructure.",
       "industry_fit": {
