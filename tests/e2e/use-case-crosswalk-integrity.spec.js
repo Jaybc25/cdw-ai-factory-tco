@@ -51,7 +51,7 @@ test("consolidated use cases keep one customer-facing entry per capability", asy
   const blueprintById = Object.fromEntries(blueprintData.blueprints.map((row) => [row.id, row]));
   const crosswalkById = Object.fromEntries(crosswalkData.crosswalk.map((row) => [row.id, row]));
 
-  expect(blueprintById["nemoclaw-hermes"].name).toBe("Governed Workflow & Autonomous Agents");
+  expect(blueprintById["nemoclaw-hermes"].name).toBe("NemoClaw for Hermes Agent");
   expect(blueprintById["nemoclaw-langchain"]).toBeUndefined();
   expect(blueprintById["nemoclaw-openclaw"]).toBeUndefined();
   expect(crosswalkById["nemoclaw-langchain"]).toBeUndefined();
