@@ -61,7 +61,7 @@ assert.equal(currentStatus.stale, false);
 
 const staleStatus = getManagedApiPricingRefreshStatus({
   snapshot: MANAGED_API_PRICING_SNAPSHOT,
-  asOf: new Date("2026-10-10T00:00:00Z"),
+  asOf: new Date("2026-10-20T00:00:00Z"),
 });
 assert.equal(staleStatus.state, "STALE");
 assert.equal(staleStatus.stale, true);
