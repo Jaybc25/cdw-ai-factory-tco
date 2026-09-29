@@ -217,23 +217,23 @@ assert.equal(MANAGED_API_CUSTOM_PROVIDER, "CUSTOM");
 const snapshotMetadata = validateManagedApiPricingSnapshotMetadata();
 assert.equal(snapshotMetadata.ok, true);
 assert.deepEqual(snapshotMetadata.errors, []);
-assert.equal(MANAGED_API_PRICING_SNAPSHOT.verifiedAt, "2026-09-18");
+assert.equal(MANAGED_API_PRICING_SNAPSHOT.verifiedAt, "2026-09-29");
 const newModelFreshness = getManagedApiPricingFreshness({
   rate: getManagedApiRate("OpenAI", "gpt-6-sol"),
   asOf: new Date("2026-10-05T00:00:00Z"),
 });
 const olderModelFreshness = getManagedApiPricingFreshness({
-  rate: getManagedApiRate("OpenAI", "gpt-6-astra"),
+  rate: { ...getManagedApiRate("OpenAI", "gpt-6-astra"), verifiedAt: "2026-09-18" },
   asOf: new Date("2026-10-05T00:00:00Z"),
 });
-assert.equal(newModelFreshness.verifiedAt, "2026-09-23");
+assert.equal(newModelFreshness.verifiedAt, "2026-09-29");
 assert.equal(newModelFreshness.status, "CURRENT");
 assert.equal(olderModelFreshness.status, "STALE");
 assert.ok(validateManagedApiPricingSnapshotMetadata({
   ...MANAGED_API_PRICING_SNAPSHOT,
-  verifiedAt: "2026-09-23",
-  snapshotId: "first-party-2026-09-23",
-  lastSuccessfulRefreshAt: "2026-09-23T00:00:00Z",
+  rates: MANAGED_API_PRICING_SNAPSHOT.rates.map((rate, index) => index === 0
+    ? { ...rate, verifiedAt: "2026-09-18" }
+    : rate),
 }).errors.includes("Pricing snapshot verifiedAt must equal the oldest first-party rate verification date."));
 
 const mismatchedSnapshotMetadata = validateManagedApiPricingSnapshotMetadata({
@@ -267,7 +267,7 @@ assert.equal(fresh.status, "CURRENT");
 assert.equal(fresh.stale, false);
 
 const stale = getManagedApiPricingFreshness({
-  asOf: new Date("2026-10-10T00:00:00Z"),
+  asOf: new Date("2026-10-20T00:00:00Z"),
 });
 assert.equal(stale.status, "STALE");
 assert.equal(stale.stale, true);
