@@ -9,8 +9,8 @@ export const MANAGED_API_CUSTOM_PROVIDER = "CUSTOM";
 const SNAPSHOT_METADATA = Object.freeze({
   snapshotId: "first-party-2026-09-29",
   lastSuccessfulRefreshAt: "2026-09-29T10:04:02Z",
-  // Oldest first-party rate verification in this mixed-date snapshot. A newly
-  // admitted model cannot reset the verification age of existing models.
+  // Oldest first-party rate verification in the snapshot. A newly admitted
+  // model cannot reset the verification age of existing models.
   verifiedAt: "2026-09-29",
   staleAfterDays: 14,
   sourceStrategy: "FIRST_PARTY_SNAPSHOT",
