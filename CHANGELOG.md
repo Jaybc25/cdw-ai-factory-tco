@@ -82,6 +82,13 @@ For detailed architecture, validation history, source-of-truth rules, and ration
 
 ## Unreleased
 
+### September 29, 2026 - Managed API first-party rate review
+
+- Rechecked all 17 selected Inference Economics model rows against current OpenAI, Anthropic, Google Gemini Developer API, and xAI first-party pricing documentation. Standard short-context input, output, and modeled cache-read amounts remain unchanged.
+- Advanced each row's verification date and the oldest-date snapshot metadata to September 29 after this complete review. Community catalog matching alone did not count as first-party verification.
+- Retained the existing exclusions and qualifications for long context, cache writes/storage, regional and speed premiums, Batch/Flex discounts, and Google's time-limited Gemini 3.8 Flash rates. No new models or calculation behavior were added.
+
+
 ### September 26, 2026 - Final October 5 internal-review acceptance checkpoint
 
 - Completed the final targeted remediation sequence through PRs #183-#191. The tranche fixed Inference Economics input stability and error humanization; GPU Sizing and Model Advisor persistence; the 24-hour/365-day calendar basis; residual internal/customer-facing terminology; TCO performance-credit wording; and final acceptance-copy cleanup.
