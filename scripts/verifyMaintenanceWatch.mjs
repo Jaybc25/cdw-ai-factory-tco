@@ -47,6 +47,6 @@ assert.equal(observation.checkedRows, 4);
 assert.equal(Object.values(observation.counts).reduce((total, count) => total + count, 0), 4);
 assert.equal(observation.rows[0].sku, "Standard_ND96amsr_A100_v4");
 assert.equal(observation.mode, "shadow-candidates-only");
-assert.match(report.markdown, /Managed API pricing \| 2026-09-18 \| 16 days \| \*\*STALE\*\*/);
+assert.match(report.markdown, /Managed API pricing \| 2026-09-29 \| 5 days \| \*\*CURRENT\*\*/);
 assert.match(report.markdown, /no prices, dates, or models were changed/i);
 console.log("Weekly maintenance evidence report verified.");
