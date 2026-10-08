@@ -51,6 +51,8 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
 
   const fleet = softwareFleet(result);
   const fingerprint = softwareStackFingerprint(result);
+  const unresolvedCommercial = result.rows.filter((row) => row.mode === LICENSE_MODE.COMMERCIAL && !(Number(row.annualUnitPrice) > 0));
+  const costResolved = unresolvedCommercial.length === 0;
   const dependencies = {
     softwareStackFingerprint: fingerprint,
     fleet,
@@ -59,7 +61,7 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
     components: result.rows.map(normalizedComponent),
   };
 
-  const yearlyOverrides = result.yearlyTotals.map((year) => createPhase2Override({
+  const yearlyOverrides = costResolved ? result.yearlyTotals.map((year) => createPhase2Override({
     id: `software.total.year-${year.year}`,
     target: `tco.software.year${year.year}.total`,
     value: Math.round(year.total),
@@ -72,7 +74,7 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
     }),
     dependencies,
     referenceValue: null,
-  }));
+  })) : [];
 
   const rows = result.rows.map((row) => ({
     ...normalizedComponent(row),
@@ -91,6 +93,9 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
     acceptedAt: new Date().toISOString(),
     fingerprint,
     fleet,
+    costResolved,
+    costStatus: costResolved ? "EST" : "UNRESOLVED",
+    unresolvedCommercialComponents: unresolvedCommercial.map((row) => row.name),
     overrides: yearlyOverrides,
     requirements: {
       horizonYears: result.horizonYears,
@@ -100,6 +105,9 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
       totals: result.totals,
       validationWarnings: validation.warnings,
       modelWarnings: result.warnings,
+      costNote: costResolved
+        ? "Software economics are eligible for Phase 2 TCO comparison from the accepted component assumptions."
+        : `Software requirement is accepted, but no annual TCO overrides are eligible until commercial pricing is supplied for: ${unresolvedCommercial.map((row) => row.name).join(", ")}.`,
     },
   };
 }
