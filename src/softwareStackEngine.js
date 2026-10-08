@@ -55,6 +55,7 @@ export function calculateSoftwareStack(inputs) {
     const oneTimeCost = Math.max(0, n(component.oneTimeCost));
     const annualOpsCost = Math.max(0, n(component.annualOpsCost));
     const supportPct = Math.max(0, n(component.supportPct));
+    const priceSource = component.priceSource || "EST";
 
     const baseAnnualLicense = mode === LICENSE_MODE.COMMERCIAL ? quantity * annualUnitPrice : 0;
     const baseAnnualSupport = baseAnnualLicense * (supportPct / 100);
@@ -87,6 +88,7 @@ export function calculateSoftwareStack(inputs) {
       annualOpsCost,
       supportPct,
       entitlementNotes: component.entitlementNotes || "",
+      priceSource,
       yearly,
       total,
       annualRecurringYear1,
