@@ -20,6 +20,7 @@ export function validatePowerPlannerInputs(result) {
 
   if (i.provisionalNetworkKw === 0) warnings.push("Network/head-node power is still 0 kW; result remains provisional until Fabric supplies this dependency or a planning allowance is entered.");
   if (result?.verdict === "requirement-only") warnings.push("No site-capacity inputs were provided, so the result is a requirement only, not a facility-fit verdict.");
+  if (result?.verdict === "partial-check") warnings.push("Only part of the customer site-capacity data was provided. Rack kW, total facility kW, and rack positions are all required before a FITS AS-IS verdict is allowed.");
   if (result?.verdict === "retrofit") warnings.push("The stated site does not fit at least one design requirement and should route to facility engineering / retrofit discovery.");
   if (i.facilityBranch === "colocation" && i.coloMonthlyBundle <= 0) warnings.push("Colocation is selected but no monthly bundle/quote has been entered.");
 
@@ -99,6 +100,7 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     upstreamNetworkFingerprint: upstreamNetwork?.fingerprint || null,
     upstreamNetworkAcceptedAt: upstreamNetwork?.acceptedAt || null,
     verdict: result.verdict,
+    siteCheck: result.siteCheck,
     racks: result.racks,
     power: result.power,
     cooling: result.cooling,
