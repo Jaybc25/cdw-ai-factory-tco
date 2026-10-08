@@ -4,6 +4,7 @@ import {
   createPhase2Override,
   makeProvenance,
 } from "./phase2Contract.js";
+import { makeFleetIdentity } from "./phase2Fleet.js";
 
 export function validatePowerPlannerInputs(result) {
   const errors = [];
@@ -31,8 +32,15 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     throw new Error(`Cannot stage Power Planner write-back: ${validation.errors.join(" ")}`);
   }
 
+  const fleet = makeFleetIdentity({
+    systemClass: systemName,
+    systemCount: result.inputs.systemCount,
+    source: "power-planner",
+  });
+
   const dependencies = {
     systemName,
+    fleet,
     ...result.inputs,
     racks: result.racks,
     designItKw: result.power.designItKw,
@@ -84,6 +92,7 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     schemaVersion: 1,
     sourceTool: "power-planner",
     systemName,
+    fleet,
     acceptedAt: new Date().toISOString(),
     upstreamStorageFingerprint: upstreamStorage?.fingerprint || null,
     upstreamStorageAcceptedAt: upstreamStorage?.acceptedAt || null,
@@ -97,5 +106,5 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     validationWarnings: validation.warnings,
   };
 
-  return { overrides: [energy, facility], requirements, validation };
+  return { fleet, overrides: [energy, facility], requirements, validation };
 }
