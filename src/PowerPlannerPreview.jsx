@@ -19,7 +19,7 @@ function kw(v) {
 }
 
 export default function PowerPlannerPreview() {
-  const acceptedStorage = useMemo(() => loadSessionState("phase2-storage-requirement"), []);
+  const acceptedStorage = useMemo(() => loadSessionState("phase2-storage-writeback"), []);
   const [savedPower, setSavedPower] = useState(() => loadSessionState("phase2-power-writeback"));
   const [useAcceptedStorage, setUseAcceptedStorage] = useState(Boolean(acceptedStorage?.requirements));
 
