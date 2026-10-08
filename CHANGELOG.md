@@ -1,5 +1,11 @@
 # Changelog
 
+## October 8, 2026 - Managed API model choices
+
+- Added GPT-6.1 Sol, Claude Opus 5.5, Claude Sonnet 5.5, and Grok 4.7 to the Inference Economics first-party rate registry after reviewing provider model IDs and standard rates. Existing models remain available for comparison.
+- Recorded the current per-model cache-read rates, including Sonnet 5.5's October 7 reduction to $0.10 per million tokens, with context and regional pricing exceptions in each new row's provenance.
+- Kept Claude Haiku 5.5 as a monitored candidate until the calculator can make its 100k-prompt price threshold clear. The older September 29 rows retain their verification dates; this addition does not change private inference throughput or methodology.
+
 ## September 23, 2026 - TCO capacity and API comparison ownership
 
 - Retired TCO's standalone $8-per-million-token managed API illustration and the associated token-cost/user-cost comparisons from the UI, PDF and audit appendix. Existing saved overrides for that retired field are discarded.
