@@ -106,7 +106,14 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
 
   const fleetIssues = fleetConsistencyIssues({ canonicalFleet, storageBundle, fabricBundle, powerBundle, softwareBundle });
   const allRequiredAccepted = Boolean(storageBundle && fabricBundle && powerBundle && softwareBundle);
-  const clientReady = allRequiredAccepted && stale.length === 0 && fleetIssues.length === 0;
+  const engineeringReviewReady = allRequiredAccepted && stale.length === 0 && fleetIssues.length === 0;
+  const clientReady = engineeringReviewReady && unresolved.length === 0;
+  const openItemCount = unresolved.length;
+  const status = !engineeringReviewReady
+    ? "INCOMPLETE / REVIEW REQUIRED"
+    : clientReady
+      ? "PRE-ARCHITECTURE READY"
+      : `READY FOR ENGINEERING REVIEW · ${openItemCount} OPEN ITEM${openItemCount === 1 ? "" : "S"}`;
 
   const economics = {
     powerMonthly: money(powerMonthly),
@@ -119,8 +126,10 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
 
   return {
     generatedAt: new Date().toISOString(),
-    status: clientReady ? "PRE-ARCHITECTURE READY" : "INCOMPLETE / REVIEW REQUIRED",
+    status,
     clientReady,
+    engineeringReviewReady,
+    openItemCount,
     canonicalFleet,
     fleetIssues,
     compute: {
