@@ -75,20 +75,17 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
   const fingerprint = networkFabricFingerprint(result, upstreamStorageFingerprint);
   const schedule = buildFabricStepSchedule(result);
   const costResolved = result.inputs.switchCost > 0 && result.inputs.cableCost > 0 && result.inputs.transceiverCost > 0;
-  const source = costResolved ? PHASE2_SOURCE.EST : PHASE2_SOURCE.QUOTE;
 
-  const currentCostOverride = createPhase2Override({
+  const overrides = costResolved ? [createPhase2Override({
     id: "network.fabric.capex.current-fleet",
     target: "tco.network.fabric.capex.currentFleet",
     value: Math.round(result.estimatedCapitalCost),
     unit: "USD",
     sourceTool: "network-fabric",
     provenance: makeProvenance({
-      source,
+      source: PHASE2_SOURCE.EST,
       derivation: PHASE2_DERIVATION.CALCULATED,
-      label: costResolved
-        ? "Current-fleet fabric capital-cost envelope from switch, cable, and transceiver planning inputs"
-        : "Network capital cost unresolved until validated switch/cable/transceiver pricing is supplied",
+      label: "Current-fleet fabric capital-cost envelope from switch, cable, and transceiver planning inputs",
     }),
     dependencies: {
       fabricFingerprint: fingerprint,
@@ -97,7 +94,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
       schedule,
     },
     referenceValue: null,
-  });
+  })] : [];
 
   return {
     schemaVersion: 1,
@@ -106,7 +103,8 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
     fingerprint,
     upstreamStorageFingerprint,
     costResolved,
-    overrides: [currentCostOverride],
+    costStatus: costResolved ? "EST" : "UNRESOLVED",
+    overrides,
     requirements: {
       technology: result.inputs.technology,
       linkGbps: result.inputs.linkGbps,
@@ -116,10 +114,13 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
       bandwidth: result.bandwidth,
       switchPowerKw: result.estimatedSwitchPowerKw,
       currentFleetSystems: result.inputs.gpuSystems,
-      capitalCostCurrentFleet: Math.round(result.estimatedCapitalCost),
+      capitalCostCurrentFleet: costResolved ? Math.round(result.estimatedCapitalCost) : null,
       fleetStepSchedule: schedule,
       flags: result.flags,
       validationWarnings: validation.warnings,
+      costNote: costResolved
+        ? "Planning-level fabric CAPEX is available from explicit unit-cost assumptions."
+        : "Fabric requirement is accepted, but no CAPEX override is eligible until switch, cable, and transceiver prices are all supplied.",
     },
   };
 }
