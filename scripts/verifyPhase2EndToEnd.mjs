@@ -121,7 +121,10 @@ const phase1Snapshot = {
   summary: { horizonYears: 3, onPremCost: 2000000, cloudCost: 3000000, recommendedFleet: "8 x DGX B200" },
 };
 const brief = buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle, phase1Snapshot });
-assert.equal(brief.clientReady, true, "Complete, current four-pillar brief with one fleet should be pre-architecture ready");
+assert.equal(brief.engineeringReviewReady, true, "Complete/current four-pillar sizing should be ready for engineering review");
+assert.equal(brief.clientReady, false, "Unresolved Storage OEM/BOM pricing must prevent unqualified client-ready status");
+assert.equal(brief.openItemCount, 1);
+assert.match(brief.status, /^READY FOR ENGINEERING REVIEW/);
 assert.equal(brief.fleetIssues.length, 0);
 assert.equal(brief.stale.length, 0);
 assert.equal(brief.canonicalFleet.systemClass, "DGX B200");
@@ -139,12 +142,14 @@ const mismatchedSoftwareInputs = {
 };
 const mismatchedSoftwareBundle = buildSoftwareStackWritebackBundle(calculateSoftwareStack(mismatchedSoftwareInputs), mismatchedSoftwareInputs);
 const mismatchedFleetBrief = buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle: mismatchedSoftwareBundle, phase1Snapshot });
-assert.equal(mismatchedFleetBrief.clientReady, false, "Fleet mismatch must block readiness");
+assert.equal(mismatchedFleetBrief.engineeringReviewReady, false, "Fleet mismatch must block readiness");
+assert.equal(mismatchedFleetBrief.clientReady, false);
 assert.ok(mismatchedFleetBrief.fleetIssues.some((item) => item.includes("Software fleet mismatch")));
 
 const staleFabricBundle = { ...fabricBundle, upstreamStorageFingerprint: "storage-old" };
 const briefLevelStale = buildPodBrief({ storageBundle, fabricBundle: staleFabricBundle, powerBundle, softwareBundle, phase1Snapshot });
-assert.equal(briefLevelStale.clientReady, false, "Brief must detect stale Fabric without opening the Fabric or Power page");
+assert.equal(briefLevelStale.engineeringReviewReady, false, "Brief must detect stale Fabric without opening the Fabric or Power page");
+assert.equal(briefLevelStale.clientReady, false);
 assert.ok(briefLevelStale.stale.some((item) => item.includes("Network Fabric is stale")));
 
 const dependencies = { storageBundle, fabricBundle, powerBundle, softwareBundle };
@@ -163,7 +168,8 @@ assert.equal(evaluateAcceptedPodBrief(acceptedBrief, { dependencies, phase1Snaps
 
 const stalePowerBundle = { ...powerBundle, overrides: powerBundle.overrides.map((item) => ({ ...item, state: PHASE2_STATE.STALE, staleReason: "upstream changed" })) };
 const stalePowerBrief = buildPodBrief({ storageBundle, fabricBundle, powerBundle: stalePowerBundle, softwareBundle, phase1Snapshot });
-assert.equal(stalePowerBrief.clientReady, false, "A stale Power result must block Pod Brief readiness");
+assert.equal(stalePowerBrief.engineeringReviewReady, false, "A stale Power result must block engineering-review readiness");
+assert.equal(stalePowerBrief.clientReady, false, "A stale Power result must block client readiness");
 assert.equal(stalePowerBrief.economics.powerMonthly, 0, "Stale Power overrides must be excluded from economics");
 
 console.log("Phase 2 Wave 5C end-to-end acceptance verification passed.");
