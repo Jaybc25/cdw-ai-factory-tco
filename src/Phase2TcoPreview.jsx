@@ -56,13 +56,13 @@ export default function Phase2TcoPreview() {
       <section style={box}>
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#c8102e", marginBottom: 8 }}>Phase 2 · receiving contract</div>
         <h2 style={{ margin: "0 0 8px", fontSize: 24 }}>TCO can now receive accepted Power, Software, and Fabric bundles</h2>
-        <p style={{ margin: "0 0 14px", color: "#555", lineHeight: 1.5 }}>This preview shows the explicit Phase 2 records before any production TCO integration. Accepted values remain visible, attributable, independently revertible, and ineligible when stale or reverted.</p>
+        <p style={{ margin: "0 0 14px", color: "#555", lineHeight: 1.5 }}>This preview shows the explicit Phase 2 records before any production TCO integration. Accepted values remain visible, attributable, independently revertible, and ineligible when stale or unresolved.</p>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           <span style={{ ...badge, background: "#eaf7ee", color: "#176b31" }}>{eligibleCount} OF {allOverrides.length} TOTAL OVERRIDES ELIGIBLE</span>
           {powerBundle?.requirements?.verdict && <span style={{ ...badge, background: "#f3f3f3", color: "#222" }}>FACILITY: {powerBundle.requirements.verdict.replaceAll("-", " ").toUpperCase()}</span>}
           {softwareBundle?.requirements?.horizonYears && <span style={{ ...badge, background: "#f3f3f3", color: "#222" }}>SOFTWARE: {softwareBundle.requirements.horizonYears}-YEAR PLAN</span>}
-          {networkBundle?.requirements?.topology && <span style={{ ...badge, background: "#f3f3f3", color: "#222" }}>FABRIC: {networkBundle.requirements.topology.toUpperCase()}</span>}
+          {networkBundle?.requirements?.topology && <span style={{ ...badge, background: networkBundle.costResolved ? "#f3f3f3" : "#fff4d6", color: "#222" }}>FABRIC: {networkBundle.requirements.topology.toUpperCase()} · {networkBundle.costResolved ? "COST EST" : "COST UNRESOLVED"}</span>}
         </div>
 
         <div style={{ display: "grid", gap: 20 }}>
@@ -78,7 +78,16 @@ export default function Phase2TcoPreview() {
 
           <div>
             <h3 style={{ margin: "0 0 10px" }}>Network Fabric</h3>
-            {!networkOverrides.length ? <div style={{ background: "#f7f7f7", border: "1px solid #ddd", borderRadius: 10, padding: 14 }}>No accepted Fabric bundle is staged. <a href="/__phase2/network" style={{ color: "#c8102e", fontWeight: 800 }}>Open Network Fabric planner</a></div> : <div style={{ display: "grid", gap: 12 }}>{networkOverrides.map((override, index) => <OverrideCard key={override.id || index} override={override} onRevert={() => revertBundle(networkBundle, setNetworkBundle, "phase2-network-writeback", index)} />)}<div style={{ borderTop: "1px solid #ddd", paddingTop: 12 }}><h4 style={{ margin: "0 0 8px" }}>Fabric requirement and step schedule</h4><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}><div><strong>Technology</strong><br />{networkBundle.requirements?.technology || "—"}</div><div><strong>Switches</strong><br />{networkBundle.requirements?.switches?.total ?? "—"}</div><div><strong>Switch power</strong><br />{Number(networkBundle.requirements?.switchPowerKw || 0).toFixed(1)} kW</div><div><strong>Current fleet CAPEX</strong><br />{formatMoney(networkBundle.requirements?.capitalCostCurrentFleet || 0)}</div></div><div style={{ marginTop: 10, color: "#555" }}>Fleet-size schedule: {networkBundle.requirements?.fleetStepSchedule?.length || 0} infrastructure steps, not a per-system scalar.</div></div></div>}
+            {!networkBundle ? (
+              <div style={{ background: "#f7f7f7", border: "1px solid #ddd", borderRadius: 10, padding: 14 }}>No accepted Fabric bundle is staged. <a href="/__phase2/network" style={{ color: "#c8102e", fontWeight: 800 }}>Open Network Fabric planner</a></div>
+            ) : (
+              <div style={{ display: "grid", gap: 12 }}>
+                {networkOverrides.length > 0 ? networkOverrides.map((override, index) => <OverrideCard key={override.id || index} override={override} onRevert={() => revertBundle(networkBundle, setNetworkBundle, "phase2-network-writeback", index)} />) : (
+                  <div style={{ background: "#fff7e8", border: "1px solid #e4c679", borderRadius: 10, padding: 14 }}><strong>Fabric requirement accepted; CAPEX unresolved.</strong> No TCO cost override is eligible until switch, cable, and transceiver pricing are all supplied.</div>
+                )}
+                <div style={{ borderTop: "1px solid #ddd", paddingTop: 12 }}><h4 style={{ margin: "0 0 8px" }}>Fabric requirement and step schedule</h4><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}><div><strong>Technology</strong><br />{networkBundle.requirements?.technology || "—"}</div><div><strong>Switches</strong><br />{networkBundle.requirements?.switches?.total ?? "—"}</div><div><strong>Switch power</strong><br />{Number(networkBundle.requirements?.switchPowerKw || 0).toFixed(1)} kW</div><div><strong>Current fleet CAPEX</strong><br />{networkBundle.costResolved ? formatMoney(networkBundle.requirements?.capitalCostCurrentFleet || 0) : "UNRESOLVED"}</div></div><div style={{ marginTop: 10, color: "#555" }}>Fleet-size schedule: {networkBundle.requirements?.fleetStepSchedule?.length || 0} infrastructure steps, not a per-system scalar.</div></div>
+              </div>
+            )}
           </div>
 
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
