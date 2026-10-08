@@ -8,33 +8,27 @@ function currentOverrides(bundle) {
   return (bundle?.overrides || []).filter(phase2OverrideCanWriteBack);
 }
 
-function phase1Delta(phase1Snapshot, { powerAnnualized, networkCapex, softwareByYear }) {
+function phase1Comparison(phase1Snapshot, { powerAnnualized, networkCapex, softwareByYear }) {
   const summary = phase1Snapshot?.summary || null;
   if (!summary || !Number.isFinite(Number(summary.onPremCost))) return null;
 
   const horizonYears = Math.max(1, Number(summary.horizonYears || 3));
-  let addedSoftware = 0;
-  for (let year = 1; year <= horizonYears; year += 1) addedSoftware += Number(softwareByYear[year] || 0);
-  const addedPowerFacility = Number(powerAnnualized || 0) * horizonYears;
-  const knownPhase2Additions = Number(networkCapex || 0) + addedSoftware + addedPowerFacility;
-  const baselineOnPrem = Number(summary.onPremCost || 0);
-  const adjustedOnPremKnown = baselineOnPrem + knownPhase2Additions;
-  const baselineCloud = Number(summary.cloudCost || 0);
+  let softwareHorizon = 0;
+  for (let year = 1; year <= horizonYears; year += 1) softwareHorizon += Number(softwareByYear[year] || 0);
 
   return {
     available: true,
     horizonYears,
-    baselineOnPrem: money(baselineOnPrem),
-    baselineCloud: money(baselineCloud),
-    knownPhase2Additions: money(knownPhase2Additions),
-    adjustedOnPremKnown: money(adjustedOnPremKnown),
-    adjustedSavingsKnown: money(baselineCloud - adjustedOnPremKnown),
-    additions: {
-      powerFacility: money(addedPowerFacility),
+    baselineOnPrem: money(summary.onPremCost),
+    baselineCloud: Number.isFinite(Number(summary.cloudCost)) ? money(summary.cloudCost) : null,
+    phase2RefinedLines: {
+      powerFacilityAnnualized: money(powerAnnualized),
+      powerFacilityHorizon: money(Number(powerAnnualized || 0) * horizonYears),
       networkCapex: money(networkCapex),
-      software: money(addedSoftware),
+      softwareHorizon: money(softwareHorizon),
     },
-    note: "Known Phase 2 delta only. Storage OEM/BOM cost remains excluded until a validated quote or price book is available. This comparison does not replace production TCO math.",
+    additiveTotalSuppressed: true,
+    note: "Phase 1 already contains power, networking, software, and storage economics. Phase 2 values refine or replace those assumptions and are not additive. Adjusted on-prem cost and savings are intentionally suppressed until explicit Phase 1 line-item replacement mapping is implemented.",
   };
 }
 
@@ -70,7 +64,7 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
   if (!softwareBundle) unresolved.push("Software Stack requirement has not been accepted.");
   if (storageBundle && !storageBundle.costResolved) unresolved.push("Storage OEM/BOM pricing is unresolved and remains QUOTE scope.");
   if (fabricBundle && fabricBundle.costResolved === false) unresolved.push("Fabric switch/cable/transceiver pricing is unresolved and remains QUOTE scope.");
-  if (!phase1Snapshot) unresolved.push("No saved Phase 1 TCO account snapshot is available for the Phase 2 delta comparison.");
+  if (!phase1Snapshot) unresolved.push("No saved Phase 1 TCO account snapshot is available for Phase 1 comparison context.");
 
   const stale = [];
   [
@@ -88,9 +82,9 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
     powerAnnualized: money(powerMonthly * 12),
     networkCapex: money(networkCapex),
     softwareByYear: Object.fromEntries(Object.entries(softwareByYear).map(([year, value]) => [year, money(value)])),
-    note: "Phase 2 planning envelope only. Storage cost may remain unresolved; this is not yet a replacement for production TCO math.",
+    note: "Phase 2 planning envelope only. These lines refine assumptions already present in Phase 1 TCO and must not be added to the Phase 1 total without explicit replacement mapping.",
   };
-  const delta = phase1Delta(phase1Snapshot, economics);
+  const comparison = phase1Comparison(phase1Snapshot, economics);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -133,7 +127,8 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
       totals: software.totals,
     } : null,
     economics,
-    phase1Delta: delta,
+    phase1Comparison: comparison,
+    phase1Delta: null,
     phase1: phase1Snapshot ? {
       updatedAt: phase1Snapshot.updated_at || null,
       planningBasis: phase1Snapshot.summary?.planningBasis || null,
