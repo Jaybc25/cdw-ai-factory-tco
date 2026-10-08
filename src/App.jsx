@@ -18,6 +18,7 @@ import Phase2TcoPreview from "./Phase2TcoPreview.jsx";
 import PowerPlannerPreview from "./PowerPlannerPreview.jsx";
 import StorageSizerPreview from "./StorageSizerPreview.jsx";
 import SoftwareStackPreview from "./SoftwareStackPreview.jsx";
+import NetworkFabricPreview from "./NetworkFabricPreview.jsx";
 import SharedToolShell from "./SharedToolShell.jsx";
 import "./print-overrides.css";
 import "./mobile-overrides.css";
@@ -143,6 +144,7 @@ function ToolRoutes() {
       <Route path="/__phase2/power" element={<PowerPlannerPreview />} />
       <Route path="/__phase2/storage" element={<StorageSizerPreview />} />
       <Route path="/__phase2/software" element={<SoftwareStackPreview />} />
+      <Route path="/__phase2/network" element={<NetworkFabricPreview />} />
       <Route
         path="/gpu-sizing"
         element={(
