@@ -25,7 +25,7 @@ export function validatePowerPlannerInputs(result) {
   return { valid: errors.length === 0, errors, warnings };
 }
 
-export function buildPowerPlannerWritebackBundle(result, { systemName = null, upstreamStorage = null } = {}) {
+export function buildPowerPlannerWritebackBundle(result, { systemName = null, upstreamStorage = null, upstreamNetwork = null } = {}) {
   const validation = validatePowerPlannerInputs(result);
   if (!validation.valid) {
     throw new Error(`Cannot stage Power Planner write-back: ${validation.errors.join(" ")}`);
@@ -38,6 +38,7 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     designItKw: result.power.designItKw,
     facilityDesignKw: result.power.facilityDesignKw,
     upstreamStorageFingerprint: upstreamStorage?.fingerprint || null,
+    upstreamNetworkFingerprint: upstreamNetwork?.fingerprint || null,
   };
 
   const energy = createPhase2Override({
@@ -86,6 +87,8 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     acceptedAt: new Date().toISOString(),
     upstreamStorageFingerprint: upstreamStorage?.fingerprint || null,
     upstreamStorageAcceptedAt: upstreamStorage?.acceptedAt || null,
+    upstreamNetworkFingerprint: upstreamNetwork?.fingerprint || null,
+    upstreamNetworkAcceptedAt: upstreamNetwork?.acceptedAt || null,
     verdict: result.verdict,
     racks: result.racks,
     power: result.power,
