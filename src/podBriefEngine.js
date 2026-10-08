@@ -90,6 +90,7 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
   if (!softwareBundle) unresolved.push("Software Stack requirement has not been accepted.");
   if (storageBundle && !storageBundle.costResolved) unresolved.push("Storage OEM/BOM pricing is unresolved and remains QUOTE scope.");
   if (fabricBundle && fabricBundle.costResolved === false) unresolved.push("Fabric switch/cable/transceiver pricing is unresolved and remains QUOTE scope.");
+  if (softwareBundle && softwareBundle.costResolved === false) unresolved.push(`Commercial software pricing is unresolved for ${softwareBundle.unresolvedCommercialComponents?.join(", ") || "one or more components"}; software TCO overrides remain ineligible.`);
   if (!phase1Snapshot) unresolved.push("No saved Phase 1 TCO account snapshot is available for Phase 1 comparison context.");
 
   const stale = [];
@@ -112,7 +113,7 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
     powerAnnualized: money(powerMonthly * 12),
     networkCapex: money(networkCapex),
     softwareByYear: Object.fromEntries(Object.entries(softwareByYear).map(([year, value]) => [year, money(value)])),
-    note: "Phase 2 planning envelope only. These lines refine assumptions already present in Phase 1 TCO and must not be added to the Phase 1 total without explicit replacement mapping.",
+    note: "Phase 2 planning envelope only. These lines refine assumptions already present in Phase 1 TCO and must not be added to the Phase 1 total without explicit replacement mapping. Unresolved pricing is excluded rather than represented as $0.",
   };
   const comparison = phase1Comparison(phase1Snapshot, economics);
 
@@ -157,6 +158,7 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
       horizonYears: software.horizonYears,
       components: software.rows?.map((row) => ({ name: row.name, mode: row.mode, priceSource: row.priceSource, unit: row.unit, quantity: row.quantity })) || [],
       totals: software.totals,
+      costResolved: softwareBundle?.costResolved ?? null,
     } : null,
     economics,
     phase1Comparison: comparison,
