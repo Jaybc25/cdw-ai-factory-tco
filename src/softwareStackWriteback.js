@@ -5,6 +5,7 @@ import {
   fingerprintInputs,
   makeProvenance,
 } from "./phase2Contract.js";
+import { makeFleetIdentity } from "./phase2Fleet.js";
 import { LICENSE_MODE, validateSoftwareStackInputs } from "./softwareStackEngine.js";
 
 function normalizedComponent(row) {
@@ -24,8 +25,18 @@ function normalizedComponent(row) {
   };
 }
 
+function softwareFleet(result) {
+  const gpuQuantities = result.rows
+    .filter((row) => String(row.unit || "").toLowerCase() === "gpu" && Number(row.quantity) > 0)
+    .map((row) => Number(row.quantity));
+  const unique = [...new Set(gpuQuantities)];
+  return makeFleetIdentity({ totalGpus: unique.length === 1 ? unique[0] : null, source: "software-stack" });
+}
+
 export function softwareStackFingerprint(result) {
+  const fleet = softwareFleet(result);
   return fingerprintInputs({
+    fleet,
     horizonYears: result.horizonYears,
     annualEscalationPct: result.annualEscalationPct,
     components: result.rows.map(normalizedComponent),
@@ -38,9 +49,11 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
     throw new Error(`Cannot stage Software write-back: ${validation.errors.join(" ")}`);
   }
 
+  const fleet = softwareFleet(result);
   const fingerprint = softwareStackFingerprint(result);
   const dependencies = {
     softwareStackFingerprint: fingerprint,
+    fleet,
     horizonYears: result.horizonYears,
     annualEscalationPct: result.annualEscalationPct,
     components: result.rows.map(normalizedComponent),
@@ -77,6 +90,7 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
     sourceTool: "software-stack",
     acceptedAt: new Date().toISOString(),
     fingerprint,
+    fleet,
     overrides: yearlyOverrides,
     requirements: {
       horizonYears: result.horizonYears,
