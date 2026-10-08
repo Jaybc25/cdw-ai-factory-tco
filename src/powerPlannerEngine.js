@@ -94,11 +94,14 @@ export function calculatePowerPlanner(inputs) {
   const rackPowerMismatch = availableKwPerRack != null && computeRackDesignKw > availableKwPerRack;
   const totalPowerMismatch = totalFacilityKwAvailable != null && facilityDesignKw > totalFacilityKwAvailable;
   const rackCountMismatch = rackPositionsAvailable != null && totalRacks > rackPositionsAvailable;
+  const siteInputsProvided = [availableKwPerRack, totalFacilityKwAvailable, rackPositionsAvailable].filter((value) => value != null).length;
+  const siteInputsComplete = siteInputsProvided === 3;
 
   let verdict = "requirement-only";
   if (facilityBranch === "colocation") verdict = "colocation";
   else if (coolingMismatch || rackPowerMismatch || totalPowerMismatch || rackCountMismatch) verdict = "retrofit";
-  else if (availableKwPerRack != null || totalFacilityKwAvailable != null || rackPositionsAvailable != null) verdict = "fits-as-is";
+  else if (siteInputsComplete) verdict = "fits-as-is";
+  else if (siteInputsProvided > 0) verdict = "partial-check";
 
   const flags = [];
   if (coolingMismatch) flags.push("Selected system requires liquid cooling but the chosen facility cooling type is not liquid-capable.");
@@ -106,6 +109,7 @@ export function calculatePowerPlanner(inputs) {
   if (totalPowerMismatch) flags.push(`Facility design demand (${facilityDesignKw.toFixed(1)} kW including PUE) exceeds stated total facility capacity (${totalFacilityKwAvailable.toFixed(1)} kW).`);
   if (rackCountMismatch) flags.push(`Required rack positions (${totalRacks}) exceed stated available positions (${rackPositionsAvailable}).`);
   if (provisionalNetworkKw === 0) flags.push("Network/head-node power allowance is still 0 kW; Power remains provisional until Fabric supplies this dependency or a planning allowance is entered.");
+  if (siteInputsProvided > 0 && !siteInputsComplete) flags.push("Facility fit is only partially checked. Enter rack kW, total facility kW, and rack positions before treating the site verdict as complete.");
 
   return {
     inputs: {
@@ -133,6 +137,7 @@ export function calculatePowerPlanner(inputs) {
     cooling: { heatBtuPerHour, coolingTons },
     economics: { monthlyKwh, monthlyEnergyCost, monthlyFacilityBurden, monthlyFacilityTotal },
     verdict,
+    siteCheck: { inputsProvided: siteInputsProvided, complete: siteInputsComplete },
     flags,
     methodology: {
       energy: "average IT kW × PUE × 730 hours × utility rate",
