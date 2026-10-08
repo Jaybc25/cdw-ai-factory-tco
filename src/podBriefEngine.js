@@ -8,7 +8,37 @@ function currentOverrides(bundle) {
   return (bundle?.overrides || []).filter(phase2OverrideCanWriteBack);
 }
 
-export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle }) {
+function phase1Delta(phase1Snapshot, { powerAnnualized, networkCapex, softwareByYear }) {
+  const summary = phase1Snapshot?.summary || null;
+  if (!summary || !Number.isFinite(Number(summary.onPremCost))) return null;
+
+  const horizonYears = Math.max(1, Number(summary.horizonYears || 3));
+  let addedSoftware = 0;
+  for (let year = 1; year <= horizonYears; year += 1) addedSoftware += Number(softwareByYear[year] || 0);
+  const addedPowerFacility = Number(powerAnnualized || 0) * horizonYears;
+  const knownPhase2Additions = Number(networkCapex || 0) + addedSoftware + addedPowerFacility;
+  const baselineOnPrem = Number(summary.onPremCost || 0);
+  const adjustedOnPremKnown = baselineOnPrem + knownPhase2Additions;
+  const baselineCloud = Number(summary.cloudCost || 0);
+
+  return {
+    available: true,
+    horizonYears,
+    baselineOnPrem: money(baselineOnPrem),
+    baselineCloud: money(baselineCloud),
+    knownPhase2Additions: money(knownPhase2Additions),
+    adjustedOnPremKnown: money(adjustedOnPremKnown),
+    adjustedSavingsKnown: money(baselineCloud - adjustedOnPremKnown),
+    additions: {
+      powerFacility: money(addedPowerFacility),
+      networkCapex: money(networkCapex),
+      software: money(addedSoftware),
+    },
+    note: "Known Phase 2 delta only. Storage OEM/BOM cost remains excluded until a validated quote or price book is available. This comparison does not replace production TCO math.",
+  };
+}
+
+export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle, phase1Snapshot = null }) {
   const storage = storageBundle?.requirements || null;
   const fabric = fabricBundle?.requirements || null;
   const power = powerBundle?.requirements || null;
@@ -40,6 +70,7 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
   if (!softwareBundle) unresolved.push("Software Stack requirement has not been accepted.");
   if (storageBundle && !storageBundle.costResolved) unresolved.push("Storage OEM/BOM pricing is unresolved and remains QUOTE scope.");
   if (fabricBundle && fabricBundle.costResolved === false) unresolved.push("Fabric switch/cable/transceiver pricing is unresolved and remains QUOTE scope.");
+  if (!phase1Snapshot) unresolved.push("No saved Phase 1 TCO account snapshot is available for the Phase 2 delta comparison.");
 
   const stale = [];
   [
@@ -52,6 +83,14 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
 
   const allRequiredAccepted = Boolean(storageBundle && fabricBundle && powerBundle && softwareBundle);
   const clientReady = allRequiredAccepted && stale.length === 0;
+  const economics = {
+    powerMonthly: money(powerMonthly),
+    powerAnnualized: money(powerMonthly * 12),
+    networkCapex: money(networkCapex),
+    softwareByYear: Object.fromEntries(Object.entries(softwareByYear).map(([year, value]) => [year, money(value)])),
+    note: "Phase 2 planning envelope only. Storage cost may remain unresolved; this is not yet a replacement for production TCO math.",
+  };
+  const delta = phase1Delta(phase1Snapshot, economics);
 
   return {
     generatedAt: new Date().toISOString(),
@@ -93,13 +132,16 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
       components: software.rows?.map((row) => ({ name: row.name, mode: row.mode, priceSource: row.priceSource, unit: row.unit, quantity: row.quantity })) || [],
       totals: software.totals,
     } : null,
-    economics: {
-      powerMonthly: money(powerMonthly),
-      powerAnnualized: money(powerMonthly * 12),
-      networkCapex: money(networkCapex),
-      softwareByYear: Object.fromEntries(Object.entries(softwareByYear).map(([year, value]) => [year, money(value)])),
-      note: "Phase 2 planning envelope only. Storage cost may remain unresolved; this is not yet a replacement for production TCO math.",
-    },
+    economics,
+    phase1Delta: delta,
+    phase1: phase1Snapshot ? {
+      updatedAt: phase1Snapshot.updated_at || null,
+      planningBasis: phase1Snapshot.summary?.planningBasis || null,
+      horizonYears: phase1Snapshot.summary?.horizonYears || null,
+      onPremCost: phase1Snapshot.summary?.onPremCost ?? null,
+      cloudCost: phase1Snapshot.summary?.cloudCost ?? null,
+      savings: phase1Snapshot.summary?.savings ?? null,
+    } : null,
     unresolved,
     stale,
     engineeringHandoff: [
