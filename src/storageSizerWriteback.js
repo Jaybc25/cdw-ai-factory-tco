@@ -5,10 +5,13 @@ import {
   fingerprintInputs,
   makeProvenance,
 } from "./phase2Contract.js";
+import { makeFleetIdentity } from "./phase2Fleet.js";
 
 export function buildStorageDependencyBundle(result, { workload } = {}) {
+  const fleet = makeFleetIdentity({ totalGpus: result.inputs?.gpuCount, source: "storage-sizer" });
   const dependencies = {
     workload,
+    fleet,
     capacity: result.capacity,
     throughput: result.throughput,
     racks: result.racks,
@@ -39,6 +42,7 @@ export function buildStorageDependencyBundle(result, { workload } = {}) {
     acceptedAt,
     fingerprint,
     workload,
+    fleet,
     overrides: [capacityOverride],
     requirements: {
       fastUsableTb: result.capacity.fastUsableTb,
