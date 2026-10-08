@@ -34,6 +34,7 @@ const softwareBundle = {
   acceptedAt: "2026-10-08T10:03:00Z",
   fingerprint: "software-a",
   fleet: makeFleetIdentity({ totalGpus: 64, source: "software-stack" }),
+  costResolved: true,
   overrides: [override("software.total.year-1", 100000, "USD/year"), override("software.total.year-2", 105000, "USD/year"), override("software.total.year-3", 110000, "USD/year")],
   requirements: { horizonYears: 3, rows: [], totals: { annualRecurringYear1: 100000, implementation: 0, total: 315000 } },
 };
@@ -41,7 +42,10 @@ const phase1Snapshot = { updated_at: "2026-10-08T09:00:00Z", inputs: { ownSys: "
 
 const dependencies = { storageBundle, fabricBundle, powerBundle, softwareBundle };
 const brief = buildPodBrief({ ...dependencies, phase1Snapshot });
-assert.equal(brief.clientReady, true);
+assert.equal(brief.engineeringReviewReady, true, "Complete/current sizing should be ready for engineering review");
+assert.equal(brief.clientReady, false, "Open storage pricing must prevent unqualified client-ready status");
+assert.equal(brief.openItemCount, 1);
+assert.match(brief.status, /^READY FOR ENGINEERING REVIEW/);
 assert.equal(brief.fleetIssues.length, 0);
 assert.equal(brief.stale.length, 0);
 assert.equal(brief.phase1Delta, null, "Additive Phase 1 → Phase 2 delta must remain suppressed");
