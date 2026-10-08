@@ -52,6 +52,7 @@ export function calculatePowerPlanner(inputs) {
   const systemsPerRack = Math.max(1, n(inputs.systemsPerRack, 1));
   const storagePb = Math.max(0, n(inputs.storagePb));
   const storageKwPerPb = Math.max(0, n(inputs.storageKwPerPb, 10));
+  const explicitStoragePowerKw = inputs.storagePowerKw == null || inputs.storagePowerKw === "" ? null : Math.max(0, n(inputs.storagePowerKw));
   const provisionalNetworkKw = Math.max(0, n(inputs.provisionalNetworkKw));
   const pue = Math.max(1, n(inputs.pue, 1));
   const utilityRatePerKwh = Math.max(0, n(inputs.utilityRatePerKwh));
@@ -71,7 +72,7 @@ export function calculatePowerPlanner(inputs) {
 
   const computeAvgKw = systemCount * avgKwPerSystem;
   const computeDesignKw = systemCount * designKwPerSystem;
-  const storageKw = storagePb * storageKwPerPb;
+  const storageKw = explicitStoragePowerKw ?? (storagePb * storageKwPerPb);
 
   const averageItKw = computeAvgKw + storageKw + provisionalNetworkKw;
   const designItKw = computeDesignKw + storageKw + provisionalNetworkKw;
@@ -79,8 +80,6 @@ export function calculatePowerPlanner(inputs) {
   const avgRackDesignKw = totalRacks > 0 ? designItKw / totalRacks : 0;
   const computeRackDesignKw = computeRacks > 0 ? computeDesignKw / computeRacks : 0;
 
-  // Heat rejection tracks IT load, not IT load * PUE. PUE is used for total
-  // facility electrical demand and energy economics only.
   const heatBtuPerHour = designItKw * BTU_PER_HOUR_PER_KW;
   const coolingTons = heatBtuPerHour / BTU_PER_HOUR_PER_TON;
 
@@ -116,6 +115,7 @@ export function calculatePowerPlanner(inputs) {
       systemsPerRack,
       storagePb,
       storageKwPerPb,
+      storagePowerKw: explicitStoragePowerKw,
       provisionalNetworkKw,
       pue,
       utilityRatePerKwh,
@@ -139,6 +139,7 @@ export function calculatePowerPlanner(inputs) {
       facilityDemand: "design IT kW × PUE",
       heatRejection: "design IT kW × 3,412 BTU/hr per kW",
       coolingTons: "BTU/hr ÷ 12,000",
+      storagePower: explicitStoragePowerKw == null ? "storage PB × provisional kW/PB" : "accepted Storage Sizer power requirement",
       facilityBurden: facilityBranch === "owned-dc" ? "design IT kW × owned facility burden $/kW-month" : "customer/partner colocation monthly bundle",
     },
   };
