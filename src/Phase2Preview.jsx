@@ -10,6 +10,7 @@ import {
   recomputePhase2Override,
   revertPhase2Override,
 } from "./phase2Contract.js";
+import { saveSessionState } from "./sessionState.js";
 
 const tools = [
   ["Power, cooling and rack planner", "Size rack footprint, design power, cooling requirement and facility fit. Energy cost and facility burden remain separate.", "Wave 1"],
@@ -45,13 +46,11 @@ const styles = {
   cardTitle: { margin: "0 0 8px", fontSize: 18, lineHeight: 1.25 },
   cardText: { margin: 0, color: "#555", lineHeight: 1.5, fontSize: 14 },
   list: { margin: 0, paddingLeft: 20, lineHeight: 1.7 },
-  flow: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 10 },
-  flowItem: { padding: 14, borderRadius: 10, background: "#f7f7f7", border: "1px solid #e2e2e2", fontWeight: 700, lineHeight: 1.35 },
   demoGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, alignItems: "end" },
   label: { display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6 },
   input: { width: "100%", boxSizing: "border-box", padding: "10px 12px", border: "1px solid #bbb", borderRadius: 8, fontSize: 16, background: "#fff" },
   buttonRow: { display: "flex", flexWrap: "wrap", gap: 10, marginTop: 16 },
-  button: { border: 0, borderRadius: 8, padding: "10px 14px", fontWeight: 800, cursor: "pointer", background: "#c8102e", color: "#fff" },
+  button: { border: 0, borderRadius: 8, padding: "10px 14px", fontWeight: 800, cursor: "pointer", background: "#c8102e", color: "#fff", textDecoration: "none", display: "inline-block" },
   secondaryButton: { border: "1px solid #aaa", borderRadius: 8, padding: "10px 14px", fontWeight: 700, cursor: "pointer", background: "#fff", color: "#222" },
   statusBox: { marginTop: 18, border: "1px solid #d7d7d7", borderRadius: 10, padding: 16, background: "#fcfcfc" },
   mono: { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, overflowWrap: "anywhere" },
@@ -92,17 +91,26 @@ export default function Phase2Preview() {
   const status = evaluated.state;
   const canWriteBack = phase2OverrideCanWriteBack(evaluated);
 
+  function stage(nextOverride) {
+    saveSessionState("phase2-preview-override", { override: nextOverride });
+    setOverride(nextOverride);
+  }
+
   function recompute() {
     const value = Math.round(systems * avgKwPerSystem * 730 * pue * utilityRatePerKwh);
-    setOverride(recomputePhase2Override(evaluated, { value, dependencies }));
+    stage(recomputePhase2Override(evaluated, { value, dependencies }));
   }
 
   function revert() {
-    setOverride(revertPhase2Override(evaluated));
+    stage(revertPhase2Override(evaluated));
   }
 
   function restart() {
-    setOverride(buildEnergyOverride({ systems, avgKwPerSystem, pue, utilityRatePerKwh }));
+    stage(buildEnergyOverride({ systems, avgKwPerSystem, pue, utilityRatePerKwh }));
+  }
+
+  function stageCurrentForTco() {
+    saveSessionState("phase2-preview-override", { override: evaluated });
   }
 
   return (
@@ -142,6 +150,7 @@ export default function Phase2Preview() {
             <button style={styles.button} onClick={recompute} disabled={status === PHASE2_STATE.REVERTED}>Recompute and accept</button>
             <button style={styles.secondaryButton} onClick={revert} disabled={status === PHASE2_STATE.REVERTED}>Revert override</button>
             <button style={styles.secondaryButton} onClick={restart}>Start new override</button>
+            <a href="/__phase2/tco" onClick={stageCurrentForTco} style={styles.button}>Open TCO receiving preview</a>
           </div>
         </section>
 
