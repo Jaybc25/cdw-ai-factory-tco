@@ -14,6 +14,7 @@ import HybridSequenceStateTestRoute from "./HybridSequenceStateTestRoute.jsx";
 import InferenceEconomicsPreview from "./InferenceEconomicsPreview.jsx";
 import InferenceEconomicsGuidedPreview from "./InferenceEconomicsGuidedPreview.jsx";
 import Phase2Preview from "./Phase2Preview.jsx";
+import Phase2TcoPreview from "./Phase2TcoPreview.jsx";
 import SharedToolShell from "./SharedToolShell.jsx";
 import "./print-overrides.css";
 import "./mobile-overrides.css";
@@ -86,6 +87,20 @@ function TcoRoute() {
   );
 }
 
+function Phase2TcoRoute() {
+  normalizeTcoHandoffCloudClass();
+  return (
+    <SharedToolShell
+      title="Cloud vs On-Prem TCO Calculator · Phase 2 Preview"
+      backHref="/__phase2"
+      backLabel="Phase 2 construction"
+      toolKey="phase2-tco-preview"
+    >
+      <Phase2TcoPreview />
+    </SharedToolShell>
+  );
+}
+
 function LegacyInferenceEconomicsRedirect({ guided = false }) {
   // Keep the retired preview modules and legacy UI-contract strings reachable
   // to source-level checks while routing customers to the current experience.
@@ -130,6 +145,7 @@ function ToolRoutes() {
       <Route path="/tco/inference-economics-preview" element={<LegacyInferenceEconomicsRedirect />} />
       <Route path="/tco/inference-economics-preview-guided" element={<LegacyInferenceEconomicsRedirect guided />} />
       <Route path="/__phase2" element={<Phase2Preview />} />
+      <Route path="/__phase2/tco" element={<Phase2TcoRoute />} />
       <Route
         path="/gpu-sizing"
         element={(
