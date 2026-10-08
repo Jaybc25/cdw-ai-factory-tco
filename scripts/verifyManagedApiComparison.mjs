@@ -212,6 +212,20 @@ assert.equal(getManagedApiRate("Anthropic", "claude-fable-5-1")?.outputUsdPerMil
 assert.equal(getManagedApiRate("Google", "gemini-3.8-flash")?.inputUsdPerMillion, 0.75);
 assert.equal(getManagedApiRate("Google", "gemini-3.1-flash-lite")?.cachedInputUsdPerMillion, 0.025);
 assert.equal(getManagedApiRate("xAI", "grok-4.3")?.outputUsdPerMillion, 2.5);
+assert.deepEqual(
+  ["gpt-6.1-sol", "claude-opus-5-5", "claude-sonnet-5-5", "grok-4.7"].map((modelId) => {
+    const provider = modelId.startsWith("gpt") ? "OpenAI" : modelId.startsWith("grok") ? "xAI" : "Anthropic";
+    const rate = getManagedApiRate(provider, modelId);
+    return [modelId, rate?.inputUsdPerMillion, rate?.cachedInputUsdPerMillion, rate?.outputUsdPerMillion, rate?.verifiedAt];
+  }),
+  [
+    ["gpt-6.1-sol", 2, 0.1, 10, "2026-10-08"],
+    ["claude-opus-5-5", 4, 0.2, 20, "2026-10-08"],
+    ["claude-sonnet-5-5", 2, 0.1, 10, "2026-10-08"],
+    ["grok-4.7", 2, 0.5, 6, "2026-10-08"],
+  ],
+);
+assert.equal(getManagedApiRate("Anthropic", "claude-haiku-5-5"), null);
 assert.equal(MANAGED_API_CUSTOM_PROVIDER, "CUSTOM");
 
 const snapshotMetadata = validateManagedApiPricingSnapshotMetadata();
