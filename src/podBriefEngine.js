@@ -1,4 +1,5 @@
 import { PHASE2_STATE, phase2OverrideCanWriteBack } from "./phase2Contract.js";
+import { compareFleetIdentity, fleetFromPhase1Snapshot } from "./phase2Fleet.js";
 
 function money(value) {
   return Math.round(Number(value || 0));
@@ -32,11 +33,36 @@ function phase1Comparison(phase1Snapshot, { powerAnnualized, networkCapex, softw
   };
 }
 
+function dependencyFreshnessIssues({ storageBundle, fabricBundle, powerBundle }) {
+  const issues = [];
+  if (storageBundle && fabricBundle && fabricBundle.upstreamStorageFingerprint !== storageBundle.fingerprint) {
+    issues.push("Network Fabric is stale: it was accepted against a different Storage requirement.");
+  }
+  if (storageBundle && powerBundle?.requirements?.upstreamStorageFingerprint !== storageBundle.fingerprint) {
+    issues.push("Power is stale: it was accepted against a different Storage requirement.");
+  }
+  if (fabricBundle && powerBundle?.requirements?.upstreamNetworkFingerprint !== fabricBundle.fingerprint) {
+    issues.push("Power is stale: it was accepted against a different Network Fabric requirement.");
+  }
+  return issues;
+}
+
+function fleetConsistencyIssues({ canonicalFleet, storageBundle, fabricBundle, powerBundle, softwareBundle }) {
+  if (!canonicalFleet) return ["Canonical fleet identity is unavailable. Save a Phase 1 TCO snapshot with a recommended fleet before treating the Pod Brief as ready."];
+  const issues = [];
+  issues.push(...compareFleetIdentity(canonicalFleet, storageBundle?.fleet, "Storage"));
+  issues.push(...compareFleetIdentity(canonicalFleet, fabricBundle?.fleet, "Network Fabric"));
+  issues.push(...compareFleetIdentity(canonicalFleet, powerBundle?.fleet || powerBundle?.requirements?.fleet, "Power"));
+  issues.push(...compareFleetIdentity(canonicalFleet, softwareBundle?.fleet, "Software"));
+  return issues;
+}
+
 export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle, phase1Snapshot = null }) {
   const storage = storageBundle?.requirements || null;
   const fabric = fabricBundle?.requirements || null;
   const power = powerBundle?.requirements || null;
   const software = softwareBundle?.requirements || null;
+  const canonicalFleet = fleetFromPhase1Snapshot(phase1Snapshot);
 
   const powerOverrides = currentOverrides(powerBundle);
   const softwareOverrides = currentOverrides(softwareBundle);
@@ -68,15 +94,19 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
 
   const stale = [];
   [
+    ["Storage", storageBundle],
     ["Power", powerBundle],
     ["Software", softwareBundle],
     ["Fabric", fabricBundle],
   ].forEach(([label, bundle]) => {
     if ((bundle?.overrides || []).some((item) => item.state === PHASE2_STATE.STALE)) stale.push(`${label} contains stale accepted values and must be recomputed before client use.`);
   });
+  stale.push(...dependencyFreshnessIssues({ storageBundle, fabricBundle, powerBundle }));
 
+  const fleetIssues = fleetConsistencyIssues({ canonicalFleet, storageBundle, fabricBundle, powerBundle, softwareBundle });
   const allRequiredAccepted = Boolean(storageBundle && fabricBundle && powerBundle && softwareBundle);
-  const clientReady = allRequiredAccepted && stale.length === 0;
+  const clientReady = allRequiredAccepted && stale.length === 0 && fleetIssues.length === 0;
+
   const economics = {
     powerMonthly: money(powerMonthly),
     powerAnnualized: money(powerMonthly * 12),
@@ -90,6 +120,8 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
     generatedAt: new Date().toISOString(),
     status: clientReady ? "PRE-ARCHITECTURE READY" : "INCOMPLETE / REVIEW REQUIRED",
     clientReady,
+    canonicalFleet,
+    fleetIssues,
     compute: {
       systemName: power?.systemName || null,
       racks: power?.racks?.compute ?? null,
@@ -136,6 +168,7 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
       onPremCost: phase1Snapshot.summary?.onPremCost ?? null,
       cloudCost: phase1Snapshot.summary?.cloudCost ?? null,
       savings: phase1Snapshot.summary?.savings ?? null,
+      recommendedFleet: phase1Snapshot.summary?.recommendedFleet || phase1Snapshot.summary?.gpuSizingFleet || null,
     } : null,
     unresolved,
     stale,
