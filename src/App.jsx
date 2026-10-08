@@ -19,6 +19,7 @@ import PowerPlannerPreview from "./PowerPlannerPreview.jsx";
 import StorageSizerPreview from "./StorageSizerPreview.jsx";
 import SoftwareStackPreview from "./SoftwareStackPreview.jsx";
 import NetworkFabricPreview from "./NetworkFabricPreview.jsx";
+import PodBriefPreview from "./PodBriefPreview.jsx";
 import SharedToolShell from "./SharedToolShell.jsx";
 import "./print-overrides.css";
 import "./mobile-overrides.css";
@@ -145,6 +146,7 @@ function ToolRoutes() {
       <Route path="/__phase2/storage" element={<StorageSizerPreview />} />
       <Route path="/__phase2/software" element={<SoftwareStackPreview />} />
       <Route path="/__phase2/network" element={<NetworkFabricPreview />} />
+      <Route path="/__phase2/pod-brief" element={<PodBriefPreview />} />
       <Route
         path="/gpu-sizing"
         element={(
