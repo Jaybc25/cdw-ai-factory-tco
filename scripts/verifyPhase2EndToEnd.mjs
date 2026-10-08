@@ -115,9 +115,11 @@ const phase1Snapshot = {
 };
 const brief = buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle, phase1Snapshot });
 assert.equal(brief.clientReady, true, "Complete, current four-pillar brief should be pre-architecture ready");
-assert.ok(brief.economics.knownPhase2Additions > 0);
-assert.equal(brief.economics.phase1OnPremTco, 2000000);
-assert.equal(brief.economics.adjustedKnownOnPremTco, 2000000 + brief.economics.knownPhase2Additions);
+assert.equal(brief.phase1Delta, null, "The Pod Brief must not calculate an additive Phase 1 → Phase 2 total");
+assert.equal(brief.phase1Comparison.baselineOnPrem, 2000000);
+assert.equal(brief.phase1Comparison.additiveTotalSuppressed, true);
+assert.ok(brief.phase1Comparison.phase2RefinedLines.powerFacilityHorizon > 0);
+assert.ok(brief.phase1Comparison.phase2RefinedLines.softwareHorizon > 0);
 
 const dependencies = { storageBundle, fabricBundle, powerBundle, softwareBundle };
 const acceptedBrief = createAcceptedPodBriefRecord({ brief, dependencies, phase1Snapshot });
