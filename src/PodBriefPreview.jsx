@@ -64,7 +64,7 @@ export default function PodBriefPreview() {
         designItKw: brief.facility?.designItKw ?? null,
         storageRawTb: brief.storage?.totalRawTb ?? null,
         fabric: brief.fabric ? `${brief.fabric.technology} ${brief.fabric.linkGbps}G` : null,
-        knownPhase2Additions: brief.phase1Delta?.knownPhase2Additions ?? null,
+        phase1ComparisonAvailable: Boolean(brief.phase1Comparison),
         unresolvedCount: brief.unresolved.length,
       });
     }
@@ -85,7 +85,7 @@ export default function PodBriefPreview() {
       `}</style>
       <main style={{ width: "min(1180px, 100%)", margin: "0 auto" }}>
         <div className="pod-no-print" style={{ background: "#111", color: "#fff", borderLeft: "6px solid #c8102e", padding: 14, marginBottom: 20 }}>
-          <strong>Phase 2 · Wave 5B.</strong> Durable, dependency-aware, printable Pod Brief with an optional Phase 1 TCO delta.
+          <strong>Phase 2 · Wave 5C remediation.</strong> Durable, dependency-aware, printable Pod Brief with non-additive Phase 1 comparison context.
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start", gap: 16, flexWrap: "wrap" }}>
@@ -93,7 +93,7 @@ export default function PodBriefPreview() {
             <div style={{ fontSize: 12, fontWeight: 900, color: "#c8102e", letterSpacing: ".08em", textTransform: "uppercase" }}>CDW AI Factory · Pre-Architecture Handoff</div>
             <h1 style={{ margin: "5px 0 8px", fontSize: "clamp(30px, 5vw, 48px)" }}>AI Factory Pod Brief</h1>
             <p style={{ margin: 0, color: "#555", fontSize: 17, lineHeight: 1.55, maxWidth: 900 }}>
-              What the environment needs, what the known economics add to Phase 1, what remains unresolved, and what CDW engineering should validate next.
+              What the environment needs, which Phase 2 economics refine existing Phase 1 assumptions, what remains unresolved, and what CDW engineering should validate next.
             </p>
           </div>
           <div className="pod-print-card" style={{ ...card, minWidth: 260, borderLeft: `6px solid ${brief.clientReady ? "#176b31" : "#c8102e"}` }}>
@@ -173,7 +173,7 @@ export default function PodBriefPreview() {
         </section>
 
         <section className="pod-print-card" style={{ ...card, marginBottom: 18, borderLeft: "6px solid #c8102e" }}>
-          <h2 style={{ marginTop: 0 }}>5. Phase 2 economic envelope</h2>
+          <h2 style={{ marginTop: 0 }}>5. Phase 2 refined cost lines</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
             <div><strong>Power + facility monthly</strong><br />{money(brief.economics.powerMonthly)}</div><div><strong>Power + facility annualized</strong><br />{money(brief.economics.powerAnnualized)}</div>
             <div><strong>Fabric current-fleet CAPEX</strong><br />{money(brief.economics.networkCapex)}</div><div><strong>Software Year 1</strong><br />{money(brief.economics.softwareByYear?.[1] || 0)}</div>
@@ -182,20 +182,20 @@ export default function PodBriefPreview() {
         </section>
 
         <section className="pod-print-card" style={{ ...card, marginBottom: 18 }}>
-          <h2 style={{ marginTop: 0 }}>6. Phase 1 → Phase 2 known-cost delta</h2>
-          {phase1Loading ? <p>Loading saved Phase 1 TCO snapshot…</p> : brief.phase1Delta ? <>
+          <h2 style={{ marginTop: 0 }}>6. Phase 1 context and Phase 2 line comparison</h2>
+          {phase1Loading ? <p>Loading saved Phase 1 TCO snapshot…</p> : brief.phase1Comparison ? <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
-              <div><strong>Phase 1 on-prem</strong><br />{money(brief.phase1Delta.baselineOnPrem)}</div>
-              <div><strong>Known Phase 2 additions</strong><br />{money(brief.phase1Delta.knownPhase2Additions)}</div>
-              <div><strong>Adjusted on-prem known</strong><br />{money(brief.phase1Delta.adjustedOnPremKnown)}</div>
-              <div><strong>Cloud baseline</strong><br />{money(brief.phase1Delta.baselineCloud)}</div>
-              <div><strong>Adjusted savings known</strong><br />{money(brief.phase1Delta.adjustedSavingsKnown)}</div>
+              <div><strong>Phase 1 on-prem total</strong><br />{money(brief.phase1Comparison.baselineOnPrem)}</div>
+              <div><strong>Phase 1 cloud baseline</strong><br />{brief.phase1Comparison.baselineCloud == null ? "—" : money(brief.phase1Comparison.baselineCloud)}</div>
+              <div><strong>Phase 2 power/facility annualized</strong><br />{money(brief.phase1Comparison.phase2RefinedLines.powerFacilityAnnualized)}</div>
+              <div><strong>Phase 2 fabric CAPEX</strong><br />{money(brief.phase1Comparison.phase2RefinedLines.networkCapex)}</div>
+              <div><strong>Phase 2 software over Phase 1 horizon</strong><br />{money(brief.phase1Comparison.phase2RefinedLines.softwareHorizon)}</div>
             </div>
-            <div style={{ marginTop: 12, color: "#555", lineHeight: 1.55 }}>
-              Added over {brief.phase1Delta.horizonYears} years: power/facility {money(brief.phase1Delta.additions.powerFacility)} · fabric {money(brief.phase1Delta.additions.networkCapex)} · software {money(brief.phase1Delta.additions.software)}.
+            <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: "#fff7e8", border: "1px solid #e4c679", lineHeight: 1.55 }}>
+              <strong>Not additive.</strong> Phase 1 already includes power, networking, software, and storage economics. These Phase 2 lines refine or replace those assumptions. Adjusted on-prem cost and savings are intentionally not calculated until line-by-line replacement mapping is implemented.
             </div>
-            <p style={{ color: "#666", marginBottom: 0 }}>{brief.phase1Delta.note}</p>
-          </> : <p>No saved Phase 1 TCO account snapshot is available yet. Run/save TCO while signed in to populate this comparison.</p>}
+            <p style={{ color: "#666", marginBottom: 0 }}>{brief.phase1Comparison.note}</p>
+          </> : <p>No saved Phase 1 TCO account snapshot is available yet. Run/save TCO while signed in to populate comparison context.</p>}
         </section>
 
         {(brief.unresolved.length > 0 || brief.stale.length > 0) && <section className="pod-print-card" style={{ ...card, marginBottom: 18, background: "#fff7e8", borderColor: "#e4c679" }}>
