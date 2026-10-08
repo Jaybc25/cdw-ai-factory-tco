@@ -34,9 +34,13 @@ const phase1Snapshot = { updated_at: "2026-10-08T09:00:00Z", summary: { horizonY
 
 const dependencies = { storageBundle, fabricBundle, powerBundle, softwareBundle };
 const brief = buildPodBrief({ ...dependencies, phase1Snapshot });
-assert.equal(brief.phase1Delta.knownPhase2Additions, 1185000); // 20k/mo*36 + 150k + 315k
-assert.equal(brief.phase1Delta.adjustedOnPremKnown, 3185000);
-assert.equal(brief.phase1Delta.adjustedSavingsKnown, -185000);
+assert.equal(brief.phase1Delta, null, "Additive Phase 1 → Phase 2 delta must remain suppressed");
+assert.equal(brief.phase1Comparison.baselineOnPrem, 2000000);
+assert.equal(brief.phase1Comparison.phase2RefinedLines.powerFacilityHorizon, 720000);
+assert.equal(brief.phase1Comparison.phase2RefinedLines.networkCapex, 150000);
+assert.equal(brief.phase1Comparison.phase2RefinedLines.softwareHorizon, 315000);
+assert.equal(brief.phase1Comparison.additiveTotalSuppressed, true);
+assert.ok(brief.phase1Comparison.note.includes("not additive"));
 assert.ok(brief.unresolved.some((x) => x.includes("Storage OEM/BOM")));
 
 const accepted = createAcceptedPodBriefRecord({ brief, dependencies, phase1Snapshot });
