@@ -51,6 +51,9 @@ const unresolvedInputs = { ...inputs, switchCost: 0, cableCost: 0, transceiverCo
 const unresolved = calculateNetworkFabric(unresolvedInputs);
 const unresolvedBundle = buildNetworkFabricWritebackBundle(unresolved, unresolvedInputs);
 assert.equal(unresolvedBundle.costResolved, false);
-assert.equal(unresolvedBundle.overrides[0].provenance.source, "QUOTE");
+assert.equal(unresolvedBundle.costStatus, "UNRESOLVED");
+assert.equal(unresolvedBundle.overrides.length, 0, "Unresolved Fabric pricing must not create a zero-dollar TCO override");
+assert.equal(unresolvedBundle.requirements.capitalCostCurrentFleet, null);
+assert.match(unresolvedBundle.requirements.costNote, /no CAPEX override is eligible/i);
 
 console.log("Phase 2 Wave 4B network write-back verification: PASS");
