@@ -5,6 +5,7 @@ import {
   fingerprintInputs,
   makeProvenance,
 } from "./phase2Contract.js";
+import { makeFleetIdentity } from "./phase2Fleet.js";
 import { calculateNetworkFabric, validateNetworkFabricInputs } from "./networkFabricEngine.js";
 
 function baseInputsFromResult(result) {
@@ -26,8 +27,10 @@ function baseInputsFromResult(result) {
 }
 
 export function networkFabricFingerprint(result, upstreamStorageFingerprint = null) {
+  const fleet = makeFleetIdentity({ systemCount: result.inputs.gpuSystems, source: "network-fabric" });
   return fingerprintInputs({
     ...baseInputsFromResult(result),
+    fleet,
     gpuSystems: result.inputs.gpuSystems,
     upstreamStorageFingerprint,
     switches: result.switches,
@@ -72,6 +75,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
     throw new Error(`Cannot stage Network Fabric write-back: ${validation.errors.join(" ")}`);
   }
 
+  const fleet = makeFleetIdentity({ systemCount: result.inputs.gpuSystems, source: "network-fabric" });
   const fingerprint = networkFabricFingerprint(result, upstreamStorageFingerprint);
   const schedule = buildFabricStepSchedule(result);
   const costResolved = result.inputs.switchCost > 0 && result.inputs.cableCost > 0 && result.inputs.transceiverCost > 0;
@@ -89,6 +93,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
     }),
     dependencies: {
       fabricFingerprint: fingerprint,
+      fleet,
       gpuSystems: result.inputs.gpuSystems,
       upstreamStorageFingerprint,
       schedule,
@@ -101,6 +106,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
     sourceTool: "network-fabric",
     acceptedAt: new Date().toISOString(),
     fingerprint,
+    fleet,
     upstreamStorageFingerprint,
     costResolved,
     costStatus: costResolved ? "EST" : "UNRESOLVED",
