@@ -17,6 +17,8 @@ on:
       - "src/podBrief*.js"
       - "src/PodBrief*.jsx"
       - "scripts/verifyPhase2*.mjs"
+      - "scripts/verifyNetworkFabric.mjs"
+      - "scripts/verifyPodBrief.mjs"
       - ".github/workflows/phase2-acceptance.yml"
   push:
     branches: [main]
@@ -34,6 +36,8 @@ on:
       - "src/podBrief*.js"
       - "src/PodBrief*.jsx"
       - "scripts/verifyPhase2*.mjs"
+      - "scripts/verifyNetworkFabric.mjs"
+      - "scripts/verifyPodBrief.mjs"
       - ".github/workflows/phase2-acceptance.yml"
 
 permissions:
@@ -61,14 +65,20 @@ jobs:
         run: node scripts/verifyPhase2PowerWriteback.mjs
       - name: Verify Power evidence anchors
         run: node scripts/verifyPhase2PowerEvidence.mjs
+      - name: Verify Storage engine
+        run: node scripts/verifyPhase2Storage2A.mjs
       - name: Verify Storage to Power dependency
         run: node scripts/verifyPhase2StoragePowerDependency.mjs
       - name: Verify Software stack
         run: node scripts/verifyPhase2SoftwareStack.mjs
+      - name: Verify Software writeback
+        run: node scripts/verifyPhase2SoftwareWriteback.mjs
       - name: Verify Fabric planner
-        run: node scripts/verifyPhase2NetworkFabric.mjs
+        run: node scripts/verifyNetworkFabric.mjs
+      - name: Verify Fabric writeback
+        run: node scripts/verifyPhase2NetworkWriteback.mjs
       - name: Verify Pod Brief 5A
-        run: node scripts/verifyPhase2PodBrief.mjs
+        run: node scripts/verifyPodBrief.mjs
       - name: Verify Pod Brief 5B
         run: node scripts/verifyPhase2PodBrief5B.mjs
       - name: Verify full Wave 5C journey
