@@ -34,9 +34,9 @@ export default function PowerPlannerPreview() {
   const [ownedFacilityBurdenPerKwMonth, setOwnedFacilityBurdenPerKwMonth] = useState(200);
   const [coloMonthlyBundle, setColoMonthlyBundle] = useState(0);
   const [coolingType, setCoolingType] = useState("air-containment");
-  const [availableKwPerRack, setAvailableKwPerRack] = useState(40);
-  const [totalFacilityKwAvailable, setTotalFacilityKwAvailable] = useState(400);
-  const [rackPositionsAvailable, setRackPositionsAvailable] = useState(20);
+  const [availableKwPerRack, setAvailableKwPerRack] = useState("");
+  const [totalFacilityKwAvailable, setTotalFacilityKwAvailable] = useState("");
+  const [rackPositionsAvailable, setRackPositionsAvailable] = useState("");
   const [acceptance, setAcceptance] = useState(null);
 
   const storageRequirement = useAcceptedStorage ? acceptedStorage?.requirements : null;
@@ -159,7 +159,7 @@ export default function PowerPlannerPreview() {
               <div><strong>Technology</strong><br />{acceptedNetwork.requirements.technology}</div>
               <div><strong>Switches</strong><br />{acceptedNetwork.requirements.switches?.total ?? "—"}</div>
               <div><strong>Switch power</strong><br />{Number(acceptedNetwork.requirements.switchPowerKw || 0).toFixed(1)} kW</div>
-              <div><strong>Current fabric CAPEX</strong><br />{money(acceptedNetwork.requirements.capitalCostCurrentFleet || 0)}</div>
+              <div><strong>Current fabric CAPEX</strong><br />{acceptedNetwork.requirements.capitalCostCurrentFleet == null ? "Unresolved" : money(acceptedNetwork.requirements.capitalCostCurrentFleet)}</div>
             </div>
             <label style={{ display: "block", marginTop: 12 }}><input type="checkbox" checked={useAcceptedNetwork} onChange={(e) => { setUseAcceptedNetwork(e.target.checked); clearAcceptance(); }} /> Use accepted Fabric switch power in Power</label>
             <div style={{ marginTop: 8, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>Fabric fingerprint: {acceptedNetwork.fingerprint}</div>
@@ -186,11 +186,12 @@ export default function PowerPlannerPreview() {
             <label style={field}><span style={label}>PUE</span><input style={input} type="number" step="0.01" min="1" value={pue} onChange={(e) => { setPue(Number(e.target.value)); clearAcceptance(); }} /></label>
             <label style={field}><span style={label}>Utility rate ($/kWh)</span><input style={input} type="number" step="0.01" min="0" value={utilityRatePerKwh} onChange={(e) => { setUtilityRatePerKwh(Number(e.target.value)); clearAcceptance(); }} /></label>
             <label style={field}><span style={label}>Cooling type</span><select style={input} value={coolingType} onChange={(e) => { setCoolingType(e.target.value); clearAcceptance(); }}><option value="air-standard">Air · standard CRAC</option><option value="air-containment">Air · containment</option><option value="rear-door">Rear-door heat exchanger</option><option value="direct-liquid">Direct liquid</option><option value="immersion">Immersion</option></select></label>
-            <label style={field}><span style={label}>Available kW / rack</span><input style={input} type="number" min="0" value={availableKwPerRack} onChange={(e) => { setAvailableKwPerRack(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>Total facility kW available</span><input style={input} type="number" min="0" value={totalFacilityKwAvailable} onChange={(e) => { setTotalFacilityKwAvailable(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>Rack positions available</span><input style={input} type="number" min="0" value={rackPositionsAvailable} onChange={(e) => { setRackPositionsAvailable(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Available kW / rack (customer site)</span><input style={input} type="number" min="0" placeholder="Enter if known" value={availableKwPerRack} onChange={(e) => { setAvailableKwPerRack(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Total facility kW available (customer site)</span><input style={input} type="number" min="0" placeholder="Enter if known" value={totalFacilityKwAvailable} onChange={(e) => { setTotalFacilityKwAvailable(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Rack positions available (customer site)</span><input style={input} type="number" min="0" placeholder="Enter if known" value={rackPositionsAvailable} onChange={(e) => { setRackPositionsAvailable(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
           </div>
-          <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: "#fff7e8", border: "1px solid #edd7a7", lineHeight: 1.5 }}><strong>Design-power caution:</strong> {profile.notes}</div>
+          <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: "#fff7e8", border: "1px solid #edd7a7", lineHeight: 1.5 }}><strong>Site-fit caution:</strong> customer site-capacity fields are intentionally blank. FITS AS-IS is only available after all three site inputs are supplied. Partial information produces PARTIAL CHECK.</div>
+          <div style={{ marginTop: 10, padding: 12, borderRadius: 8, background: "#fff7e8", border: "1px solid #edd7a7", lineHeight: 1.5 }}><strong>Design-power caution:</strong> {profile.notes}</div>
         </section>
 
         <section style={{ ...card, marginBottom: 18 }}>
