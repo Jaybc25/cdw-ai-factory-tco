@@ -33,7 +33,30 @@ assert.ok(Math.abs(base.cooling.heatBtuPerHour - 511800) < 0.001);
 assert.ok(Math.abs(base.cooling.coolingTons - 42.65) < 0.01);
 assert.ok(Math.abs(base.economics.monthlyKwh - (137.2 * 1.35 * 730)) < 0.001);
 assert.equal(base.verdict, "fits-as-is");
+assert.equal(base.siteCheck.complete, true);
 assert.equal(base.flags.length, 0);
+
+const requirementOnly = calculatePowerPlanner({
+  ...base.inputs,
+  storageRacks: 1,
+  networkRacks: 1,
+  availableKwPerRack: "",
+  totalFacilityKwAvailable: "",
+  rackPositionsAvailable: "",
+});
+assert.equal(requirementOnly.verdict, "requirement-only", "No customer site-capacity data must not produce a green fit verdict");
+assert.equal(requirementOnly.siteCheck.complete, false);
+
+const partial = calculatePowerPlanner({
+  ...base.inputs,
+  storageRacks: 1,
+  networkRacks: 1,
+  availableKwPerRack: 40,
+  totalFacilityKwAvailable: "",
+  rackPositionsAvailable: "",
+});
+assert.equal(partial.verdict, "partial-check", "One site input is not enough for FITS AS-IS");
+assert.ok(partial.flags.some((f) => f.includes("partially checked")));
 
 const constrained = calculatePowerPlanner({
   ...base.inputs,
