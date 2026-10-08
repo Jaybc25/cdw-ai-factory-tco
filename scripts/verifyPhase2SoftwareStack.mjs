@@ -54,16 +54,23 @@ assert.ok(openSourceRow.yearly[0].operations > 0, "Open-source operating effort 
 
 const bundle = buildSoftwareStackWritebackBundle(result, inputs);
 assert.ok(bundle.fingerprint, "Accepted software bundle must carry a fingerprint");
-assert.equal(bundle.overrides.length, 3, "One annual TCO override is expected per planning year");
+assert.equal(bundle.costResolved, true);
+assert.equal(bundle.overrides.length, 3, "One annual TCO override is expected per planning year when commercial pricing is resolved");
 const platformRow = bundle.requirements.rows.find((row) => row.id === "platform");
 assert.equal(platformRow.priceSource, PHASE2_SOURCE.QUOTE, "Selected source provenance must survive calculation and writeback");
 assert.equal(platformRow.provenance.source, PHASE2_SOURCE.QUOTE);
 
-const unresolved = calculateSoftwareStack({
+const unresolvedInputs = {
   horizonYears: 3,
   annualEscalationPct: 0,
   components: [{ id: "commercial-zero", name: "Unresolved commercial", category: "platform", mode: LICENSE_MODE.COMMERCIAL, unit: "GPU", quantity: 8, annualUnitPrice: 0, annualOpsCost: 0, oneTimeCost: 0, supportPct: 0, priceSource: PHASE2_SOURCE.EST }],
-});
+};
+const unresolved = calculateSoftwareStack(unresolvedInputs);
 assert.ok(unresolved.warnings.some((warning) => warning.includes("$0 unit price")));
+const unresolvedBundle = buildSoftwareStackWritebackBundle(unresolved, unresolvedInputs);
+assert.equal(unresolvedBundle.costResolved, false, "Unpriced commercial software must remain unresolved");
+assert.equal(unresolvedBundle.overrides.length, 0, "Unresolved commercial software must not create zero-dollar annual TCO overrides");
+assert.deepEqual(unresolvedBundle.unresolvedCommercialComponents, ["Unresolved commercial"]);
+assert.match(unresolvedBundle.requirements.costNote, /no annual TCO overrides are eligible/i);
 
 console.log("Phase 2 Software Stack verification passed");
