@@ -2,6 +2,7 @@ import {
   PHASE2_DERIVATION,
   PHASE2_SOURCE,
   createPhase2Override,
+  fingerprintInputs,
   makeProvenance,
 } from "./phase2Contract.js";
 
@@ -13,6 +14,8 @@ export function buildStorageDependencyBundle(result, { workload } = {}) {
     racks: result.racks,
     estimatedPowerKw: result.estimatedPowerKw,
   };
+  const fingerprint = fingerprintInputs(dependencies);
+  const acceptedAt = new Date().toISOString();
 
   const capacityOverride = createPhase2Override({
     id: "storage.capacity.raw.total",
@@ -27,12 +30,14 @@ export function buildStorageDependencyBundle(result, { workload } = {}) {
     }),
     dependencies,
     referenceValue: null,
+    createdAt: acceptedAt,
   });
 
   return {
     schemaVersion: 1,
     sourceTool: "storage-sizer",
-    acceptedAt: new Date().toISOString(),
+    acceptedAt,
+    fingerprint,
     workload,
     overrides: [capacityOverride],
     requirements: {
