@@ -13,6 +13,7 @@ import ModelCatalogVisibilityRoute from "./ModelCatalogVisibilityRoute.jsx";
 import HybridSequenceStateTestRoute from "./HybridSequenceStateTestRoute.jsx";
 import InferenceEconomicsPreview from "./InferenceEconomicsPreview.jsx";
 import InferenceEconomicsGuidedPreview from "./InferenceEconomicsGuidedPreview.jsx";
+import Phase2Preview from "./Phase2Preview.jsx";
 import SharedToolShell from "./SharedToolShell.jsx";
 import "./print-overrides.css";
 import "./mobile-overrides.css";
@@ -128,6 +129,7 @@ function ToolRoutes() {
       <Route path="/inference-economics" element={<InferenceEconomicsRoute />} />
       <Route path="/tco/inference-economics-preview" element={<LegacyInferenceEconomicsRedirect />} />
       <Route path="/tco/inference-economics-preview-guided" element={<LegacyInferenceEconomicsRedirect guided />} />
+      <Route path="/__phase2" element={<Phase2Preview />} />
       <Route
         path="/gpu-sizing"
         element={(
