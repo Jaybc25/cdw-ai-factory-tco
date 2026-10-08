@@ -21,7 +21,7 @@ const storageInputs = {
   indexOverheadPct: 10,
   reservePct: 20,
   usableEfficiency: 0.75,
-  gpuCount: 16,
+  gpuCount: 64,
   manualThroughputGbps: "",
   ingestGbps: 2,
   fastTierTbPerRack: 500,
@@ -32,6 +32,7 @@ const storageInputs = {
 const storageResult = calculateStorageSizer(storageInputs);
 const storageBundle = buildStorageDependencyBundle(storageResult, { workload: storageInputs.workload });
 assert.ok(storageBundle.fingerprint, "Storage bundle must carry a fingerprint");
+assert.equal(storageBundle.fleet.totalGpus, 64);
 assert.ok(storageBundle.requirements.totalRawTb > 0, "Storage must produce positive raw capacity");
 
 const unresolvedFabricInputs = {
@@ -55,6 +56,7 @@ const unresolvedFabricBundle = buildNetworkFabricWritebackBundle(unresolvedFabri
 assert.equal(unresolvedFabricBundle.costResolved, false, "Zero fabric pricing must remain unresolved");
 assert.equal(unresolvedFabricBundle.overrides.length, 0, "Unresolved fabric pricing must not create a zero-dollar TCO override");
 assert.equal(unresolvedFabricBundle.requirements.capitalCostCurrentFleet, null, "Unresolved fabric CAPEX must not masquerade as $0");
+assert.equal(unresolvedFabricBundle.fleet.systemCount, 8);
 
 const fabricInputs = { ...unresolvedFabricInputs, switchCost: 18000, cableCost: 500, transceiverCost: 1200 };
 const fabricResult = calculateNetworkFabric(fabricInputs);
@@ -91,6 +93,9 @@ const powerBundle = buildPowerPlannerWritebackBundle(powerResult, {
   upstreamStorage: { fingerprint: storageBundle.fingerprint, acceptedAt: storageBundle.acceptedAt },
   upstreamNetwork: { fingerprint: fabricBundle.fingerprint, acceptedAt: fabricBundle.acceptedAt },
 });
+assert.equal(powerBundle.fleet.systemClass, "DGX B200");
+assert.equal(powerBundle.fleet.systemCount, 8);
+assert.equal(powerBundle.fleet.totalGpus, 64);
 assert.equal(powerBundle.requirements.upstreamStorageFingerprint, storageBundle.fingerprint);
 assert.equal(powerBundle.requirements.upstreamNetworkFingerprint, fabricBundle.fingerprint);
 assert.ok(powerBundle.overrides.every((item) => item.state === PHASE2_STATE.CURRENT));
@@ -99,27 +104,48 @@ const softwareInputs = {
   horizonYears: 3,
   annualEscalationPct: 3,
   components: [
-    { id: "platform", category: "platform", name: "AI enterprise platform", mode: LICENSE_MODE.COMMERCIAL, unit: "GPU", quantity: 16, annualUnitPrice: 2500, supportPct: 15, annualOpsCost: 6000, oneTimeCost: 8000, entitlementNotes: "3-year quote", priceSource: PHASE2_SOURCE.QUOTE },
-    { id: "orchestration", category: "orchestration", name: "Cluster orchestration", mode: LICENSE_MODE.OPEN_SOURCE, unit: "GPU", quantity: 16, annualUnitPrice: 0, supportPct: 0, annualOpsCost: 18000, oneTimeCost: 12000, entitlementNotes: "community + internal ops", priceSource: PHASE2_SOURCE.EST },
+    { id: "platform", category: "platform", name: "AI enterprise platform", mode: LICENSE_MODE.COMMERCIAL, unit: "GPU", quantity: 64, annualUnitPrice: 2500, supportPct: 15, annualOpsCost: 6000, oneTimeCost: 8000, entitlementNotes: "3-year quote", priceSource: PHASE2_SOURCE.QUOTE },
+    { id: "orchestration", category: "orchestration", name: "Cluster orchestration", mode: LICENSE_MODE.OPEN_SOURCE, unit: "GPU", quantity: 64, annualUnitPrice: 0, supportPct: 0, annualOpsCost: 18000, oneTimeCost: 12000, entitlementNotes: "community + internal ops", priceSource: PHASE2_SOURCE.EST },
   ],
 };
 const softwareResult = calculateSoftwareStack(softwareInputs);
 const softwareBundle = buildSoftwareStackWritebackBundle(softwareResult, softwareInputs);
+assert.equal(softwareBundle.fleet.totalGpus, 64);
 const platformRow = softwareBundle.requirements.rows.find((row) => row.id === "platform");
 assert.equal(platformRow.priceSource, PHASE2_SOURCE.QUOTE, "Selected software price-source provenance must survive calculation/writeback");
 assert.equal(platformRow.provenance.source, PHASE2_SOURCE.QUOTE);
 
 const phase1Snapshot = {
   updated_at: "2026-10-08T12:00:00.000Z",
-  summary: { horizonYears: 3, onPremCost: 2000000, cloudCost: 3000000 },
+  inputs: { ownSys: "DGX B200" },
+  summary: { horizonYears: 3, onPremCost: 2000000, cloudCost: 3000000, recommendedFleet: "8 x DGX B200" },
 };
 const brief = buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle, phase1Snapshot });
-assert.equal(brief.clientReady, true, "Complete, current four-pillar brief should be pre-architecture ready");
+assert.equal(brief.clientReady, true, "Complete, current four-pillar brief with one fleet should be pre-architecture ready");
+assert.equal(brief.fleetIssues.length, 0);
+assert.equal(brief.stale.length, 0);
+assert.equal(brief.canonicalFleet.systemClass, "DGX B200");
+assert.equal(brief.canonicalFleet.systemCount, 8);
+assert.equal(brief.canonicalFleet.totalGpus, 64);
 assert.equal(brief.phase1Delta, null, "The Pod Brief must not calculate an additive Phase 1 → Phase 2 total");
 assert.equal(brief.phase1Comparison.baselineOnPrem, 2000000);
 assert.equal(brief.phase1Comparison.additiveTotalSuppressed, true);
 assert.ok(brief.phase1Comparison.phase2RefinedLines.powerFacilityHorizon > 0);
 assert.ok(brief.phase1Comparison.phase2RefinedLines.softwareHorizon > 0);
+
+const mismatchedSoftwareInputs = {
+  ...softwareInputs,
+  components: softwareInputs.components.map((row) => ({ ...row, quantity: 16 })),
+};
+const mismatchedSoftwareBundle = buildSoftwareStackWritebackBundle(calculateSoftwareStack(mismatchedSoftwareInputs), mismatchedSoftwareInputs);
+const mismatchedFleetBrief = buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle: mismatchedSoftwareBundle, phase1Snapshot });
+assert.equal(mismatchedFleetBrief.clientReady, false, "Fleet mismatch must block readiness");
+assert.ok(mismatchedFleetBrief.fleetIssues.some((item) => item.includes("Software fleet mismatch")));
+
+const staleFabricBundle = { ...fabricBundle, upstreamStorageFingerprint: "storage-old" };
+const briefLevelStale = buildPodBrief({ storageBundle, fabricBundle: staleFabricBundle, powerBundle, softwareBundle, phase1Snapshot });
+assert.equal(briefLevelStale.clientReady, false, "Brief must detect stale Fabric without opening the Fabric or Power page");
+assert.ok(briefLevelStale.stale.some((item) => item.includes("Network Fabric is stale")));
 
 const dependencies = { storageBundle, fabricBundle, powerBundle, softwareBundle };
 const acceptedBrief = createAcceptedPodBriefRecord({ brief, dependencies, phase1Snapshot });
