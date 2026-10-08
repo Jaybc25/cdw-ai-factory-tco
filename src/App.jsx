@@ -15,17 +15,13 @@ import InferenceEconomicsPreview from "./InferenceEconomicsPreview.jsx";
 import InferenceEconomicsGuidedPreview from "./InferenceEconomicsGuidedPreview.jsx";
 import Phase2Preview from "./Phase2Preview.jsx";
 import Phase2TcoPreview from "./Phase2TcoPreview.jsx";
+import PowerPlannerPreview from "./PowerPlannerPreview.jsx";
 import SharedToolShell from "./SharedToolShell.jsx";
 import "./print-overrides.css";
 import "./mobile-overrides.css";
 
 const E2E_AUTH_BYPASS = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";
 
-// GPU Sizing and TCO use slightly different names for NVL rack classes.
-// TCO already normalizes most handoff names internally; this small route-level
-// bridge covers GB300 NVL72 so a fresh handoff cannot fall back to the stale
-// saved/default H100 rental class before TCO persists the new workload state.
-// Explicit user overrides still win, matching TCO's ownership rules.
 function normalizeTcoHandoffCloudClass() {
   if (typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
@@ -51,8 +47,6 @@ function RouteScrollManager() {
   const firstRender = useRef(true);
 
   useEffect(() => {
-    // A fresh/direct/reloaded tool visit should start at the top. Preserve the
-    // browser's own restoration only for genuine Back/Forward history visits.
     if (firstRender.current) {
       firstRender.current = false;
       const navigationEntry = typeof performance !== "undefined"
@@ -102,8 +96,6 @@ function Phase2TcoRoute() {
 }
 
 function LegacyInferenceEconomicsRedirect({ guided = false }) {
-  // Keep the retired preview modules and legacy UI-contract strings reachable
-  // to source-level checks while routing customers to the current experience.
   void (guided ? InferenceEconomicsGuidedPreview : InferenceEconomicsPreview);
   const legacyTitle = guided ? 'title="Guided Inference Economics Preview"' : 'title="Inference Economics Preview"';
   void legacyTitle;
@@ -146,6 +138,7 @@ function ToolRoutes() {
       <Route path="/tco/inference-economics-preview-guided" element={<LegacyInferenceEconomicsRedirect guided />} />
       <Route path="/__phase2" element={<Phase2Preview />} />
       <Route path="/__phase2/tco" element={<Phase2TcoRoute />} />
+      <Route path="/__phase2/power" element={<PowerPlannerPreview />} />
       <Route
         path="/gpu-sizing"
         element={(
