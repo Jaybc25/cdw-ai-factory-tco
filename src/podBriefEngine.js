@@ -88,8 +88,10 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
   if (!fabricBundle) unresolved.push("Network Fabric requirement has not been accepted.");
   if (!powerBundle) unresolved.push("Power requirement has not been accepted.");
   if (!softwareBundle) unresolved.push("Software Stack requirement has not been accepted.");
-  if (storageBundle && !storageBundle.costResolved) unresolved.push("Storage OEM/BOM pricing is unresolved and remains QUOTE scope.");
-  if (fabricBundle && fabricBundle.costResolved === false) unresolved.push("Fabric switch/cable/transceiver pricing is unresolved and remains QUOTE scope.");
+  if (fabricBundle && fabricBundle.costResolved === false) unresolved.push(fabricBundle.topologyResolved === false
+    ? "Fabric topology requires engineering review before switch count, power, cabling/optics, and CAPEX can be treated as resolved."
+    : "Fabric pricing is unresolved and remains outside TCO until the required unit costs are supplied.");
+  if (powerBundle && powerBundle.costResolved === false) unresolved.push("Facility-burden economics are unresolved; Power energy is available, but the facility burden remains excluded from TCO until a supported value is entered.");
   if (softwareBundle && softwareBundle.costResolved === false) unresolved.push(`Commercial software pricing is unresolved for ${softwareBundle.unresolvedCommercialComponents?.join(", ") || "one or more components"}; software TCO overrides remain ineligible.`);
   if (!phase1Snapshot) unresolved.push("No saved Phase 1 TCO account snapshot is available for Phase 1 comparison context.");
 
@@ -143,12 +145,17 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
       totalRawTb: storage.totalRawTb,
       storageRacks: storage.storageRacks,
       storagePowerKw: storage.storagePowerKw,
-      aggregateGbps: storage.aggregateGbps,
+      aggregateGBps: storage.aggregateGBps ?? storage.aggregateGbps,
+      bandwidthUnit: storage.bandwidthUnit || "GB/s",
+      pricingStatus: storage.pricingStatus || "OUT-OF-SCOPE",
+      pricingNote: storage.pricingNote || null,
     } : null,
     fabric: fabric ? {
       technology: fabric.technology,
       linkGbps: fabric.linkGbps,
       topology: fabric.topology,
+      topologyFeasibility: fabric.topologyFeasibility || null,
+      media: fabric.media || null,
       switches: fabric.switches,
       endpointPorts: fabric.ports?.endpointPorts,
       totalLinks: fabric.ports?.totalLinks,
@@ -162,6 +169,8 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
       facilityDesignKw: power.power?.facilityDesignKw,
       coolingTons: power.cooling?.coolingTons,
       racks: power.racks,
+      facilityCostResolved: power.facilityCostResolved ?? powerBundle?.costResolved ?? null,
+      facilityCostStatus: power.facilityCostStatus ?? null,
     } : null,
     software: software ? {
       horizonYears: software.horizonYears,
