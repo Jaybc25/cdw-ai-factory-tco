@@ -10,6 +10,17 @@ export const FABRIC_SPEED = Object.freeze({
   G800: 800,
 });
 
+export const FABRIC_LINK_MEDIA = Object.freeze({
+  OPTICAL: "optical",
+  DAC: "dac",
+});
+
+export const FABRIC_PRICE_SOURCE = Object.freeze({
+  EST: "EST",
+  CUSTOMER: "CUSTOMER",
+  QUOTE: "QUOTE",
+});
+
 function n(value, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -18,6 +29,8 @@ function n(value, fallback = 0) {
 export function calculateNetworkFabric(inputs) {
   const technology = Object.values(FABRIC_TECHNOLOGY).includes(inputs.technology) ? inputs.technology : FABRIC_TECHNOLOGY.INFINIBAND;
   const linkGbps = Object.values(FABRIC_SPEED).includes(Number(inputs.linkGbps)) ? Number(inputs.linkGbps) : FABRIC_SPEED.G400;
+  const linkMedia = Object.values(FABRIC_LINK_MEDIA).includes(inputs.linkMedia) ? inputs.linkMedia : FABRIC_LINK_MEDIA.OPTICAL;
+  const priceSource = Object.values(FABRIC_PRICE_SOURCE).includes(inputs.priceSource) ? inputs.priceSource : FABRIC_PRICE_SOURCE.EST;
   const gpuSystems = Math.max(1, Math.ceil(n(inputs.gpuSystems, 1)));
   const fabricPortsPerSystem = Math.max(1, Math.ceil(n(inputs.fabricPortsPerSystem, 1)));
   const storageAggregateGbps = Math.max(0, n(inputs.storageAggregateGbps));
@@ -48,7 +61,7 @@ export function calculateNetworkFabric(inputs) {
   const totalSwitches = leafSwitches + spineSwitches;
   const interSwitchLinks = leafSwitches <= 1 ? 0 : requiredLeafUplinks;
   const highSpeedFabricLinks = dataPlaneEndpointPorts + interSwitchLinks + uplinkPorts;
-  const totalTransceivers = highSpeedFabricLinks * 2;
+  const totalTransceivers = linkMedia === FABRIC_LINK_MEDIA.OPTICAL ? highSpeedFabricLinks * 2 : 0;
   const portHeadroom = leafSwitches * effectiveDownlinkBudgetPerSwitch - dataPlaneEndpointPorts;
 
   const theoreticalStorageGbps = storagePorts * linkGbps;
@@ -63,14 +76,18 @@ export function calculateNetworkFabric(inputs) {
   if (portHeadroom < Math.ceil(dataPlaneEndpointPorts * 0.1)) flags.push("Less than 10% data-plane endpoint-port headroom remains in the calculated leaf tier; consider additional growth capacity.");
   if (requiresAdditionalTier) flags.push(`The calculated two-tier fabric is not physically feasible with ${leafSwitches} leaf switches, ${spineSwitches} spine switches, and ${switchRadix}-port switches. This fleet exceeds the modeled leaf/spine connectivity envelope and requires additional-tier or alternate-topology engineering; switch count, power, cabling, optics, and CAPEX are lower-bound planning values only.`);
   if (managementPorts > 0) flags.push(`${managementPorts} management ports are tracked as out-of-band/control-plane demand and are intentionally excluded from high-speed fabric switch, optic, cable, and power sizing.`);
-  if (switchCost === 0) flags.push("Switch cost is unresolved; fabric economics remain QUOTE/EST until a validated BOM or price book is supplied.");
-  if (cableCost === 0 || transceiverCost === 0) flags.push("Cable/transceiver economics are unresolved and are excluded from current capital-cost output.");
+  if (switchCost === 0) flags.push("Switch cost is unresolved; fabric economics remain unresolved until a supported unit cost is supplied.");
+  if (cableCost === 0) flags.push("Cable/DAC cost is unresolved and is excluded from current capital-cost output.");
+  if (linkMedia === FABRIC_LINK_MEDIA.OPTICAL && transceiverCost === 0) flags.push("Optical transceiver economics are unresolved and are excluded from current capital-cost output.");
+  if (linkMedia === FABRIC_LINK_MEDIA.DAC) flags.push("Direct-attach cabling selected. Separate optical transceivers are intentionally not counted or priced; engineering must confirm DAC reach and compatibility for the planned topology.");
   if (technology === FABRIC_TECHNOLOGY.ETHERNET) flags.push("Generic Ethernet selected. The tool sizes ports and bandwidth only; congestion-control, lossless behavior, routing, QoS, and implementation design remain engineering scope.");
 
   return {
     inputs: {
       technology,
       linkGbps,
+      linkMedia,
+      priceSource,
       gpuSystems,
       fabricPortsPerSystem,
       storageAggregateGbps,
@@ -117,6 +134,20 @@ export function calculateNetworkFabric(inputs) {
       totalLinks: highSpeedFabricLinks,
       totalTransceivers,
     },
+    media: {
+      type: linkMedia,
+      opticalTransceiversRequired: linkMedia === FABRIC_LINK_MEDIA.OPTICAL,
+      transceiverCount: totalTransceivers,
+      engineeringNote: linkMedia === FABRIC_LINK_MEDIA.DAC
+        ? "DAC reach/compatibility must be confirmed by engineering."
+        : "Optical media modeled as two transceivers per high-speed link.",
+    },
+    pricing: {
+      source: priceSource,
+      switchCost,
+      cableCost,
+      transceiverCost: linkMedia === FABRIC_LINK_MEDIA.OPTICAL ? transceiverCost : 0,
+    },
     switches: { leaf: leafSwitches, spine: spineSwitches, total: totalSwitches },
     bandwidth: {
       aggregateFabricEdgeGbps,
@@ -132,7 +163,8 @@ export function calculateNetworkFabric(inputs) {
       leafSizing: "data-plane endpoint ports ÷ calculated leaf downlink budget from switch radix and target oversubscription",
       spineSizing: "leaf uplink demand ÷ switch radix, followed by a two-tier connectivity-feasibility check",
       topologyFeasibility: "a modeled two-tier fabric is feasible only when every spine can reach the leaf set within switch radix and each leaf can reach the spine set within its uplink-port budget",
-      managementScope: "management/control-plane connectivity is a separate network requirement; this planner does not size its switches, optics, cabling, or power",
+      media: linkMedia === FABRIC_LINK_MEDIA.DAC ? "one direct-attach cable per high-speed link; separate optical transceivers = 0" : "one cable plus two optical transceivers per high-speed link",
+      managementScope: "management/control-plane connectivity is a separate network requirement; this planner does not size its switches, optics/cabling, or power",
       storageCheck: "accepted Storage aggregate bandwidth compared with storage-facing port bandwidth",
       scope: "planning-level data-plane port, bandwidth, rack-power and cost envelope; not a routing/QoS/cabling implementation design",
     },
@@ -142,6 +174,7 @@ export function calculateNetworkFabric(inputs) {
 export function validateNetworkFabricInputs(inputs) {
   const errors = [];
   const warnings = [];
+  const linkMedia = Object.values(FABRIC_LINK_MEDIA).includes(inputs.linkMedia) ? inputs.linkMedia : FABRIC_LINK_MEDIA.OPTICAL;
   if (n(inputs.gpuSystems) < 1) errors.push("At least one GPU system is required.");
   if (n(inputs.fabricPortsPerSystem) < 1) errors.push("Fabric ports per system must be at least 1.");
   if (n(inputs.switchRadix) < 8) errors.push("Switch radix must be at least 8 ports.");
@@ -149,5 +182,8 @@ export function validateNetworkFabricInputs(inputs) {
   if (n(inputs.storageAggregateGbps) > 0 && n(inputs.storagePorts) < 1) errors.push("Storage bandwidth is non-zero but no storage-facing fabric ports are defined.");
   if (n(inputs.managementPorts) > 0) warnings.push("Management/control-plane ports are tracked separately and are not included in the high-speed fabric BOM, transceiver count, switch power, or leaf/spine sizing.");
   if (n(inputs.switchCost) === 0) warnings.push("Switch pricing is unresolved; capital cost is incomplete.");
+  if (n(inputs.cableCost) === 0) warnings.push("Cable/DAC pricing is unresolved; capital cost is incomplete.");
+  if (linkMedia === FABRIC_LINK_MEDIA.OPTICAL && n(inputs.transceiverCost) === 0) warnings.push("Optical media is selected but transceiver pricing is unresolved; capital cost is incomplete.");
+  if (linkMedia === FABRIC_LINK_MEDIA.DAC) warnings.push("DAC media selected. Validate reach and hardware compatibility during engineering review; zero transceiver cost is valid in this mode.");
   return { valid: errors.length === 0, errors, warnings };
 }
