@@ -57,6 +57,30 @@ assert.equal(brief.phase1Comparison.additiveTotalSuppressed, true);
 assert.ok(brief.phase1Comparison.note.includes("not additive"));
 assert.ok(brief.unresolved.some((x) => x.includes("Storage OEM/BOM")));
 
+const missingSoftwareFleet = buildPodBrief({
+  ...dependencies,
+  softwareBundle: { ...softwareBundle, fleet: null },
+  phase1Snapshot,
+});
+assert.equal(missingSoftwareFleet.engineeringReviewReady, false, "Missing accepted fleet identity must block engineering-review readiness");
+assert.ok(missingSoftwareFleet.fleetIssues.some((x) => x.includes("Software fleet identity is missing")));
+
+const insufficientSoftwareFleet = buildPodBrief({
+  ...dependencies,
+  softwareBundle: { ...softwareBundle, fleet: makeFleetIdentity({ source: "software-stack" }) },
+  phase1Snapshot,
+});
+assert.equal(insufficientSoftwareFleet.engineeringReviewReady, false, "An accepted bundle with no comparable fleet dimension must block readiness");
+assert.ok(insufficientSoftwareFleet.fleetIssues.some((x) => x.includes("Software fleet identity is insufficient")));
+
+const mismatchedSoftwareFleet = buildPodBrief({
+  ...dependencies,
+  softwareBundle: { ...softwareBundle, fleet: makeFleetIdentity({ totalGpus: 32, source: "software-stack" }) },
+  phase1Snapshot,
+});
+assert.equal(mismatchedSoftwareFleet.engineeringReviewReady, false);
+assert.ok(mismatchedSoftwareFleet.fleetIssues.some((x) => x.includes("Software fleet mismatch")));
+
 const accepted = createAcceptedPodBriefRecord({ brief, dependencies, phase1Snapshot });
 assert.equal(evaluateAcceptedPodBrief(accepted, { dependencies, phase1Snapshot }).state, POD_BRIEF_STATUS.CURRENT);
 
