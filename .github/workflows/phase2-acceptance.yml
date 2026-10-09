@@ -4,7 +4,9 @@ on:
   workflow_dispatch: {}
   pull_request:
     paths:
+      - "src/App.jsx"
       - "src/phase2Contract.js"
+      - "src/phase2Fleet.js"
       - "src/*Phase2*.jsx"
       - "src/*Planner*.js"
       - "src/*Planner*.jsx"
@@ -24,7 +26,9 @@ on:
   push:
     branches: [main]
     paths:
+      - "src/App.jsx"
       - "src/phase2Contract.js"
+      - "src/phase2Fleet.js"
       - "src/*Phase2*.jsx"
       - "src/*Planner*.js"
       - "src/*Planner*.jsx"
