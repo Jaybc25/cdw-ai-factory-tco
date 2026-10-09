@@ -17,19 +17,17 @@ function rtxBackLink(page) {
   return page.getByRole("link", { name: /Adjust RTX PRO TCO inputs/ });
 }
 
-test("RTX PRO single-server TCO hands exact benchmark and lifecycle TCO into IE", async ({ page }) => {
-  const params = new URLSearchParams({
-    gpuCount: "2",
+function rtxParams(gpuCount = "2") {
+  return new URLSearchParams({
+    gpuCount,
     model: "llama-3.3-70b",
     precision: "FP4",
     benchmarkId: BENCH,
     source: "gpu-sizing",
   });
+}
 
-  await page.goto(`/tco/rtx-pro?${params.toString()}`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByRole("heading", { name: "RTX PRO single-server TCO", exact: true })).toBeVisible();
-  await expect(page.getByText("2 × RTX PRO 6000 Blackwell Server Edition", { exact: true })).toBeVisible();
-
+async function completeRtxTco(page) {
   await fillMoney(page, "NVIDIA software / support entitlement", 10000);
   await fillMoney(page, "OEM / server support", 5000);
   await fillMoney(page, "Professional services / implementation", 8000);
@@ -37,6 +35,14 @@ test("RTX PRO single-server TCO hands exact benchmark and lifecycle TCO into IE"
   await fillMoney(page, "Incremental admin / operations labor (annual)", 15000);
   await fieldByLabelText(page, "Full configured-server power draw").fill("2.5");
   await fieldByLabelText(page, "Facility power burden").fill("100");
+}
+
+test("RTX PRO single-server TCO hands exact benchmark and lifecycle TCO into IE", async ({ page }) => {
+  await page.goto(`/tco/rtx-pro?${rtxParams().toString()}`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByRole("heading", { name: "RTX PRO single-server TCO", exact: true })).toBeVisible();
+  await expect(page.getByText("2 × RTX PRO 6000 Blackwell Server Edition", { exact: true })).toBeVisible();
+
+  await completeRtxTco(page);
 
   await expect(page.getByText("3-year directional TCO ready", { exact: true })).toBeVisible();
   await expect(page.getByText("Directional lifecycle TCO", { exact: true })).toBeVisible();
@@ -86,10 +92,31 @@ test("RTX PRO IE rejects a tampered benchmark id", async ({ page }) => {
   await page.goto(`/inference-economics?${params.toString()}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("RTX PRO 6000", { exact: true }).first()).toBeVisible();
   await expect(rtxBackLink(page)).toHaveAttribute("href", "/tco/rtx-pro");
-
-  // Supply the normal remaining user inputs. A tampered benchmark id must still
-  // suppress economics; otherwise the URL could manufacture RTX capacity.
   await page.getByPlaceholder("Required for capacity check, e.g. 0.5").fill("0.5");
   await page.getByPlaceholder("e.g. 2000000000").fill("100000000");
   await expect(page.getByText(/\/ 1M output tokens/)).toHaveCount(0);
+});
+
+test("RTX PRO TCO preserves same-scenario inputs, exposes report/audit, and resets a different scenario", async ({ page }) => {
+  await page.goto(`/tco/rtx-pro?${rtxParams().toString()}`, { waitUntil: "domcontentloaded" });
+  await completeRtxTco(page);
+  await expect(page.getByText("3-year directional TCO ready", { exact: true })).toBeVisible();
+
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await expect(fieldByLabelText(page, "NVIDIA software / support entitlement")).toHaveValue("10000");
+  await expect(fieldByLabelText(page, "Full configured-server power draw")).toHaveValue("2.5");
+  await expect(page.getByText("3-year directional TCO ready", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "View my report", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "RTX PRO TCO Report", exact: true })).toBeVisible();
+  await expect(page.getByText("Cost breakdown", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Calculation Methodology & Audit Trail", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "RTX PRO TCO Audit Trail", exact: true })).toBeVisible();
+  await expect(page.getByText(/server kW × \$\/kW-month × 12 × horizon/)).toBeVisible();
+
+  await page.goto(`/tco/rtx-pro?${rtxParams("4").toString()}`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByText("4 × RTX PRO 6000 Blackwell Server Edition", { exact: true })).toBeVisible();
+  await expect(fieldByLabelText(page, "NVIDIA software / support entitlement")).toHaveValue("");
+  await expect(fieldByLabelText(page, "Full configured-server power draw")).toHaveValue("");
+  await expect(page.getByText("Additional inputs required", { exact: true })).toBeVisible();
 });
