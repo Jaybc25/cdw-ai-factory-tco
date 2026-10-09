@@ -29,6 +29,13 @@ const PREFIX = "ai-factory-session:";
 const RESET_EPOCH_KEY = "ai-factory-workspace-reset-epoch";
 const RESET_EPOCH_SEEN_KEY = "ai-factory-workspace-reset-epoch-seen";
 
+const PHASE2_ROUTE_BUNDLE = Object.freeze({
+  "/__phase2/storage": "phase2-storage-writeback",
+  "/__phase2/network": "phase2-network-writeback",
+  "/__phase2/power": "phase2-power-writeback",
+  "/__phase2/software": "phase2-software-writeback",
+});
+
 function clearPrefixedSessionState() {
   const keys = [];
   for (let i = 0; i < sessionStorage.length; i += 1) {
@@ -87,6 +94,58 @@ export function clearSessionState(key) {
     // no-op
   }
 }
+
+export function markPhase2BundleStale(bundle, reason = "Local inputs changed after this result was accepted.", staleAt = new Date().toISOString()) {
+  if (!bundle || bundle.stale) return bundle;
+  const overrides = (bundle.overrides || []).map((override) => {
+    if (override?.state === "REVERTED" || override?.state === "STALE") return override;
+    return { ...override, state: "STALE", staleReason: reason };
+  });
+  return {
+    ...bundle,
+    stale: true,
+    staleReason: reason,
+    staleAt,
+    overrides,
+    requirements: bundle.requirements ? {
+      ...bundle.requirements,
+      stale: true,
+      staleReason: reason,
+      staleAt,
+    } : bundle.requirements,
+  };
+}
+
+export function markPhase2SessionBundleStale(key, reason) {
+  const bundle = loadSessionState(key);
+  if (!bundle || bundle.stale) return bundle;
+  const next = markPhase2BundleStale(bundle, reason);
+  saveSessionState(key, next);
+  return next;
+}
+
+function installPhase2LocalEditStaleGuard() {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+  if (window.__aiFactoryPhase2LocalEditStaleGuardInstalled) return;
+  window.__aiFactoryPhase2LocalEditStaleGuardInstalled = true;
+
+  const markCurrentRouteStale = (event) => {
+    if (!event?.isTrusted) return;
+    const key = PHASE2_ROUTE_BUNDLE[window.location.pathname];
+    if (!key) return;
+    const reason = "Local inputs changed after this result was accepted. Recompute and accept this tool again before client use or downstream write-back.";
+    markPhase2SessionBundleStale(key, reason);
+  };
+
+  // `input` covers text/number edits as they happen. `change` covers selects,
+  // radios, checkboxes, and other controls that may not emit input uniformly.
+  // markPhase2BundleStale is idempotent, so controls that emit both events only
+  // perform the first state transition.
+  window.addEventListener("input", markCurrentRouteStale, true);
+  window.addEventListener("change", markCurrentRouteStale, true);
+}
+
+installPhase2LocalEditStaleGuard();
 
 // Global Reset uses the prefix instead of a hardcoded list so any future tool
 // that follows the shared sessionState convention is automatically included.
