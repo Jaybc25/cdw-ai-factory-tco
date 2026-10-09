@@ -38,6 +38,13 @@ function n(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function optionalNumber(value) {
+  if (value == null) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
@@ -55,7 +62,7 @@ export function validateStorageSizerInputs(inputs) {
   const checkpointBytesPerParam = n(inputs.checkpointBytesPerParam, 16);
   const checkpointsRetained = n(inputs.checkpointsRetained, 0);
   const activeWorkingSetPct = n(inputs.activeWorkingSetPct, 0);
-  const activeWorkingSetTb = inputs.activeWorkingSetTb === "" || inputs.activeWorkingSetTb == null ? null : n(inputs.activeWorkingSetTb);
+  const activeWorkingSetTb = optionalNumber(inputs.activeWorkingSetTb);
 
   if (!(baseDatasetTb > 0)) errors.push("Base dataset must be greater than 0 TB.");
   if (!(years >= 1 && years <= 7)) errors.push("Planning horizon must be between 1 and 7 years.");
@@ -89,17 +96,20 @@ export function calculateStorageSizer(inputs) {
   const checkpointBytesPerParam = clamp(n(inputs.checkpointBytesPerParam, 16), 0, 64);
   const checkpointsRetained = Math.max(0, Math.round(n(inputs.checkpointsRetained)));
   const activeWorkingSetPct = clamp(n(inputs.activeWorkingSetPct, profile.suggestedActiveWorkingSetPct), 0, 100);
-  const explicitActiveWorkingSetTb = inputs.activeWorkingSetTb === "" || inputs.activeWorkingSetTb == null
-    ? null
-    : Math.max(0, n(inputs.activeWorkingSetTb));
+  const explicitActiveWorkingSetValue = optionalNumber(inputs.activeWorkingSetTb);
+  const explicitActiveWorkingSetTb = explicitActiveWorkingSetValue == null ? null : Math.max(0, explicitActiveWorkingSetValue);
   const indexOverheadPct = Math.max(0, n(inputs.indexOverheadPct, 10));
   const usableEfficiency = clamp(n(inputs.usableEfficiency, 0.75), 0.01, 1);
   const reservePct = Math.max(0, n(inputs.reservePct, 20));
   const gpuCount = Math.max(0, Math.round(n(inputs.gpuCount)));
-  const manualThroughputGBps = inputs.manualThroughputGBps === "" || inputs.manualThroughputGBps == null
-    ? (inputs.manualThroughputGbps === "" || inputs.manualThroughputGbps == null ? null : Math.max(0, n(inputs.manualThroughputGbps)))
-    : Math.max(0, n(inputs.manualThroughputGBps));
-  const ingestGBps = inputs.ingestGBps == null ? Math.max(0, n(inputs.ingestGbps)) : Math.max(0, n(inputs.ingestGBps));
+  const manualThroughputPrimary = optionalNumber(inputs.manualThroughputGBps);
+  const manualThroughputLegacy = optionalNumber(inputs.manualThroughputGbps);
+  const manualThroughputGBps = manualThroughputPrimary == null
+    ? (manualThroughputLegacy == null ? null : Math.max(0, manualThroughputLegacy))
+    : Math.max(0, manualThroughputPrimary);
+  const ingestPrimary = optionalNumber(inputs.ingestGBps);
+  const ingestLegacy = optionalNumber(inputs.ingestGbps);
+  const ingestGBps = Math.max(0, ingestPrimary ?? ingestLegacy ?? 0);
   const fastTierTbPerRack = Math.max(1, n(inputs.fastTierTbPerRack, 500));
   const bulkTierTbPerRack = Math.max(1, n(inputs.bulkTierTbPerRack, 1000));
   const fastTierKwPerRack = Math.max(0, n(inputs.fastTierKwPerRack, 6));
@@ -208,7 +218,7 @@ export function calculateStorageSizer(inputs) {
     tiering,
     flags,
     assumptions: {
-      throughputPerGpuSource: "EST",
+      throughputPerGpuSource: manualThroughputGBps == null ? "EST" : "CUSTOMER",
       rackDensitySource: "EST",
       rackPowerSource: "EST",
       activeWorkingSetSource: explicitActiveWorkingSetTb == null ? "EST" : "CUSTOMER",
