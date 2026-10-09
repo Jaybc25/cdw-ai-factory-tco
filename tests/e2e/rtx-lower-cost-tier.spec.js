@@ -34,7 +34,7 @@ for (const scenario of [
   { concurrentUsers: 120, expectedGpuCount: 4 },
   { concurrentUsers: 360, expectedGpuCount: 8 },
 ]) {
-  test(`evidence-qualified RTX PRO ${scenario.expectedGpuCount}-GPU alternative continues into the forward journey`, async ({ page }) => {
+  test(`evidence-qualified RTX PRO ${scenario.expectedGpuCount}-GPU alternative is selectable and continues through shared next step`, async ({ page }) => {
     await seedGpuSizing(page, { concurrentUsers: scenario.concurrentUsers });
     await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
 
@@ -43,8 +43,17 @@ for (const scenario of [
     await expect(rtx).toContainText("Lower-cost alternative");
     await expect(rtx).toContainText(`${scenario.expectedGpuCount} × NVIDIA RTX PRO 6000 Blackwell Server Edition`);
     await expect(rtx).toContainText("does not provide NVLink/NVSwitch-style scale-up");
+    await expect(rtx).toContainText("Tap to select for TCO");
+    await expect(rtx).toHaveAttribute("aria-pressed", "false");
 
-    const forward = rtx.getByRole("link", { name: "Continue with RTX PRO" });
+    await rtx.click();
+    await expect(rtx).toHaveAttribute("aria-pressed", "true");
+    await expect(rtx).toContainText("Selected for TCO");
+
+    const handoff = page.getByTestId("rtx-selected-handoff");
+    await expect(handoff).toBeVisible();
+    await expect(handoff).toContainText("Selected next step · RTX PRO TCO");
+    const forward = handoff.getByRole("link", { name: "Continue to RTX PRO TCO" });
     await expect(forward).toHaveAttribute("href", /\/tco\/rtx-pro\?/);
     await expect(forward).toHaveAttribute("href", new RegExp(`gpuCount=${scenario.expectedGpuCount}`));
     await expect(forward).toHaveAttribute("href", /benchmarkId=/);
@@ -55,7 +64,7 @@ for (const scenario of [
   });
 }
 
-test("unsupported Gemma benchmark shows RTX PRO as a potential lower-cost candidate without inventing a GPU count", async ({ page }) => {
+test("unsupported Gemma benchmark remains non-selectable without inventing a GPU count", async ({ page }) => {
   await seedGpuSizing(page, {
     infModelId: "gemma-4-26b-a4b-it",
     quant: "FP8",
@@ -73,7 +82,8 @@ test("unsupported Gemma benchmark shows RTX PRO as a potential lower-cost candid
   await expect(candidate).toContainText("A production GPU count is therefore not inferred");
   await expect(candidate).toContainText("does not provide NVLink/NVSwitch-style scale-up");
   await expect(candidate).not.toContainText(/\d+ × NVIDIA RTX PRO/);
-  await expect(candidate.getByRole("link", { name: "Continue with RTX PRO" })).toHaveCount(0);
+  await expect(candidate).not.toHaveAttribute("aria-pressed");
+  await expect(page.getByTestId("rtx-selected-handoff")).toHaveCount(0);
 
   const tier = candidate.locator("..");
   await expect(tier.getByText("Higher-growth alternative", { exact: true })).toBeVisible();
