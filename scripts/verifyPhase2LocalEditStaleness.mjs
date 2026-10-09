@@ -23,7 +23,13 @@ const {
   loadSessionState,
   markPhase2BundleStale,
   markPhase2SessionBundleStale,
+  phase2BundleKeyForPath,
 } = await import("../src/sessionState.js");
+
+assert.equal(phase2BundleKeyForPath("/__phase2/storage"), "phase2-storage-writeback");
+assert.equal(phase2BundleKeyForPath("/__phase2/storage/"), "phase2-storage-writeback", "trailing slash must resolve to the same stale-guard bundle");
+assert.equal(phase2BundleKeyForPath("/__phase2/network///"), "phase2-network-writeback", "multiple trailing slashes must normalize safely");
+assert.equal(phase2BundleKeyForPath("/__phase2"), null, "non-tool Phase 2 routes must not stale a tool bundle");
 
 const current = {
   fingerprint: "storage-current",
