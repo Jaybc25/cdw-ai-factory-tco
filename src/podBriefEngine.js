@@ -92,6 +92,7 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
     ? "Fabric topology requires engineering review before switch count, power, cabling/optics, and CAPEX can be treated as resolved."
     : "Fabric pricing is unresolved and remains outside TCO until the required unit costs are supplied.");
   if (powerBundle && powerBundle.costResolved === false) unresolved.push("Facility-burden economics are unresolved; Power energy is available, but the facility burden remains excluded from TCO until a supported value is entered.");
+  if (power && power.networkRackFootprintResolved === false) unresolved.push("Network/fabric rack footprint is unresolved. Total rack count and rack-position fit remain provisional until planned network rack positions are entered.");
   if (softwareBundle && softwareBundle.costResolved === false) unresolved.push(`Commercial software pricing is unresolved for ${softwareBundle.unresolvedCommercialComponents?.join(", ") || "one or more components"}; software TCO overrides remain ineligible.`);
   if (!phase1Snapshot) unresolved.push("No saved Phase 1 TCO account snapshot is available for Phase 1 comparison context.");
 
@@ -171,6 +172,7 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
       facilityDesignKw: power.power?.facilityDesignKw,
       coolingTons: power.cooling?.coolingTons,
       racks: power.racks,
+      networkRackFootprintResolved: power.networkRackFootprintResolved ?? power.racks?.footprintComplete ?? null,
       facilityCostResolved: power.facilityCostResolved ?? powerBundle?.costResolved ?? null,
       facilityCostStatus: power.facilityCostStatus ?? null,
     } : null,
