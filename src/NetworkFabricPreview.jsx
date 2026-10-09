@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import {
   FABRIC_LINK_MEDIA,
+  FABRIC_PORT_SOURCE,
   FABRIC_PRICE_SOURCE,
   FABRIC_SPEED,
   FABRIC_TECHNOLOGY,
@@ -34,6 +35,8 @@ export default function NetworkFabricPreview() {
   const [storageFabricMode, setStorageFabricMode] = useState(STORAGE_FABRIC_MODE.SEPARATE);
   const [gpuSystems, setGpuSystems] = useState(8);
   const [fabricPortsPerSystem, setFabricPortsPerSystem] = useState(8);
+  const [fabricPortsPerSystemSource, setFabricPortsPerSystemSource] = useState(FABRIC_PORT_SOURCE.EST);
+  const [fabricPortsPerSystemNote, setFabricPortsPerSystemNote] = useState("");
   const [storageAggregateGbps, setStorageAggregateGbps] = useState(storageReq ? storageBandwidthGbps(storageReq) : 400);
   const [storagePorts, setStoragePorts] = useState(storageReq ? Math.max(2, Math.ceil(storageBandwidthGbps(storageReq) / FABRIC_SPEED.G400)) : 2);
   const [managementPorts, setManagementPorts] = useState(8);
@@ -55,6 +58,8 @@ export default function NetworkFabricPreview() {
     storageFabricMode,
     gpuSystems,
     fabricPortsPerSystem,
+    fabricPortsPerSystemSource,
+    fabricPortsPerSystemNote,
     storageAggregateGbps,
     storagePorts,
     managementPorts,
@@ -65,7 +70,7 @@ export default function NetworkFabricPreview() {
     switchCost,
     cableCost,
     transceiverCost,
-  }), [technology, linkGbps, linkMedia, priceSource, storageFabricMode, gpuSystems, fabricPortsPerSystem, storageAggregateGbps, storagePorts, managementPorts, uplinkPorts, switchRadix, targetOversubscription, switchPowerKw, switchCost, cableCost, transceiverCost]);
+  }), [technology, linkGbps, linkMedia, priceSource, storageFabricMode, gpuSystems, fabricPortsPerSystem, fabricPortsPerSystemSource, fabricPortsPerSystemNote, storageAggregateGbps, storagePorts, managementPorts, uplinkPorts, switchRadix, targetOversubscription, switchPowerKw, switchCost, cableCost, transceiverCost]);
 
   const result = useMemo(() => calculateNetworkFabric(inputs), [inputs]);
   const validation = useMemo(() => validateNetworkFabricInputs(inputs), [inputs]);
@@ -126,7 +131,8 @@ export default function NetworkFabricPreview() {
             <label style={field}><span style={label}>Link media</span><select style={input} value={linkMedia} onChange={(e) => { setLinkMedia(e.target.value); clearAcceptance(); }}><option value={FABRIC_LINK_MEDIA.OPTICAL}>Optical</option><option value={FABRIC_LINK_MEDIA.DAC}>Direct-attach cable (DAC)</option></select></label>
             <label style={field}><span style={label}>Storage network relationship</span><select style={input} value={storageFabricMode} onChange={(e) => { setStorageFabricMode(e.target.value); clearAcceptance(); }}><option value={STORAGE_FABRIC_MODE.SEPARATE}>Separate storage network</option><option value={STORAGE_FABRIC_MODE.CONVERGED}>Converged on this high-speed fabric</option></select></label>
             <label style={field}><span style={label}>GPU systems</span><input style={input} type="number" min="1" value={gpuSystems} onChange={(e) => { setGpuSystems(Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>Fabric ports / GPU system</span><input style={input} type="number" min="1" value={fabricPortsPerSystem} onChange={(e) => { setFabricPortsPerSystem(Number(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>High-speed fabric ports / GPU system</span><input style={input} type="number" min="1" value={fabricPortsPerSystem} onChange={(e) => { setFabricPortsPerSystem(Number(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Port-count source</span><select style={input} value={fabricPortsPerSystemSource} onChange={(e) => { setFabricPortsPerSystemSource(e.target.value); clearAcceptance(); }}><option value={FABRIC_PORT_SOURCE.EST}>EST · planning assumption</option><option value={FABRIC_PORT_SOURCE.LISTED}>LISTED · system/OEM documentation</option><option value={FABRIC_PORT_SOURCE.CUSTOMER}>CUSTOMER · customer standard</option><option value={FABRIC_PORT_SOURCE.QUOTE}>QUOTE · partner/OEM quote</option></select></label>
             <label style={field}><span style={label}>Storage aggregate bandwidth (Gbps)</span><input style={input} type="number" min="0" value={storageAggregateGbps} onChange={(e) => { setStorageAggregateGbps(Number(e.target.value)); clearAcceptance(); }} /></label>
             <label style={field}><span style={label}>{storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED ? "Storage-facing high-speed ports" : "Storage ports (reference only)"}</span><input style={input} type="number" min="0" value={storagePorts} onChange={(e) => { setStoragePorts(Number(e.target.value)); clearAcceptance(); }} /></label>
             <label style={field}><span style={label}>Management ports (separate scope)</span><input style={input} type="number" min="0" value={managementPorts} onChange={(e) => { setManagementPorts(Number(e.target.value)); clearAcceptance(); }} /></label>
@@ -135,6 +141,8 @@ export default function NetworkFabricPreview() {
             <label style={field}><span style={label}>Target oversubscription</span><input style={input} type="number" min="1" step="0.5" value={targetOversubscription} onChange={(e) => { setTargetOversubscription(Number(e.target.value)); clearAcceptance(); }} /></label>
             <label style={field}><span style={label}>Switch power (kW)</span><input style={input} type="number" min="0" step="0.1" value={switchPowerKw} onChange={(e) => { setSwitchPowerKw(Number(e.target.value)); clearAcceptance(); }} /></label>
           </div>
+          <label style={{ ...field, marginTop: 12 }}><span style={label}>Port-count basis / reference</span><input style={input} value={fabricPortsPerSystemNote} onChange={(e) => { setFabricPortsPerSystemNote(e.target.value); clearAcceptance(); }} placeholder="e.g., system/OEM port map, customer standard, quote line, planning rationale" /></label>
+          <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: result.fabricPortBasis.authoritative ? "#eaf7ee" : "#fff7e8", border: result.fabricPortBasis.authoritative ? "1px solid #b8dec3" : "1px solid #edd7a7", lineHeight: 1.5 }}><strong>Fabric port basis:</strong> {result.fabricPortBasis.portsPerGpuSystem} ports/system · {result.fabricPortBasis.source} · {result.fabricPortBasis.status}. {result.fabricPortBasis.authoritative ? "A supporting basis is recorded." : "Treat downstream switch/media/power/CAPEX quantities as planning-level until this assumption is supported."}</div>
           <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED ? "#fff7e8" : "#eef5ff", border: storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED ? "1px solid #edd7a7" : "1px solid #c9daf5", lineHeight: 1.5 }}><strong>Storage fabric scope:</strong> {storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED ? "Storage-facing ports, bandwidth, links, media, switch power, and CAPEX are included in this high-speed fabric plan." : "Storage bandwidth remains a dependency/reference only. Storage ports, links, media, power, and CAPEX are excluded from this compute-fabric BOM."}</div>
           {linkMedia === FABRIC_LINK_MEDIA.DAC && <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: "#fff7e8", border: "1px solid #edd7a7", lineHeight: 1.5 }}><strong>DAC scope:</strong> separate optical transceivers are not counted. Engineering must confirm reach, switch/NIC compatibility, breakout requirements, and whether every modeled link can actually use direct attach.</div>}
         </section>
@@ -153,6 +161,7 @@ export default function NetworkFabricPreview() {
         <section style={{ marginBottom: 18 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
             <div style={card}><div style={label}>Topology</div><div style={{ fontSize: 27, fontWeight: 900, marginTop: 6 }}>{result.topology.toUpperCase()}</div><div style={{ color: result.topologyFeasibility.twoTierFeasible ? "#176b31" : "#9b1c31", marginTop: 4 }}>{result.topologyFeasibility.status}</div></div>
+            <div style={card}><div style={label}>Port-count basis</div><div style={{ fontSize: 24, fontWeight: 900, marginTop: 6 }}>{result.fabricPortBasis.source}</div><div style={{ color: "#666" }}>{result.fabricPortBasis.portsPerGpuSystem} ports/system · {result.fabricPortBasis.status}</div></div>
             <div style={card}><div style={label}>Storage relationship</div><div style={{ fontSize: 26, fontWeight: 900, marginTop: 6 }}>{result.storageFabric.status}</div><div style={{ color: "#666" }}>{result.storageFabric.note}</div></div>
             <div style={card}><div style={label}>Switches</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{result.switches.total}</div><div style={{ color: "#666" }}>{result.switches.leaf} leaf · {result.switches.spine} spine</div></div>
             <div style={card}><div style={label}>Data-plane endpoint ports</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{result.ports.endpointPorts}</div><div style={{ color: "#666" }}>{result.ports.computeEndpointPorts} compute · {result.ports.storagePorts} storage included · management separate</div></div>
@@ -176,7 +185,7 @@ export default function NetworkFabricPreview() {
 
         <section style={{ ...card, marginBottom: 18, borderLeft: "6px solid #c8102e" }}>
           <h2 style={{ marginTop: 0 }}>4. Explicit downstream handoff</h2>
-          <p style={{ color: "#555", lineHeight: 1.55 }}>Accepting stages topology/port/media requirements, the explicit storage-network relationship, the fleet-size step schedule, switch power, and CAPEX only when both topology and pricing are resolved. Power consumes accepted switch power while management/head-node power remains a separate allowance.</p>
+          <p style={{ color: "#555", lineHeight: 1.55 }}>Accepting stages topology/port/media requirements, the explicit GPU-system port-count basis, the explicit storage-network relationship, the fleet-size step schedule, switch power, and CAPEX only when both topology and pricing are resolved. Power consumes accepted switch power while management/head-node power remains a separate allowance.</p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <button type="button" style={{ ...primaryButton, opacity: validation.valid ? 1 : .45 }} disabled={!validation.valid} onClick={stageFabric}>Accept and stage Fabric</button>
             <a href="/__phase2/power" style={{ fontWeight: 800, color: "#c8102e" }}>Open Power preview</a>
@@ -188,7 +197,7 @@ export default function NetworkFabricPreview() {
 
         <section style={{ ...card, background: "#fff8f8", borderColor: "#efc9cf" }}>
           <h2 style={{ marginTop: 0 }}>Scope guard</h2>
-          <p style={{ marginBottom: 0, lineHeight: 1.55 }}>Planning-level sizing only. CDW/network engineering still owns topology validation, switch selection, port mapping, storage-network architecture, media/reach validation, routing, QoS, congestion control, redundancy, failure domains, implementation, and final bill of materials.</p>
+          <p style={{ marginBottom: 0, lineHeight: 1.55 }}>Planning-level sizing only. CDW/network engineering still owns topology validation, switch selection, endpoint-port validation, port mapping, storage-network architecture, media/reach validation, routing, QoS, congestion control, redundancy, failure domains, implementation, and final bill of materials.</p>
         </section>
       </main>
     </div>
