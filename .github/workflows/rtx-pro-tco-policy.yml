@@ -4,22 +4,26 @@ on:
   pull_request:
     paths:
       - "src/rtxProTcoPolicy.js"
+      - "src/rtxProLifecycleTco.js"
       - "src/rtxProServerRegistry.js"
       - "src/RtxProTcoIntake.jsx"
       - "src/RtxProAlternativeCard.jsx"
       - "src/App.jsx"
       - "scripts/validate_rtx_pro_tco_policy.mjs"
+      - "scripts/validate_rtx_pro_lifecycle_tco.mjs"
       - "scripts/validate_rtx_pro_tco_handoff_ui.mjs"
       - ".github/workflows/rtx-pro-tco-policy.yml"
   push:
     branches: [main]
     paths:
       - "src/rtxProTcoPolicy.js"
+      - "src/rtxProLifecycleTco.js"
       - "src/rtxProServerRegistry.js"
       - "src/RtxProTcoIntake.jsx"
       - "src/RtxProAlternativeCard.jsx"
       - "src/App.jsx"
       - "scripts/validate_rtx_pro_tco_policy.mjs"
+      - "scripts/validate_rtx_pro_lifecycle_tco.mjs"
       - "scripts/validate_rtx_pro_tco_handoff_ui.mjs"
       - ".github/workflows/rtx-pro-tco-policy.yml"
   workflow_dispatch: {}
@@ -41,6 +45,8 @@ jobs:
         run: npm ci
       - name: Validate policy guardrails
         run: node scripts/validate_rtx_pro_tco_policy.mjs
+      - name: Validate RTX lifecycle TCO math
+        run: node scripts/validate_rtx_pro_lifecycle_tco.mjs
       - name: Validate GPU Sizing to TCO handoff UI
         run: node scripts/validate_rtx_pro_tco_handoff_ui.mjs
       - name: Production build
