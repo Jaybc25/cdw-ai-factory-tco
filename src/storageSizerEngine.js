@@ -1,35 +1,31 @@
 export const STORAGE_WORKLOAD_PROFILES = Object.freeze({
   training: {
     label: "Training / fine-tuning",
-    fastFraction: 0.65,
-    checkpointFraction: 0.25,
-    archiveFraction: 0.10,
+    suggestedActiveWorkingSetPct: 35,
+    archiveFraction: 0.65,
     throughputGbpsPerGpu: 1.0,
-    notes: "Highest fast-tier pressure. Checkpoints and active datasets dominate the performance tier.",
+    notes: "Training usually needs a performance tier for the active working set and checkpoints, while the broader dataset can remain on bulk capacity. The working-set percentage is a starting suggestion, not a vendor rule.",
   },
   inference: {
     label: "Inference / serving",
-    fastFraction: 0.35,
-    checkpointFraction: 0.10,
-    archiveFraction: 0.55,
+    suggestedActiveWorkingSetPct: 20,
+    archiveFraction: 0.80,
     throughputGbpsPerGpu: 0.25,
-    notes: "Lower sustained storage bandwidth than training, with more room for bulk retention and artifact history.",
+    notes: "Inference generally needs a smaller active artifact/model set on fast storage, with more historical artifacts and retained data on bulk capacity.",
   },
   rag: {
     label: "RAG / knowledge retrieval",
-    fastFraction: 0.50,
-    checkpointFraction: 0.05,
-    archiveFraction: 0.45,
+    suggestedActiveWorkingSetPct: 30,
+    archiveFraction: 0.70,
     throughputGbpsPerGpu: 0.40,
-    notes: "Fast tier emphasizes active corpora, vector/index structures, and refresh workflows rather than checkpoints.",
+    notes: "RAG fast-tier demand is driven by the active corpus plus index/embedding structures. The working-set percentage is only a planning starting point.",
   },
   multimodal: {
     label: "Vision / multimodal",
-    fastFraction: 0.60,
-    checkpointFraction: 0.10,
-    archiveFraction: 0.30,
+    suggestedActiveWorkingSetPct: 40,
+    archiveFraction: 0.60,
     throughputGbpsPerGpu: 0.75,
-    notes: "Large source objects increase both usable capacity and ingest/scan bandwidth requirements.",
+    notes: "Large source objects can increase both active working-set capacity and ingest/scan bandwidth. The suggested working-set percentage should be replaced with customer evidence when available.",
   },
 });
 
@@ -51,6 +47,11 @@ export function validateStorageSizerInputs(inputs) {
   const copies = n(inputs.copies, 1);
   const usableEfficiency = n(inputs.usableEfficiency, 0.75);
   const gpuCount = n(inputs.gpuCount);
+  const modelParamsBillions = n(inputs.modelParamsBillions, 0);
+  const checkpointBytesPerParam = n(inputs.checkpointBytesPerParam, 16);
+  const checkpointsRetained = n(inputs.checkpointsRetained, 0);
+  const activeWorkingSetPct = n(inputs.activeWorkingSetPct, 0);
+  const activeWorkingSetTb = inputs.activeWorkingSetTb === "" || inputs.activeWorkingSetTb == null ? null : n(inputs.activeWorkingSetTb);
 
   if (!(baseDatasetTb > 0)) errors.push("Base dataset must be greater than 0 TB.");
   if (!(years >= 1 && years <= 7)) errors.push("Planning horizon must be between 1 and 7 years.");
@@ -58,10 +59,17 @@ export function validateStorageSizerInputs(inputs) {
   if (!(usableEfficiency > 0 && usableEfficiency <= 1)) errors.push("Usable efficiency must be greater than 0 and no more than 1.0.");
   if (annualGrowthPct < 0 || annualGrowthPct > 300) errors.push("Annual growth must be between 0% and 300%.");
   if (gpuCount < 0) errors.push("GPU count cannot be negative.");
+  if (modelParamsBillions < 0) errors.push("Model parameters cannot be negative.");
+  if (checkpointBytesPerParam < 0 || checkpointBytesPerParam > 64) errors.push("Checkpoint bytes per parameter must be between 0 and 64.");
+  if (checkpointsRetained < 0 || checkpointsRetained > 100) errors.push("Checkpoints retained must be between 0 and 100.");
+  if (activeWorkingSetPct < 0 || activeWorkingSetPct > 100) errors.push("Active working-set percentage must be between 0% and 100%.");
+  if (activeWorkingSetTb != null && activeWorkingSetTb < 0) errors.push("Active working-set TB cannot be negative.");
 
   if (gpuCount === 0) warnings.push("GPU count is 0, so throughput is workload-only and not GPU-scaled.");
   if (annualGrowthPct > 100) warnings.push("Annual growth above 100% materially dominates the horizon result; confirm this is intentional.");
   if (usableEfficiency > 0.9) warnings.push("Usable efficiency above 90% may be aggressive once protection, metadata, and reserve capacity are included.");
+  if (checkpointsRetained > 0 && modelParamsBillions === 0) warnings.push("Checkpoint retention is non-zero but model parameters are 0, so checkpoint capacity will be 0 TB.");
+  if (activeWorkingSetTb != null) warnings.push("Explicit active working-set TB overrides the working-set percentage.");
 
   return { valid: errors.length === 0, errors, warnings };
 }
@@ -73,7 +81,13 @@ export function calculateStorageSizer(inputs) {
   const annualGrowthPct = clamp(n(inputs.annualGrowthPct), 0, 300);
   const years = Math.max(1, Math.round(n(inputs.years, 3)));
   const copies = Math.max(1, n(inputs.copies, 1));
-  const checkpointMultiplier = Math.max(0, n(inputs.checkpointMultiplier, 0));
+  const modelParamsBillions = Math.max(0, n(inputs.modelParamsBillions));
+  const checkpointBytesPerParam = clamp(n(inputs.checkpointBytesPerParam, 16), 0, 64);
+  const checkpointsRetained = Math.max(0, Math.round(n(inputs.checkpointsRetained)));
+  const activeWorkingSetPct = clamp(n(inputs.activeWorkingSetPct, profile.suggestedActiveWorkingSetPct), 0, 100);
+  const explicitActiveWorkingSetTb = inputs.activeWorkingSetTb === "" || inputs.activeWorkingSetTb == null
+    ? null
+    : Math.max(0, n(inputs.activeWorkingSetTb));
   const indexOverheadPct = Math.max(0, n(inputs.indexOverheadPct, 10));
   const usableEfficiency = clamp(n(inputs.usableEfficiency, 0.75), 0.01, 1);
   const reservePct = Math.max(0, n(inputs.reservePct, 20));
@@ -90,14 +104,16 @@ export function calculateStorageSizer(inputs) {
   const horizonGrowthFactor = Math.pow(1 + annualGrowthPct / 100, Math.max(0, years - 1));
   const grownDatasetTb = baseDatasetTb * horizonGrowthFactor;
   const replicatedDatasetTb = grownDatasetTb * copies;
-  const checkpointTb = baseDatasetTb * checkpointMultiplier;
+
+  // Decimal TB: 1B parameters × N bytes/parameter = N GB = N/1000 TB.
+  const checkpointTb = (modelParamsBillions * checkpointBytesPerParam * checkpointsRetained) / 1000;
   const indexOverheadTb = replicatedDatasetTb * (indexOverheadPct / 100);
   const logicalTotalTb = replicatedDatasetTb + checkpointTb + indexOverheadTb;
 
-  const workloadFastTb = replicatedDatasetTb * profile.fastFraction;
-  const workloadCheckpointTb = checkpointTb + replicatedDatasetTb * profile.checkpointFraction;
-  const fastUsableTbBeforeReserve = workloadFastTb + workloadCheckpointTb + indexOverheadTb;
-  const bulkUsableTbBeforeReserve = Math.max(0, logicalTotalTb - fastUsableTbBeforeReserve);
+  const suggestedWorkingSetTb = replicatedDatasetTb * (activeWorkingSetPct / 100);
+  const activeWorkingSetTb = Math.min(replicatedDatasetTb, explicitActiveWorkingSetTb ?? suggestedWorkingSetTb);
+  const fastUsableTbBeforeReserve = activeWorkingSetTb + checkpointTb + indexOverheadTb;
+  const bulkUsableTbBeforeReserve = Math.max(0, replicatedDatasetTb - activeWorkingSetTb);
 
   const reserveFactor = 1 + reservePct / 100;
   const fastUsableTb = fastUsableTbBeforeReserve * reserveFactor;
@@ -124,10 +140,12 @@ export function calculateStorageSizer(inputs) {
   } : { fastPct: 0, bulkPct: 0 };
 
   const flags = [];
-  if (fastUsableTb > bulkUsableTb * 2) flags.push("Fast-tier requirement dominates the design; validate checkpoint retention and active-working-set assumptions.");
+  if (fastUsableTb > bulkUsableTb * 2) flags.push("Fast-tier requirement dominates the design; validate active-working-set, checkpoint-retention, and index assumptions.");
   if (aggregateGbps >= 50) flags.push("Aggregate storage bandwidth is high enough that Fabric design will be a primary dependency.");
   if (reservePct < 10) flags.push("Reserve capacity below 10% leaves little operational headroom.");
   if (copies > 2) flags.push("More than two copies materially increase capacity; confirm whether protection is already included in the usable-efficiency assumption.");
+  if (explicitActiveWorkingSetTb != null && explicitActiveWorkingSetTb > replicatedDatasetTb) flags.push("Explicit active working-set TB exceeds the replicated dataset and has been capped at the replicated dataset size.");
+  if (checkpointTb > activeWorkingSetTb && checkpointsRetained > 0) flags.push("Checkpoint retention is larger than the active dataset working set; validate model size, bytes/parameter, and retention count.");
 
   return {
     workload: workloadKey,
@@ -137,7 +155,11 @@ export function calculateStorageSizer(inputs) {
       annualGrowthPct,
       years,
       copies,
-      checkpointMultiplier,
+      modelParamsBillions,
+      checkpointBytesPerParam,
+      checkpointsRetained,
+      activeWorkingSetPct,
+      activeWorkingSetTb: explicitActiveWorkingSetTb,
       indexOverheadPct,
       usableEfficiency,
       reservePct,
@@ -152,6 +174,7 @@ export function calculateStorageSizer(inputs) {
     capacity: {
       grownDatasetTb,
       replicatedDatasetTb,
+      activeWorkingSetTb,
       checkpointTb,
       indexOverheadTb,
       logicalTotalTb,
@@ -173,8 +196,12 @@ export function calculateStorageSizer(inputs) {
     tiering,
     flags,
     methodology: {
-      horizonGrowth: "base dataset × (1 + annual growth)^(years - 1)",
-      usableCapacity: "workload tier split + checkpoint/index overhead + reserve",
+      horizonGrowth: "base dataset × (1 + annual growth)^(years - 1); sizes capacity at the start of the final planning year",
+      activeWorkingSet: explicitActiveWorkingSetTb == null
+        ? `replicated dataset × ${activeWorkingSetPct}% active-working-set assumption`
+        : "customer-supplied active working-set TB (capped at replicated dataset size)",
+      checkpoints: "model parameters (billions) × checkpoint bytes/parameter × retained checkpoints ÷ 1,000 = decimal TB",
+      usableCapacity: "active working set + checkpoints + index/metadata overhead on fast tier; remaining replicated dataset on bulk tier; then operational reserve",
       rawCapacity: "usable capacity ÷ usable-efficiency assumption",
       throughput: manualThroughputGbps == null
         ? "max(GPU-scaled workload throughput, ingest throughput), plus write allowance"
