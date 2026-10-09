@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType } from "react-router-dom";
 import LandingPage from "./LandingPage.jsx";
 import TcoCalculator from "./TcoCalculator.jsx";
+import RtxProTcoIntake from "./RtxProTcoIntake.jsx";
 import GpuSizingCalculator from "./GpuSizingCalculator.jsx";
 import ModelAdvisor from "./ModelAdvisor.jsx";
 import UseCaseExplorer from "./UseCaseExplorer.jsx";
@@ -49,8 +50,6 @@ function RouteScrollManager() {
   const firstRender = useRef(true);
 
   useEffect(() => {
-    // A fresh/direct/reloaded tool visit should start at the top. Preserve the
-    // browser's own restoration only for genuine Back/Forward history visits.
     if (firstRender.current) {
       firstRender.current = false;
       const navigationEntry = typeof performance !== "undefined"
@@ -85,9 +84,20 @@ function TcoRoute() {
   );
 }
 
+function RtxProTcoRoute() {
+  return (
+    <SharedToolShell
+      title="RTX PRO Single-Server TCO"
+      backHref="/gpu-sizing"
+      backLabel="GPU Sizing"
+      toolKey="tco"
+    >
+      <RtxProTcoIntake />
+    </SharedToolShell>
+  );
+}
+
 function LegacyInferenceEconomicsRedirect({ guided = false }) {
-  // Keep the retired preview modules and legacy UI-contract strings reachable
-  // to source-level checks while routing customers to the current experience.
   void (guided ? InferenceEconomicsGuidedPreview : InferenceEconomicsPreview);
   const legacyTitle = guided ? 'title="Guided Inference Economics Preview"' : 'title="Inference Economics Preview"';
   void legacyTitle;
@@ -125,6 +135,7 @@ function ToolRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/tco" element={<TcoRoute />} />
+      <Route path="/tco/rtx-pro" element={<RtxProTcoRoute />} />
       <Route path="/inference-economics" element={<InferenceEconomicsRoute />} />
       <Route path="/tco/inference-economics-preview" element={<LegacyInferenceEconomicsRedirect />} />
       <Route path="/tco/inference-economics-preview-guided" element={<LegacyInferenceEconomicsRedirect guided />} />
