@@ -6,6 +6,10 @@ import {
 } from "./phase2Contract.js";
 import { makeFleetIdentity } from "./phase2Fleet.js";
 
+function normalizeSource(value, fallback) {
+  return Object.values(PHASE2_SOURCE).includes(value) ? value : fallback;
+}
+
 export function validatePowerPlannerInputs(result) {
   const errors = [];
   const warnings = [];
@@ -30,15 +34,27 @@ export function validatePowerPlannerInputs(result) {
   return { valid: errors.length === 0, errors, warnings };
 }
 
-export function buildPowerPlannerWritebackBundle(result, { systemName = null, upstreamStorage = null, upstreamNetwork = null } = {}) {
+export function buildPowerPlannerWritebackBundle(result, {
+  systemName = null,
+  upstreamStorage = null,
+  upstreamNetwork = null,
+  utilityRateSource = PHASE2_SOURCE.EST,
+  facilityCostSource = null,
+} = {}) {
   const validation = validatePowerPlannerInputs(result);
   if (!validation.valid) throw new Error(`Cannot stage Power Planner write-back: ${validation.errors.join(" ")}`);
+
+  const normalizedUtilitySource = normalizeSource(utilityRateSource, PHASE2_SOURCE.EST);
+  const defaultFacilitySource = result.inputs.facilityBranch === "colocation" ? PHASE2_SOURCE.QUOTE : PHASE2_SOURCE.CUSTOMER;
+  const normalizedFacilitySource = normalizeSource(facilityCostSource, defaultFacilitySource);
 
   const fleet = makeFleetIdentity({ systemClass: systemName, systemCount: result.inputs.systemCount, source: "power-planner" });
   const dependencies = {
     systemName,
     fleet,
     ...result.inputs,
+    utilityRateSource: normalizedUtilitySource,
+    facilityCostSource: normalizedFacilitySource,
     networkPower: result.networkPower,
     racks: result.racks,
     designItKw: result.power.designItKw,
@@ -53,13 +69,16 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     value: Math.round(result.economics.monthlyEnergyCost),
     unit: "USD/month",
     sourceTool: "power-planner",
-    provenance: makeProvenance({ source: PHASE2_SOURCE.CUSTOMER, derivation: PHASE2_DERIVATION.CALCULATED, label: "Customer utility rate × average IT load × PUE × 730 hours" }),
+    provenance: makeProvenance({
+      source: normalizedUtilitySource,
+      derivation: PHASE2_DERIVATION.CALCULATED,
+      label: `${normalizedUtilitySource} utility rate × average IT load × PUE × 730 hours`,
+    }),
     dependencies,
     referenceValue: null,
   });
 
   const facilityResolved = Boolean(result.economics.facilityCostResolved);
-  const facilitySource = result.inputs.facilityBranch === "colocation" ? PHASE2_SOURCE.QUOTE : PHASE2_SOURCE.CUSTOMER;
   const facilityDerivation = result.inputs.facilityBranch === "colocation" ? PHASE2_DERIVATION.DIRECT : PHASE2_DERIVATION.CALCULATED;
   const facility = facilityResolved ? createPhase2Override({
     id: "power.facility-burden.monthly",
@@ -68,16 +87,18 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     unit: "USD/month",
     sourceTool: "power-planner",
     provenance: makeProvenance({
-      source: facilitySource,
+      source: normalizedFacilitySource,
       derivation: facilityDerivation,
-      label: result.inputs.facilityBranch === "colocation" ? "Customer/partner colocation monthly bundle" : "Customer facility burden × design IT kW",
+      label: result.inputs.facilityBranch === "colocation"
+        ? `${normalizedFacilitySource} colocation monthly bundle`
+        : `${normalizedFacilitySource} facility burden × design IT kW`,
     }),
     dependencies,
     referenceValue: null,
   }) : null;
 
   const requirements = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     sourceTool: "power-planner",
     systemName,
     fleet,
@@ -92,8 +113,10 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     networkPower: result.networkPower,
     power: result.power,
     cooling: result.cooling,
+    utilityRateSource: normalizedUtilitySource,
     facilityCostResolved: facilityResolved,
-    facilityCostStatus: facilityResolved ? (result.inputs.facilityBranch === "colocation" ? "QUOTE" : "CUSTOMER") : "UNRESOLVED",
+    facilityCostStatus: facilityResolved ? normalizedFacilitySource : "UNRESOLVED",
+    facilityCostSource: facilityResolved ? normalizedFacilitySource : null,
     flags: result.flags,
     validationWarnings: validation.warnings,
   };
@@ -101,7 +124,9 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
   return {
     fleet,
     costResolved: facilityResolved,
-    costStatus: facilityResolved ? "EST" : "UNRESOLVED",
+    costStatus: facilityResolved ? normalizedFacilitySource : "UNRESOLVED",
+    utilityRateSource: normalizedUtilitySource,
+    facilityCostSource: facilityResolved ? normalizedFacilitySource : null,
     overrides: facility ? [energy, facility] : [energy],
     requirements,
     validation,
