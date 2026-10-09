@@ -10,7 +10,7 @@ const card = { border: "1px solid #ddd", borderRadius: 12, padding: 16, backgrou
 const label = { fontSize: 12, fontWeight: 800, color: "#555", textTransform: "uppercase", letterSpacing: ".05em" };
 const primaryButton = { border: 0, borderRadius: 8, padding: "11px 15px", fontWeight: 800, background: "#c8102e", color: "#fff", cursor: "pointer" };
 
-function money(v) { return `$${Math.round(Number(v || 0)).toLocaleString()}`; }
+function money(v) { return v == null ? "Unresolved" : `$${Math.round(Number(v || 0)).toLocaleString()}`; }
 function kw(v) { return `${Number(v || 0).toFixed(1)} kW`; }
 
 export default function PowerPlannerPreview() {
@@ -31,8 +31,8 @@ export default function PowerPlannerPreview() {
   const [pue, setPue] = useState(1.35);
   const [utilityRatePerKwh, setUtilityRatePerKwh] = useState(0.11);
   const [facilityBranch, setFacilityBranch] = useState("owned-dc");
-  const [ownedFacilityBurdenPerKwMonth, setOwnedFacilityBurdenPerKwMonth] = useState(200);
-  const [coloMonthlyBundle, setColoMonthlyBundle] = useState(0);
+  const [ownedFacilityBurdenPerKwMonth, setOwnedFacilityBurdenPerKwMonth] = useState("");
+  const [coloMonthlyBundle, setColoMonthlyBundle] = useState("");
   const [coolingType, setCoolingType] = useState("air-containment");
   const [availableKwPerRack, setAvailableKwPerRack] = useState("");
   const [totalFacilityKwAvailable, setTotalFacilityKwAvailable] = useState("");
@@ -120,7 +120,7 @@ export default function PowerPlannerPreview() {
       saveSessionState("phase2-power-writeback", bundle);
       saveSessionState("phase2-preview-override", { override: bundle.overrides[0], source: "power-planner" });
       setSavedPower(bundle);
-      setAcceptance({ ok: true, warnings: bundle.validation.warnings, stagedAt: new Date().toISOString() });
+      setAcceptance({ ok: true, warnings: bundle.validation.warnings, stagedAt: new Date().toISOString(), costResolved: bundle.costResolved });
     } catch (error) {
       setAcceptance({ ok: false, message: error.message });
     }
@@ -144,7 +144,7 @@ export default function PowerPlannerPreview() {
               <div><strong>Raw capacity</strong><br />{Math.round(acceptedStorage.requirements.totalRawTb).toLocaleString()} TB</div>
               <div><strong>Storage racks</strong><br />{acceptedStorage.requirements.storageRacks}</div>
               <div><strong>Storage power</strong><br />{acceptedStorage.requirements.storagePowerKw.toFixed(1)} kW</div>
-              <div><strong>Fabric bandwidth</strong><br />{acceptedStorage.requirements.aggregateGbps.toFixed(1)} GB/s</div>
+              <div><strong>Fabric bandwidth</strong><br />{Number(acceptedStorage.requirements.aggregateGBps ?? acceptedStorage.requirements.aggregateGbps ?? 0).toFixed(1)} GB/s</div>
             </div>
             <label style={{ display: "block", marginTop: 12 }}><input type="checkbox" checked={useAcceptedStorage} onChange={(e) => { setUseAcceptedStorage(e.target.checked); clearAcceptance(); }} /> Use this accepted Storage requirement in Power</label>
             <div style={{ marginTop: 8, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>Storage fingerprint: {acceptedStorage.fingerprint}</div>
@@ -201,10 +201,11 @@ export default function PowerPlannerPreview() {
             <label><input type="radio" checked={facilityBranch === "colocation"} onChange={() => { setFacilityBranch("colocation"); clearAcceptance(); }} /> Colocation</label>
           </div>
           {facilityBranch === "owned-dc" ? (
-            <label style={{ ...field, maxWidth: 340 }}><span style={label}>Facility burden ($/design kW-month)</span><input style={input} type="number" min="0" value={ownedFacilityBurdenPerKwMonth} onChange={(e) => { setOwnedFacilityBurdenPerKwMonth(Number(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={{ ...field, maxWidth: 360 }}><span style={label}>Facility burden ($/design kW-month)</span><input style={input} type="number" min="0" placeholder="Enter customer-supported value" value={ownedFacilityBurdenPerKwMonth} onChange={(e) => { setOwnedFacilityBurdenPerKwMonth(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
           ) : (
-            <label style={{ ...field, maxWidth: 340 }}><span style={label}>Colocation monthly bundle</span><input style={input} type="number" min="0" value={coloMonthlyBundle} onChange={(e) => { setColoMonthlyBundle(Number(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={{ ...field, maxWidth: 360 }}><span style={label}>Colocation monthly bundle</span><input style={input} type="number" min="0" placeholder="Enter customer/partner bundle" value={coloMonthlyBundle} onChange={(e) => { setColoMonthlyBundle(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
           )}
+          <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: "#fff7e8", border: "1px solid #edd7a7", lineHeight: 1.5 }}><strong>Facility-cost caution:</strong> there is no default facility-burden rate. Until a customer-supported owned-datacenter burden or customer/partner colocation bundle is entered, the physical Power requirement can be accepted but facility-burden economics remain UNRESOLVED and do not write back to TCO.</div>
           <p style={{ color: "#666", lineHeight: 1.5, marginBottom: 0 }}>Energy expense is always shown separately from facility burden. A utility bill never replaces a fully loaded facility-cost assumption.</p>
         </section>
 
@@ -218,7 +219,7 @@ export default function PowerPlannerPreview() {
             <div style={card}><div style={label}>Facility design demand</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{kw(result.power.facilityDesignKw)}</div><div style={{ color: "#666" }}>Includes PUE for electrical capacity</div></div>
             <div style={card}><div style={label}>Heat rejection</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{Math.round(result.cooling.heatBtuPerHour).toLocaleString()}</div><div style={{ color: "#666" }}>BTU/hr · {result.cooling.coolingTons.toFixed(1)} tons</div></div>
             <div style={card}><div style={label}>Monthly energy</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{money(result.economics.monthlyEnergyCost)}</div><div style={{ color: "#666" }}>{Math.round(result.economics.monthlyKwh).toLocaleString()} kWh</div></div>
-            <div style={card}><div style={label}>Monthly facility burden</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{money(result.economics.monthlyFacilityBurden)}</div><div style={{ color: "#666" }}>{facilityBranch === "owned-dc" ? "Separate from energy" : "Colocation bundle"}</div></div>
+            <div style={card}><div style={label}>Monthly facility burden</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{money(result.economics.monthlyFacilityBurden)}</div><div style={{ color: "#666" }}>{result.economics.facilityCostResolved ? (facilityBranch === "owned-dc" ? "Customer-supported burden" : "Customer/partner bundle") : "UNRESOLVED · excluded from TCO write-back"}</div></div>
           </div>
         </section>
 
@@ -230,7 +231,7 @@ export default function PowerPlannerPreview() {
 
         <section style={{ ...card, marginBottom: 18, borderLeft: "6px solid #c8102e" }}>
           <h2 style={{ marginTop: 0 }}>4. Recompute and accept Power</h2>
-          <p style={{ color: "#555", lineHeight: 1.55 }}>This stages monthly energy and facility-burden overrides plus the physical facility requirements. If Storage or Fabric changed, this explicit action is what clears the stale condition.</p>
+          <p style={{ color: "#555", lineHeight: 1.55 }}>This stages monthly energy plus facility burden only when that facility-cost input is actually resolved. If Storage or Fabric changed, this explicit action is what clears the stale condition.</p>
           {!validation.valid && <ul style={{ color: "#9b1c31", lineHeight: 1.6 }}>{validation.errors.map((error) => <li key={error}>{error}</li>)}</ul>}
           {validation.warnings.length > 0 && <ul style={{ color: "#7a5600", lineHeight: 1.6 }}>{validation.warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul>}
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
@@ -239,7 +240,7 @@ export default function PowerPlannerPreview() {
             <a href="/__phase2/network" style={{ fontWeight: 800, color: "#c8102e" }}>Adjust Fabric</a>
             <a href="/__phase2/tco" style={{ fontWeight: 800, color: "#c8102e" }}>Open TCO receiving preview</a>
           </div>
-          {acceptance?.ok && <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: "#eaf7ee", border: "1px solid #b8dec3" }}><strong>Current.</strong> Power has been re-accepted against the current Storage and Fabric fingerprints and is eligible for the Phase 2 TCO preview.</div>}
+          {acceptance?.ok && <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: acceptance.costResolved ? "#eaf7ee" : "#fff7e8", border: acceptance.costResolved ? "1px solid #b8dec3" : "1px solid #e4c679" }}><strong>{acceptance.costResolved ? "Current." : "Current physical requirement · facility cost unresolved."}</strong> Power has been re-accepted against the current Storage and Fabric fingerprints. Energy is eligible for the Phase 2 TCO preview; facility burden is only included when a supported value is entered.</div>}
           {acceptance && !acceptance.ok && <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: "#fff0f3", border: "1px solid #efc9cf", color: "#9b1c31" }}>{acceptance.message}</div>}
         </section>
 
