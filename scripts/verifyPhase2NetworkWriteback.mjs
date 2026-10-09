@@ -10,6 +10,8 @@ const inputs = {
   storageFabricMode: "converged",
   gpuSystems: 8,
   fabricPortsPerSystem: 8,
+  fabricPortsPerSystemSource: "LISTED",
+  fabricPortsPerSystemNote: "OEM system port map",
   storageAggregateGbps: 400,
   storagePorts: 2,
   managementPorts: 8,
@@ -25,6 +27,9 @@ const inputs = {
 const result = calculateNetworkFabric(inputs);
 assert.ok(result.switches.total > 0);
 assert.ok(result.estimatedSwitchPowerKw > 0);
+assert.equal(result.fabricPortBasis.source, "LISTED");
+assert.equal(result.fabricPortBasis.note, "OEM system port map");
+assert.equal(result.fabricPortBasis.authoritative, true);
 assert.equal(result.storageFabric.converged, true);
 assert.equal(result.bandwidth.storageBandwidthFit, true);
 assert.equal(result.topologyFeasibility.twoTierFeasible, true);
@@ -50,9 +55,12 @@ const fingerprint = networkFabricFingerprint(result, storageFingerprint);
 assert.match(fingerprint, /^p2-/);
 
 const bundle = buildNetworkFabricWritebackBundle(result, inputs, { upstreamStorageFingerprint: storageFingerprint });
-assert.equal(bundle.schemaVersion, 5);
+assert.equal(bundle.schemaVersion, 6);
 assert.equal(bundle.sourceTool, "network-fabric");
 assert.equal(bundle.upstreamStorageFingerprint, storageFingerprint);
+assert.equal(bundle.requirements.fabricPortBasis.source, "LISTED");
+assert.equal(bundle.requirements.fabricPortBasis.note, "OEM system port map");
+assert.equal(bundle.requirements.fabricPortBasis.authoritative, true);
 assert.equal(bundle.requirements.storageFabric.status, "CONVERGED");
 assert.equal(bundle.requirements.storageFabric.portsIncludedInHighSpeedFabric, 2);
 assert.equal(bundle.requirements.switchPowerKw, result.estimatedSwitchPowerKw);
@@ -63,11 +71,13 @@ assert.equal(bundle.requirements.management.ports, 8);
 assert.equal(bundle.requirements.management.excludedFromHighSpeedFabricSizing, true);
 assert.equal(bundle.requirements.management.sizingStatus, "REQUIREMENT-ONLY");
 assert.match(bundle.requirements.management.note, /separate requirement/i);
+assert.match(bundle.requirements.costNote, /GPU-system port-count basis is LISTED/i);
 assert.match(bundle.requirements.costNote, /storage networking is explicitly converged/i);
 assert.equal(bundle.overrides.length, 1);
 assert.equal(bundle.overrides[0].target, "tco.network.fabric.capex.currentFleet");
 assert.equal(bundle.overrides[0].unit, "USD");
 assert.equal(bundle.overrides[0].provenance.source, "EST");
+assert.match(bundle.overrides[0].provenance.label, /8 ports\/GPU system from LISTED/i);
 assert.match(bundle.overrides[0].provenance.label, /storage converged into this fabric/i);
 assert.equal(bundle.pricingResolved, true);
 assert.equal(bundle.topologyResolved, true);
@@ -75,6 +85,9 @@ assert.equal(bundle.costResolved, true);
 assert.equal(bundle.costStatus, "EST");
 assert.equal(bundle.priceSource, "EST");
 assert.ok(bundle.requirements.fleetStepSchedule.length > 1);
+
+const changedPortBasis = calculateNetworkFabric({ ...inputs, fabricPortsPerSystemSource: "CUSTOMER", fabricPortsPerSystemNote: "Customer network standard" });
+assert.notEqual(networkFabricFingerprint(changedPortBasis, storageFingerprint), fingerprint, "port-count provenance changes must alter Fabric fingerprint");
 
 const separateInputs = { ...inputs, storageFabricMode: "separate" };
 const separate = calculateNetworkFabric(separateInputs);
