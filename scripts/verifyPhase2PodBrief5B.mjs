@@ -63,6 +63,22 @@ assert.equal(brief.phase1Comparison.additiveTotalSuppressed, true);
 assert.ok(brief.phase1Comparison.note.includes("not additive"));
 assert.equal(brief.unresolved.some((x) => x.includes("Storage OEM/BOM")), false);
 
+const staleRequirementStorage = buildPodBrief({
+  ...dependencies,
+  storageBundle: { ...storageBundle, stale: true, staleReason: "Local inputs changed" },
+  phase1Snapshot,
+});
+assert.equal(staleRequirementStorage.engineeringReviewReady, false, "Bundle-level stale state must block readiness even when a requirement has no stale cost override");
+assert.ok(staleRequirementStorage.stale.some((x) => x.includes("Storage contains stale accepted values")));
+
+const staleRequirementFabric = buildPodBrief({
+  ...dependencies,
+  fabricBundle: { ...fabricBundle, stale: true, overrides: [], requirements: { ...fabricBundle.requirements, stale: true } },
+  phase1Snapshot,
+});
+assert.equal(staleRequirementFabric.engineeringReviewReady, false, "Requirement-only Fabric acceptance must still become stale after local edits");
+assert.ok(staleRequirementFabric.stale.some((x) => x.includes("Fabric contains stale accepted values")));
+
 const unresolvedPower = buildPodBrief({
   ...dependencies,
   powerBundle: {
