@@ -1199,14 +1199,14 @@ function GPUSizingCalculatorInner() {
           <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}</div>
           <div className="text-xs text-gray-500 mb-6">{new Date().toLocaleDateString()} &middot; {mode} sizing &middot; {modelLabel}</div>
           <div className="mb-6"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2">{result.confidence.note}</p></div>
-          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{effectiveTcoSelection === "higher-growth" ? "Selected configuration for TCO" : "Recommended configuration"}</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{effectiveTcoSelection === "recommended" ? "Recommended configuration" : "Selected configuration for TCO"}</div>
           <div className="flex flex-wrap gap-3 mb-6">
             <ResultCard
-              icon={effectiveTcoSelection === "higher-growth" ? TrendingUp : Zap}
-              title={effectiveTcoSelection === "higher-growth" ? "Selected for TCO · Higher-growth" : "Recommended"}
+              icon={effectiveTcoSelection === "rtx" ? TrendingDown : effectiveTcoSelection === "higher-growth" ? TrendingUp : Zap}
+              title={effectiveTcoSelection === "rtx" ? "Selected for TCO · Lower-cost" : effectiveTcoSelection === "higher-growth" ? "Selected for TCO · Higher-growth" : "Recommended"}
               gpuClass={tcoSelectedClass}
               gpus={tcoSelectedCount}
-              subtitle={effectiveTcoSelection === "higher-growth" ? getHigherGrowthSubtitle(result.higherGrowth) : "Node-rounded for production"}
+              subtitle={effectiveTcoSelection === "rtx" ? "Right-sized private AI · independent serving replicas" : effectiveTcoSelection === "higher-growth" ? getHigherGrowthSubtitle(result.higherGrowth) : "Node-rounded for production"}
               accent
             />
           </div>
@@ -1368,11 +1368,11 @@ function GPUSizingCalculatorInner() {
 
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. Node Rounding, Budget &amp; Alternatives</div>
           <AuditFormula label="Recommended (node-rounded) configuration" formula="recommended = CEILING(minTechnical ÷ nodeSize) × nodeSize" substituted={`= CEILING(${result.minTechnical} ÷ ${result.selectedNodeSize}) × ${result.selectedNodeSize}`} result={`${result.recommended} × ${result.selectedClass}`} />
-          <AuditRow label="TCO selection basis" value={effectiveTcoSelection === "higher-growth" ? "User-selected higher-growth alternative" : "Recommended configuration"} />
+          <AuditRow label="TCO selection basis" value={effectiveTcoSelection === "rtx" ? "User-selected lower-cost RTX PRO alternative" : effectiveTcoSelection === "higher-growth" ? "User-selected higher-growth alternative" : "Recommended configuration"} />
           <AuditFormula
             label="Selected configuration for TCO"
-            formula={effectiveTcoSelection === "higher-growth" ? "selected = higher-growth deployment chosen by the user" : "selected = recommended node-rounded configuration"}
-            substituted={effectiveTcoSelection === "higher-growth" ? getHigherGrowthAuditText(result.higherGrowth, mode) : `${result.recommended} × ${result.selectedClass}`}
+            formula={effectiveTcoSelection === "rtx" ? "selected = benchmark-qualified RTX PRO deployment chosen by the user" : effectiveTcoSelection === "higher-growth" ? "selected = higher-growth deployment chosen by the user" : "selected = recommended node-rounded configuration"}
+            substituted={effectiveTcoSelection === "rtx" ? `${result.rtxAlt?.deployment?.totalDeployedGpus ?? "—"} × RTX PRO 6000 · ${result.rtxAlt?.benchmark?.id || "benchmark unavailable"}` : effectiveTcoSelection === "higher-growth" ? getHigherGrowthAuditText(result.higherGrowth, mode) : `${result.recommended} × ${result.selectedClass}`}
             result={`${tcoSelectedCount} × ${tcoSelectedClass}`}
           />
           <AuditFormula
