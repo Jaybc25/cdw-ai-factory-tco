@@ -1,0 +1,85 @@
+name: Phase 2 acceptance gate
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - "src/phase2Contract.js"
+      - "src/*Phase2*.jsx"
+      - "src/*Planner*.js"
+      - "src/*Planner*.jsx"
+      - "src/*Sizer*.js"
+      - "src/*Sizer*.jsx"
+      - "src/softwareStack*.js"
+      - "src/SoftwareStack*.jsx"
+      - "src/networkFabric*.js"
+      - "src/NetworkFabric*.jsx"
+      - "src/podBrief*.js"
+      - "src/PodBrief*.jsx"
+      - "scripts/verifyPhase2*.mjs"
+      - "scripts/verifyNetworkFabric.mjs"
+      - "scripts/verifyPodBrief.mjs"
+      - ".github/workflows/phase2-acceptance.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/phase2Contract.js"
+      - "src/*Phase2*.jsx"
+      - "src/*Planner*.js"
+      - "src/*Planner*.jsx"
+      - "src/*Sizer*.js"
+      - "src/*Sizer*.jsx"
+      - "src/softwareStack*.js"
+      - "src/SoftwareStack*.jsx"
+      - "src/networkFabric*.js"
+      - "src/NetworkFabric*.jsx"
+      - "src/podBrief*.js"
+      - "src/PodBrief*.jsx"
+      - "scripts/verifyPhase2*.mjs"
+      - "scripts/verifyNetworkFabric.mjs"
+      - "scripts/verifyPodBrief.mjs"
+      - ".github/workflows/phase2-acceptance.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  phase2-contract-and-build:
+    name: Phase 2 contract + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Production build
+        run: npm run build
+      - name: Verify Wave 0 contract
+        run: node scripts/verifyPhase2Contract.mjs
+      - name: Verify Power engine
+        run: node scripts/verifyPhase2PowerPlanner.mjs
+      - name: Verify Power writeback
+        run: node scripts/verifyPhase2PowerWriteback.mjs
+      - name: Verify Power evidence anchors
+        run: node scripts/verifyPhase2PowerEvidence.mjs
+      - name: Verify Storage engine
+        run: node scripts/verifyPhase2Storage2A.mjs
+      - name: Verify Storage to Power dependency
+        run: node scripts/verifyPhase2StoragePowerDependency.mjs
+      - name: Verify Software stack
+        run: node scripts/verifyPhase2SoftwareStack.mjs
+      - name: Verify Software writeback
+        run: node scripts/verifyPhase2SoftwareWriteback.mjs
+      - name: Verify Fabric planner
+        run: node scripts/verifyNetworkFabric.mjs
+      - name: Verify Fabric writeback
+        run: node scripts/verifyPhase2NetworkWriteback.mjs
+      - name: Verify Pod Brief 5A
+        run: node scripts/verifyPodBrief.mjs
+      - name: Verify Pod Brief 5B
+        run: node scripts/verifyPhase2PodBrief5B.mjs
+      - name: Verify full Wave 5C journey
+        run: node scripts/verifyPhase2EndToEnd.mjs
