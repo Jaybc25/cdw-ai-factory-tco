@@ -44,10 +44,9 @@ requireText(intake, "Quoted term coverage", "Term-total inputs must carry explic
 requireText(intake, "Directional lifecycle TCO", "RTX TCO UI must render the validated lifecycle total when ready.");
 requireText(intake, "lifecycle.totalTcoUSD", "Displayed RTX lifecycle total must come from the tested engine output.");
 requireText(intake, "the tool does not infer renewal pricing", "RTX TCO UI must disclose that renewal pricing is not invented.");
-requireText(intake, "powerBurdenPerKwMonth", "Facility/power economics must remain an explicit RTX TCO input rather than an implicit universal default.");
-requireText(intake, "serverPowerKW", "Configured-server power must remain explicit in RTX TCO readiness and lifecycle math.");
+requireText(intake, 'useState(restore.serverPowerKW ?? "")', "Configured-server power must restore a prior explicit value or remain blank.");
+requireText(intake, 'useState(restore.powerBurdenPerKwMonth ?? "")', "Facility burden must restore a prior explicit value or remain blank.");
 rejectText(intake, "powerBurdenPerKwMonth ?? 300", "RTX TCO must not silently assign a universal $/kW-month facility default during visual convergence.");
-rejectText(intake, "serverPowerKW ??", "RTX TCO must not silently assign a configured-server power default during visual convergence.");
 rejectText(intake, "does not sum software/support/services into lifecycle TCO until their commercial term", "The pre-lifecycle placeholder disclosure must be removed after lifecycle normalization is active.");
 
 console.log("RTX PRO GPU Sizing → lifecycle TCO UI validation PASS");
@@ -55,6 +54,6 @@ console.log("- single-server evidence-qualified sizing is selectable and continu
 console.log("- benchmark identity is preserved in the dedicated RTX route");
 console.log("- multi-server RTX remains engineering-validation gated");
 console.log("- required commercial/workload/facility inputs remain explicit");
-console.log("- facility/power remains customer-specific with no silent universal defaults");
+console.log("- facility/power restores explicit values or stays blank; no silent universal defaults");
 console.log("- recurring commercial term basis and coverage are explicit");
 console.log("- displayed lifecycle total is sourced from the validated engine");
