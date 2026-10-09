@@ -49,6 +49,26 @@ const tooLarge = sizeRtxProInference({ ...common, totalMemoryGB: 97, aggregateTo
 assert.equal(tooLarge.eligible, false);
 assert.equal(tooLarge.status, "ENGINEERING_VALIDATION_REQUIRED");
 
+// Regression for the production bug caught on mobile: aggregate serving memory
+// can exceed one GPU even though independent replicas distribute sequence state.
+// 35 GB of replicated weights + 0.5 GB/active sequence + 15% overhead across
+// 100 users should fit comfortably once those users are spread across 2 GPUs.
+const distributedMemory = sizeRtxProInference({
+  modelId: MODEL,
+  precision: "FP4",
+  weightMemoryGB: 35,
+  sequenceStateGBPerSequence: 0.5,
+  concurrentUsers: 100,
+  overheadPct: 0.15,
+  aggregateTokensPerSecond: 3000,
+  avgInputTokens: 1000,
+  avgOutputTokens: 1000,
+});
+assert.equal(distributedMemory.eligible, true);
+assert.equal(distributedMemory.deployment.totalDeployedGpus, 2);
+assert.equal(distributedMemory.memoryBasis.sequencesPerGpu, 50);
+assert.equal(distributedMemory.memoryBasis.totalMemoryGB < 90, true);
+
 const unsupportedModel = sizeRtxProInference({ ...common, modelId: "muse-glimmer-30b", aggregateTokensPerSecond: 1000 });
 assert.equal(unsupportedModel.eligible, false);
 assert.equal(unsupportedModel.status, "EVIDENCE_REQUIRED");
@@ -188,7 +208,8 @@ assert.equal(LEGACY_DGX_8_GPU_POLICY.values.adminRatio, 10);
 
 console.log("RTX PRO final adversarial regression PASS");
 console.log("- 2/4/8/>8 replica sizing and price gates behave as designed");
-console.log("- >90 GB, unsupported-model, and long-context cases fail safely");
+console.log("- aggregate serving memory is distributed per RTX replica instead of misapplied to one GPU");
+console.log("- >90 GB model-resident, unsupported-model, and long-context cases fail safely");
 console.log("- unresolved TCO inputs remain blocked; explicit zero assumptions stay labeled");
 console.log("- lifecycle term normalization and reconciliation are pinned");
 console.log("- IE benchmark-id integrity/model/precision checks are enforced");
