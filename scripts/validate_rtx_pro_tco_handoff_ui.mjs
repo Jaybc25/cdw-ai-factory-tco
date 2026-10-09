@@ -2,6 +2,7 @@ import fs from "node:fs";
 
 const app = fs.readFileSync("src/App.jsx", "utf8");
 const card = fs.readFileSync("src/RtxProAlternativeCard.jsx", "utf8");
+const gpuSizing = fs.readFileSync("src/GpuSizingCalculator.jsx", "utf8");
 const intake = fs.readFileSync("src/RtxProTcoIntake.jsx", "utf8");
 
 function requireText(source, text, message) {
@@ -14,11 +15,13 @@ function rejectText(source, text, message) {
 
 requireText(app, 'path="/tco/rtx-pro"', "RTX PRO TCO route must remain registered.");
 requireText(app, "<RtxProTcoIntake />", "RTX PRO TCO route must render the input-aware intake surface.");
-requireText(card, "Continue with RTX PRO", "Evidence-qualified single-server RTX sizing must expose a forward TCO handoff.");
+requireText(card, "aria-pressed={selected}", "Evidence-qualified single-server RTX sizing must remain a true selectable recommendation card.");
+requireText(gpuSizing, "Continue to RTX PRO TCO", "Selecting an evidence-qualified RTX recommendation must expose the shared forward TCO handoff.");
+requireText(gpuSizing, 'data-testid="rtx-selected-handoff"', "RTX selection must continue through the dedicated shared next-step handoff.");
 requireText(card, "deployment.servers === 1", "RTX TCO handoff must remain limited to one physical server in v1.");
 requireText(card, "/tco/rtx-pro?", "GPU Sizing RTX handoff must target the dedicated RTX TCO route.");
 requireText(card, "benchmarkId", "RTX forward handoff must preserve the admitted benchmark identity.");
-requireText(card, "Multi-server RTX TCO remains project-specific", "Multi-server RTX must remain explicitly gated.");
+requireText(card, "Multi-server RTX TCO requires engineering validation", "Multi-server RTX must remain explicitly gated.");
 
 for (const required of [
   "NVIDIA software / support entitlement",
@@ -45,8 +48,9 @@ requireText(intake, "Intentionally no universal RTX default", "Facility/power ec
 rejectText(intake, "does not sum software/support/services into lifecycle TCO until their commercial term", "The pre-lifecycle placeholder disclosure must be removed after lifecycle normalization is active.");
 
 console.log("RTX PRO GPU Sizing → lifecycle TCO UI validation PASS");
-console.log("- single-server evidence-qualified sizing continues to RTX PRO TCO with benchmark identity");
-console.log("- multi-server RTX remains project-specific");
+console.log("- single-server evidence-qualified sizing is selectable and continues through the shared RTX PRO TCO handoff");
+console.log("- benchmark identity is preserved in the dedicated RTX route");
+console.log("- multi-server RTX remains engineering-validation gated");
 console.log("- required commercial/workload/facility inputs remain explicit");
 console.log("- recurring commercial term basis and coverage are explicit");
 console.log("- displayed lifecycle total is sourced from the validated engine");
