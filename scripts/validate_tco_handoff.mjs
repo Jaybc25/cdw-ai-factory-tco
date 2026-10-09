@@ -2,8 +2,52 @@ import "./validate_tco_cloud_unit_price_trend.mjs";
 import fs from "node:fs";
 import { BASEPOD_MAX_8_GPU_SYSTEMS, getTcoInfrastructureCoverage } from "../src/tcoInfrastructureCoverage.js";
 import { DEFAULT_SCHEDULING_FACTOR, DEFAULT_NVAIE_FACTOR, maxSchedulingFactorForUtilization, schedulingUtilizationIsValid } from "../src/tcoPerformanceFactorPolicy.js";
+import { TCO_PLATFORM_POLICY_VERSION, LEGACY_DGX_8_GPU_POLICY, RTX_PRO_SERVER_POLICY_PLACEHOLDER, classifyTcoPlatformPolicy, getTcoPlatformPolicy, assertResolvedTcoPlatformPolicy } from "../src/tcoPlatformPolicy.js";
 
 const source = fs.readFileSync("src/TcoCalculator.jsx", "utf8");
+
+// Right-Sized Private AI platform-policy seam. These checks pin the current
+// DGX infrastructure assumptions before RTX receives its own policy. Nothing
+// here changes production economics; it prevents future platform additions
+// from silently inheriting or mutating the current DGX baseline.
+if (!TCO_PLATFORM_POLICY_VERSION) throw new Error("TCO platform policy must carry an explicit version.");
+if (classifyTcoPlatformPolicy("DGX B200", { gpus: 8 }) !== "DGX_8_GPU") {
+  throw new Error("DGX B200 must resolve to the 8-GPU DGX platform policy.");
+}
+if (classifyTcoPlatformPolicy("DGX GB200 NVL-72", { gpus: 72 }) !== "RACK_SCALE") {
+  throw new Error("NVL72 must remain in the rack-scale policy class.");
+}
+if (classifyTcoPlatformPolicy("RTX PRO 6000 server (OEM class)", { gpus: 4 }) !== "RTX_PRO_SERVER") {
+  throw new Error("RTX PRO Server Edition must resolve to its own platform class rather than DGX defaults.");
+}
+const dgxPolicy = assertResolvedTcoPlatformPolicy(getTcoPlatformPolicy("DGX B200", { gpus: 8 }));
+const expectedLegacyDgx = {
+  cluster: 600000,
+  fabricC: 54323,
+  fabricS: 23443,
+  fabricM: 14227,
+  profSvcs: 25000,
+  adminRatio: 10,
+  netMo: 3000,
+  setupRack: 2000,
+};
+for (const [key, expected] of Object.entries(expectedLegacyDgx)) {
+  if (dgxPolicy.values[key] !== expected || LEGACY_DGX_8_GPU_POLICY.values[key] !== expected) {
+    throw new Error(`DGX platform-policy baseline drifted for ${key}: expected ${expected}.`);
+  }
+}
+if (RTX_PRO_SERVER_POLICY_PLACEHOLDER.values !== null || RTX_PRO_SERVER_POLICY_PLACEHOLDER.status !== "PENDING_EVIDENCE") {
+  throw new Error("RTX PRO policy must remain unresolved until the workstream evidence gates are satisfied.");
+}
+let unresolvedRtxBlocked = false;
+try {
+  assertResolvedTcoPlatformPolicy(RTX_PRO_SERVER_POLICY_PLACEHOLDER);
+} catch {
+  unresolvedRtxBlocked = true;
+}
+if (!unresolvedRtxBlocked) {
+  throw new Error("Unresolved RTX PRO infrastructure costs must never enter client-facing TCO as implicit zeroes.");
+}
 
 // M6 methodology guard: scheduling/orchestration is utilization recovery,
 // not raw GPU speed, and NVAIE/NIM defaults to no incremental credit above
@@ -232,6 +276,7 @@ requireText(
 );
 
 console.log("TCO GPU Sizing handoff ownership guard: PASS");
+console.log("- platform policy pins the current DGX assumptions and blocks unresolved RTX costs");
 console.log("- upstream technical fields follow the fresh GPU Sizing handoff");
 console.log("- cloud GPU class auto-follows unless the user explicitly overrides it");
 console.log("- cloud instance-rate edits persist by provider + GPU class");

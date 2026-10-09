@@ -14,6 +14,8 @@ import { getRubinInferenceAdvisory } from "./rubinInferenceAdvisory.js";
 import { RUBIN_GPU_SIZING_SPECS, RUBIN_TRAINING_CANDIDATES } from "./rubinGpuSizingRegistry.js";
 import { buildInferenceEconomicsGpuSizingHandoff } from "./inferenceEconomicsConnector.js";
 import { classifyInferenceScaleout } from "./inferenceScaleoutClassification.js";
+import { sizeRtxProInference } from "./rtxProGpuSizing.js";
+import RtxProAlternativeCard from "./RtxProAlternativeCard.jsx";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -24,7 +26,7 @@ const TIPS = {
   quant: "How compressed the model's weights are in memory. FP8 is the safe default for H200-class hardware and up; FP4 only applies to Blackwell-class GPUs (B200/GB200/B300/GB300) and roughly halves memory again.",
   concurrentUsers: "The maximum number of simultaneous active request streams during your busiest period. Include human users, AI agents, copilots, automations, and parallel sub-agents that may be generating model requests at the same time.",
   targetTokPerUser: "The desired output rate for each simultaneously active request, used to convert concurrency into aggregate token demand for capacity planning. The hardware anchors are MLPerf Offline throughput, so this input does not guarantee per-request streaming speed or validate TTFT/TPOT.",
-  environment: "Whether this is a real production deployment or something lighter-weight. Dev/Test/POC unlocks a note about cheaper workstation-class GPUs, since production reliability requirements don't apply yet.",
+  environment: "Whether this is a real production deployment or something lighter-weight. RTX PRO production alternatives are evaluated separately through evidence-gated server sizing; this field does not relax production hardware requirements.",
   infGpuOverride: "Leave this on Auto-recommend to let the tool pick the most efficient class for your workload. Only override it if you already own a specific GPU class and want to see how it performs.",
   avgInputTokens: "The typical length of what a user sends in, in tokens (~4 characters per token). 2,000 is a reasonable default for a chat-style prompt with some context; raise it for document-heavy use cases.",
   avgOutputTokens: "The typical length of the model's response, in tokens. 500 covers a solid paragraph-to-page answer; lower it for short-form chat, raise it for long-form generation.",
@@ -183,20 +185,6 @@ function getHigherGrowthAuditText(higherGrowth, mode) {
 
 const QUANT_BYTES = { FP16: 2, FP8: 1, FP4: 0.5 };
 
-const RTX_SPEC = {
-  id: "RTX PRO 6000 Blackwell",
-  vram: 96,
-  anchor: 2095,
-  anchorPrecision: "FP8",
-  source: "EST, derived from memory-bandwidth ratio vs H100 -- no MLPerf datacenter submission exists for workstation-class GPUs; community vLLM benchmarks (CloudRift, Oct 2025) confirm the same bandwidth-bound scaling pattern on smaller models",
-  maxWorkstationGPUs: 4,
-  price: { amount: 8500, confidence: "LISTED", source: "StorageReview.com RTX PRO 6000 Workstation review, listed retail price" },
-};
-
-function ceilDiv(a, b) {
-  return Math.ceil(a / b);
-}
-
 function validateInference(inputs) {
   const errors = [];
   const isCustom = inputs.model.id === "custom";
@@ -289,18 +277,14 @@ function computeInference(inputs) {
       ? { level: "LOW", note: "Model architecture not yet verified (custom entry); hardware reference anchors are not treated as model-specific throughput." }
       : { level: "MEDIUM", note: `${throughputScale.basis} ${selected.precisionScale.basis} ${INFERENCE_SERVING_ANCHOR_SEMANTICS.basis} GPU anchors remain hardware benchmark references rather than universal model-specific throughput.` };
 
-  const rtxEffectiveAnchor = RTX_SPEC.anchor * throughputScale.factor;
-  const rtxGpusMem = ceilDiv(totalMemoryGB, RTX_SPEC.vram);
-  const rtxGpusPerf = ceilDiv(totalThroughputNeeded, rtxEffectiveAnchor);
-  const rtxWorkload = Math.max(rtxGpusMem, rtxGpusPerf);
-  const rtxEligible = inputs.environment === "Dev/Test/POC" && rtxWorkload <= RTX_SPEC.maxWorkstationGPUs;
-  const rtxAlt = {
-    eligible: rtxEligible,
-    class: RTX_SPEC.id,
-    gpus: rtxWorkload,
-    vram: RTX_SPEC.vram,
-    overCap: rtxWorkload > RTX_SPEC.maxWorkstationGPUs,
-  };
+  const rtxAlt = sizeRtxProInference({
+    modelId: model.id,
+    precision: inputs.quant,
+    totalMemoryGB,
+    aggregateTokensPerSecond: totalThroughputNeeded,
+    avgInputTokens: inputs.avgInputTokens,
+    avgOutputTokens: inputs.avgOutputTokens,
+  });
 
   const recommendedCount = selectedPriced.deployedCount;
   const lowerCostCount = lowerCost ? lowerCost.deployedCount : null;
@@ -1268,13 +1252,7 @@ function GPUSizingCalculatorInner() {
               <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />
               <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog."  subtitle={getHigherGrowthSubtitle(result.higherGrowth)}/>
             </div>
-            {mode === "Inference" && environment === "Dev/Test/POC" && result.rtxAlt.eligible && (
-              <div className="mb-6 rounded-xl p-4 bg-blue-50 border border-blue-200">
-                <div className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-1">Workstation alternative</div>
-                <div className="text-lg font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} &times; {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</div>
-                <p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Estimate only -- no MLPerf datacenter submission exists for this class.</p>
-              </div>
-            )}
+            {mode === "Inference" && <RtxProAlternativeCard rtxAlt={result.rtxAlt} />}
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Caveats &amp; methodology</div>
             <div className="text-xs text-gray-500 p-4 bg-gray-50 rounded-lg mb-6 leading-relaxed">
               {mode === "Inference"
@@ -1581,7 +1559,7 @@ function GPUSizingCalculatorInner() {
                 </div>
               )}
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
-              {mode === "Inference" && environment === "Dev/Test/POC" && <div className="mb-4">{result.rtxAlt.eligible ? <div className="rounded-xl p-4 bg-blue-50 border border-blue-200"><div className="flex items-center gap-2 mb-1"><Cpu className="w-4 h-4 text-blue-700" /><span className="text-xs font-bold uppercase tracking-wide text-blue-800">Workstation alternative</span></div><div className="text-2xl font-bold text-blue-900 mb-1">{result.rtxAlt.gpus} <span className="text-sm font-normal">x {result.rtxAlt.class} ({result.rtxAlt.vram}GB)</span></div><p className="text-xs text-blue-800">Dev/Test/POC workload fits within {RTX_SPEC.maxWorkstationGPUs} workstation-class cards. Anchor is an estimate -- treat as directional.</p></div> : <div className="p-3 rounded-lg bg-gray-50 border border-gray-200 text-xs text-gray-600">Dev/Test/POC environment, but this workload would need more than {RTX_SPEC.maxWorkstationGPUs} {RTX_SPEC.id} cards ({result.rtxAlt.gpus} required).</div>}</div>}
+              {mode === "Inference" && <RtxProAlternativeCard rtxAlt={result.rtxAlt} />}
               <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Sizing method:</strong> {mode === "Inference" ? `Meet both ${result.totalMemoryGB.toFixed(1)} GB of modeled memory and ${result.totalThroughputNeeded.toLocaleString()} tok/s of aggregate demand, then round up to a ${result.selectedNodeSize}-GPU node. MLPerf Offline throughput does not establish per-request response speed (TTFT/TPOT).` : `Fit ${result.trainingMemoryGB.toFixed(1)} GB of modeled training state and meet the training time target, then round up to a ${result.selectedNodeSize}-GPU node. Activation and temporary-workspace memory are not separately modeled.`} See the calculation audit for evidence and detailed assumptions.</div>
               <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} gpuDemandCount={effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.workload : result?.minTechnical} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} scaleoutClassification={tcoScaleoutClassification} />
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
