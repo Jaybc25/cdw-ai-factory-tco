@@ -6,12 +6,19 @@ on:
       - feature/rtx-lower-cost-tier
     paths:
       - .github/workflows/patch-rtx-lower-cost-tier.yml
+  pull_request:
+    branches:
+      - main
+    paths:
+      - .github/workflows/patch-rtx-lower-cost-tier.yml
+      - src/RtxProAlternativeCard.jsx
 
 permissions:
   contents: write
 
 jobs:
   patch:
+    if: github.head_ref == 'feature/rtx-lower-cost-tier' || github.ref_name == 'feature/rtx-lower-cost-tier'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +63,6 @@ jobs:
               raise SystemExit('Unexpected unrounded subtitle count')
           text = text.replace('subtitle="Unrounded workload requirement"', 'subtitle="Technical workload requirement before production-system rounding"')
 
-          # Main results + report each contain the production recommendation card.
           text = text.replace('title={effectiveTcoSelection === "higher-growth" ? "Selected for TCO · Higher-growth" : "Recommended"}', 'title={effectiveTcoSelection === "higher-growth" ? "Selected for TCO · Higher-growth" : "Recommended production"}')
           text = text.replace('title="Recommended" gpuClass={result.selectedClass}', 'title="Recommended production" gpuClass={result.selectedClass}')
 
