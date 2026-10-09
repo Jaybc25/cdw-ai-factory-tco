@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { calculateSoftwareStack, LICENSE_MODE } from "../src/softwareStackEngine.js";
+import { calculateSoftwareStack, LICENSE_MODE, SOFTWARE_TCO_TREATMENT } from "../src/softwareStackEngine.js";
 import { buildSoftwareStackWritebackBundle, softwareStackFingerprint } from "../src/softwareStackWriteback.js";
 
 const inputs = {
@@ -19,6 +19,7 @@ const inputs = {
       supportPct: 15,
       entitlementNotes: "planning assumption",
       priceSource: "EST",
+      tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE,
     },
     {
       id: "orchestration",
@@ -33,6 +34,7 @@ const inputs = {
       supportPct: 0,
       entitlementNotes: "open source with modeled operations",
       priceSource: "EST",
+      tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE,
     },
   ],
 };
@@ -50,6 +52,7 @@ assert.equal(bundle.requirements.rows[1].mode, LICENSE_MODE.OPEN_SOURCE);
 assert.ok(bundle.requirements.totals.operations > 0, "open-source operating cost remains explicit");
 assert.equal(bundle.fingerprint, fingerprintA);
 assert.equal(bundle.fleet.totalGpus, 16, "consistent GPU-priced rows should establish a comparable Software fleet identity");
+assert.equal(bundle.phase1OverlapResolved, true);
 
 const changed = calculateSoftwareStack({
   ...inputs,
@@ -87,6 +90,7 @@ const openSourceOnlyInputs = {
       supportPct: 0,
       entitlementNotes: "No separate license; operating/admin effort modeled explicitly",
       priceSource: "CUSTOMER",
+      tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE,
     },
   ],
 };
@@ -99,5 +103,34 @@ assert.equal(openSourceOnlyBundle.requirements.totals.license, 0);
 assert.equal(openSourceOnlyBundle.requirements.totals.operations, 72000);
 assert.equal(openSourceOnlyBundle.requirements.totals.implementation, 10000);
 assert.ok(openSourceOnlyBundle.requirements.totals.total > 0, "$0 license must not be interpreted as $0 software TCO");
+
+const bundledPlatformInputs = {
+  ...inputs,
+  components: [
+    { ...inputs.components[0], tcoTreatment: SOFTWARE_TCO_TREATMENT.INCLUDED_IN_PHASE1 },
+    { ...inputs.components[1], tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE },
+  ],
+};
+const bundledPlatform = calculateSoftwareStack(bundledPlatformInputs);
+const bundledPlatformBundle = buildSoftwareStackWritebackBundle(bundledPlatform, bundledPlatformInputs);
+assert.equal(bundledPlatformBundle.costResolved, true);
+assert.deepEqual(bundledPlatformBundle.overlapSummary.includedInPhase1Components, ["AI enterprise platform"]);
+assert.equal(bundledPlatformBundle.requirements.totals.total > bundledPlatformBundle.overlapSummary.tcoEligibleTotal, true, "gross stack economics should retain included Phase 1 components");
+assert.equal(bundledPlatformBundle.overrides[0].value, Math.round(bundledPlatform.tcoEligibleYearlyTotals[0].total), "Phase 1-included software must be excluded from incremental TCO write-back");
+
+const unresolvedOverlapInputs = {
+  ...inputs,
+  components: [
+    { ...inputs.components[0], tcoTreatment: SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED },
+    { ...inputs.components[1], tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE },
+  ],
+};
+const unresolvedOverlap = calculateSoftwareStack(unresolvedOverlapInputs);
+const unresolvedOverlapBundle = buildSoftwareStackWritebackBundle(unresolvedOverlap, unresolvedOverlapInputs);
+assert.equal(unresolvedOverlapBundle.costResolved, false, "unresolved Phase 1 overlap must block Software TCO write-back");
+assert.equal(unresolvedOverlapBundle.phase1OverlapResolved, false);
+assert.deepEqual(unresolvedOverlapBundle.unresolvedPhase1OverlapComponents, ["AI enterprise platform"]);
+assert.equal(unresolvedOverlapBundle.overrides.length, 0);
+assert.match(unresolvedOverlapBundle.requirements.costNote, /Phase 1 overlap is resolved/i);
 
 console.log("Phase 2 Wave 3B software write-back verification: PASS");
