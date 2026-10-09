@@ -4,7 +4,7 @@ import {
   getRtxProServerConfigByGpuCount,
 } from "./rtxProServerRegistry.js";
 
-export const RTX_PRO_GPU_SIZING_VERSION = "2026-10-08.v1";
+export const RTX_PRO_GPU_SIZING_VERSION = "2026-10-09.v2";
 
 // Autonomous v1 deliberately admits only direct model/context/precision anchors.
 // Do not convert B200/H200 throughput into a universal RTX factor.
@@ -95,28 +95,91 @@ export function roundRtxProReplicaDeployment(replicaCount) {
   };
 }
 
+function hasDetailedReplicaMemoryInputs({ weightMemoryGB, sequenceStateGBPerSequence, concurrentUsers, overheadPct }) {
+  return Number.isFinite(Number(weightMemoryGB)) && Number(weightMemoryGB) > 0 &&
+    Number.isFinite(Number(sequenceStateGBPerSequence)) && Number(sequenceStateGBPerSequence) >= 0 &&
+    Number.isFinite(Number(concurrentUsers)) && Number(concurrentUsers) > 0 &&
+    Number.isFinite(Number(overheadPct)) && Number(overheadPct) >= 0;
+}
+
+function requiredGpuSlotsForMemory({ weightMemoryGB, sequenceStateGBPerSequence, concurrentUsers, overheadPct }) {
+  const weight = Number(weightMemoryGB);
+  const perSequence = Number(sequenceStateGBPerSequence);
+  const users = Math.ceil(Number(concurrentUsers));
+  const overhead = Number(overheadPct);
+  const usableBeforeOverhead = RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB / (1 + overhead);
+  const sequenceBudgetGB = usableBeforeOverhead - weight;
+
+  if (sequenceBudgetGB < 0) return Infinity;
+  if (perSequence === 0) return 1;
+
+  const sequencesPerGpuCapacity = Math.floor(sequenceBudgetGB / perSequence);
+  if (sequencesPerGpuCapacity < 1) return Infinity;
+  return Math.max(1, Math.ceil(users / sequencesPerGpuCapacity));
+}
+
+function perGpuMemoryForDeployment({ weightMemoryGB, sequenceStateGBPerSequence, concurrentUsers, overheadPct, totalDeployedGpus }) {
+  const sequencesPerGpu = Math.max(1, Math.ceil(Number(concurrentUsers) / Number(totalDeployedGpus)));
+  const baseMemoryGB = Number(weightMemoryGB) + (Number(sequenceStateGBPerSequence) * sequencesPerGpu);
+  const runtimeOverheadGB = baseMemoryGB * Number(overheadPct);
+  return {
+    sequencesPerGpu,
+    baseMemoryGB,
+    runtimeOverheadGB,
+    totalMemoryGB: baseMemoryGB + runtimeOverheadGB,
+  };
+}
+
 export function sizeRtxProInference({
   modelId,
   precision,
   totalMemoryGB,
+  weightMemoryGB,
+  sequenceStateGBPerSequence,
+  concurrentUsers,
+  overheadPct,
   aggregateTokensPerSecond,
   avgInputTokens,
   avgOutputTokens,
 }) {
-  const memoryGB = Number(totalMemoryGB);
   const demandTokPerSec = Number(aggregateTokensPerSecond);
-  const fitsOneGpu = Number.isFinite(memoryGB) && memoryGB > 0 && memoryGB <= RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB;
+  const detailedMemory = hasDetailedReplicaMemoryInputs({
+    weightMemoryGB,
+    sequenceStateGBPerSequence,
+    concurrentUsers,
+    overheadPct,
+  });
 
-  if (!fitsOneGpu) {
-    return {
-      status: "ENGINEERING_VALIDATION_REQUIRED",
-      eligible: false,
-      reason: `Modeled serving memory (${Number.isFinite(memoryGB) ? memoryGB.toFixed(1) : "unknown"} GB) does not fit within the ${RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB} GB autonomous single-GPU planning ceiling. Multi-GPU model splitting over PCIe is not autonomously sized in v1.`,
-      fitsOneGpu: false,
-      benchmark: null,
-      deployment: null,
-      budget: null,
-    };
+  // Backward-compatible fallback for older callers/validators. New production
+  // GPU Sizing passes the detailed components so aggregate sequence state is
+  // distributed across independent RTX replicas rather than assigned to one GPU.
+  if (!detailedMemory) {
+    const memoryGB = Number(totalMemoryGB);
+    const fitsOneGpu = Number.isFinite(memoryGB) && memoryGB > 0 && memoryGB <= RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB;
+    if (!fitsOneGpu) {
+      return {
+        status: "ENGINEERING_VALIDATION_REQUIRED",
+        eligible: false,
+        reason: `Modeled serving memory (${Number.isFinite(memoryGB) ? memoryGB.toFixed(1) : "unknown"} GB) does not fit within the ${RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB} GB autonomous single-GPU planning ceiling. Multi-GPU model splitting over PCIe is not autonomously sized in v1.`,
+        fitsOneGpu: false,
+        benchmark: null,
+        deployment: null,
+        budget: null,
+      };
+    }
+  } else {
+    const modelOnlyMemoryGB = Number(weightMemoryGB) * (1 + Number(overheadPct));
+    if (modelOnlyMemoryGB > RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB) {
+      return {
+        status: "ENGINEERING_VALIDATION_REQUIRED",
+        eligible: false,
+        reason: `Model weights plus configured runtime overhead require ${modelOnlyMemoryGB.toFixed(1)} GB per GPU, above the ${RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB} GB autonomous single-GPU planning ceiling. Multi-GPU model splitting over PCIe is not autonomously sized in v1.`,
+        fitsOneGpu: false,
+        benchmark: null,
+        deployment: null,
+        budget: null,
+      };
+    }
   }
 
   const benchmark = selectRtxProBenchmark({ modelId, precision, avgInputTokens, avgOutputTokens });
@@ -144,18 +207,62 @@ export function sizeRtxProInference({
     };
   }
 
-  const replicas = Math.ceil(demandTokPerSec / benchmark.throughputTokPerSecPerGpu);
+  const throughputReplicaCount = Math.ceil(demandTokPerSec / benchmark.throughputTokPerSecPerGpu);
+  const memoryGpuSlots = detailedMemory
+    ? requiredGpuSlotsForMemory({ weightMemoryGB, sequenceStateGBPerSequence, concurrentUsers, overheadPct })
+    : 1;
+
+  if (!Number.isFinite(memoryGpuSlots)) {
+    return {
+      status: "ENGINEERING_VALIDATION_REQUIRED",
+      eligible: false,
+      reason: `The model fits by weights, but one active sequence plus configured runtime overhead exceeds the ${RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB} GB autonomous per-GPU planning ceiling.`,
+      fitsOneGpu: false,
+      benchmark,
+      deployment: null,
+      budget: null,
+    };
+  }
+
+  const replicas = Math.max(throughputReplicaCount, memoryGpuSlots);
   const deployment = roundRtxProReplicaDeployment(replicas);
   const config = deployment.serverConfig;
   const listedSingleServer = deployment.servers === 1 && Number.isFinite(config?.configuredSystemPriceUSD);
+  const perGpuMemory = detailedMemory
+    ? perGpuMemoryForDeployment({
+        weightMemoryGB,
+        sequenceStateGBPerSequence,
+        concurrentUsers,
+        overheadPct,
+        totalDeployedGpus: deployment.totalDeployedGpus,
+      })
+    : null;
+
+  if (perGpuMemory && perGpuMemory.totalMemoryGB > RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB) {
+    return {
+      status: "ENGINEERING_VALIDATION_REQUIRED",
+      eligible: false,
+      reason: `Distributed serving memory remains ${perGpuMemory.totalMemoryGB.toFixed(1)} GB per GPU after deployment rounding, above the ${RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB} GB autonomous planning ceiling.`,
+      fitsOneGpu: false,
+      benchmark,
+      deployment,
+      budget: null,
+      memoryBasis: perGpuMemory,
+    };
+  }
 
   return {
     status: "AUTONOMOUS_REPLICA_SIZING",
     eligible: true,
-    reason: "Model fits one RTX PRO GPU and a direct model/context/precision benchmark is admitted; capacity scales through independent replicas rather than model splitting.",
+    reason: detailedMemory
+      ? "Model weights fit one RTX PRO GPU; concurrent sequence state is distributed across independent replicas, and a direct model/context/precision benchmark is admitted."
+      : "Model fits one RTX PRO GPU and a direct model/context/precision benchmark is admitted; capacity scales through independent replicas rather than model splitting.",
     fitsOneGpu: true,
     benchmark,
     replicas,
+    throughputReplicaCount,
+    memoryGpuSlots,
+    memoryBasis: perGpuMemory,
     deployment,
     utilization: Math.min(demandTokPerSec / (deployment.totalDeployedGpus * benchmark.throughputTokPerSecPerGpu), 1),
     budget: listedSingleServer
