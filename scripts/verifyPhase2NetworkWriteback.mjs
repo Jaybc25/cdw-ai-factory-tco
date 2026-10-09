@@ -7,6 +7,7 @@ const inputs = {
   linkGbps: 400,
   linkMedia: "optical",
   priceSource: "EST",
+  storageFabricMode: "converged",
   gpuSystems: 8,
   fabricPortsPerSystem: 8,
   storageAggregateGbps: 400,
@@ -24,6 +25,7 @@ const inputs = {
 const result = calculateNetworkFabric(inputs);
 assert.ok(result.switches.total > 0);
 assert.ok(result.estimatedSwitchPowerKw > 0);
+assert.equal(result.storageFabric.converged, true);
 assert.equal(result.bandwidth.storageBandwidthFit, true);
 assert.equal(result.topologyFeasibility.twoTierFeasible, true);
 assert.equal(result.ports.managementPortsExcludedFromFabric, true);
@@ -48,9 +50,11 @@ const fingerprint = networkFabricFingerprint(result, storageFingerprint);
 assert.match(fingerprint, /^p2-/);
 
 const bundle = buildNetworkFabricWritebackBundle(result, inputs, { upstreamStorageFingerprint: storageFingerprint });
-assert.equal(bundle.schemaVersion, 4);
+assert.equal(bundle.schemaVersion, 5);
 assert.equal(bundle.sourceTool, "network-fabric");
 assert.equal(bundle.upstreamStorageFingerprint, storageFingerprint);
+assert.equal(bundle.requirements.storageFabric.status, "CONVERGED");
+assert.equal(bundle.requirements.storageFabric.portsIncludedInHighSpeedFabric, 2);
 assert.equal(bundle.requirements.switchPowerKw, result.estimatedSwitchPowerKw);
 assert.equal(bundle.requirements.topologyFeasibility.twoTierFeasible, true);
 assert.equal(bundle.requirements.media.type, "optical");
@@ -59,18 +63,28 @@ assert.equal(bundle.requirements.management.ports, 8);
 assert.equal(bundle.requirements.management.excludedFromHighSpeedFabricSizing, true);
 assert.equal(bundle.requirements.management.sizingStatus, "REQUIREMENT-ONLY");
 assert.match(bundle.requirements.management.note, /separate requirement/i);
-assert.match(bundle.requirements.costNote, /management\/control-plane networking remains outside/i);
+assert.match(bundle.requirements.costNote, /storage networking is explicitly converged/i);
 assert.equal(bundle.overrides.length, 1);
 assert.equal(bundle.overrides[0].target, "tco.network.fabric.capex.currentFleet");
 assert.equal(bundle.overrides[0].unit, "USD");
 assert.equal(bundle.overrides[0].provenance.source, "EST");
-assert.match(bundle.overrides[0].provenance.label, /EST high-speed fabric unit pricing/i);
+assert.match(bundle.overrides[0].provenance.label, /storage converged into this fabric/i);
 assert.equal(bundle.pricingResolved, true);
 assert.equal(bundle.topologyResolved, true);
 assert.equal(bundle.costResolved, true);
 assert.equal(bundle.costStatus, "EST");
 assert.equal(bundle.priceSource, "EST");
 assert.ok(bundle.requirements.fleetStepSchedule.length > 1);
+
+const separateInputs = { ...inputs, storageFabricMode: "separate" };
+const separate = calculateNetworkFabric(separateInputs);
+const separateBundle = buildNetworkFabricWritebackBundle(separate, separateInputs, { upstreamStorageFingerprint: storageFingerprint });
+assert.equal(separateBundle.requirements.storageFabric.status, "SEPARATE");
+assert.equal(separateBundle.requirements.storageFabric.portsIncludedInHighSpeedFabric, 0);
+assert.equal(separateBundle.requirements.ports.storagePorts, 0);
+assert.equal(separateBundle.requirements.bandwidth.storageCheckApplicable, false);
+assert.match(separateBundle.requirements.costNote, /storage networking is explicitly separate/i);
+assert.match(separateBundle.overrides[0].provenance.label, /storage separate from this fabric/i);
 
 const quoteInputs = { ...inputs, priceSource: "QUOTE" };
 const quote = calculateNetworkFabric(quoteInputs);
