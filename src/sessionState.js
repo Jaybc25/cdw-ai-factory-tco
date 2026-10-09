@@ -138,11 +138,18 @@ function installPhase2LocalEditStaleGuard() {
   };
 
   // `input` covers text/number edits as they happen. `change` covers selects,
-  // radios, checkboxes, and other controls that may not emit input uniformly.
-  // markPhase2BundleStale is idempotent, so controls that emit both events only
-  // perform the first state transition.
+  // radios and checkboxes. Some local mutations are button-driven (for example
+  // adding/removing software rows or pulling accepted Storage into Fabric), so
+  // button clicks also stale the previously accepted bundle. Accept/recompute
+  // buttons may stale the old bundle a moment before writing the new accepted
+  // bundle, which is safe and preserves the required explicit transition.
   window.addEventListener("input", markCurrentRouteStale, true);
   window.addEventListener("change", markCurrentRouteStale, true);
+  window.addEventListener("click", (event) => {
+    const target = event?.target;
+    if (!target?.closest?.("button")) return;
+    markCurrentRouteStale(event);
+  }, true);
 }
 
 installPhase2LocalEditStaleGuard();
