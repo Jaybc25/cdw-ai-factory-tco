@@ -59,10 +59,8 @@ function TradeoffNote({ candidate = false }) {
 export default function RtxProAlternativeCard({ rtxAlt, compact = false }) {
   if (!rtxAlt) return null;
 
-  // GPU Sizing's legacy aggregate-memory result remains authoritative for its
-  // DGX/HGX recommendation. RTX PRO uses independent replicas, so sequence
-  // state must be distributed across those GPUs instead of treated as if all
-  // concurrent users live on one 96 GB GPU.
+  // The enterprise recommendation remains the future-growth path; RTX PRO is
+  // evaluated as the right-sized/lower-entry-cost path within its evidence gate.
   const evaluatedAlt = rebuildDistributedMemoryAlternative(rtxAlt);
   const shell = compact
     ? "rounded-xl p-5 flex-1 min-w-[220px] border border-blue-200 bg-blue-50"
