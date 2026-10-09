@@ -112,9 +112,9 @@ export default function RtxProAlternativeCard({ rtxAlt, compact = false, reportO
 
   const content = (
     <>
-      <div className="flex items-start justify-between gap-3 mb-2">
+      <div className="mb-2">
         <div className="text-xs font-bold uppercase tracking-wide text-gray-500">Lower-cost alternative</div>
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-800 whitespace-nowrap">{sourceLabel}</span>
+        <span className="inline-flex w-fit max-w-full mt-1 text-[10px] font-semibold leading-tight px-2 py-0.5 rounded bg-blue-50 text-blue-800">{sourceLabel}</span>
       </div>
       {selectable && !reportOnly && (
         <div className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: selected ? "#CC0000" : "#707070" }}>
