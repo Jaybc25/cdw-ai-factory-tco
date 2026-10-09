@@ -2,6 +2,14 @@ import { getRtxProServerConfigByGpuCount } from "./rtxProServerRegistry.js";
 
 export const RTX_PRO_TCO_POLICY_VERSION = "2026-10-08.v1";
 
+function hasExplicitFiniteNumber(value) {
+  return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
+}
+
+function hasExplicitPositiveNumber(value) {
+  return hasExplicitFiniteNumber(value) && Number(value) > 0;
+}
+
 // V1 TCO activation is intentionally limited to one physical RTX PRO server.
 // Multi-server deployments can still be sized in GPU Sizing, but coordinated
 // management/networking economics remain project-specific until separately
@@ -28,12 +36,12 @@ export function buildRtxProSingleServerTcoPolicy({
   }
 
   const requiredInputs = [];
-  if (!Number.isFinite(Number(nvidiaSoftwareUSD))) requiredInputs.push("NVIDIA software/support entitlement");
-  if (!Number.isFinite(Number(supportUSD))) requiredInputs.push("OEM/server support");
-  if (!Number.isFinite(Number(professionalServicesUSD))) requiredInputs.push("professional services / implementation");
-  if (!Number.isFinite(Number(storageUSD))) requiredInputs.push("workload-derived storage");
-  if (!Number.isFinite(Number(adminFteAnnualUSD))) requiredInputs.push("incremental administration / operations labor");
-  if (!Number.isFinite(Number(serverPowerKW))) requiredInputs.push("full configured-server power draw");
+  if (!hasExplicitFiniteNumber(nvidiaSoftwareUSD)) requiredInputs.push("NVIDIA software/support entitlement");
+  if (!hasExplicitFiniteNumber(supportUSD)) requiredInputs.push("OEM/server support");
+  if (!hasExplicitFiniteNumber(professionalServicesUSD)) requiredInputs.push("professional services / implementation");
+  if (!hasExplicitFiniteNumber(storageUSD)) requiredInputs.push("workload-derived storage");
+  if (!hasExplicitFiniteNumber(adminFteAnnualUSD)) requiredInputs.push("incremental administration / operations labor");
+  if (!hasExplicitPositiveNumber(serverPowerKW)) requiredInputs.push("full configured-server power draw");
 
   const hardwareResolved = Number.isFinite(config.configuredSystemPriceUSD);
   if (!hardwareResolved) requiredInputs.unshift("configured 8-GPU OEM/CDW server price");
@@ -75,12 +83,12 @@ export function buildRtxProSingleServerTcoPolicy({
     assumptions,
     requiredInputs: Object.freeze([...new Set(requiredInputs)]),
     userInputs: {
-      nvidiaSoftwareUSD: Number.isFinite(Number(nvidiaSoftwareUSD)) ? Number(nvidiaSoftwareUSD) : null,
-      supportUSD: Number.isFinite(Number(supportUSD)) ? Number(supportUSD) : null,
-      professionalServicesUSD: Number.isFinite(Number(professionalServicesUSD)) ? Number(professionalServicesUSD) : null,
-      storageUSD: Number.isFinite(Number(storageUSD)) ? Number(storageUSD) : null,
-      adminFteAnnualUSD: Number.isFinite(Number(adminFteAnnualUSD)) ? Number(adminFteAnnualUSD) : null,
-      serverPowerKW: Number.isFinite(Number(serverPowerKW)) ? Number(serverPowerKW) : null,
+      nvidiaSoftwareUSD: hasExplicitFiniteNumber(nvidiaSoftwareUSD) ? Number(nvidiaSoftwareUSD) : null,
+      supportUSD: hasExplicitFiniteNumber(supportUSD) ? Number(supportUSD) : null,
+      professionalServicesUSD: hasExplicitFiniteNumber(professionalServicesUSD) ? Number(professionalServicesUSD) : null,
+      storageUSD: hasExplicitFiniteNumber(storageUSD) ? Number(storageUSD) : null,
+      adminFteAnnualUSD: hasExplicitFiniteNumber(adminFteAnnualUSD) ? Number(adminFteAnnualUSD) : null,
+      serverPowerKW: hasExplicitPositiveNumber(serverPowerKW) ? Number(serverPowerKW) : null,
     },
     note: "Directional TCO only after every required commercial/workload input is supplied. This policy deliberately avoids the legacy DGX $600K cluster allowance, DGX fabric assumptions, and any universal RTX storage default.",
   };
