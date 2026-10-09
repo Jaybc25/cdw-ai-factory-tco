@@ -35,6 +35,7 @@ export function networkFabricFingerprint(result, upstreamStorageFingerprint = nu
     upstreamStorageFingerprint,
     switches: result.switches,
     ports: result.ports,
+    topologyFeasibility: result.topologyFeasibility,
   });
 }
 
@@ -47,7 +48,7 @@ export function buildFabricStepSchedule(result, { maxFleetSystems = null } = {})
 
   for (let systems = 1; systems <= maxSystems; systems += 1) {
     const sized = calculateNetworkFabric({ ...baseInputs, gpuSystems: systems });
-    const signature = `${sized.switches.leaf}:${sized.switches.spine}:${sized.ports.totalLinks}:${Math.round(sized.estimatedCapitalCost)}`;
+    const signature = `${sized.switches.leaf}:${sized.switches.spine}:${sized.ports.totalLinks}:${sized.topologyFeasibility.status}:${Math.round(sized.estimatedCapitalCost)}`;
     if (signature !== priorSignature) {
       schedule.push({
         minSystems: systems,
@@ -58,7 +59,9 @@ export function buildFabricStepSchedule(result, { maxFleetSystems = null } = {})
         totalLinks: sized.ports.totalLinks,
         transceivers: sized.ports.totalTransceivers,
         switchPowerKw: sized.estimatedSwitchPowerKw,
-        capitalCost: Math.round(sized.estimatedCapitalCost),
+        topology: sized.topology,
+        topologyStatus: sized.topologyFeasibility.status,
+        capitalCost: sized.topologyFeasibility.twoTierFeasible ? Math.round(sized.estimatedCapitalCost) : null,
       });
       priorSignature = signature;
     } else {
@@ -78,7 +81,9 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
   const fleet = makeFleetIdentity({ systemCount: result.inputs.gpuSystems, source: "network-fabric" });
   const fingerprint = networkFabricFingerprint(result, upstreamStorageFingerprint);
   const schedule = buildFabricStepSchedule(result);
-  const costResolved = result.inputs.switchCost > 0 && result.inputs.cableCost > 0 && result.inputs.transceiverCost > 0;
+  const pricingResolved = result.inputs.switchCost > 0 && result.inputs.cableCost > 0 && result.inputs.transceiverCost > 0;
+  const topologyResolved = Boolean(result.topologyFeasibility?.twoTierFeasible);
+  const costResolved = pricingResolved && topologyResolved;
 
   const overrides = costResolved ? [createPhase2Override({
     id: "network.fabric.capex.current-fleet",
@@ -96,25 +101,29 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
       fleet,
       gpuSystems: result.inputs.gpuSystems,
       upstreamStorageFingerprint,
+      topologyFeasibility: result.topologyFeasibility,
       schedule,
     },
     referenceValue: null,
   })] : [];
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     sourceTool: "network-fabric",
     acceptedAt: new Date().toISOString(),
     fingerprint,
     fleet,
     upstreamStorageFingerprint,
+    pricingResolved,
+    topologyResolved,
     costResolved,
-    costStatus: costResolved ? "EST" : "UNRESOLVED",
+    costStatus: costResolved ? "EST" : topologyResolved ? "UNRESOLVED-PRICING" : "ENGINEERING-REVIEW",
     overrides,
     requirements: {
       technology: result.inputs.technology,
       linkGbps: result.inputs.linkGbps,
       topology: result.topology,
+      topologyFeasibility: result.topologyFeasibility,
       switches: result.switches,
       ports: result.ports,
       bandwidth: result.bandwidth,
@@ -130,9 +139,11 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
       fleetStepSchedule: schedule,
       flags: result.flags,
       validationWarnings: validation.warnings,
-      costNote: costResolved
-        ? "Planning-level high-speed fabric CAPEX is available from explicit unit-cost assumptions. Management/control-plane networking remains outside this CAPEX envelope."
-        : "High-speed fabric requirement is accepted, but no CAPEX override is eligible until switch, cable, and transceiver prices are all supplied. Management/control-plane networking remains separate scope.",
+      costNote: !topologyResolved
+        ? "The current fleet exceeds the modeled two-tier topology envelope. Fabric switch count, power, cabling, optics, and CAPEX remain lower-bound planning values only; no TCO CAPEX override is eligible until engineering resolves the topology."
+        : costResolved
+          ? "Planning-level high-speed fabric CAPEX is available from explicit unit-cost assumptions. Management/control-plane networking remains outside this CAPEX envelope."
+          : "High-speed fabric requirement is accepted, but no CAPEX override is eligible until switch, cable, and transceiver prices are all supplied. Management/control-plane networking remains separate scope.",
     },
   };
 }
