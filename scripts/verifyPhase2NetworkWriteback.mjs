@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { calculateNetworkFabric } from "../src/networkFabricEngine.js";
 import { buildNetworkFabricWritebackBundle, buildFabricStepSchedule, networkFabricFingerprint } from "../src/networkFabricWriteback.js";
+import { PHASE2_TCO_TREATMENT, PHASE2_REPLACEMENT_STATUS, phase2OverrideCanApplyToTco } from "../src/phase2Contract.js";
 
 const inputs = {
   technology: "infiniband",
@@ -55,7 +56,7 @@ const fingerprint = networkFabricFingerprint(result, storageFingerprint);
 assert.match(fingerprint, /^p2-/);
 
 const bundle = buildNetworkFabricWritebackBundle(result, inputs, { upstreamStorageFingerprint: storageFingerprint });
-assert.equal(bundle.schemaVersion, 6);
+assert.equal(bundle.schemaVersion, 7);
 assert.equal(bundle.sourceTool, "network-fabric");
 assert.equal(bundle.upstreamStorageFingerprint, storageFingerprint);
 assert.equal(bundle.requirements.fabricPortBasis.source, "LISTED");
@@ -79,6 +80,12 @@ assert.equal(bundle.overrides[0].unit, "USD");
 assert.equal(bundle.overrides[0].provenance.source, "EST");
 assert.match(bundle.overrides[0].provenance.label, /8 ports\/GPU system from LISTED/i);
 assert.match(bundle.overrides[0].provenance.label, /storage converged into this fabric/i);
+assert.equal(bundle.tcoTreatment.mode, PHASE2_TCO_TREATMENT.REPLACE_PHASE1);
+assert.equal(bundle.tcoTreatment.phase1LineFamily, "network-fabric-capex");
+assert.equal(bundle.tcoTreatment.replacementStatus, PHASE2_REPLACEMENT_STATUS.PENDING_LINE_MAP);
+assert.equal(bundle.tcoTreatment.additiveAllowed, false);
+assert.equal(bundle.overrides[0].tcoTreatment.mode, PHASE2_TCO_TREATMENT.REPLACE_PHASE1);
+assert.equal(phase2OverrideCanApplyToTco(bundle.overrides[0]), false, "Fabric replacement must remain blocked until Phase 1 line mapping exists");
 assert.equal(bundle.pricingResolved, true);
 assert.equal(bundle.topologyResolved, true);
 assert.equal(bundle.costResolved, true);
