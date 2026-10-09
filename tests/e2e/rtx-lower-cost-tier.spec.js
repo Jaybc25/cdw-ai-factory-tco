@@ -29,7 +29,7 @@ async function seedGpuSizing(page, overrides) {
   }, state);
 }
 
-test("evidence-qualified RTX PRO replaces the inference lower-cost slot and remains selectable for TCO", async ({ page }) => {
+test("evidence-qualified RTX PRO replaces the inference lower-cost slot and continues into the forward journey", async ({ page }) => {
   await seedGpuSizing(page, {});
   await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
 
@@ -38,7 +38,10 @@ test("evidence-qualified RTX PRO replaces the inference lower-cost slot and rema
   await expect(rtx).toContainText("Lower-cost alternative");
   await expect(rtx).toContainText("2 × NVIDIA RTX PRO 6000 Blackwell Server Edition");
   await expect(rtx).toContainText("does not provide NVLink/NVSwitch-style scale-up");
-  await expect(rtx.getByRole("link", { name: "Select RTX PRO for TCO" })).toHaveAttribute("href", /\/tco\/rtx-pro\?/);
+  const forward = rtx.getByRole("link", { name: "Continue with RTX PRO" });
+  await expect(forward).toHaveAttribute("href", /\/tco\/rtx-pro\?/);
+  await expect(forward).toHaveAttribute("href", /gpuCount=2/);
+  await expect(forward).toHaveAttribute("href", /benchmarkId=/);
 
   const tier = rtx.locator("..");
   await expect(tier.getByText("Higher-growth alternative", { exact: true })).toBeVisible();
@@ -63,7 +66,7 @@ test("unsupported Gemma benchmark shows RTX PRO as a potential lower-cost candid
   await expect(candidate).toContainText("A production GPU count is therefore not inferred");
   await expect(candidate).toContainText("does not provide NVLink/NVSwitch-style scale-up");
   await expect(candidate).not.toContainText(/\d+ × NVIDIA RTX PRO/);
-  await expect(candidate.getByRole("link", { name: "Select RTX PRO for TCO" })).toHaveCount(0);
+  await expect(candidate.getByRole("link", { name: "Continue with RTX PRO" })).toHaveCount(0);
 
   const tier = candidate.locator("..");
   await expect(tier.getByText("Higher-growth alternative", { exact: true })).toBeVisible();
