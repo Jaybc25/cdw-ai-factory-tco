@@ -1195,7 +1195,7 @@ function GPUSizingCalculatorInner() {
           <div className="mb-6"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2">{result.confidence.note}</p></div>
           <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{effectiveTcoSelection === "higher-growth" ? "Selected configuration for TCO" : "Recommended configuration"}</div>
           <div className="flex flex-wrap gap-3 mb-6">
-            <ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" />
+            <ResultCard icon={Cpu} title="Unrounded requirement" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Technical workload requirement before production-system rounding" />
             <ResultCard
               icon={effectiveTcoSelection === "higher-growth" ? TrendingUp : Zap}
               title={effectiveTcoSelection === "higher-growth" ? "Selected for TCO · Higher-growth" : "Recommended"}
@@ -1249,10 +1249,10 @@ function GPUSizingCalculatorInner() {
             </div>
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Alternatives considered</div>
             <div className="flex flex-wrap gap-3 mb-6">
-              <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />
+              {mode === "Inference" ? <RtxProAlternativeCard rtxAlt={result.rtxAlt} compact /> : <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />}
               <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog."  subtitle={getHigherGrowthSubtitle(result.higherGrowth)}/>
             </div>
-            {mode === "Inference" && <RtxProAlternativeCard rtxAlt={result.rtxAlt} />}
+            
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Caveats &amp; methodology</div>
             <div className="text-xs text-gray-500 p-4 bg-gray-50 rounded-lg mb-6 leading-relaxed">
               {mode === "Inference"
@@ -1539,8 +1539,8 @@ function GPUSizingCalculatorInner() {
             ) : (
             <>
               <div className="mb-4"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2 flex items-start gap-1"><Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{result.confidence.level === "LOW" ? "Low confidence: custom model architecture is not yet verified." : mode === "Inference" ? "Directional sizing: based on benchmark-backed hardware throughput plus modeled workload adjustments." : "Directional sizing: based on published GPU specifications plus an explicit MFU assumption."}</p></div>
-              <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Cpu} title="Minimum technical" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Unrounded workload requirement" /><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent selectable={Boolean(TCO_OWN_SYS_FOR_CLASS[result.selectedClass])} selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
-              <div className="flex flex-wrap gap-3 mb-6"><ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." /><ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog." subtitle={getHigherGrowthSubtitle(result.higherGrowth)} selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
+              <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Cpu} title="Unrounded requirement" gpuClass={result.selectedClass} gpus={result.minTechnical} subtitle="Technical workload requirement before production-system rounding" /><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded for production" accent selectable={Boolean(TCO_OWN_SYS_FOR_CLASS[result.selectedClass])} selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
+              <div className="flex flex-wrap gap-3 mb-6">{mode === "Inference" ? <RtxProAlternativeCard rtxAlt={result.rtxAlt} compact /> : <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />}<ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog." subtitle={getHigherGrowthSubtitle(result.higherGrowth)} selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
               <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
     {mode === "Inference" && result.rubinAdvisory && (
       <div className="mb-4 rounded-xl p-4 border border-amber-300 bg-amber-50">
@@ -1559,7 +1559,7 @@ function GPUSizingCalculatorInner() {
                 </div>
               )}
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
-              {mode === "Inference" && <RtxProAlternativeCard rtxAlt={result.rtxAlt} />}
+              
               <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Sizing method:</strong> {mode === "Inference" ? `Meet both ${result.totalMemoryGB.toFixed(1)} GB of modeled memory and ${result.totalThroughputNeeded.toLocaleString()} tok/s of aggregate demand, then round up to a ${result.selectedNodeSize}-GPU node. MLPerf Offline throughput does not establish per-request response speed (TTFT/TPOT).` : `Fit ${result.trainingMemoryGB.toFixed(1)} GB of modeled training state and meet the training time target, then round up to a ${result.selectedNodeSize}-GPU node. Activation and temporary-workspace memory are not separately modeled.`} See the calculation audit for evidence and detailed assumptions.</div>
               <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} gpuDemandCount={effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.workload : result?.minTechnical} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} scaleoutClassification={tcoScaleoutClassification} />
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
