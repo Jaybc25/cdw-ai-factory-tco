@@ -93,7 +93,13 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
     : "Fabric pricing is unresolved and remains outside TCO until the required unit costs are supplied.");
   if (powerBundle && powerBundle.costResolved === false) unresolved.push("Facility-burden economics are unresolved; Power energy is available, but the facility burden remains excluded from TCO until a supported value is entered.");
   if (power && power.networkRackFootprintResolved === false) unresolved.push("Network/fabric rack footprint is unresolved. Total rack count and rack-position fit remain provisional until planned network rack positions are entered.");
-  if (softwareBundle && softwareBundle.costResolved === false) unresolved.push(`Commercial software pricing is unresolved for ${softwareBundle.unresolvedCommercialComponents?.join(", ") || "one or more components"}; software TCO overrides remain ineligible.`);
+  if (softwareBundle && softwareBundle.costResolved === false) {
+    if (softwareBundle.phase1OverlapResolved === false) {
+      unresolved.push(`Software Phase 1 overlap is unresolved for ${softwareBundle.unresolvedPhase1OverlapComponents?.join(", ") || "one or more components"}; software TCO overrides remain ineligible until each item is classified as incremental or already included in Phase 1.`);
+    } else {
+      unresolved.push(`Commercial software pricing is unresolved for ${softwareBundle.unresolvedCommercialComponents?.join(", ") || "one or more components"}; software TCO overrides remain ineligible.`);
+    }
+  }
   if (!phase1Snapshot) unresolved.push("No saved Phase 1 TCO account snapshot is available for Phase 1 comparison context.");
 
   const stale = [];
@@ -125,7 +131,7 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
     powerAnnualized: money(powerMonthly * 12),
     networkCapex: money(networkCapex),
     softwareByYear: Object.fromEntries(Object.entries(softwareByYear).map(([year, value]) => [year, money(value)])),
-    note: "Phase 2 planning envelope only. These lines refine assumptions already present in Phase 1 TCO and must not be added to the Phase 1 total without explicit replacement mapping. Unresolved pricing is excluded rather than represented as $0.",
+    note: "Phase 2 planning envelope only. These lines refine assumptions already present in Phase 1 TCO and must not be added to the Phase 1 total without explicit replacement mapping. Unresolved pricing or overlap is excluded rather than represented as $0.",
   };
   const comparison = phase1Comparison(phase1Snapshot, economics);
 
@@ -178,9 +184,11 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
     } : null,
     software: software ? {
       horizonYears: software.horizonYears,
-      components: software.rows?.map((row) => ({ name: row.name, mode: row.mode, priceSource: row.priceSource, unit: row.unit, quantity: row.quantity })) || [],
+      components: software.rows?.map((row) => ({ name: row.name, mode: row.mode, priceSource: row.priceSource, unit: row.unit, quantity: row.quantity, tcoTreatment: row.tcoTreatment || null })) || [],
       totals: software.totals,
+      overlapSummary: software.overlapSummary || softwareBundle?.overlapSummary || null,
       costResolved: softwareBundle?.costResolved ?? null,
+      phase1OverlapResolved: softwareBundle?.phase1OverlapResolved ?? null,
     } : null,
     economics,
     phase1Comparison: comparison,
@@ -200,7 +208,7 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
       "Validate site electrical distribution, rack density, cooling method, floor loading and facility constraints.",
       "Validate storage OEM, protection model, filesystem/data path, performance design and final BOM.",
       "Validate fabric topology, routing/QoS/congestion-control design, optics/cabling and final BOM.",
-      "Validate software editions, entitlement terms, support levels, deployment architecture and operational ownership.",
+      "Validate software editions, entitlement terms, Phase 1 overlap treatment, support levels, deployment architecture and operational ownership.",
     ],
   };
 }
