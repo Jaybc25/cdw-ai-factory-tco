@@ -12,6 +12,31 @@ const button = { border: 0, borderRadius: 8, padding: "10px 14px", fontWeight: 8
 function money(v) { return `$${Math.round(Number(v || 0)).toLocaleString()}`; }
 function num(v, digits = 1) { return v == null ? "—" : Number(v).toFixed(digits); }
 
+function briefStatusTone(brief) {
+  if (brief.clientReady) {
+    return {
+      accent: "#176b31",
+      background: "#eaf7ee",
+      text: "#176b31",
+      explanation: "All required Phase 2 inputs are current and no unresolved quote or pricing items remain.",
+    };
+  }
+  if (brief.engineeringReviewReady) {
+    return {
+      accent: "#b7791f",
+      background: "#fff7e8",
+      text: "#7a5600",
+      explanation: "Sizing is coherent and current for engineering review, but open commercial or quote items remain before client-ready use.",
+    };
+  }
+  return {
+    accent: "#c8102e",
+    background: "#fff0f3",
+    text: "#8a1026",
+    explanation: "One or more accepted dependencies, fleet identities, or freshness checks require review before engineering handoff.",
+  };
+}
+
 export default function PodBriefPreview() {
   const { session, isLoggedIn, saveSnapshot } = useAuth();
   const storageBundle = useMemo(() => loadSessionState("phase2-storage-writeback"), []);
@@ -49,6 +74,8 @@ export default function PodBriefPreview() {
   const dependencies = useMemo(() => ({ storageBundle, fabricBundle, powerBundle, softwareBundle }), [storageBundle, fabricBundle, powerBundle, softwareBundle]);
   const brief = useMemo(() => buildPodBrief({ ...dependencies, phase1Snapshot }), [dependencies, phase1Snapshot]);
   const evaluatedRecord = useMemo(() => evaluateAcceptedPodBrief(acceptedRecord, { dependencies, phase1Snapshot }), [acceptedRecord, dependencies, phase1Snapshot]);
+  const statusTone = useMemo(() => briefStatusTone(brief), [brief]);
+  const reviewItems = useMemo(() => [...new Set([...(brief.unresolved || []), ...(brief.stale || []), ...(brief.fleetIssues || [])])], [brief.unresolved, brief.stale, brief.fleetIssues]);
 
   async function acceptBrief() {
     const record = createAcceptedPodBriefRecord({ brief, dependencies, phase1Snapshot });
@@ -58,6 +85,8 @@ export default function PodBriefPreview() {
     if (isLoggedIn) {
       await saveSnapshot("phase2-pod-brief", record, {
         status: brief.status,
+        clientReady: brief.clientReady,
+        engineeringReviewReady: brief.engineeringReviewReady,
         dependencyFingerprint: record.dependencyFingerprint,
         systemName: brief.compute.systemName,
         totalRacks: brief.compute.totalRacks,
@@ -66,6 +95,7 @@ export default function PodBriefPreview() {
         fabric: brief.fabric ? `${brief.fabric.technology} ${brief.fabric.linkGbps}G` : null,
         phase1ComparisonAvailable: Boolean(brief.phase1Comparison),
         unresolvedCount: brief.unresolved.length,
+        fleetIssueCount: brief.fleetIssues.length,
       });
     }
   }
@@ -96,9 +126,10 @@ export default function PodBriefPreview() {
               What the environment needs, which Phase 2 economics refine existing Phase 1 assumptions, what remains unresolved, and what CDW engineering should validate next.
             </p>
           </div>
-          <div className="pod-print-card" style={{ ...card, minWidth: 260, borderLeft: `6px solid ${brief.clientReady ? "#176b31" : "#c8102e"}` }}>
+          <div className="pod-print-card" style={{ ...card, minWidth: 280, maxWidth: 380, borderLeft: `6px solid ${statusTone.accent}`, background: statusTone.background }}>
             <div style={label}>Live brief status</div>
-            <div style={{ fontSize: 22, fontWeight: 900, marginTop: 6 }}>{brief.status}</div>
+            <div style={{ fontSize: 22, fontWeight: 900, marginTop: 6, color: statusTone.text }}>{brief.status}</div>
+            <div style={{ marginTop: 8, fontSize: 13, lineHeight: 1.45, color: "#555" }}>{statusTone.explanation}</div>
             {acceptedState && <div style={{ marginTop: 10, fontSize: 13 }}><strong>Accepted copy:</strong> {acceptedState}</div>}
           </div>
         </div>
@@ -141,7 +172,7 @@ export default function PodBriefPreview() {
             <div><strong>Raw provisioned</strong><br />{Math.round(brief.storage.totalRawTb).toLocaleString()} TB</div>
             <div><strong>Storage racks</strong><br />{brief.storage.storageRacks}</div>
             <div><strong>Storage power</strong><br />{num(brief.storage.storagePowerKw)} kW</div>
-            <div><strong>Aggregate bandwidth</strong><br />{num(brief.storage.aggregateGbps)} GB/s</div>
+            <div><strong>Aggregate bandwidth</strong><br />{num(brief.storage.aggregateGBps ?? brief.storage.aggregateGbps)} GB/s</div>
           </div> : <p>No accepted Storage requirement.</p>}
         </section>
 
@@ -198,8 +229,10 @@ export default function PodBriefPreview() {
           </> : <p>No saved Phase 1 TCO account snapshot is available yet. Run/save TCO while signed in to populate comparison context.</p>}
         </section>
 
-        {(brief.unresolved.length > 0 || brief.stale.length > 0) && <section className="pod-print-card" style={{ ...card, marginBottom: 18, background: "#fff7e8", borderColor: "#e4c679" }}>
-          <h2 style={{ marginTop: 0 }}>7. Unresolved / review-required items</h2><ul style={{ lineHeight: 1.6 }}>{[...brief.unresolved, ...brief.stale].map((item) => <li key={item}>{item}</li>)}</ul>
+        {reviewItems.length > 0 && <section className="pod-print-card" style={{ ...card, marginBottom: 18, background: brief.engineeringReviewReady ? "#fff7e8" : "#fff0f3", borderColor: brief.engineeringReviewReady ? "#e4c679" : "#efc9cf" }}>
+          <h2 style={{ marginTop: 0 }}>7. Unresolved / review-required items</h2>
+          <ul style={{ lineHeight: 1.6 }}>{reviewItems.map((item) => <li key={item}>{item}</li>)}</ul>
+          {brief.fleetIssues.length > 0 && <p style={{ marginBottom: 0, color: "#555" }}><strong>Fleet coherence:</strong> fleet-identity issues block engineering-review readiness until the accepted Phase 2 bundles can be compared to the canonical Phase 1 fleet.</p>}
         </section>}
 
         <section className="pod-print-card" style={{ ...card, marginBottom: 18 }}>
