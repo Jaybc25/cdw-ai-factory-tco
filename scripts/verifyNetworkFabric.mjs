@@ -1,9 +1,17 @@
 import assert from "node:assert/strict";
-import { calculateNetworkFabric, validateNetworkFabricInputs, FABRIC_TECHNOLOGY } from "../src/networkFabricEngine.js";
+import {
+  calculateNetworkFabric,
+  validateNetworkFabricInputs,
+  FABRIC_TECHNOLOGY,
+  FABRIC_LINK_MEDIA,
+  FABRIC_PRICE_SOURCE,
+} from "../src/networkFabricEngine.js";
 
 const base = {
   technology: FABRIC_TECHNOLOGY.INFINIBAND,
   linkGbps: 400,
+  linkMedia: FABRIC_LINK_MEDIA.OPTICAL,
+  priceSource: FABRIC_PRICE_SOURCE.EST,
   gpuSystems: 8,
   fabricPortsPerSystem: 8,
   storageAggregateGbps: 400,
@@ -19,6 +27,8 @@ const base = {
 };
 
 const result = calculateNetworkFabric(base);
+assert.equal(result.inputs.linkMedia, "optical");
+assert.equal(result.inputs.priceSource, "EST");
 assert.equal(result.ports.computeEndpointPorts, 64);
 assert.equal(result.ports.storagePorts, 2);
 assert.equal(result.ports.dataPlaneEndpointPorts, 66);
@@ -29,9 +39,33 @@ assert.ok(result.switches.total >= 1);
 assert.equal(result.bandwidth.storageBandwidthFit, true);
 assert.equal(result.topologyFeasibility.twoTierFeasible, true);
 assert.equal(result.topologyFeasibility.status, "FEASIBLE");
+assert.equal(result.media.opticalTransceiversRequired, true);
+assert.equal(result.media.transceiverCount, result.ports.totalLinks * 2);
 assert.ok(result.estimatedSwitchPowerKw > 0);
 assert.ok(result.flags.some((x) => x.includes("management ports are tracked as out-of-band")));
 assert.ok(result.flags.some((x) => x.includes("Switch cost is unresolved")));
+assert.ok(result.flags.some((x) => x.includes("Optical transceiver economics are unresolved")));
+
+const dac = calculateNetworkFabric({
+  ...base,
+  linkMedia: FABRIC_LINK_MEDIA.DAC,
+  switchCost: 20000,
+  cableCost: 500,
+  transceiverCost: 0,
+  priceSource: FABRIC_PRICE_SOURCE.QUOTE,
+});
+assert.equal(dac.media.type, "dac");
+assert.equal(dac.ports.totalTransceivers, 0, "DAC must not invent separate optical transceivers");
+assert.equal(dac.media.opticalTransceiversRequired, false);
+assert.equal(dac.pricing.source, "QUOTE");
+assert.equal(dac.pricing.transceiverCost, 0);
+assert.equal(dac.estimatedCapitalCost, dac.switches.total * 20000 + dac.ports.totalLinks * 500);
+assert.ok(dac.flags.some((x) => x.includes("Direct-attach cabling selected")));
+assert.ok(!dac.flags.some((x) => x.includes("Optical transceiver economics are unresolved")));
+const dacValidation = validateNetworkFabricInputs({ ...base, linkMedia: FABRIC_LINK_MEDIA.DAC, switchCost: 20000, cableCost: 500, transceiverCost: 0 });
+assert.equal(dacValidation.valid, true);
+assert.ok(dacValidation.warnings.some((x) => x.includes("zero transceiver cost is valid")));
+assert.ok(!dacValidation.warnings.some((x) => x.includes("transceiver pricing is unresolved")));
 
 const withoutManagement = calculateNetworkFabric({ ...base, managementPorts: 0 });
 assert.equal(result.switches.total, withoutManagement.switches.total, "management demand must not change high-speed switch count");
