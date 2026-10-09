@@ -45,6 +45,12 @@ const PHASE2_ROUTE_BUNDLE = Object.freeze({
   "/__phase2/software": "phase2-software-writeback",
 });
 
+export function phase2BundleKeyForPath(pathname) {
+  if (typeof pathname !== "string") return null;
+  const normalized = pathname.length > 1 ? pathname.replace(/\/+$/, "") : pathname;
+  return PHASE2_ROUTE_BUNDLE[normalized] || null;
+}
+
 function clearPrefixedSessionState() {
   const keys = [];
   for (let i = 0; i < sessionStorage.length; i += 1) {
@@ -152,7 +158,7 @@ function installPhase2LocalEditStaleGuard() {
 
   const markCurrentRouteStale = (event) => {
     if (!event?.isTrusted) return;
-    const key = PHASE2_ROUTE_BUNDLE[window.location.pathname];
+    const key = phase2BundleKeyForPath(window.location.pathname);
     if (!key) return;
     const reason = "Local inputs changed after this result was accepted. Recompute and accept this tool again before client use or downstream write-back.";
     markPhase2SessionBundleStale(key, reason);
