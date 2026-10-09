@@ -106,14 +106,20 @@ function LegacyInferenceEconomicsRedirect({ guided = false }) {
 
 function InferenceEconomicsRoute() {
   const location = useLocation();
-  const source = new URLSearchParams(location.search).get("source");
-  const backHref = source === "tco"
-    ? "/tco"
+  const params = new URLSearchParams(location.search);
+  const source = params.get("source");
+  const isRtxTco = source === "tco" && params.get("rtx") === "1";
+  const backHref = isRtxTco
+    ? "/tco/rtx-pro"
+    : source === "tco"
+      ? "/tco"
     : source === "gpu-sizing"
       ? "/gpu-sizing"
       : "/";
-  const backLabel = source === "tco"
-    ? "Adjust TCO assumptions"
+  const backLabel = isRtxTco
+    ? "Adjust RTX PRO TCO inputs"
+    : source === "tco"
+      ? "Adjust TCO assumptions"
     : source === "gpu-sizing"
       ? "Back to GPU Sizing"
       : "All tools";

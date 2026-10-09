@@ -27,13 +27,14 @@ import {
   listManagedApiProviders,
 } from "./managedApiPricingRegistry.js";
 
-const HARDWARE = ["H200", "B200", "GB200 NVL72", "B300", "GB300 NVL72"];
+const HARDWARE = ["H200", "B200", "GB200 NVL72", "B300", "GB300 NVL72", "RTX PRO 6000"];
 const PRECISIONS_BY_HARDWARE = {
   H200: ["FP8"],
   B200: ["FP4", "FP8", "FP16"],
   "GB200 NVL72": ["FP4", "FP8", "FP16"],
   B300: ["FP4", "FP8", "FP16"],
   "GB300 NVL72": ["FP4", "FP8", "FP16"],
+  "RTX PRO 6000": ["FP4"],
 };
 
 // Legacy source-level contract string retained for compatibility with the
@@ -95,6 +96,7 @@ export default function InferenceEconomicsGuidedPreview() {
     []
   );
   const inherited = handoff?.source === "tco";
+  const rtxBenchmarkId = useMemo(() => (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("benchmarkId") : null), []);
   const initialModelId = handoff?.modelId || saved?.modelId || null;
   const initialModel = initialModelId ? getModelById(initialModelId) : null;
   const modelOptions = useMemo(() => {
@@ -183,7 +185,7 @@ export default function InferenceEconomicsGuidedPreview() {
     setHardwareClass(nextHardware);
     const nextPrecisions = PRECISIONS_BY_HARDWARE[nextHardware] || ["FP8"];
     if (!nextPrecisions.includes(quant)) setQuant(nextPrecisions[0]);
-    setDeployedGpuCount(nextHardware.includes("NVL72") ? 72 : 8);
+    setDeployedGpuCount(nextHardware === "RTX PRO 6000" ? 2 : nextHardware.includes("NVL72") ? 72 : 8);
   }
 
   const result = useMemo(() => {
@@ -193,6 +195,7 @@ export default function InferenceEconomicsGuidedPreview() {
       quant,
       model,
       customParamsB,
+      benchmarkId: hardwareClass === "RTX PRO 6000" ? rtxBenchmarkId : null,
     });
     if (!throughput.ok) return { throughput };
 
@@ -231,7 +234,7 @@ export default function InferenceEconomicsGuidedPreview() {
 
     return { throughput, demand, capacity, economics };
   }, [
-    hardwareClass, deployedGpuCount, quant, model, customParamsB,
+    hardwareClass, deployedGpuCount, quant, model, customParamsB, rtxBenchmarkId,
     demandBasis, monthlyOutputTokens, annualOutputTokens, requestsPerDay, avgOutputTokens,
     activeDaysPerYear, productionServingFactor, activeHoursPerDay,
     attributableTcoUsd, horizonYears, demandGrowthRate, inheritedScenarioBlocked,

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { buildRtxProSingleServerTcoPolicy } from "./rtxProTcoPolicy.js";
 import { buildRtxProLifecycleTco } from "./rtxProLifecycleTco.js";
+import { buildRtxProInferenceEconomicsHandoff } from "./rtxProInferenceEconomicsConnector.js";
 
 const RED = "#CC0000";
 const INK = "#2D2D2D";
@@ -95,6 +96,7 @@ export default function RtxProTcoIntake() {
   const gpuCount = Number(params.get("gpuCount")) || 2;
   const model = params.get("model") || null;
   const precision = params.get("precision") || null;
+  const benchmarkId = params.get("benchmarkId") || null;
 
   const [nvidiaSoftwareUSD, setNvidiaSoftwareUSD] = useState("");
   const [supportUSD, setSupportUSD] = useState("");
@@ -147,6 +149,14 @@ export default function RtxProTcoIntake() {
   }), [policy, nvidiaSoftwareBasis, nvidiaSoftwareCoverageYears, supportBasis, supportCoverageYears, powerRate, horizonYears]);
 
   const lifecycleReady = policy.clientReady && lifecycle.clientReady;
+  const ieHandoff = useMemo(() => buildRtxProInferenceEconomicsHandoff({
+    gpuCount,
+    modelId: model,
+    quant: precision,
+    horizonYears,
+    onPremTcoUsd: lifecycleReady ? lifecycle.totalTcoUSD : null,
+    benchmarkId,
+  }), [gpuCount, model, precision, horizonYears, lifecycleReady, lifecycle.totalTcoUSD, benchmarkId]);
 
   if (policy.status === "UNSUPPORTED_CONFIGURATION") {
     return (
@@ -279,7 +289,10 @@ export default function RtxProTcoIntake() {
 
       <div className="flex flex-wrap gap-3">
         <a href="/gpu-sizing" className="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white">Back to GPU Sizing</a>
-        <a href="/tco" className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: RED }}>Open enterprise TCO calculator</a>
+        {lifecycleReady && ieHandoff.eligible && (
+          <a href={ieHandoff.href} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: RED }}>Continue to Inference Economics</a>
+        )}
+        <a href="/tco" className="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white">Open enterprise TCO calculator</a>
       </div>
     </div>
   );

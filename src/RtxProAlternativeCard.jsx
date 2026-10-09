@@ -25,6 +25,7 @@ export default function RtxProAlternativeCard({ rtxAlt }) {
     gpuCount: String(deployment.serverGpuCount),
     model: benchmark.modelId,
     precision: benchmark.precision,
+    benchmarkId: benchmark.id,
     source: "gpu-sizing",
   });
 
