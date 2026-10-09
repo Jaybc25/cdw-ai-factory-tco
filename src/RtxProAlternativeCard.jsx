@@ -61,6 +61,20 @@ export function buildRtxProTcoHref(rtxAlt) {
   return `/tco/rtx-pro?${params.toString()}`;
 }
 
+export function buildRtxProPlanningTcoHref(gpuCount) {
+  const saved = loadSessionState("gpu-sizing");
+  if (!saved?.infModelId || !saved?.quant || ![2, 4, 8].includes(Number(gpuCount))) return null;
+  const params = new URLSearchParams({
+    gpuCount: String(gpuCount),
+    model: saved.infModelId,
+    precision: saved.quant,
+    source: "gpu-sizing",
+    validationRequired: "1",
+    sizingBasis: "USER_SELECTED_PLANNING_SCENARIO",
+  });
+  return `/tco/rtx-pro?${params.toString()}`;
+}
+
 function TradeoffNote({ candidate = false }) {
   return (
     <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
@@ -70,10 +84,12 @@ function TradeoffNote({ candidate = false }) {
 }
 
 export default function RtxProAlternativeCard({ rtxAlt, compact = false, reportOnly = false, selectable = false, selected = false, onSelect = null }) {
+  const [planningSelected, setPlanningSelected] = React.useState(false);
   if (!rtxAlt) return null;
 
   const evaluatedAlt = rebuildDistributedMemoryAlternative(rtxAlt);
-  const selectedClasses = selected ? "border-red-500 ring-2 ring-red-100" : "border-blue-200";
+  const visualSelected = selected || planningSelected;
+  const selectedClasses = visualSelected ? "border-red-500 ring-2 ring-red-100" : "border-blue-200";
   const shell = compact
     ? `rounded-xl p-5 flex-1 min-w-[220px] border ${selectedClasses} bg-blue-50 text-left`
     : `mb-4 rounded-xl p-4 border ${selectedClasses} bg-blue-50 text-left`;
@@ -100,6 +116,45 @@ export default function RtxProAlternativeCard({ rtxAlt, compact = false, reportO
               <strong>Why consider it:</strong> RTX PRO may provide a lower-cost entry point than an 8-GPU DGX/HGX-class system when the workload can be served through independent replicas.
             </p>
             <TradeoffNote candidate />
+            {!reportOnly && (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPlanningSelected((value) => !value);
+                    onSelect?.();
+                  }}
+                  aria-pressed={planningSelected}
+                  className="w-full rounded-lg border px-3 py-2 text-left text-xs font-semibold"
+                  style={{ borderColor: planningSelected ? "#CC0000" : "#2563EB", color: planningSelected ? "#CC0000" : "#1E40AF", background: "white" }}
+                >
+                  {planningSelected ? "Selected · choose an RTX PRO planning configuration" : "Tap to select RTX PRO for TCO planning"}
+                </button>
+                {planningSelected && (
+                  <div className="mt-3 rounded-lg border border-blue-200 bg-white p-3" data-testid="rtx-planning-config-picker">
+                    <div className="text-xs font-bold text-blue-950 mb-1">Choose a planning configuration</div>
+                    <div className="text-[11px] text-blue-900 mb-3">
+                      This is a user-selected planning scenario, not a benchmark-derived GPU recommendation. Engineering validation remains required before purchase or production sizing.
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {[2, 4, 8].map((count) => {
+                        const href = buildRtxProPlanningTcoHref(count);
+                        return href ? (
+                          <a
+                            key={count}
+                            href={href}
+                            className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
+                            style={{ background: "#CC0000" }}
+                          >
+                            Continue with {count} GPUs
+                          </a>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         ) : (
           <>
