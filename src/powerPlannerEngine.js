@@ -80,8 +80,11 @@ export function calculatePowerPlanner(inputs) {
 
   const computeRacks = Math.ceil(systemCount / systemsPerRack);
   const storageRacks = Math.max(0, Math.ceil(n(inputs.storageRacks)));
-  const networkRacks = Math.max(0, Math.ceil(n(inputs.networkRacks)));
-  const totalRacks = computeRacks + storageRacks + networkRacks;
+  const networkRacksInput = optionalNonNegative(inputs.networkRacks);
+  const networkRacks = effectiveNetworkKw > 0 && networkRacksInput != null ? Math.ceil(networkRacksInput) : effectiveNetworkKw > 0 ? null : 0;
+  const rackFootprintComplete = networkRacks != null;
+  const knownNetworkRacks = networkRacks ?? 0;
+  const totalRacks = computeRacks + storageRacks + knownNetworkRacks;
 
   const computeAvgKw = systemCount * avgKwPerSystem;
   const computeDesignKw = systemCount * designKwPerSystem;
@@ -112,24 +115,25 @@ export function calculatePowerPlanner(inputs) {
   const coolingMismatch = coolingCapability === "liquid-only" && !["direct-liquid", "immersion"].includes(coolingType);
   const rackPowerMismatch = availableKwPerRack != null && computeRackDesignKw > availableKwPerRack;
   const totalPowerMismatch = totalFacilityKwAvailable != null && facilityDesignKw > totalFacilityKwAvailable;
-  const rackCountMismatch = rackPositionsAvailable != null && totalRacks > rackPositionsAvailable;
+  const rackCountMismatch = rackFootprintComplete && rackPositionsAvailable != null && totalRacks > rackPositionsAvailable;
   const siteInputsProvided = [availableKwPerRack, totalFacilityKwAvailable, rackPositionsAvailable].filter((value) => value != null).length;
-  const siteInputsComplete = siteInputsProvided === 3;
+  const siteInputsComplete = siteInputsProvided === 3 && rackFootprintComplete;
 
   let verdict = "requirement-only";
   if (facilityBranch === "colocation") verdict = "colocation";
   else if (coolingMismatch || rackPowerMismatch || totalPowerMismatch || rackCountMismatch) verdict = "retrofit";
   else if (siteInputsComplete) verdict = "fits-as-is";
-  else if (siteInputsProvided > 0) verdict = "partial-check";
+  else if (siteInputsProvided > 0 || !rackFootprintComplete) verdict = "partial-check";
 
   const flags = [];
   if (coolingMismatch) flags.push("Selected system requires liquid cooling but the chosen facility cooling type is not liquid-capable.");
   if (rackPowerMismatch) flags.push(`Compute rack design load (${computeRackDesignKw.toFixed(1)} kW/rack) exceeds stated rack capacity (${availableKwPerRack.toFixed(1)} kW/rack).`);
   if (totalPowerMismatch) flags.push(`Facility design demand (${facilityDesignKw.toFixed(1)} kW including PUE) exceeds stated total facility capacity (${totalFacilityKwAvailable.toFixed(1)} kW).`);
   if (rackCountMismatch) flags.push(`Required rack positions (${totalRacks}) exceed stated available positions (${rackPositionsAvailable}).`);
+  if (!rackFootprintComplete) flags.push("Network rack footprint is unresolved. Enter the planned network/fabric rack positions before treating total rack count or facility-fit results as complete.");
   if (!acceptedFabricPower && provisionalNetworkKw === 0) flags.push("Network/head-node power allowance is still 0 kW; Power remains provisional until Fabric supplies switch power or a planning allowance is entered.");
   if (acceptedFabricPower && effectiveManagementHeadNodeKw === 0) flags.push("Accepted Fabric switch power is included, but the management/head-node allowance is 0 kW. Confirm that management, control-plane, and head-node power is intentionally excluded before client use.");
-  if (siteInputsProvided > 0 && !siteInputsComplete) flags.push("Facility fit is only partially checked. Enter rack kW, total facility kW, and rack positions before treating the site verdict as complete.");
+  if (siteInputsProvided > 0 && !siteInputsComplete) flags.push("Facility fit is only partially checked. Enter rack kW, total facility kW, rack positions, and the network rack footprint before treating the site verdict as complete.");
   if (!facilityCostResolved) flags.push(facilityBranch === "owned-dc"
     ? "Owned-datacenter facility burden is unresolved. Enter a customer-supported $/design-kW-month value before treating facility economics as TCO-ready."
     : "Colocation facility burden is unresolved. Enter a customer/partner monthly bundle before treating facility economics as TCO-ready.");
@@ -147,6 +151,7 @@ export function calculatePowerPlanner(inputs) {
       provisionalNetworkKw,
       fabricSwitchPowerKw,
       managementHeadNodeKw: effectiveManagementHeadNodeKw,
+      networkRacks,
       pue,
       utilityRatePerKwh,
       facilityBranch,
@@ -159,7 +164,7 @@ export function calculatePowerPlanner(inputs) {
       totalFacilityKwAvailable,
       rackPositionsAvailable,
     },
-    racks: { compute: computeRacks, storage: storageRacks, network: networkRacks, total: totalRacks },
+    racks: { compute: computeRacks, storage: storageRacks, network: networkRacks, total: rackFootprintComplete ? totalRacks : null, knownTotal: totalRacks, footprintComplete: rackFootprintComplete },
     networkPower: {
       acceptedFabricPower,
       switchKw: acceptedFabricPower ? fabricSwitchPowerKw : null,
@@ -180,7 +185,7 @@ export function calculatePowerPlanner(inputs) {
       facilityCostResolved,
     },
     verdict,
-    siteCheck: { inputsProvided: siteInputsProvided, complete: siteInputsComplete },
+    siteCheck: { inputsProvided: siteInputsProvided, complete: siteInputsComplete, rackFootprintComplete },
     flags,
     methodology: {
       energy: "average IT kW × PUE × 730 hours × utility rate; suppressed as a separate TCO cost when an accepted colocation bundle is explicitly marked as including electricity",
@@ -189,6 +194,7 @@ export function calculatePowerPlanner(inputs) {
       coolingTons: "BTU/hr ÷ 12,000",
       storagePower: explicitStoragePowerKw == null ? "storage PB × provisional kW/PB" : "accepted Storage Sizer power requirement",
       networkPower: acceptedFabricPower ? "accepted Fabric switch kW + explicit management/head-node kW" : "provisional combined network + head-node kW",
+      networkRacks: effectiveNetworkKw > 0 ? "explicit network/fabric rack positions; unresolved when blank" : "0 racks when no network power is modeled",
       facilityBurden: facilityBranch === "owned-dc" ? "design IT kW × customer-supported owned facility burden $/kW-month; unresolved when blank/zero" : `customer/partner colocation monthly bundle; ${coloBundleIncludesPower ? "electricity included, so standalone utility cost is suppressed" : "electricity excluded, so standalone utility cost remains separate"}`,
     },
   };
