@@ -20,11 +20,26 @@ const base = {
 
 const result = calculateNetworkFabric(base);
 assert.equal(result.ports.computeEndpointPorts, 64);
-assert.equal(result.ports.endpointPorts, 74);
+assert.equal(result.ports.storagePorts, 2);
+assert.equal(result.ports.dataPlaneEndpointPorts, 66);
+assert.equal(result.ports.endpointPorts, 66, "management ports must not consume high-speed fabric leaf ports");
+assert.equal(result.ports.managementPorts, 8);
+assert.equal(result.ports.managementPortsExcludedFromFabric, true);
 assert.ok(result.switches.total >= 1);
 assert.equal(result.bandwidth.storageBandwidthFit, true);
 assert.ok(result.estimatedSwitchPowerKw > 0);
+assert.ok(result.flags.some((x) => x.includes("management ports are tracked as out-of-band")));
 assert.ok(result.flags.some((x) => x.includes("Switch cost is unresolved")));
+
+const withoutManagement = calculateNetworkFabric({ ...base, managementPorts: 0 });
+assert.equal(result.switches.total, withoutManagement.switches.total, "management demand must not change high-speed switch count");
+assert.equal(result.ports.totalTransceivers, withoutManagement.ports.totalTransceivers, "management demand must not change high-speed optic count");
+assert.equal(result.estimatedSwitchPowerKw, withoutManagement.estimatedSwitchPowerKw, "management demand must not change high-speed switch power");
+assert.equal(result.estimatedCapitalCost, withoutManagement.estimatedCapitalCost, "management demand must not change high-speed fabric CAPEX");
+
+const validation = validateNetworkFabricInputs(base);
+assert.equal(validation.valid, true);
+assert.ok(validation.warnings.some((x) => x.includes("Management/control-plane ports are tracked separately")));
 
 const bandwidthFail = calculateNetworkFabric({ ...base, storageAggregateGbps: 1200, storagePorts: 2 });
 assert.equal(bandwidthFail.bandwidth.storageBandwidthFit, false);
