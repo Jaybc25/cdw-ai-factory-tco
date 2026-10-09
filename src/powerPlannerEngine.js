@@ -45,6 +45,11 @@ function n(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function optionalNonNegative(value) {
+  if (value === "" || value == null) return null;
+  return Math.max(0, n(value));
+}
+
 export function calculatePowerPlanner(inputs) {
   const systemCount = Math.max(0, Math.ceil(n(inputs.systemCount)));
   const avgKwPerSystem = Math.max(0, n(inputs.avgKwPerSystem));
@@ -52,16 +57,16 @@ export function calculatePowerPlanner(inputs) {
   const systemsPerRack = Math.max(1, n(inputs.systemsPerRack, 1));
   const storagePb = Math.max(0, n(inputs.storagePb));
   const storageKwPerPb = Math.max(0, n(inputs.storageKwPerPb, 10));
-  const explicitStoragePowerKw = inputs.storagePowerKw == null || inputs.storagePowerKw === "" ? null : Math.max(0, n(inputs.storagePowerKw));
+  const explicitStoragePowerKw = optionalNonNegative(inputs.storagePowerKw);
   const provisionalNetworkKw = Math.max(0, n(inputs.provisionalNetworkKw));
   const pue = Math.max(1, n(inputs.pue, 1));
   const utilityRatePerKwh = Math.max(0, n(inputs.utilityRatePerKwh));
-  const availableKwPerRack = inputs.availableKwPerRack === "" || inputs.availableKwPerRack == null ? null : Math.max(0, n(inputs.availableKwPerRack));
-  const totalFacilityKwAvailable = inputs.totalFacilityKwAvailable === "" || inputs.totalFacilityKwAvailable == null ? null : Math.max(0, n(inputs.totalFacilityKwAvailable));
+  const availableKwPerRack = optionalNonNegative(inputs.availableKwPerRack);
+  const totalFacilityKwAvailable = optionalNonNegative(inputs.totalFacilityKwAvailable);
   const rackPositionsAvailable = inputs.rackPositionsAvailable === "" || inputs.rackPositionsAvailable == null ? null : Math.max(0, Math.floor(n(inputs.rackPositionsAvailable)));
   const facilityBranch = inputs.facilityBranch === "colocation" ? "colocation" : "owned-dc";
-  const ownedFacilityBurdenPerKwMonth = Math.max(0, n(inputs.ownedFacilityBurdenPerKwMonth));
-  const coloMonthlyBundle = Math.max(0, n(inputs.coloMonthlyBundle));
+  const ownedFacilityBurdenPerKwMonth = optionalNonNegative(inputs.ownedFacilityBurdenPerKwMonth);
+  const coloMonthlyBundle = optionalNonNegative(inputs.coloMonthlyBundle);
   const coolingType = inputs.coolingType || "air-standard";
   const coolingCapability = inputs.coolingCapability || "air-capable";
 
@@ -85,10 +90,14 @@ export function calculatePowerPlanner(inputs) {
 
   const monthlyKwh = averageItKw * pue * HOURS_PER_MONTH;
   const monthlyEnergyCost = monthlyKwh * utilityRatePerKwh;
-  const monthlyFacilityBurden = facilityBranch === "owned-dc"
-    ? designItKw * ownedFacilityBurdenPerKwMonth
-    : coloMonthlyBundle;
-  const monthlyFacilityTotal = monthlyEnergyCost + monthlyFacilityBurden;
+  const facilityCostInput = facilityBranch === "owned-dc" ? ownedFacilityBurdenPerKwMonth : coloMonthlyBundle;
+  const facilityCostResolved = facilityCostInput != null && facilityCostInput > 0;
+  const monthlyFacilityBurden = !facilityCostResolved
+    ? null
+    : facilityBranch === "owned-dc"
+      ? designItKw * ownedFacilityBurdenPerKwMonth
+      : coloMonthlyBundle;
+  const monthlyFacilityTotal = monthlyFacilityBurden == null ? null : monthlyEnergyCost + monthlyFacilityBurden;
 
   const coolingMismatch = coolingCapability === "liquid-only" && !["direct-liquid", "immersion"].includes(coolingType);
   const rackPowerMismatch = availableKwPerRack != null && computeRackDesignKw > availableKwPerRack;
@@ -110,6 +119,9 @@ export function calculatePowerPlanner(inputs) {
   if (rackCountMismatch) flags.push(`Required rack positions (${totalRacks}) exceed stated available positions (${rackPositionsAvailable}).`);
   if (provisionalNetworkKw === 0) flags.push("Network/head-node power allowance is still 0 kW; Power remains provisional until Fabric supplies this dependency or a planning allowance is entered.");
   if (siteInputsProvided > 0 && !siteInputsComplete) flags.push("Facility fit is only partially checked. Enter rack kW, total facility kW, and rack positions before treating the site verdict as complete.");
+  if (!facilityCostResolved) flags.push(facilityBranch === "owned-dc"
+    ? "Owned-datacenter facility burden is unresolved. Enter a customer-supported $/design-kW-month value before treating facility economics as TCO-ready."
+    : "Colocation facility burden is unresolved. Enter a customer/partner monthly bundle before treating facility economics as TCO-ready.");
 
   return {
     inputs: {
@@ -135,7 +147,7 @@ export function calculatePowerPlanner(inputs) {
     racks: { compute: computeRacks, storage: storageRacks, network: networkRacks, total: totalRacks },
     power: { computeAvgKw, computeDesignKw, storageKw, averageItKw, designItKw, facilityDesignKw, avgRackDesignKw, computeRackDesignKw },
     cooling: { heatBtuPerHour, coolingTons },
-    economics: { monthlyKwh, monthlyEnergyCost, monthlyFacilityBurden, monthlyFacilityTotal },
+    economics: { monthlyKwh, monthlyEnergyCost, monthlyFacilityBurden, monthlyFacilityTotal, facilityCostResolved },
     verdict,
     siteCheck: { inputsProvided: siteInputsProvided, complete: siteInputsComplete },
     flags,
@@ -145,7 +157,7 @@ export function calculatePowerPlanner(inputs) {
       heatRejection: "design IT kW × 3,412 BTU/hr per kW",
       coolingTons: "BTU/hr ÷ 12,000",
       storagePower: explicitStoragePowerKw == null ? "storage PB × provisional kW/PB" : "accepted Storage Sizer power requirement",
-      facilityBurden: facilityBranch === "owned-dc" ? "design IT kW × owned facility burden $/kW-month" : "customer/partner colocation monthly bundle",
+      facilityBurden: facilityBranch === "owned-dc" ? "design IT kW × customer-supported owned facility burden $/kW-month; unresolved when blank/zero" : "customer/partner colocation monthly bundle; unresolved when blank/zero",
     },
   };
 }
