@@ -4,7 +4,7 @@ import { buildStorageDependencyBundle } from "../src/storageSizerWriteback.js";
 import { calculatePowerPlanner } from "../src/powerPlannerEngine.js";
 import { buildPowerPlannerWritebackBundle } from "../src/powerPlannerWriteback.js";
 
-function makeStorage(baseDatasetTb, activeWorkingSetTb = "") {
+function makeStorage(baseDatasetTb, activeWorkingSetTb = "", manualThroughputGBps = "") {
   const result = calculateStorageSizer({
     workload: "training",
     baseDatasetTb,
@@ -20,6 +20,7 @@ function makeStorage(baseDatasetTb, activeWorkingSetTb = "") {
     reservePct: 20,
     usableEfficiency: 0.75,
     gpuCount: 16,
+    manualThroughputGBps,
     ingestGbps: 2,
     fastTierTbPerRack: 500,
     bulkTierTbPerRack: 1000,
@@ -60,15 +61,17 @@ function makePower(storage) {
 const storageA = makeStorage(500);
 const storageB = makeStorage(750);
 assert.notEqual(storageA.fingerprint, storageB.fingerprint, "Storage fingerprint must change when accepted inputs change");
-assert.equal(storageA.schemaVersion, 3);
+assert.equal(storageA.schemaVersion, 4);
 assert.equal(storageA.economicsScope, "REQUIREMENT-ONLY");
 assert.equal(storageA.pricingIncluded, false);
 assert.equal(storageA.requirements.pricingStatus, "OUT-OF-SCOPE");
 assert.match(storageA.requirements.pricingNote, /vendor-neutral capacity\/performance\/rack\/power requirement/i);
 assert.equal(storageA.requirements.bandwidthUnit, "GB/s");
 assert.equal(storageA.requirements.aggregateGBps, storageA.requirements.aggregateGbps, "Legacy alias must remain numerically identical during preview migration");
-assert.equal(storageA.assumptions.activeWorkingSet.source, "EST");
-assert.equal(storageA.assumptions.throughputPerGpu.source, "EST");
+assert.equal(storageA.assumptions.activeWorkingSet.source, "EST", "blank working-set override must remain an estimate");
+assert.equal(storageA.assumptions.activeWorkingSet.explicitTb, null, "blank working-set override must normalize to null, not zero/customer");
+assert.equal(storageA.assumptions.throughputPerGpu.source, "EST", "blank manual throughput must remain an estimate");
+assert.equal(storageA.assumptions.throughputPerGpu.manualReadGBps, null);
 assert.equal(storageA.assumptions.rackDensity.source, "EST");
 assert.equal(storageA.assumptions.rackPower.source, "EST");
 assert.equal("costResolved" in storageA, false, "Storage sizing must not pretend to have unresolved pricing state");
@@ -77,6 +80,12 @@ const explicitWorkingSet = makeStorage(500, 120);
 assert.equal(explicitWorkingSet.assumptions.activeWorkingSet.source, "CUSTOMER", "Explicit active working set must preserve customer provenance");
 assert.equal(explicitWorkingSet.assumptions.activeWorkingSet.explicitTb, 120);
 assert.match(explicitWorkingSet.assumptions.activeWorkingSet.note, /customer active-working-set capacity/i);
+
+const explicitThroughput = makeStorage(500, "", 24);
+assert.equal(explicitThroughput.assumptions.throughputPerGpu.source, "CUSTOMER", "Manual throughput must preserve customer provenance");
+assert.equal(explicitThroughput.assumptions.throughputPerGpu.manualReadGBps, 24);
+assert.match(explicitThroughput.assumptions.throughputPerGpu.note, /customer-supplied read-throughput/i);
+assert.notEqual(explicitThroughput.fingerprint, storageA.fingerprint, "customer throughput evidence must alter the accepted Storage fingerprint");
 
 const powerA = makePower(storageA);
 assert.equal(powerA.requirements.upstreamStorageFingerprint, storageA.fingerprint);
