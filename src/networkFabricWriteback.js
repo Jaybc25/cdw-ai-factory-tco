@@ -14,6 +14,7 @@ function baseInputsFromResult(result) {
     linkGbps: result.inputs.linkGbps,
     linkMedia: result.inputs.linkMedia,
     priceSource: result.inputs.priceSource,
+    storageFabricMode: result.inputs.storageFabricMode,
     fabricPortsPerSystem: result.inputs.fabricPortsPerSystem,
     storageAggregateGbps: result.inputs.storageAggregateGbps,
     storagePorts: result.inputs.storagePorts,
@@ -35,6 +36,7 @@ export function networkFabricFingerprint(result, upstreamStorageFingerprint = nu
     fleet,
     gpuSystems: result.inputs.gpuSystems,
     upstreamStorageFingerprint,
+    storageFabric: result.storageFabric,
     switches: result.switches,
     ports: result.ports,
     topologyFeasibility: result.topologyFeasibility,
@@ -108,13 +110,14 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
     provenance: makeProvenance({
       source,
       derivation: PHASE2_DERIVATION.CALCULATED,
-      label: `${priceSource} high-speed fabric unit pricing × calculated switch/media quantities (${result.media.type})`,
+      label: `${priceSource} high-speed fabric unit pricing × calculated switch/media quantities (${result.media.type}); storage ${result.storageFabric.converged ? "converged into" : "separate from"} this fabric`,
     }),
     dependencies: {
       fabricFingerprint: fingerprint,
       fleet,
       gpuSystems: result.inputs.gpuSystems,
       upstreamStorageFingerprint,
+      storageFabric: result.storageFabric,
       topologyFeasibility: result.topologyFeasibility,
       media: result.media,
       pricing: result.pricing,
@@ -124,7 +127,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
   })] : [];
 
   return {
-    schemaVersion: 4,
+    schemaVersion: 5,
     sourceTool: "network-fabric",
     acceptedAt: new Date().toISOString(),
     fingerprint,
@@ -141,6 +144,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
       linkGbps: result.inputs.linkGbps,
       topology: result.topology,
       topologyFeasibility: result.topologyFeasibility,
+      storageFabric: result.storageFabric,
       media: result.media,
       pricing: result.pricing,
       switches: result.switches,
@@ -161,10 +165,10 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
       costNote: !topologyResolved
         ? "The current fleet exceeds the modeled two-tier topology envelope. Fabric switch count, power, cabling, optics, and CAPEX remain lower-bound planning values only; no TCO CAPEX override is eligible until engineering resolves the topology."
         : costResolved
-          ? `${priceSource} high-speed fabric pricing is resolved for ${result.media.type} media. Management/control-plane networking remains outside this CAPEX envelope.`
+          ? `${priceSource} high-speed fabric pricing is resolved for ${result.media.type} media. Storage networking is ${result.storageFabric.converged ? "explicitly converged into" : "explicitly separate from"} this fabric. Management/control-plane networking remains outside this CAPEX envelope.`
           : optical
-            ? "High-speed optical fabric requirement is accepted, but no CAPEX override is eligible until switch, cable, and transceiver prices are supplied."
-            : "High-speed DAC fabric requirement is accepted, but no CAPEX override is eligible until switch and DAC cable prices are supplied. Separate optical transceiver pricing is not required in DAC mode.",
+            ? `High-speed optical fabric requirement is accepted, but no CAPEX override is eligible until switch, cable, and transceiver prices are supplied. Storage networking is ${result.storageFabric.converged ? "converged" : "separate"}.`
+            : `High-speed DAC fabric requirement is accepted, but no CAPEX override is eligible until switch and DAC cable prices are supplied. Storage networking is ${result.storageFabric.converged ? "converged" : "separate"}. Separate optical transceiver pricing is not required in DAC mode.`,
     },
   };
 }
