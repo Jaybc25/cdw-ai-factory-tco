@@ -23,7 +23,9 @@ const base = calculatePowerPlanner({
 });
 
 assert.equal(base.racks.compute, 4);
+assert.equal(base.racks.network, 1);
 assert.equal(base.racks.total, 6);
+assert.equal(base.racks.footprintComplete, true);
 assert.equal(base.power.computeAvgKw, 115.2);
 assert.equal(base.power.computeDesignKw, 128);
 assert.equal(base.power.designItKw, 150);
@@ -41,7 +43,7 @@ assert.equal(base.flags.length, 0);
 const acceptedFabric = calculatePowerPlanner({
   ...base.inputs,
   storageRacks: 1,
-  networkRacks: 1,
+  networkRacks: 2,
   provisionalNetworkKw: 12,
   fabricSwitchPowerKw: 4.5,
   managementHeadNodeKw: 3.5,
@@ -50,6 +52,8 @@ assert.equal(acceptedFabric.networkPower.acceptedFabricPower, true);
 assert.equal(acceptedFabric.networkPower.switchKw, 4.5);
 assert.equal(acceptedFabric.networkPower.managementHeadNodeKw, 3.5);
 assert.equal(acceptedFabric.networkPower.totalKw, 8);
+assert.equal(acceptedFabric.racks.network, 2);
+assert.equal(acceptedFabric.racks.total, 7);
 assert.equal(acceptedFabric.power.networkKw, 8);
 assert.equal(acceptedFabric.power.designItKw, 146, "Accepted Fabric switch power must add to, not erase, management/head-node power");
 
@@ -62,6 +66,17 @@ const acceptedFabricMissingManagement = calculatePowerPlanner({
 });
 assert.equal(acceptedFabricMissingManagement.networkPower.totalKw, 4.5);
 assert.ok(acceptedFabricMissingManagement.flags.some((f) => f.includes("management/head-node allowance is 0 kW")));
+
+const unresolvedNetworkRackFootprint = calculatePowerPlanner({
+  ...base.inputs,
+  networkRacks: "",
+});
+assert.equal(unresolvedNetworkRackFootprint.racks.network, null);
+assert.equal(unresolvedNetworkRackFootprint.racks.total, null);
+assert.equal(unresolvedNetworkRackFootprint.racks.footprintComplete, false);
+assert.equal(unresolvedNetworkRackFootprint.siteCheck.complete, false);
+assert.equal(unresolvedNetworkRackFootprint.verdict, "partial-check", "Missing network rack footprint must block FITS AS-IS");
+assert.ok(unresolvedNetworkRackFootprint.flags.some((f) => f.includes("Network rack footprint is unresolved")));
 
 const requirementOnly = calculatePowerPlanner({
   ...base.inputs,
@@ -101,6 +116,7 @@ const liquidMismatch = calculatePowerPlanner({
   systemsPerRack: 1,
   storagePb: 0,
   provisionalNetworkKw: 5,
+  networkRacks: 1,
   pue: 1.2,
   utilityRatePerKwh: 0.1,
   facilityBranch: "owned-dc",
@@ -118,6 +134,7 @@ const colo = calculatePowerPlanner({
   systemsPerRack: 2,
   storagePb: 0,
   provisionalNetworkKw: 4,
+  networkRacks: 1,
   pue: 1.2,
   utilityRatePerKwh: 0.1,
   facilityBranch: "colocation",
