@@ -40,6 +40,11 @@ export function calculateNetworkFabric(inputs) {
   const requiredLeafUplinks = leafSwitches * leafUplinksPerSwitch;
 
   const spineSwitches = leafSwitches <= 1 ? 0 : Math.ceil(requiredLeafUplinks / switchRadix);
+  const leafCountFitsSpineRadix = leafSwitches <= switchRadix;
+  const spineCountFitsLeafUplinks = spineSwitches <= leafUplinksPerSwitch;
+  const twoTierFeasible = leafSwitches <= 1 || (leafCountFitsSpineRadix && spineCountFitsLeafUplinks);
+  const requiresAdditionalTier = leafSwitches > 1 && !twoTierFeasible;
+
   const totalSwitches = leafSwitches + spineSwitches;
   const interSwitchLinks = leafSwitches <= 1 ? 0 : requiredLeafUplinks;
   const highSpeedFabricLinks = dataPlaneEndpointPorts + interSwitchLinks + uplinkPorts;
@@ -52,10 +57,11 @@ export function calculateNetworkFabric(inputs) {
   const estimatedSwitchPowerKw = totalSwitches * switchPowerKw;
   const estimatedCapitalCost = totalSwitches * switchCost + highSpeedFabricLinks * cableCost + totalTransceivers * transceiverCost;
 
-  const topology = leafSwitches === 1 ? "single-tier" : "leaf-spine";
+  const topology = leafSwitches === 1 ? "single-tier" : twoTierFeasible ? "leaf-spine" : "multi-tier-review";
   const flags = [];
   if (!storageBandwidthFit) flags.push(`Storage requires ${storageAggregateGbps.toFixed(1)} Gbps but ${storagePorts} storage ports at ${linkGbps} Gbps provide ${theoreticalStorageGbps.toFixed(1)} Gbps theoretical edge bandwidth.`);
   if (portHeadroom < Math.ceil(dataPlaneEndpointPorts * 0.1)) flags.push("Less than 10% data-plane endpoint-port headroom remains in the calculated leaf tier; consider additional growth capacity.");
+  if (requiresAdditionalTier) flags.push(`The calculated two-tier fabric is not physically feasible with ${leafSwitches} leaf switches, ${spineSwitches} spine switches, and ${switchRadix}-port switches. This fleet exceeds the modeled leaf/spine connectivity envelope and requires additional-tier or alternate-topology engineering; switch count, power, cabling, optics, and CAPEX are lower-bound planning values only.`);
   if (managementPorts > 0) flags.push(`${managementPorts} management ports are tracked as out-of-band/control-plane demand and are intentionally excluded from high-speed fabric switch, optic, cable, and power sizing.`);
   if (switchCost === 0) flags.push("Switch cost is unresolved; fabric economics remain QUOTE/EST until a validated BOM or price book is supplied.");
   if (cableCost === 0 || transceiverCost === 0) flags.push("Cable/transceiver economics are unresolved and are excluded from current capital-cost output.");
@@ -79,6 +85,21 @@ export function calculateNetworkFabric(inputs) {
       transceiverCost,
     },
     topology,
+    topologyFeasibility: {
+      twoTierFeasible,
+      requiresAdditionalTier,
+      leafCountFitsSpineRadix,
+      spineCountFitsLeafUplinks,
+      switchRadix,
+      leafSwitches,
+      spineSwitches,
+      leafUplinksPerSwitch,
+      maxLeafSwitchesPerSpinePlane: switchRadix,
+      status: twoTierFeasible ? "FEASIBLE" : "ENGINEERING-REVIEW",
+      note: twoTierFeasible
+        ? "The calculated single-tier or leaf/spine structure fits the modeled switch-radix connectivity envelope."
+        : "Aggregate port arithmetic alone is insufficient at this scale. Additional-tier or alternate-topology engineering is required before BOM, power, and CAPEX are treated as resolved.",
+    },
     ports: {
       computeEndpointPorts,
       storagePorts,
@@ -109,7 +130,8 @@ export function calculateNetworkFabric(inputs) {
     methodology: {
       endpointPorts: "GPU-system fabric ports + storage-facing ports; management/control-plane ports are tracked separately and excluded from high-speed fabric sizing",
       leafSizing: "data-plane endpoint ports ÷ calculated leaf downlink budget from switch radix and target oversubscription",
-      spineSizing: "leaf uplink demand ÷ switch radix",
+      spineSizing: "leaf uplink demand ÷ switch radix, followed by a two-tier connectivity-feasibility check",
+      topologyFeasibility: "a modeled two-tier fabric is feasible only when every spine can reach the leaf set within switch radix and each leaf can reach the spine set within its uplink-port budget",
       managementScope: "management/control-plane connectivity is a separate network requirement; this planner does not size its switches, optics, cabling, or power",
       storageCheck: "accepted Storage aggregate bandwidth compared with storage-facing port bandwidth",
       scope: "planning-level data-plane port, bandwidth, rack-power and cost envelope; not a routing/QoS/cabling implementation design",
