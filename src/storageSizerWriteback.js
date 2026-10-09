@@ -12,14 +12,17 @@ export function buildStorageDependencyBundle(result, { workload } = {}) {
   const readGBps = result.throughput.requiredReadGBps ?? result.throughput.requiredReadGbps;
   const writeGBps = result.throughput.requiredWriteGBps ?? result.throughput.requiredWriteGbps;
   const aggregateGBps = result.throughput.aggregateGBps ?? result.throughput.aggregateGbps;
+  const activeWorkingSetIsCustomer = result.inputs?.activeWorkingSetTb != null;
 
   const assumptions = {
     activeWorkingSet: {
-      source: PHASE2_SOURCE.EST,
+      source: activeWorkingSetIsCustomer ? PHASE2_SOURCE.CUSTOMER : PHASE2_SOURCE.EST,
       derivation: PHASE2_DERIVATION.CALCULATED,
       valuePct: result.inputs?.activeWorkingSetPct ?? null,
       explicitTb: result.inputs?.activeWorkingSetTb ?? null,
-      note: "Planning assumption unless replaced by customer workload evidence.",
+      note: activeWorkingSetIsCustomer
+        ? "Explicit customer active-working-set capacity supplied."
+        : "Planning assumption derived from the selected workload profile unless replaced by customer workload evidence.",
     },
     throughputPerGpu: {
       source: PHASE2_SOURCE.EST,
@@ -72,13 +75,14 @@ export function buildStorageDependencyBundle(result, { workload } = {}) {
   });
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     sourceTool: "storage-sizer",
     acceptedAt,
     fingerprint,
     workload,
     fleet,
-    costResolved: false,
+    economicsScope: "REQUIREMENT-ONLY",
+    pricingIncluded: false,
     overrides: [capacityOverride],
     assumptions,
     requirements: {
@@ -95,6 +99,8 @@ export function buildStorageDependencyBundle(result, { workload } = {}) {
       bandwidthUnit: "GB/s",
       storageRacks: result.racks.total,
       storagePowerKw: result.estimatedPowerKw,
+      pricingStatus: "OUT-OF-SCOPE",
+      pricingNote: "Storage Sizer produces a vendor-neutral capacity/performance/rack/power requirement. OEM selection, BOM design, and quoted storage economics remain an engineering/procurement follow-on and do not make the accepted sizing requirement unresolved.",
       flags: result.flags,
     },
   };
