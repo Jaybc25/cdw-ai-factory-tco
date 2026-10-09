@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { POWER_PLANNER_SYSTEM_PROFILES, calculatePowerPlanner } from "./powerPlannerEngine.js";
 import { buildPowerPlannerWritebackBundle, validatePowerPlannerInputs } from "./powerPlannerWriteback.js";
-import { PHASE2_STATE } from "./phase2Contract.js";
+import { PHASE2_SOURCE, PHASE2_STATE } from "./phase2Contract.js";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
 
 const field = { display: "grid", gap: 6 };
@@ -11,6 +11,15 @@ const label = { fontSize: 12, fontWeight: 800, color: "#555", textTransform: "up
 const primaryButton = { border: 0, borderRadius: 8, padding: "11px 15px", fontWeight: 800, background: "#c8102e", color: "#fff", cursor: "pointer" };
 const money = (v) => v == null ? "Unresolved" : `$${Math.round(Number(v || 0)).toLocaleString()}`;
 const kw = (v) => `${Number(v || 0).toFixed(1)} kW`;
+
+function sourceOptions() {
+  return <>
+    <option value={PHASE2_SOURCE.EST}>EST · planning estimate</option>
+    <option value={PHASE2_SOURCE.CUSTOMER}>CUSTOMER · customer supplied</option>
+    <option value={PHASE2_SOURCE.QUOTE}>QUOTE · partner/provider quote</option>
+    <option value={PHASE2_SOURCE.LISTED}>LISTED · published/listed source</option>
+  </>;
+}
 
 export default function PowerPlannerPreview() {
   const acceptedStorage = useMemo(() => loadSessionState("phase2-storage-writeback"), []);
@@ -30,10 +39,12 @@ export default function PowerPlannerPreview() {
   const [networkRacks, setNetworkRacks] = useState("");
   const [pue, setPue] = useState(1.35);
   const [utilityRatePerKwh, setUtilityRatePerKwh] = useState(0.11);
+  const [utilityRateSource, setUtilityRateSource] = useState(PHASE2_SOURCE.EST);
   const [facilityBranch, setFacilityBranch] = useState("owned-dc");
   const [ownedFacilityBurdenPerKwMonth, setOwnedFacilityBurdenPerKwMonth] = useState("");
   const [coloMonthlyBundle, setColoMonthlyBundle] = useState("");
   const [coloBundleIncludesPower, setColoBundleIncludesPower] = useState(false);
+  const [facilityCostSource, setFacilityCostSource] = useState(PHASE2_SOURCE.CUSTOMER);
   const [coolingType, setCoolingType] = useState("air-containment");
   const [availableKwPerRack, setAvailableKwPerRack] = useState("");
   const [totalFacilityKwAvailable, setTotalFacilityKwAvailable] = useState("");
@@ -71,6 +82,11 @@ export default function PowerPlannerPreview() {
     if (next.coolingCapability === "liquid-only") setCoolingType("direct-liquid");
     clearAcceptance();
   }
+  function chooseFacilityBranch(branch) {
+    setFacilityBranch(branch);
+    setFacilityCostSource(branch === "colocation" ? PHASE2_SOURCE.QUOTE : PHASE2_SOURCE.CUSTOMER);
+    clearAcceptance();
+  }
 
   const effectiveStoragePb = storageRequirement ? storageRequirement.totalRawTb / 1000 : storagePb;
   const effectiveStoragePowerKw = storageRequirement ? storageRequirement.storagePowerKw : null;
@@ -90,10 +106,10 @@ export default function PowerPlannerPreview() {
     try {
       const upstreamStorage = useAcceptedStorage && acceptedStorage ? { fingerprint: acceptedStorage.fingerprint, acceptedAt: acceptedStorage.acceptedAt } : null;
       const upstreamNetwork = useAcceptedNetwork && acceptedNetwork ? { fingerprint: acceptedNetwork.fingerprint, acceptedAt: acceptedNetwork.acceptedAt } : null;
-      const bundle = buildPowerPlannerWritebackBundle(result, { systemName, upstreamStorage, upstreamNetwork });
+      const bundle = buildPowerPlannerWritebackBundle(result, { systemName, upstreamStorage, upstreamNetwork, utilityRateSource, facilityCostSource });
       saveSessionState("phase2-power-writeback", bundle);
       setSavedPower(bundle);
-      setAcceptance({ ok: true, costResolved: bundle.costResolved, energyIncludedInFacilityBundle: bundle.energyIncludedInFacilityBundle });
+      setAcceptance({ ok: true, costResolved: bundle.costResolved, energyIncludedInFacilityBundle: bundle.energyIncludedInFacilityBundle, utilityRateSource: bundle.utilityRateSource, facilityCostSource: bundle.facilityCostSource });
     } catch (error) { setAcceptance({ ok: false, message: error.message }); }
   }
 
@@ -118,17 +134,18 @@ export default function PowerPlannerPreview() {
       <label style={field}><span style={label}>Network / fabric rack positions</span><input style={input} type="number" min="0" step="1" placeholder="Enter planned rack footprint" value={networkRacks} onChange={(e) => { setNetworkRacks(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
       <label style={field}><span style={label}>PUE</span><input style={input} type="number" step="0.01" value={pue} onChange={(e) => { setPue(Number(e.target.value)); clearAcceptance(); }} /></label>
       <label style={field}><span style={label}>Utility rate ($/kWh)</span><input style={input} type="number" step="0.01" value={utilityRatePerKwh} onChange={(e) => { setUtilityRatePerKwh(Number(e.target.value)); clearAcceptance(); }} /></label>
+      <label style={field}><span style={label}>Utility-rate source</span><select style={input} value={utilityRateSource} onChange={(e) => { setUtilityRateSource(e.target.value); clearAcceptance(); }}>{sourceOptions()}</select></label>
       <label style={field}><span style={label}>Cooling type</span><select style={input} value={coolingType} onChange={(e) => { setCoolingType(e.target.value); clearAcceptance(); }}><option value="air-standard">Air · standard CRAC</option><option value="air-containment">Air · containment</option><option value="rear-door">Rear-door heat exchanger</option><option value="direct-liquid">Direct liquid</option><option value="immersion">Immersion</option></select></label>
       <label style={field}><span style={label}>Available kW / rack</span><input style={input} value={availableKwPerRack} placeholder="Enter if known" onChange={(e) => { setAvailableKwPerRack(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
       <label style={field}><span style={label}>Total facility kW available</span><input style={input} value={totalFacilityKwAvailable} placeholder="Enter if known" onChange={(e) => { setTotalFacilityKwAvailable(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
       <label style={field}><span style={label}>Rack positions available</span><input style={input} value={rackPositionsAvailable} placeholder="Enter if known" onChange={(e) => { setRackPositionsAvailable(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>
     </div>{networkRequirement && <p style={{ background: "#fff7e8", padding: 12 }}><strong>Dependency caution:</strong> Fabric supplies switch power and switch count, but not a validated rack layout. Enter the planned network/fabric rack positions explicitly; management/control-plane/head-node power also remains separate.</p>}</section>
 
-    <section style={{ ...card, marginBottom: 18 }}><h2 style={{ marginTop: 0 }}>2. Facility economics</h2><label><input type="radio" checked={facilityBranch === "owned-dc"} onChange={() => { setFacilityBranch("owned-dc"); clearAcceptance(); }} /> Owned datacenter</label> <label><input type="radio" checked={facilityBranch === "colocation"} onChange={() => { setFacilityBranch("colocation"); clearAcceptance(); }} /> Colocation</label>{facilityBranch === "owned-dc" ? <label style={{ ...field, maxWidth: 360, marginTop: 12 }}><span style={label}>Facility burden ($/design kW-month)</span><input style={input} placeholder="Enter customer-supported value" value={ownedFacilityBurdenPerKwMonth} onChange={(e) => { setOwnedFacilityBurdenPerKwMonth(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label> : <div style={{ display: "grid", gap: 12, maxWidth: 520, marginTop: 12 }}><label style={field}><span style={label}>Colocation monthly bundle</span><input style={input} placeholder="Enter customer/partner bundle" value={coloMonthlyBundle} onChange={(e) => { setColoMonthlyBundle(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label><label style={{ display: "flex", gap: 8, alignItems: "flex-start", lineHeight: 1.45 }}><input type="checkbox" checked={coloBundleIncludesPower} onChange={(e) => { setColoBundleIncludesPower(e.target.checked); clearAcceptance(); }} /><span><strong>Colocation bundle includes electricity</strong><br /><span style={{ color: "#666" }}>When selected, the utility-energy estimate remains visible for consumption planning but is not written to TCO separately.</span></span></label></div>}<p>No default facility burden is invented; unresolved facility cost stays out of TCO.</p></section>
+    <section style={{ ...card, marginBottom: 18 }}><h2 style={{ marginTop: 0 }}>2. Facility economics and provenance</h2><label><input type="radio" checked={facilityBranch === "owned-dc"} onChange={() => chooseFacilityBranch("owned-dc")} /> Owned datacenter</label> <label><input type="radio" checked={facilityBranch === "colocation"} onChange={() => chooseFacilityBranch("colocation")} /> Colocation</label><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12, marginTop: 12 }}>{facilityBranch === "owned-dc" ? <label style={field}><span style={label}>Facility burden ($/design kW-month)</span><input style={input} placeholder="Enter customer-supported value" value={ownedFacilityBurdenPerKwMonth} onChange={(e) => { setOwnedFacilityBurdenPerKwMonth(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label> : <label style={field}><span style={label}>Colocation monthly bundle</span><input style={input} placeholder="Enter customer/partner bundle" value={coloMonthlyBundle} onChange={(e) => { setColoMonthlyBundle(e.target.value === "" ? "" : Number(e.target.value)); clearAcceptance(); }} /></label>}<label style={field}><span style={label}>Facility-cost source</span><select style={input} value={facilityCostSource} onChange={(e) => { setFacilityCostSource(e.target.value); clearAcceptance(); }}>{sourceOptions()}</select></label></div>{facilityBranch === "colocation" && <label style={{ display: "flex", gap: 8, alignItems: "flex-start", lineHeight: 1.45, marginTop: 12 }}><input type="checkbox" checked={coloBundleIncludesPower} onChange={(e) => { setColoBundleIncludesPower(e.target.checked); clearAcceptance(); }} /><span><strong>Colocation bundle includes electricity</strong><br /><span style={{ color: "#666" }}>When selected, the utility-energy estimate remains visible for consumption planning but is not written to TCO separately.</span></span></label>}<p>No default facility burden is invented; unresolved facility cost stays out of TCO. Source selections flow into writeback provenance and the dependency fingerprint, so changing provenance requires recompute/accept.</p></section>
 
-    <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 18 }}><div style={card}><div style={label}>Verdict</div><strong>{result.verdict.toUpperCase()}</strong></div><div style={card}><div style={label}>Racks</div><strong>{result.racks.total ?? "Unresolved"}</strong><div style={{ color: "#666" }}>{result.racks.compute} compute · {result.racks.storage} storage · {result.racks.network ?? "?"} network</div></div><div style={card}><div style={label}>Network + management</div><strong>{kw(result.networkPower.totalKw)}</strong><div>{result.networkPower.basis}</div></div><div style={card}><div style={label}>Design IT</div><strong>{kw(result.power.designItKw)}</strong></div><div style={card}><div style={label}>Facility demand</div><strong>{kw(result.power.facilityDesignKw)}</strong></div><div style={card}><div style={label}>Monthly energy estimate</div><strong>{money(result.economics.monthlyEnergyCost)}</strong><div style={{ color: "#666" }}>{result.economics.energyIncludedInFacilityBundle ? "Included in colo bundle · no separate TCO write-back" : "Separate TCO energy line"}</div></div><div style={card}><div style={label}>Facility burden / bundle</div><strong>{money(result.economics.monthlyFacilityBurden)}</strong></div><div style={card}><div style={label}>Combined monthly facility cost</div><strong>{money(result.economics.monthlyFacilityTotal)}</strong></div></section>
+    <section style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12, marginBottom: 18 }}><div style={card}><div style={label}>Verdict</div><strong>{result.verdict.toUpperCase()}</strong></div><div style={card}><div style={label}>Racks</div><strong>{result.racks.total ?? "Unresolved"}</strong><div style={{ color: "#666" }}>{result.racks.compute} compute · {result.racks.storage} storage · {result.racks.network ?? "?"} network</div></div><div style={card}><div style={label}>Network + management</div><strong>{kw(result.networkPower.totalKw)}</strong><div>{result.networkPower.basis}</div></div><div style={card}><div style={label}>Design IT</div><strong>{kw(result.power.designItKw)}</strong></div><div style={card}><div style={label}>Facility demand</div><strong>{kw(result.power.facilityDesignKw)}</strong></div><div style={card}><div style={label}>Monthly energy estimate</div><strong>{money(result.economics.monthlyEnergyCost)}</strong><div style={{ color: "#666" }}>{result.economics.energyIncludedInFacilityBundle ? "Included in colo bundle · no separate TCO write-back" : `${utilityRateSource} utility-rate source`}</div></div><div style={card}><div style={label}>Facility burden / bundle</div><strong>{money(result.economics.monthlyFacilityBurden)}</strong><div style={{ color: "#666" }}>{result.economics.facilityCostResolved ? `${facilityCostSource} facility-cost source` : "Unresolved"}</div></div><div style={card}><div style={label}>Combined monthly facility cost</div><strong>{money(result.economics.monthlyFacilityTotal)}</strong></div></section>
 
     <section style={{ ...card, marginBottom: 18 }}><h2 style={{ marginTop: 0 }}>3. Flags and methodology</h2>{result.flags.length ? <ul>{result.flags.map((x) => <li key={x}>{x}</li>)}</ul> : <p>No planning flags.</p>}</section>
-    <section style={{ ...card, borderLeft: "6px solid #c8102e" }}><h2 style={{ marginTop: 0 }}>4. Recompute and accept Power</h2>{!validation.valid && <ul>{validation.errors.map((x) => <li key={x}>{x}</li>)}</ul>}{validation.warnings.length > 0 && <ul style={{ color: "#7a5600" }}>{validation.warnings.map((x) => <li key={x}>{x}</li>)}</ul>}<button type="button" style={{ ...primaryButton, opacity: validation.valid ? 1 : .45 }} disabled={!validation.valid} onClick={stageForTco}>Recompute, accept, and stage for TCO</button>{acceptance?.ok && <p>Power accepted. {acceptance.energyIncludedInFacilityBundle ? "Colocation electricity is included in the bundle, so no separate utility-energy TCO line was staged." : "Facility burden is included only when resolved."}</p>}{acceptance && !acceptance.ok && <p style={{ color: "#9b1c31" }}>{acceptance.message}</p>}</section>
+    <section style={{ ...card, borderLeft: "6px solid #c8102e" }}><h2 style={{ marginTop: 0 }}>4. Recompute and accept Power</h2>{!validation.valid && <ul>{validation.errors.map((x) => <li key={x}>{x}</li>)}</ul>}{validation.warnings.length > 0 && <ul style={{ color: "#7a5600" }}>{validation.warnings.map((x) => <li key={x}>{x}</li>)}</ul>}<button type="button" style={{ ...primaryButton, opacity: validation.valid ? 1 : .45 }} disabled={!validation.valid} onClick={stageForTco}>Recompute, accept, and stage for TCO</button>{acceptance?.ok && <p>Power accepted. Utility provenance: <strong>{acceptance.utilityRateSource}</strong>. {acceptance.costResolved ? <>Facility provenance: <strong>{acceptance.facilityCostSource}</strong>. </> : "Facility economics remain unresolved. "}{acceptance.energyIncludedInFacilityBundle ? "Colocation electricity is included in the bundle, so no separate utility-energy TCO line was staged." : "Facility burden is included only when resolved."}</p>}{acceptance && !acceptance.ok && <p style={{ color: "#9b1c31" }}>{acceptance.message}</p>}</section>
   </main></div>;
 }
