@@ -1,0 +1,44 @@
+name: Apply RTX card selection integration
+on:
+  push:
+    branches:
+      - fix/rtx-card-selectable
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/rtx-card-selectable
+      - name: Patch calculator selection flow
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('src/GpuSizingCalculator.jsx')
+          s = p.read_text()
+          replacements = [
+            ('import RtxProAlternativeCard from "./RtxProAlternativeCard.jsx";', 'import RtxProAlternativeCard, { buildRtxProTcoHref } from "./RtxProAlternativeCard.jsx";'),
+            ('const effectiveTcoSelection = tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";', 'const rtxTcoHref = mode === "Inference" ? buildRtxProTcoHref(result?.rtxAlt) : null;\n  const effectiveTcoSelection = tcoSelection === "rtx" && rtxTcoHref ? "rtx" : tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";'),
+            ('const selectedBudget = effectiveTcoSelection === "higher-growth" ? result?.budget?.higherGrowth : result?.budget?.recommended;', 'const selectedBudget = effectiveTcoSelection === "rtx" ? null : effectiveTcoSelection === "higher-growth" ? result?.budget?.higherGrowth : result?.budget?.recommended;'),
+            ('const tcoScaleoutClassification = mode === "Inference" && result && tcoSelectedClass', 'const tcoScaleoutClassification = mode === "Inference" && effectiveTcoSelection !== "rtx" && result && tcoSelectedClass'),
+            ('{mode === "Inference" ? <RtxProAlternativeCard rtxAlt={result.rtxAlt} compact /> : <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />}', '{mode === "Inference" ? <RtxProAlternativeCard rtxAlt={result.rtxAlt} compact selectable={Boolean(rtxTcoHref)} selected={effectiveTcoSelection === "rtx"} onSelect={() => setTcoSelection("rtx")} /> : <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />}'),
+            ('<TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} gpuDemandCount={effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.workload : result?.minTechnical} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} scaleoutClassification={tcoScaleoutClassification} />', '''{effectiveTcoSelection === "rtx" && rtxTcoHref ? (\n                <div className="mb-6 rounded-xl p-4 border border-blue-200 bg-blue-50" data-testid="rtx-selected-handoff">\n                  <div className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-1">Selected next step · RTX PRO TCO</div>\n                  <div className="text-xs text-blue-900 mb-3">Carry the selected right-sized RTX PRO configuration into lifecycle TCO, then continue into Inference Economics using the same GPU count, model, precision, and admitted benchmark evidence.</div>\n                  <a href={rtxTcoHref} className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-lg text-white" style={{ background: RED }}>Continue to RTX PRO TCO</a>\n                </div>\n              ) : (\n                <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} gpuDemandCount={effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.workload : result?.minTechnical} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} scaleoutClassification={tcoScaleoutClassification} />\n              )}''')
+          ]
+          for old, new in replacements:
+              count = s.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one match, found {count}: {old[:120]}')
+              s = s.replace(old, new)
+          p.write_text(s)
+          PY
+      - name: Remove temporary workflow and commit
+        run: |
+          rm .github/workflows/patch-rtx-card-selection.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/GpuSizingCalculator.jsx .github/workflows/patch-rtx-card-selection.yml
+          git commit -m "Integrate RTX PRO into GPU sizing selection flow"
+          git push origin HEAD:fix/rtx-card-selectable
