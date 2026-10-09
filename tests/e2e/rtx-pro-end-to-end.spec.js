@@ -64,7 +64,7 @@ test("RTX PRO single-server TCO hands exact benchmark and lifecycle TCO into IE"
   await expect(page.getByText(/\/ 1M output tokens/)).toBeVisible();
 
   await page.getByText("Evidence & methodology", { exact: true }).click();
-  await expect(page.getByText(/Independent-replica scaling: 2 RTX PRO GPUs/)).toBeVisible();
+  await expect(page.getByText(/Replica-scaled · 2 × 1-GPU serving groups/)).toBeVisible();
 });
 
 test("RTX PRO IE rejects a tampered benchmark id", async ({ page }) => {
