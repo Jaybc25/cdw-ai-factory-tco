@@ -21,6 +21,13 @@ export const FABRIC_PRICE_SOURCE = Object.freeze({
   QUOTE: "QUOTE",
 });
 
+export const FABRIC_PORT_SOURCE = Object.freeze({
+  EST: "EST",
+  LISTED: "LISTED",
+  CUSTOMER: "CUSTOMER",
+  QUOTE: "QUOTE",
+});
+
 export const STORAGE_FABRIC_MODE = Object.freeze({
   CONVERGED: "converged",
   SEPARATE: "separate",
@@ -36,6 +43,8 @@ export function calculateNetworkFabric(inputs) {
   const linkGbps = Object.values(FABRIC_SPEED).includes(Number(inputs.linkGbps)) ? Number(inputs.linkGbps) : FABRIC_SPEED.G400;
   const linkMedia = Object.values(FABRIC_LINK_MEDIA).includes(inputs.linkMedia) ? inputs.linkMedia : FABRIC_LINK_MEDIA.OPTICAL;
   const priceSource = Object.values(FABRIC_PRICE_SOURCE).includes(inputs.priceSource) ? inputs.priceSource : FABRIC_PRICE_SOURCE.EST;
+  const fabricPortsPerSystemSource = Object.values(FABRIC_PORT_SOURCE).includes(inputs.fabricPortsPerSystemSource) ? inputs.fabricPortsPerSystemSource : FABRIC_PORT_SOURCE.EST;
+  const fabricPortsPerSystemNote = String(inputs.fabricPortsPerSystemNote || "").trim();
   const storageFabricMode = Object.values(STORAGE_FABRIC_MODE).includes(inputs.storageFabricMode) ? inputs.storageFabricMode : STORAGE_FABRIC_MODE.SEPARATE;
   const storageConverged = storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED;
   const gpuSystems = Math.max(1, Math.ceil(n(inputs.gpuSystems, 1)));
@@ -80,6 +89,8 @@ export function calculateNetworkFabric(inputs) {
 
   const topology = leafSwitches === 1 ? "single-tier" : twoTierFeasible ? "leaf-spine" : "multi-tier-review";
   const flags = [];
+  if (fabricPortsPerSystemSource === FABRIC_PORT_SOURCE.EST) flags.push(`${fabricPortsPerSystem} high-speed fabric ports per GPU system is a planning estimate. Replace or confirm it from a listed system/OEM port map, customer standard, or quote before treating the BOM as authoritative.`);
+  if (fabricPortsPerSystemSource !== FABRIC_PORT_SOURCE.EST && !fabricPortsPerSystemNote) flags.push(`Fabric port-count source is marked ${fabricPortsPerSystemSource}, but no supporting basis/note is recorded. Add the system/OEM/customer/quote reference before client use.`);
   if (storageConverged && !storageBandwidthFit) flags.push(`Storage requires ${storageAggregateGbps.toFixed(1)} Gbps but ${storagePorts} storage ports at ${linkGbps} Gbps provide ${theoreticalStorageGbps.toFixed(1)} Gbps theoretical edge bandwidth.`);
   if (!storageConverged && storageAggregateGbps > 0) flags.push("Storage networking is modeled as separate from this high-speed compute fabric. Accepted Storage bandwidth remains a dependency/reference but does not consume compute-fabric switch ports, links, optics/cables, or switch power in this plan.");
   if (portHeadroom < Math.ceil(dataPlaneEndpointPorts * 0.1)) flags.push("Less than 10% data-plane endpoint-port headroom remains in the calculated leaf tier; consider additional growth capacity.");
@@ -100,6 +111,8 @@ export function calculateNetworkFabric(inputs) {
       storageFabricMode,
       gpuSystems,
       fabricPortsPerSystem,
+      fabricPortsPerSystemSource,
+      fabricPortsPerSystemNote,
       storageAggregateGbps,
       storagePorts,
       managementPorts,
@@ -110,6 +123,13 @@ export function calculateNetworkFabric(inputs) {
       cableCost,
       switchCost,
       transceiverCost,
+    },
+    fabricPortBasis: {
+      portsPerGpuSystem: fabricPortsPerSystem,
+      source: fabricPortsPerSystemSource,
+      note: fabricPortsPerSystemNote || null,
+      status: fabricPortsPerSystemSource === FABRIC_PORT_SOURCE.EST ? "PLANNING-ASSUMPTION" : fabricPortsPerSystemNote ? "SUPPORTED" : "SOURCE-NOTE-MISSING",
+      authoritative: fabricPortsPerSystemSource !== FABRIC_PORT_SOURCE.EST && Boolean(fabricPortsPerSystemNote),
     },
     storageFabric: {
       mode: storageFabricMode,
@@ -182,6 +202,7 @@ export function calculateNetworkFabric(inputs) {
     estimatedCapitalCost,
     flags,
     methodology: {
+      fabricPortBasis: `${fabricPortsPerSystem} high-speed fabric ports per GPU system from ${fabricPortsPerSystemSource}${fabricPortsPerSystemNote ? ` (${fabricPortsPerSystemNote})` : ""}; this count drives compute endpoint-port, switch, media, power, and CAPEX sizing`,
       endpointPorts: storageConverged
         ? "GPU-system fabric ports + explicitly converged storage-facing ports; management/control-plane ports are tracked separately"
         : "GPU-system fabric ports only; storage and management/control-plane networks are tracked separately and excluded from high-speed compute-fabric sizing",
@@ -203,8 +224,11 @@ export function validateNetworkFabricInputs(inputs) {
   const warnings = [];
   const linkMedia = Object.values(FABRIC_LINK_MEDIA).includes(inputs.linkMedia) ? inputs.linkMedia : FABRIC_LINK_MEDIA.OPTICAL;
   const storageFabricMode = Object.values(STORAGE_FABRIC_MODE).includes(inputs.storageFabricMode) ? inputs.storageFabricMode : STORAGE_FABRIC_MODE.SEPARATE;
+  const fabricPortsPerSystemSource = Object.values(FABRIC_PORT_SOURCE).includes(inputs.fabricPortsPerSystemSource) ? inputs.fabricPortsPerSystemSource : FABRIC_PORT_SOURCE.EST;
   if (n(inputs.gpuSystems) < 1) errors.push("At least one GPU system is required.");
   if (n(inputs.fabricPortsPerSystem) < 1) errors.push("Fabric ports per system must be at least 1.");
+  if (fabricPortsPerSystemSource === FABRIC_PORT_SOURCE.EST) warnings.push("Fabric ports per GPU system is still an EST planning assumption. Confirm the count from a listed system/OEM port map, customer standard, or quote before treating the fabric BOM as authoritative.");
+  if (fabricPortsPerSystemSource !== FABRIC_PORT_SOURCE.EST && !String(inputs.fabricPortsPerSystemNote || "").trim()) warnings.push(`Fabric port-count source is ${fabricPortsPerSystemSource}, but its supporting basis/note is blank.`);
   if (n(inputs.switchRadix) < 8) errors.push("Switch radix must be at least 8 ports.");
   if (n(inputs.targetOversubscription, 1) < 1) errors.push("Target oversubscription must be 1.0 or greater.");
   if (storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED && n(inputs.storageAggregateGbps) > 0 && n(inputs.storagePorts) < 1) errors.push("Converged storage bandwidth is non-zero but no storage-facing high-speed fabric ports are defined.");
