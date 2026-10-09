@@ -83,10 +83,13 @@ test("unsupported Gemma benchmark is selectable for explicit 2/4/8 RTX TCO plann
   await expect(candidate).toContainText("does not provide NVLink/NVSwitch-style scale-up");
   await expect(candidate).not.toContainText(/\d+ × NVIDIA RTX PRO/);
 
-  const select = candidate.getByRole("button", { name: "Tap to select RTX PRO for TCO planning" });
+  const select = candidate.locator('button[aria-pressed]');
+  await expect(select).toHaveCount(1);
+  await expect(select).toContainText("Tap to select RTX PRO for TCO planning");
   await expect(select).toHaveAttribute("aria-pressed", "false");
   await select.click();
   await expect(select).toHaveAttribute("aria-pressed", "true");
+  await expect(select).toContainText("Selected · choose an RTX PRO planning configuration");
 
   const picker = candidate.getByTestId("rtx-planning-config-picker");
   await expect(picker).toBeVisible();
