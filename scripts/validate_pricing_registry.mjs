@@ -231,6 +231,21 @@ if (!sizingSource.includes("].filter((gpu) => GPU_PRICE_USD[gpu.id]);")) {
   errors.push("GpuSizingCalculator.jsx must filter technical GPU references to current price-book-backed on-prem purchase classes");
 }
 
+// GPU Sizing UI must consume the evidence-gated RTX server engine and must
+// not retain the former Dev/Test workstation estimate in parallel.
+if (!sizingSource.includes('import { sizeRtxProInference } from "./rtxProGpuSizing.js";')) {
+  errors.push("GPU Sizing must import the evidence-gated RTX PRO sizing engine");
+}
+if (!sizingSource.includes('<RtxProAlternativeCard rtxAlt={result.rtxAlt} />')) {
+  errors.push("GPU Sizing must render the RTX PRO server alternative from the evidence-gated result");
+}
+if (sizingSource.includes("const RTX_SPEC") || sizingSource.includes("maxWorkstationGPUs") || sizingSource.includes("Workstation alternative")) {
+  errors.push("Legacy workstation-class RTX sizing must not coexist with the production RTX PRO server path");
+}
+if (sizingSource.includes('inputs.environment === "Dev/Test/POC" && rtxWorkload')) {
+  errors.push("RTX PRO server eligibility must not be gated by the legacy Dev/Test workstation condition");
+}
+
 if (errors.length) {
   console.error("Shared pricing registry validation FAILED:");
   for (const error of errors) console.error(`- ${error}`);
