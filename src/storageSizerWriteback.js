@@ -12,7 +12,8 @@ export function buildStorageDependencyBundle(result, { workload } = {}) {
   const readGBps = result.throughput.requiredReadGBps ?? result.throughput.requiredReadGbps;
   const writeGBps = result.throughput.requiredWriteGBps ?? result.throughput.requiredWriteGbps;
   const aggregateGBps = result.throughput.aggregateGBps ?? result.throughput.aggregateGbps;
-  const activeWorkingSetIsCustomer = result.inputs?.activeWorkingSetTb != null;
+  const activeWorkingSetIsCustomer = result.assumptions?.activeWorkingSetSource === PHASE2_SOURCE.CUSTOMER;
+  const throughputIsCustomer = result.assumptions?.throughputPerGpuSource === PHASE2_SOURCE.CUSTOMER;
 
   const assumptions = {
     activeWorkingSet: {
@@ -25,10 +26,13 @@ export function buildStorageDependencyBundle(result, { workload } = {}) {
         : "Planning assumption derived from the selected workload profile unless replaced by customer workload evidence.",
     },
     throughputPerGpu: {
-      source: PHASE2_SOURCE.EST,
+      source: throughputIsCustomer ? PHASE2_SOURCE.CUSTOMER : PHASE2_SOURCE.EST,
       derivation: PHASE2_DERIVATION.CALCULATED,
       valueGBpsPerGpu: result.profile?.throughputGBpsPerGpu ?? result.profile?.throughputGbpsPerGpu ?? null,
-      note: "Workload planning estimate; manual customer throughput overrides it when supplied.",
+      manualReadGBps: result.inputs?.manualThroughputGBps ?? null,
+      note: throughputIsCustomer
+        ? "Customer-supplied read-throughput requirement overrides the workload/GPU planning estimate."
+        : "Workload planning estimate; manual customer throughput overrides it when supplied.",
     },
     rackDensity: {
       source: PHASE2_SOURCE.EST,
@@ -75,7 +79,7 @@ export function buildStorageDependencyBundle(result, { workload } = {}) {
   });
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 4,
     sourceTool: "storage-sizer",
     acceptedAt,
     fingerprint,
@@ -92,7 +96,6 @@ export function buildStorageDependencyBundle(result, { workload } = {}) {
       readGBps,
       writeGBps,
       aggregateGBps,
-      // Backward-compatible aliases retained during the Phase 2 preview. Values are GB/s, not Gbps.
       readGbps: readGBps,
       writeGbps: writeGBps,
       aggregateGbps: aggregateGBps,
