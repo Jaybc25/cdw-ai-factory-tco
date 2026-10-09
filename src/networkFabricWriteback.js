@@ -89,7 +89,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
     provenance: makeProvenance({
       source: PHASE2_SOURCE.EST,
       derivation: PHASE2_DERIVATION.CALCULATED,
-      label: "Current-fleet fabric capital-cost envelope from switch, cable, and transceiver planning inputs",
+      label: "Current-fleet high-speed fabric capital-cost envelope from switch, cable, and transceiver planning inputs",
     }),
     dependencies: {
       fabricFingerprint: fingerprint,
@@ -102,7 +102,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
   })] : [];
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     sourceTool: "network-fabric",
     acceptedAt: new Date().toISOString(),
     fingerprint,
@@ -119,14 +119,20 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
       ports: result.ports,
       bandwidth: result.bandwidth,
       switchPowerKw: result.estimatedSwitchPowerKw,
+      management: {
+        ports: result.inputs.managementPorts,
+        excludedFromHighSpeedFabricSizing: true,
+        sizingStatus: result.inputs.managementPorts > 0 ? "REQUIREMENT-ONLY" : "NOT-SPECIFIED",
+        note: "Management/control-plane connectivity is carried as a separate requirement. Its switches, optics/cabling, rack footprint, power, and cost are not included in this high-speed fabric plan.",
+      },
       currentFleetSystems: result.inputs.gpuSystems,
       capitalCostCurrentFleet: costResolved ? Math.round(result.estimatedCapitalCost) : null,
       fleetStepSchedule: schedule,
       flags: result.flags,
       validationWarnings: validation.warnings,
       costNote: costResolved
-        ? "Planning-level fabric CAPEX is available from explicit unit-cost assumptions."
-        : "Fabric requirement is accepted, but no CAPEX override is eligible until switch, cable, and transceiver prices are all supplied.",
+        ? "Planning-level high-speed fabric CAPEX is available from explicit unit-cost assumptions. Management/control-plane networking remains outside this CAPEX envelope."
+        : "High-speed fabric requirement is accepted, but no CAPEX override is eligible until switch, cable, and transceiver prices are all supplied. Management/control-plane networking remains separate scope.",
     },
   };
 }
