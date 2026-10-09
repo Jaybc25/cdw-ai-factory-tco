@@ -79,9 +79,11 @@ const intake = fs.readFileSync("src/RtxProTcoIntake.jsx", "utf8");
 const guided = fs.readFileSync("src/InferenceEconomicsGuidedPreview.jsx", "utf8");
 const app = fs.readFileSync("src/App.jsx", "utf8");
 const card = fs.readFileSync("src/RtxProAlternativeCard.jsx", "utf8");
+const gpuSizing = fs.readFileSync("src/GpuSizingCalculator.jsx", "utf8");
 
 for (const [source, text, message] of [
-  [card, "benchmarkId: benchmark.id", "GPU Sizing must carry the admitted RTX benchmark id into TCO."],
+  [card, "benchmarkId: benchmark.id", "RTX TCO href helper must preserve the admitted RTX benchmark id."],
+  [gpuSizing, "buildRtxProTcoHref", "GPU Sizing must use the guarded RTX TCO handoff helper."],
   [intake, "buildRtxProInferenceEconomicsHandoff", "RTX TCO must use the guarded RTX IE connector."],
   [intake, "Continue to Inference Economics", "Client-ready RTX lifecycle TCO must expose the IE continuation action."],
   [guided, '"RTX PRO 6000": ["FP4"]', "IE must expose only the admitted RTX precision in v1."],
@@ -93,7 +95,7 @@ for (const [source, text, message] of [
 }
 
 console.log("RTX PRO TCO → Inference Economics validation PASS");
-console.log("- exact benchmark id is carried and revalidated internally");
+console.log("- exact benchmark id is carried through the shared RTX TCO href helper and revalidated internally");
 console.log("- 2-GPU throughput is direct single-GPU evidence × independent replicas");
 console.log("- model/precision mismatch and unknown benchmark ids are blocked");
 console.log("- full RTX lifecycle TCO is 100% inference-attributable on this inference-only path");
