@@ -22,7 +22,9 @@ export function validatePowerPlannerInputs(result) {
   if (result?.verdict === "requirement-only") warnings.push("No site-capacity inputs were provided, so the result is a requirement only, not a facility-fit verdict.");
   if (result?.verdict === "partial-check") warnings.push("Only part of the customer site-capacity data was provided. Rack kW, total facility kW, and rack positions are all required before a FITS AS-IS verdict is allowed.");
   if (result?.verdict === "retrofit") warnings.push("The stated site does not fit at least one design requirement and should route to facility engineering / retrofit discovery.");
-  if (i.facilityBranch === "colocation" && i.coloMonthlyBundle <= 0) warnings.push("Colocation is selected but no monthly bundle/quote has been entered.");
+  if (!result?.economics?.facilityCostResolved) warnings.push(i.facilityBranch === "colocation"
+    ? "Colocation is selected but no customer/partner monthly bundle has been entered; facility economics remain unresolved and will not write back to TCO."
+    : "Owned-datacenter facility burden is blank or zero; facility economics remain unresolved and will not write back to TCO.");
 
   return { valid: errors.length === 0, errors, warnings };
 }
@@ -71,8 +73,9 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
   const facilityDerivation = result.inputs.facilityBranch === "colocation"
     ? PHASE2_DERIVATION.DIRECT
     : PHASE2_DERIVATION.CALCULATED;
+  const facilityResolved = Boolean(result.economics.facilityCostResolved);
 
-  const facility = createPhase2Override({
+  const facility = facilityResolved ? createPhase2Override({
     id: "power.facility-burden.monthly",
     target: "tco.power.facilityBurden.monthly",
     value: Math.round(result.economics.monthlyFacilityBurden),
@@ -87,7 +90,7 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     }),
     dependencies,
     referenceValue: null,
-  });
+  }) : null;
 
   const requirements = {
     schemaVersion: 1,
@@ -104,9 +107,18 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     racks: result.racks,
     power: result.power,
     cooling: result.cooling,
+    facilityCostResolved: facilityResolved,
+    facilityCostStatus: facilityResolved ? (result.inputs.facilityBranch === "colocation" ? "QUOTE" : "CUSTOMER") : "UNRESOLVED",
     flags: result.flags,
     validationWarnings: validation.warnings,
   };
 
-  return { fleet, overrides: [energy, facility], requirements, validation };
+  return {
+    fleet,
+    costResolved: facilityResolved,
+    costStatus: facilityResolved ? "EST" : "UNRESOLVED",
+    overrides: facility ? [energy, facility] : [energy],
+    requirements,
+    validation,
+  };
 }
