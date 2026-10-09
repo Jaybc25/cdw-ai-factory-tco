@@ -87,5 +87,7 @@ jobs:
         run: node scripts/verifyPhase2PodBrief5B.mjs
       - name: Verify local-edit staleness persistence
         run: node scripts/verifyPhase2LocalEditStaleness.mjs
+      - name: Verify legacy single-override retirement
+        run: node scripts/verifyPhase2LegacyOverrideRetired.mjs
       - name: Verify full Wave 5C journey
         run: node scripts/verifyPhase2EndToEnd.mjs
