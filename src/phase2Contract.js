@@ -193,8 +193,24 @@ export function revertPhase2Override(override, revertedAt = new Date().toISOStri
   };
 }
 
+// State-level eligibility used inside the Phase 2 planning envelope. A CURRENT
+// or RECOMPUTED value can participate in comparisons and the Pod Brief even if
+// its eventual Phase 1 replacement mapping has not yet been implemented.
 export function phase2OverrideCanWriteBack(override) {
   return override?.state === PHASE2_STATE.CURRENT || override?.state === PHASE2_STATE.RECOMPUTED;
+}
+
+// Production-application eligibility is stricter. Replacement values may not be
+// applied to TCO until their exact Phase 1 line-item mapping is explicit.
+export function phase2OverrideCanApplyToTco(override) {
+  if (!phase2OverrideCanWriteBack(override)) return false;
+  const treatment = override?.tcoTreatment;
+  if (!treatment) return true;
+  if (treatment.mode === PHASE2_TCO_TREATMENT.COMPARISON_ONLY) return false;
+  if (treatment.mode === PHASE2_TCO_TREATMENT.REPLACE_PHASE1) {
+    return treatment.replacementStatus === PHASE2_REPLACEMENT_STATUS.MAPPED;
+  }
+  return treatment.mode === PHASE2_TCO_TREATMENT.ADDITIVE;
 }
 
 export function validatePhase2Override(override) {
