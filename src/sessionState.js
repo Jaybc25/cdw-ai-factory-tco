@@ -29,6 +29,15 @@ const PREFIX = "ai-factory-session:";
 const RESET_EPOCH_KEY = "ai-factory-workspace-reset-epoch";
 const RESET_EPOCH_SEEN_KEY = "ai-factory-workspace-reset-epoch-seen";
 
+// Phase 2 originally used a single positional Power override as an early
+// preview handoff. Power can now legitimately produce multiple override
+// combinations (for example energy + facility, or an all-in colo facility
+// line only), so that channel is ambiguous and must never be read or written.
+// Complete accepted bundles are authoritative instead.
+const DEPRECATED_SESSION_KEYS = new Set([
+  "phase2-preview-override",
+]);
+
 const PHASE2_ROUTE_BUNDLE = Object.freeze({
   "/__phase2/storage": "phase2-storage-writeback",
   "/__phase2/network": "phase2-network-writeback",
@@ -43,6 +52,16 @@ function clearPrefixedSessionState() {
     if (key?.startsWith(PREFIX)) keys.push(key);
   }
   keys.forEach((key) => sessionStorage.removeItem(key));
+}
+
+function retireDeprecatedSessionKey(key) {
+  if (!DEPRECATED_SESSION_KEYS.has(key)) return false;
+  try {
+    sessionStorage.removeItem(PREFIX + key);
+  } catch {
+    // no-op
+  }
+  return true;
 }
 
 // A reset can be committed from another tab. Before any tool reads OR writes
@@ -67,6 +86,7 @@ function syncWorkspaceResetEpoch() {
 export function loadSessionState(key) {
   try {
     syncWorkspaceResetEpoch();
+    if (retireDeprecatedSessionKey(key)) return null;
     const raw = sessionStorage.getItem(PREFIX + key);
     return raw ? JSON.parse(raw) : null;
   } catch {
@@ -79,6 +99,7 @@ export function loadSessionState(key) {
 export function saveSessionState(key, stateObject) {
   try {
     syncWorkspaceResetEpoch();
+    if (retireDeprecatedSessionKey(key)) return;
     sessionStorage.setItem(PREFIX + key, JSON.stringify(stateObject));
   } catch {
     // Storage full, unavailable, or the object contains something
