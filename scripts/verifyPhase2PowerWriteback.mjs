@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { calculatePowerPlanner } from "../src/powerPlannerEngine.js";
 import { buildPowerPlannerWritebackBundle, validatePowerPlannerInputs } from "../src/powerPlannerWriteback.js";
-import { phase2OverrideCanWriteBack } from "../src/phase2Contract.js";
+import { PHASE2_TCO_TREATMENT, PHASE2_REPLACEMENT_STATUS, phase2OverrideCanApplyToTco, phase2OverrideCanWriteBack } from "../src/phase2Contract.js";
 
 const base = {
   systemCount: 8,
@@ -48,8 +48,17 @@ assert.equal(bundle.overrides[0].target, "tco.power.energy.monthly");
 assert.equal(bundle.overrides[0].provenance.source, "CUSTOMER");
 assert.equal(bundle.overrides[1].target, "tco.power.facilityBurden.monthly");
 assert.equal(bundle.overrides[1].provenance.source, "CUSTOMER");
-assert.equal(bundle.overrides.every(phase2OverrideCanWriteBack), true);
-assert.equal(bundle.requirements.schemaVersion, 4);
+assert.equal(bundle.overrides.every(phase2OverrideCanWriteBack), true, "Power replacements remain valid inside the Phase 2 planning envelope");
+assert.equal(bundle.overrides.every((x) => x.tcoTreatment.mode === PHASE2_TCO_TREATMENT.REPLACE_PHASE1), true);
+assert.equal(bundle.overrides.every((x) => x.tcoTreatment.replacementStatus === PHASE2_REPLACEMENT_STATUS.PENDING_LINE_MAP), true);
+assert.equal(bundle.overrides.every((x) => x.tcoTreatment.additiveAllowed === false), true);
+assert.equal(bundle.overrides.some(phase2OverrideCanApplyToTco), false, "Power values must not apply to TCO before exact Phase 1 replacement mapping exists");
+assert.equal(bundle.overrides[0].tcoTreatment.phase1LineFamily, "power-energy");
+assert.equal(bundle.overrides[1].tcoTreatment.phase1LineFamily, "power-facility-burden");
+assert.equal(bundle.requirements.schemaVersion, 5);
+assert.equal(bundle.requirements.tcoTreatment.mode, PHASE2_TCO_TREATMENT.REPLACE_PHASE1);
+assert.equal(bundle.requirements.tcoTreatment.additiveAllowed, false);
+assert.equal(bundle.requirements.tcoTreatment.replacementStatus, PHASE2_REPLACEMENT_STATUS.PENDING_LINE_MAP);
 assert.equal(bundle.requirements.systemName, "DGX B200");
 assert.equal(bundle.requirements.racks.total, result.racks.total);
 assert.equal(bundle.requirements.networkRackFootprintResolved, true);
@@ -129,6 +138,7 @@ assert.equal(coloPowerIncludedBundle.overrides[0].value, 50000);
 assert.match(coloPowerIncludedBundle.overrides[0].provenance.label, /including electricity/i);
 assert.equal(coloPowerIncludedBundle.requirements.standaloneEnergyWritebackEligible, false);
 assert.ok(coloPowerIncludedBundle.validation.warnings.some((x) => x.includes("suppressed from TCO")));
+assert.equal(phase2OverrideCanApplyToTco(coloPowerIncludedBundle.overrides[0]), false, "all-in colo bundle is still a Phase 1 replacement pending mapping");
 
 const customerColoBundle = buildPowerPlannerWritebackBundle(colo, {
   systemName: "DGX B200",
