@@ -59,6 +59,13 @@ export function calculatePowerPlanner(inputs) {
   const storageKwPerPb = Math.max(0, n(inputs.storageKwPerPb, 10));
   const explicitStoragePowerKw = optionalNonNegative(inputs.storagePowerKw);
   const provisionalNetworkKw = Math.max(0, n(inputs.provisionalNetworkKw));
+  const fabricSwitchPowerKw = optionalNonNegative(inputs.fabricSwitchPowerKw);
+  const managementHeadNodeKw = optionalNonNegative(inputs.managementHeadNodeKw);
+  const acceptedFabricPower = fabricSwitchPowerKw != null;
+  const effectiveManagementHeadNodeKw = acceptedFabricPower ? (managementHeadNodeKw ?? 0) : null;
+  const effectiveNetworkKw = acceptedFabricPower
+    ? fabricSwitchPowerKw + effectiveManagementHeadNodeKw
+    : provisionalNetworkKw;
   const pue = Math.max(1, n(inputs.pue, 1));
   const utilityRatePerKwh = Math.max(0, n(inputs.utilityRatePerKwh));
   const availableKwPerRack = optionalNonNegative(inputs.availableKwPerRack);
@@ -79,8 +86,8 @@ export function calculatePowerPlanner(inputs) {
   const computeDesignKw = systemCount * designKwPerSystem;
   const storageKw = explicitStoragePowerKw ?? (storagePb * storageKwPerPb);
 
-  const averageItKw = computeAvgKw + storageKw + provisionalNetworkKw;
-  const designItKw = computeDesignKw + storageKw + provisionalNetworkKw;
+  const averageItKw = computeAvgKw + storageKw + effectiveNetworkKw;
+  const designItKw = computeDesignKw + storageKw + effectiveNetworkKw;
   const facilityDesignKw = designItKw * pue;
   const avgRackDesignKw = totalRacks > 0 ? designItKw / totalRacks : 0;
   const computeRackDesignKw = computeRacks > 0 ? computeDesignKw / computeRacks : 0;
@@ -117,7 +124,8 @@ export function calculatePowerPlanner(inputs) {
   if (rackPowerMismatch) flags.push(`Compute rack design load (${computeRackDesignKw.toFixed(1)} kW/rack) exceeds stated rack capacity (${availableKwPerRack.toFixed(1)} kW/rack).`);
   if (totalPowerMismatch) flags.push(`Facility design demand (${facilityDesignKw.toFixed(1)} kW including PUE) exceeds stated total facility capacity (${totalFacilityKwAvailable.toFixed(1)} kW).`);
   if (rackCountMismatch) flags.push(`Required rack positions (${totalRacks}) exceed stated available positions (${rackPositionsAvailable}).`);
-  if (provisionalNetworkKw === 0) flags.push("Network/head-node power allowance is still 0 kW; Power remains provisional until Fabric supplies this dependency or a planning allowance is entered.");
+  if (!acceptedFabricPower && provisionalNetworkKw === 0) flags.push("Network/head-node power allowance is still 0 kW; Power remains provisional until Fabric supplies switch power or a planning allowance is entered.");
+  if (acceptedFabricPower && effectiveManagementHeadNodeKw === 0) flags.push("Accepted Fabric switch power is included, but the management/head-node allowance is 0 kW. Confirm that management, control-plane, and head-node power is intentionally excluded before client use.");
   if (siteInputsProvided > 0 && !siteInputsComplete) flags.push("Facility fit is only partially checked. Enter rack kW, total facility kW, and rack positions before treating the site verdict as complete.");
   if (!facilityCostResolved) flags.push(facilityBranch === "owned-dc"
     ? "Owned-datacenter facility burden is unresolved. Enter a customer-supported $/design-kW-month value before treating facility economics as TCO-ready."
@@ -133,6 +141,8 @@ export function calculatePowerPlanner(inputs) {
       storageKwPerPb,
       storagePowerKw: explicitStoragePowerKw,
       provisionalNetworkKw,
+      fabricSwitchPowerKw,
+      managementHeadNodeKw: effectiveManagementHeadNodeKw,
       pue,
       utilityRatePerKwh,
       facilityBranch,
@@ -145,7 +155,15 @@ export function calculatePowerPlanner(inputs) {
       rackPositionsAvailable,
     },
     racks: { compute: computeRacks, storage: storageRacks, network: networkRacks, total: totalRacks },
-    power: { computeAvgKw, computeDesignKw, storageKw, averageItKw, designItKw, facilityDesignKw, avgRackDesignKw, computeRackDesignKw },
+    networkPower: {
+      acceptedFabricPower,
+      switchKw: acceptedFabricPower ? fabricSwitchPowerKw : null,
+      managementHeadNodeKw: acceptedFabricPower ? effectiveManagementHeadNodeKw : null,
+      provisionalCombinedKw: acceptedFabricPower ? null : provisionalNetworkKw,
+      totalKw: effectiveNetworkKw,
+      basis: acceptedFabricPower ? "accepted Fabric switch power + explicit management/head-node allowance" : "provisional combined network + head-node allowance",
+    },
+    power: { computeAvgKw, computeDesignKw, storageKw, networkKw: effectiveNetworkKw, averageItKw, designItKw, facilityDesignKw, avgRackDesignKw, computeRackDesignKw },
     cooling: { heatBtuPerHour, coolingTons },
     economics: { monthlyKwh, monthlyEnergyCost, monthlyFacilityBurden, monthlyFacilityTotal, facilityCostResolved },
     verdict,
@@ -157,6 +175,7 @@ export function calculatePowerPlanner(inputs) {
       heatRejection: "design IT kW × 3,412 BTU/hr per kW",
       coolingTons: "BTU/hr ÷ 12,000",
       storagePower: explicitStoragePowerKw == null ? "storage PB × provisional kW/PB" : "accepted Storage Sizer power requirement",
+      networkPower: acceptedFabricPower ? "accepted Fabric switch kW + explicit management/head-node kW" : "provisional combined network + head-node kW",
       facilityBurden: facilityBranch === "owned-dc" ? "design IT kW × customer-supported owned facility burden $/kW-month; unresolved when blank/zero" : "customer/partner colocation monthly bundle; unresolved when blank/zero",
     },
   };
