@@ -7,6 +7,7 @@ import {
   evaluatePhase2Override,
   fingerprintInputs,
   makeProvenance,
+  markPhase2OverrideCurrent,
   phase2OverrideCanWriteBack,
   recomputePhase2Override,
   revertPhase2Override,
@@ -69,6 +70,11 @@ assert.equal(stale.staleReason, "Utility rate changed");
 assert.equal(phase2OverrideCanWriteBack(stale), false, "STALE values must not write back");
 assert.equal(stale.value, override.value, "stale evaluation must preserve the prior visible value");
 
+const staleMarkedCurrent = markPhase2OverrideCurrent(stale);
+assert.equal(staleMarkedCurrent.state, PHASE2_STATE.STALE, "STALE values must not be promoted back to CURRENT without recompute");
+assert.equal(staleMarkedCurrent.staleReason, "Utility rate changed");
+assert.equal(phase2OverrideCanWriteBack(staleMarkedCurrent), false);
+
 const recomputed = recomputePhase2Override(stale, {
   value: 9814,
   dependencies: { ...dependencies, utilityRatePerKwh: 0.13 },
@@ -79,10 +85,15 @@ assert.equal(recomputed.staleReason, null);
 assert.equal(recomputed.value, 9814);
 assert.equal(phase2OverrideCanWriteBack(recomputed), true);
 
+const recomputedMarkedCurrent = markPhase2OverrideCurrent(recomputed);
+assert.equal(recomputedMarkedCurrent.state, PHASE2_STATE.CURRENT, "A recomputed value may be acknowledged as CURRENT");
+assert.equal(phase2OverrideCanWriteBack(recomputedMarkedCurrent), true);
+
 const reverted = revertPhase2Override(recomputed, "2026-10-08T12:06:00.000Z");
 assert.equal(reverted.state, PHASE2_STATE.REVERTED);
 assert.equal(phase2OverrideCanWriteBack(reverted), false);
 assert.equal(reverted.referenceValue, 12000);
+assert.equal(markPhase2OverrideCurrent(reverted).state, PHASE2_STATE.REVERTED, "REVERTED values must stay reverted");
 
 assert.throws(
   () => makeProvenance({ source: "CUSTOM", derivation: PHASE2_DERIVATION.DIRECT }),
