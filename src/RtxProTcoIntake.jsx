@@ -72,7 +72,7 @@ function ViewHeader({ title, subtitle, onBack, onPrint }) {
       <button type="button" onClick={onBack} className="text-sm font-semibold mb-4" style={{ color: RED }}>← Back to RTX PRO TCO</button>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: RED }}>Right-Sized Private AI</div>
+          <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: RED }}>AI Factory · Total Cost of Ownership</div>
           <h2 className="text-2xl font-bold" style={{ color: INK }}>{title}</h2>
           <p className="text-sm text-gray-600 mt-1">{subtitle}</p>
         </div>
@@ -164,6 +164,7 @@ export default function RtxProTcoIntake() {
   }), [policy, nvidiaSoftwareBasis, nvidiaSoftwareCoverageYears, supportBasis, supportCoverageYears, powerRate, horizonYears]);
 
   const lifecycleReady = policy.clientReady && lifecycle.clientReady;
+  const unresolved = lifecycle.requiredInputs || policy.requiredInputs || [];
   const ieHandoff = useMemo(() => buildRtxProInferenceEconomicsHandoff({
     gpuCount,
     modelId: model,
@@ -180,7 +181,7 @@ export default function RtxProTcoIntake() {
   if (view === "report" && lifecycleReady) {
     return (
       <div className="max-w-4xl mx-auto px-6 py-8">
-        <ViewHeader title="RTX PRO TCO Report" subtitle="Directional single-server lifecycle cost summary using only explicit inputs and tested term normalization." onBack={() => setView("calc")} onPrint={() => window.print()} />
+        <ViewHeader title="RTX PRO TCO Report" subtitle="Directional single-server lifecycle cost summary using explicit RTX commercial and operating inputs." onBack={() => setView("calc")} onPrint={() => window.print()} />
         <div className="mb-6">
           <div className="text-xs font-bold uppercase tracking-wide" style={{ color: RED }}>RTX PRO 6000 Blackwell Server Edition</div>
           <div className="text-3xl font-bold mt-1" style={{ color: INK }}>{money(lifecycle.totalTcoUSD)}</div>
@@ -246,54 +247,96 @@ export default function RtxProTcoIntake() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      <div className="mb-6">
-        <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: RED }}>Right-Sized Private AI</div>
-        <h2 className="text-2xl font-bold mb-2" style={{ color: INK }}>RTX PRO single-server TCO</h2>
-        <p className="text-sm text-gray-600 max-w-3xl">This path carries the evidence-qualified RTX PRO deployment from GPU Sizing into lifecycle TCO without inheriting DGX cluster economics. Client-ready directional TCO appears only when every commercial, workload, operations, facility, and term-basis input is explicit.</p>
+    <div className="max-w-5xl mx-auto px-6 py-8">
+      <div className="mb-6 border-b border-gray-200 pb-5">
+        <div className="text-xs font-bold uppercase tracking-wide mb-1" style={{ color: RED }}>AI Factory · Total Cost of Ownership</div>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h2 className="text-2xl font-bold mb-1" style={{ color: INK }}>RTX PRO TCO</h2>
+            <p className="text-sm text-gray-600 max-w-3xl">Compare the lifecycle cost of the right-sized RTX PRO deployment carried from GPU Sizing. RTX-specific assumptions remain separate from DGX/HGX cluster economics, but the workflow follows the same TCO pattern.</p>
+          </div>
+          <a href="/tco" className="text-xs font-semibold px-3 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white">Switch to enterprise TCO</a>
+        </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-5 mb-6">
-        <div className="rounded-xl border border-gray-200 p-5 bg-gray-50">
-          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">GPU Sizing handoff</div>
-          <div className="text-xl font-bold mb-1" style={{ color: INK }}>{gpuCount} × RTX PRO 6000 Blackwell Server Edition</div>
-          {model && <div className="text-xs text-gray-600">Model: {model}{precision ? ` · ${precision}` : ""}</div>}
-          <div className="mt-3 text-sm font-semibold" style={{ color: INK }}>Hardware: {Number.isFinite(policy.hardware.configuredSystemPriceUSD) ? `${money(policy.hardware.configuredSystemPriceUSD)} · ${policy.hardware.priceProvenance}` : "Configured 8-GPU server price requires quote"}</div>
-          <div className="text-xs text-gray-500 mt-1">{policy.hardware.configuredSystemSku || "OEM/CDW configured SKU required"}</div>
+      <div className="grid lg:grid-cols-3 gap-4 mb-5">
+        <div className="lg:col-span-2 rounded-xl border border-gray-200 bg-white p-5">
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Selected on-prem configuration</div>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <div className="text-2xl font-bold" style={{ color: INK }}>{gpuCount} × RTX PRO 6000</div>
+              <div className="text-sm text-gray-600">Blackwell Server Edition{model ? ` · ${model}` : ""}{precision ? ` · ${precision}` : ""}</div>
+              <div className="text-xs text-gray-500 mt-2">{policy.hardware.configuredSystemSku || "OEM/CDW configured SKU required"}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-gray-500">Configured server hardware</div>
+              <div className="text-xl font-bold" style={{ color: INK }}>{Number.isFinite(policy.hardware.configuredSystemPriceUSD) ? money(policy.hardware.configuredSystemPriceUSD) : "Quote required"}</div>
+              <div className="text-[11px] font-semibold text-gray-500">{policy.hardware.priceProvenance || "QUOTE"}</div>
+            </div>
+          </div>
         </div>
+
         <div className={`rounded-xl border p-5 ${lifecycleReady ? "border-green-300 bg-green-50" : "border-amber-300 bg-amber-50"}`}>
           <div className="text-xs font-bold uppercase tracking-wide mb-2">TCO readiness</div>
-          <div className="text-lg font-bold mb-1" style={{ color: INK }}>{lifecycleReady ? `${horizonYears}-year directional TCO ready` : "Additional inputs required"}</div>
-          <div className="text-xs text-gray-700">{lifecycleReady ? "The lifecycle total uses only explicit commercial/workload values and tested term normalization; no DGX defaults or inferred renewals are included." : `${lifecycle.requiredInputs?.length || 0} lifecycle item(s) remain unresolved.`}</div>
+          <div className="text-lg font-bold" style={{ color: INK }}>{lifecycleReady ? "Directional TCO ready" : `${unresolved.length} input${unresolved.length === 1 ? "" : "s"} remaining`}</div>
+          <div className="text-xs text-gray-700 mt-1">{lifecycleReady ? `${horizonYears}-year lifecycle estimate is ready for review.` : "Complete the missing assumptions below before treating the result as client-ready."}</div>
         </div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 p-5 mb-6">
-        <div className="text-sm font-bold mb-1" style={{ color: INK }}>TCO horizon</div>
-        <p className="text-xs text-gray-500 mb-3">Select the period over which annual costs are accumulated. Term-total quotes must cover this entire horizon.</p>
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 mb-5 flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <div className="text-sm font-bold" style={{ color: INK }}>TCO horizon</div>
+          <div className="text-xs text-gray-500">Same 1 / 3 / 5-year planning convention used across the TCO tools.</div>
+        </div>
         <div className="flex gap-2">{[1, 3, 5].map((years) => <button key={years} type="button" onClick={() => setHorizonYears(years)} className="px-4 py-2 rounded-lg text-sm font-semibold border" style={{ background: horizonYears === years ? RED : "white", color: horizonYears === years ? "white" : INK, borderColor: horizonYears === years ? RED : "#D1D5DB" }}>{years} year{years === 1 ? "" : "s"}</button>)}</div>
       </div>
 
-      <div className="rounded-xl border border-gray-200 p-5 mb-6">
-        <div className="text-sm font-bold mb-1" style={{ color: INK }}>Existing infrastructure assumptions</div>
-        <p className="text-xs text-gray-500 mb-4">These can legitimately be incremental $0 only when the customer already has the capability. Turning any off makes that item quote/customer-input required; it does not substitute a DGX allowance.</p>
-        {[["Existing server-management tooling", existingServerManagement, setExistingServerManagement], ["Existing Ethernet is sufficient for this independent-replica server", existingEthernet, setExistingEthernet], ["Existing rack capacity is available", existingRackCapacity, setExistingRackCapacity]].map(([label, checked, setter]) => <label key={label} className="flex items-start gap-2 text-sm mb-2"><input type="checkbox" checked={checked} onChange={(e) => setter(e.target.checked)} className="mt-1" /><span>{label}</span></label>)}
+      <div className="rounded-xl border border-gray-200 p-5 mb-5">
+        <div className="mb-4">
+          <div className="text-xs font-bold uppercase tracking-wide" style={{ color: RED }}>On-prem cost inputs</div>
+          <div className="text-lg font-bold" style={{ color: INK }}>Commercial and workload assumptions</div>
+          <p className="text-xs text-gray-500 mt-1">Enter what you know. More technical infrastructure and term assumptions are grouped under Advanced TCO assumptions below.</p>
+        </div>
+        <div className="grid md:grid-cols-2 gap-x-6">
+          <MoneyInput label="NVIDIA software / support entitlement" value={nvidiaSoftwareUSD} onChange={setNvidiaSoftwareUSD} helper="Enter the applicable quoted/planned amount; zero is allowed only when explicitly confirmed." />
+          <MoneyInput label="OEM / server support" value={supportUSD} onChange={setSupportUSD} helper="Use the customer/OEM support basis for this configured server." />
+          <MoneyInput label="Professional services / implementation" value={professionalServicesUSD} onChange={setProfessionalServicesUSD} helper="One-time implementation cost for this deployment." />
+          <MoneyInput label="Workload-derived storage" value={storageUSD} onChange={setStorageUSD} helper="Use the actual model/RAG/training/checkpoint/retention requirement rather than GPU count." />
+        </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-x-6 rounded-xl border border-gray-200 p-5 mb-6">
-        <div><MoneyInput label="NVIDIA software / support entitlement" value={nvidiaSoftwareUSD} onChange={setNvidiaSoftwareUSD} helper="Enter the applicable quoted/planned amount; zero is allowed only when explicitly confirmed." /><CommercialBasisControl label="NVIDIA software / support" basis={nvidiaSoftwareBasis} setBasis={setNvidiaSoftwareBasis} coverageYears={nvidiaSoftwareCoverageYears} setCoverageYears={setNvidiaSoftwareCoverageYears} /></div>
-        <div><MoneyInput label="OEM / server support" value={supportUSD} onChange={setSupportUSD} helper="Use the customer/OEM support basis for this configured server." /><CommercialBasisControl label="OEM / server support" basis={supportBasis} setBasis={setSupportBasis} coverageYears={supportCoverageYears} setCoverageYears={setSupportCoverageYears} /></div>
-        <MoneyInput label="Professional services / implementation" value={professionalServicesUSD} onChange={setProfessionalServicesUSD} helper="Modeled as one-time implementation cost; do not inherit the DGX professional-services allowance automatically." />
-        <MoneyInput label="Workload-derived storage" value={storageUSD} onChange={setStorageUSD} helper="Modeled as one-time deployment storage CAPEX in v1. Base it on the actual model/RAG/training/checkpoint/retention requirement, not GPU count." />
-        <MoneyInput label="Incremental admin / operations labor (annual)" value={adminFteAnnualUSD} onChange={setAdminFteAnnualUSD} helper="Annual labor allocated to this deployment; multiplied by the selected TCO horizon." />
-        <NumberField label="Full configured-server power draw" value={serverPowerKW} onChange={setServerPowerKW} suffix="kW" helper="Use an OEM/configured-system value; the 600 W GPU maximum is not a server power value." min={0.1} />
-        <NumberField label="Facility power burden" value={powerBurdenPerKwMonth} onChange={setPowerBurdenPerKwMonth} suffix="$/kW-month" helper="Customer-specific fully loaded facility/power basis. Intentionally no universal RTX default." />
-      </div>
+      <details className="rounded-xl border border-gray-200 bg-white mb-5 group" data-testid="rtx-tco-advanced-assumptions">
+        <summary className="cursor-pointer list-none p-5 flex items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-bold" style={{ color: INK }}>Advanced TCO assumptions</div>
+            <div className="text-xs text-gray-500 mt-1">Infrastructure availability, commercial term basis, operations labor, server power, and facility burden.</div>
+          </div>
+          <span className="text-xs font-semibold" style={{ color: RED }}>Review / edit</span>
+        </summary>
+        <div className="border-t border-gray-200 p-5">
+          <div className="grid lg:grid-cols-2 gap-6">
+            <div>
+              <div className="text-sm font-bold mb-1" style={{ color: INK }}>Existing infrastructure</div>
+              <p className="text-xs text-gray-500 mb-4">These can be incremental $0 only when the customer already has the capability. Turning one off makes that item quote/customer-input required.</p>
+              {[["Existing server-management tooling", existingServerManagement, setExistingServerManagement], ["Existing Ethernet is sufficient for this independent-replica server", existingEthernet, setExistingEthernet], ["Existing rack capacity is available", existingRackCapacity, setExistingRackCapacity]].map(([label, checked, setter]) => <label key={label} className="flex items-start gap-2 text-sm mb-3"><input type="checkbox" checked={checked} onChange={(e) => setter(e.target.checked)} className="mt-1" /><span>{label}</span></label>)}
+            </div>
+            <div>
+              <CommercialBasisControl label="NVIDIA software / support" basis={nvidiaSoftwareBasis} setBasis={setNvidiaSoftwareBasis} coverageYears={nvidiaSoftwareCoverageYears} setCoverageYears={setNvidiaSoftwareCoverageYears} />
+              <CommercialBasisControl label="OEM / server support" basis={supportBasis} setBasis={setSupportBasis} coverageYears={supportCoverageYears} setCoverageYears={setSupportCoverageYears} />
+            </div>
+          </div>
+          <div className="grid md:grid-cols-3 gap-x-5 mt-2">
+            <MoneyInput label="Incremental admin / operations labor (annual)" value={adminFteAnnualUSD} onChange={setAdminFteAnnualUSD} helper="Annual labor allocated to this deployment." />
+            <NumberField label="Full configured-server power draw" value={serverPowerKW} onChange={setServerPowerKW} suffix="kW" helper="Use the OEM/configured-system value, not GPU-only power." min={0.1} />
+            <NumberField label="Facility power burden" value={powerBurdenPerKwMonth} onChange={setPowerBurdenPerKwMonth} suffix="$/kW-month" helper="Customer-specific fully loaded facility/power basis." />
+          </div>
+        </div>
+      </details>
 
-      {!lifecycleReady && <div className="rounded-xl border border-amber-300 bg-amber-50 p-5 mb-6"><div className="text-sm font-bold text-amber-900 mb-2">Still required before client-ready directional TCO</div><ul className="text-xs text-amber-900 list-disc pl-5 space-y-1">{(lifecycle.requiredInputs || policy.requiredInputs || []).map((item) => <li key={item}>{item}</li>)}</ul></div>}
+      {!lifecycleReady && <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 mb-5"><div className="flex flex-wrap items-center justify-between gap-2"><div className="text-sm font-bold text-amber-900">Still required before client-ready directional TCO</div><div className="text-xs font-semibold text-amber-900">{unresolved.length} remaining</div></div><div className="text-xs text-amber-900 mt-2">{unresolved.join(" · ")}</div></div>}
 
       {lifecycleReady && (
-        <div className="rounded-xl border border-green-300 bg-green-50 p-5 mb-6">
+        <div className="rounded-xl border border-green-300 bg-green-50 p-5 mb-5">
           <div className="flex flex-wrap items-end justify-between gap-3 mb-4"><div><div className="text-xs font-bold uppercase tracking-wide text-green-800">Directional lifecycle TCO</div><div className="text-3xl font-bold text-green-950">{money(lifecycle.totalTcoUSD)}</div><div className="text-xs text-green-900">{horizonYears}-year single-server planning basis</div></div><div className="text-xs text-green-900 text-right"><div>One-time costs: <strong>{money(lifecycle.oneTimeCapexUSD)}</strong></div><div>Lifecycle recurring costs: <strong>{money(lifecycle.recurringLifecycleUSD)}</strong></div></div></div>
           <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-xs text-green-950"><div>Configured hardware: <strong>{money(lifecycle.breakdown.hardwareUSD)}</strong></div><div>Professional services: <strong>{money(lifecycle.breakdown.professionalServicesUSD)}</strong></div><div>Workload-derived storage: <strong>{money(lifecycle.breakdown.storageUSD)}</strong></div><div>NVIDIA software/support: <strong>{money(lifecycle.breakdown.nvidiaSoftwareLifecycleUSD)}</strong> lifecycle</div><div>OEM/server support: <strong>{money(lifecycle.breakdown.supportLifecycleUSD)}</strong> lifecycle</div><div>Admin/operations labor: <strong>{money(lifecycle.breakdown.adminLifecycleUSD)}</strong> lifecycle</div><div>Facility/power: <strong>{money(lifecycle.breakdown.facilityPowerLifecycleUSD)}</strong> lifecycle</div><div>Annual facility/power basis: <strong>{money(lifecycle.annualFacilityPowerUSD)}</strong></div></div>
           <p className="text-xs text-green-900 mt-4">Annual commercial amounts are multiplied by the selected horizon. Term-total amounts are counted once only when their stated coverage spans the full horizon; the tool does not infer renewal pricing.</p>
@@ -301,7 +344,7 @@ export default function RtxProTcoIntake() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-3 no-print"><a href="/gpu-sizing" className="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white">Back to GPU Sizing</a>{lifecycleReady && ieHandoff.eligible && <a href={ieHandoff.href} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: RED }}>Continue to Inference Economics</a>}<a href="/tco" className="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white">Open enterprise TCO calculator</a></div>
+      <div className="flex flex-wrap gap-3 no-print"><a href="/gpu-sizing" className="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white">Back to GPU Sizing</a>{lifecycleReady && ieHandoff.eligible && <a href={ieHandoff.href} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: RED }}>Continue to Inference Economics</a>}</div>
     </div>
   );
 }
