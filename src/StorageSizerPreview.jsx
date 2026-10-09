@@ -23,7 +23,11 @@ export default function StorageSizerPreview() {
   const [annualGrowthPct, setAnnualGrowthPct] = useState(35);
   const [years, setYears] = useState(3);
   const [copies, setCopies] = useState(2);
-  const [checkpointMultiplier, setCheckpointMultiplier] = useState(0.5);
+  const [modelParamsBillions, setModelParamsBillions] = useState(70);
+  const [checkpointBytesPerParam, setCheckpointBytesPerParam] = useState(16);
+  const [checkpointsRetained, setCheckpointsRetained] = useState(5);
+  const [activeWorkingSetPct, setActiveWorkingSetPct] = useState(STORAGE_WORKLOAD_PROFILES.training.suggestedActiveWorkingSetPct);
+  const [activeWorkingSetTb, setActiveWorkingSetTb] = useState("");
   const [indexOverheadPct, setIndexOverheadPct] = useState(10);
   const [reservePct, setReservePct] = useState(20);
   const [usableEfficiency, setUsableEfficiency] = useState(0.75);
@@ -42,7 +46,11 @@ export default function StorageSizerPreview() {
     annualGrowthPct,
     years,
     copies,
-    checkpointMultiplier,
+    modelParamsBillions,
+    checkpointBytesPerParam,
+    checkpointsRetained,
+    activeWorkingSetPct,
+    activeWorkingSetTb,
     indexOverheadPct,
     reservePct,
     usableEfficiency,
@@ -53,10 +61,16 @@ export default function StorageSizerPreview() {
     bulkTierTbPerRack,
     fastTierKwPerRack,
     bulkTierKwPerRack,
-  }), [workload, baseDatasetTb, annualGrowthPct, years, copies, checkpointMultiplier, indexOverheadPct, reservePct, usableEfficiency, gpuCount, manualThroughputGbps, ingestGbps, fastTierTbPerRack, bulkTierTbPerRack, fastTierKwPerRack, bulkTierKwPerRack]);
+  }), [workload, baseDatasetTb, annualGrowthPct, years, copies, modelParamsBillions, checkpointBytesPerParam, checkpointsRetained, activeWorkingSetPct, activeWorkingSetTb, indexOverheadPct, reservePct, usableEfficiency, gpuCount, manualThroughputGbps, ingestGbps, fastTierTbPerRack, bulkTierTbPerRack, fastTierKwPerRack, bulkTierKwPerRack]);
 
   const result = useMemo(() => calculateStorageSizer(inputs), [inputs]);
   const validation = useMemo(() => validateStorageSizerInputs(inputs), [inputs]);
+
+  function changeWorkload(next) {
+    setWorkload(next);
+    setActiveWorkingSetPct(STORAGE_WORKLOAD_PROFILES[next].suggestedActiveWorkingSetPct);
+    setAcceptance(null);
+  }
 
   function stageDependencies() {
     if (!validation.valid) {
@@ -72,7 +86,7 @@ export default function StorageSizerPreview() {
     <div style={{ background: "#f5f5f5", minHeight: "100vh", padding: "24px 16px 56px", fontFamily: "Arial, Helvetica, sans-serif" }}>
       <main style={{ width: "min(1180px, 100%)", margin: "0 auto" }}>
         <div style={{ background: "#111", color: "#fff", borderLeft: "6px solid #c8102e", padding: 14, marginBottom: 20 }}>
-          <strong>Phase 2 · Wave 2B.</strong> Vendor-neutral storage requirements can now be explicitly staged for downstream tools. No OEM selection or production write-back.
+          <strong>Phase 2 · Storage hardening.</strong> Vendor-neutral sizing now separates the active data working set from model-based checkpoint retention. No OEM selection or production write-back.
         </div>
 
         <h1 style={{ margin: "0 0 8px", fontSize: "clamp(30px, 5vw, 48px)" }}>Storage sizer</h1>
@@ -81,21 +95,26 @@ export default function StorageSizerPreview() {
         </p>
 
         <section style={{ ...card, marginBottom: 18 }}>
-          <h2 style={{ marginTop: 0 }}>1. Workload and retention inputs</h2>
+          <h2 style={{ marginTop: 0 }}>1. Workload, working set and checkpoint inputs</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-            <label style={field}><span style={label}>Workload</span><select style={input} value={workload} onChange={(e) => { setWorkload(e.target.value); setAcceptance(null); }}>{Object.entries(STORAGE_WORKLOAD_PROFILES).map(([key, p]) => <option key={key} value={key}>{p.label}</option>)}</select></label>
+            <label style={field}><span style={label}>Workload</span><select style={input} value={workload} onChange={(e) => changeWorkload(e.target.value)}>{Object.entries(STORAGE_WORKLOAD_PROFILES).map(([key, p]) => <option key={key} value={key}>{p.label}</option>)}</select></label>
             <label style={field}><span style={label}>Base dataset (TB)</span><input style={input} type="number" min="0" value={baseDatasetTb} onChange={(e) => { setBaseDatasetTb(Number(e.target.value)); setAcceptance(null); }} /></label>
             <label style={field}><span style={label}>Annual growth (%)</span><input style={input} type="number" min="0" value={annualGrowthPct} onChange={(e) => { setAnnualGrowthPct(Number(e.target.value)); setAcceptance(null); }} /></label>
             <label style={field}><span style={label}>Planning horizon (years)</span><input style={input} type="number" min="1" max="7" value={years} onChange={(e) => { setYears(Number(e.target.value)); setAcceptance(null); }} /></label>
             <label style={field}><span style={label}>Copies / replicas</span><input style={input} type="number" min="1" max="5" value={copies} onChange={(e) => { setCopies(Number(e.target.value)); setAcceptance(null); }} /></label>
-            <label style={field}><span style={label}>Checkpoint multiplier</span><input style={input} type="number" min="0" step="0.1" value={checkpointMultiplier} onChange={(e) => { setCheckpointMultiplier(Number(e.target.value)); setAcceptance(null); }} /></label>
+            <label style={field}><span style={label}>Active working set (%)</span><input style={input} type="number" min="0" max="100" value={activeWorkingSetPct} onChange={(e) => { setActiveWorkingSetPct(Number(e.target.value)); setAcceptance(null); }} /></label>
+            <label style={field}><span style={label}>Active working set (TB, optional override)</span><input style={input} type="number" min="0" value={activeWorkingSetTb} onChange={(e) => { setActiveWorkingSetTb(e.target.value === "" ? "" : Number(e.target.value)); setAcceptance(null); }} placeholder="Use workload %" /></label>
+            <label style={field}><span style={label}>Model parameters (billions)</span><input style={input} type="number" min="0" step="1" value={modelParamsBillions} onChange={(e) => { setModelParamsBillions(Number(e.target.value)); setAcceptance(null); }} /></label>
+            <label style={field}><span style={label}>Checkpoint bytes / parameter</span><input style={input} type="number" min="0" max="64" step="1" value={checkpointBytesPerParam} onChange={(e) => { setCheckpointBytesPerParam(Number(e.target.value)); setAcceptance(null); }} /></label>
+            <label style={field}><span style={label}>Checkpoints retained</span><input style={input} type="number" min="0" max="100" step="1" value={checkpointsRetained} onChange={(e) => { setCheckpointsRetained(Number(e.target.value)); setAcceptance(null); }} /></label>
             <label style={field}><span style={label}>Index / metadata overhead (%)</span><input style={input} type="number" min="0" value={indexOverheadPct} onChange={(e) => { setIndexOverheadPct(Number(e.target.value)); setAcceptance(null); }} /></label>
             <label style={field}><span style={label}>Operational reserve (%)</span><input style={input} type="number" min="0" value={reservePct} onChange={(e) => { setReservePct(Number(e.target.value)); setAcceptance(null); }} /></label>
             <label style={field}><span style={label}>Usable efficiency</span><input style={input} type="number" min="0.01" max="1" step="0.01" value={usableEfficiency} onChange={(e) => { setUsableEfficiency(Number(e.target.value)); setAcceptance(null); }} /></label>
           </div>
           <div style={{ marginTop: 14, padding: 12, background: "#f7f7f7", border: "1px solid #ddd", borderRadius: 8, lineHeight: 1.5 }}>
-            <strong>{STORAGE_WORKLOAD_PROFILES[workload].label} profile:</strong> {STORAGE_WORKLOAD_PROFILES[workload].notes}
+            <strong>{STORAGE_WORKLOAD_PROFILES[workload].label} starting suggestion:</strong> {STORAGE_WORKLOAD_PROFILES[workload].suggestedActiveWorkingSetPct}% active working set. {STORAGE_WORKLOAD_PROFILES[workload].notes}
           </div>
+          <p style={{ color: "#666", lineHeight: 1.5, marginBottom: 0 }}>Checkpoint capacity is no longer derived from dataset size. It is calculated from model parameters, checkpoint bytes per parameter, and retained checkpoint count. The 16-byte default is a planning assumption and should be replaced with workload-specific evidence when known.</p>
         </section>
 
         <section style={{ ...card, marginBottom: 18 }}>
@@ -109,13 +128,15 @@ export default function StorageSizerPreview() {
             <label style={field}><span style={label}>Fast tier kW / rack</span><input style={input} type="number" min="0" step="0.1" value={fastTierKwPerRack} onChange={(e) => { setFastTierKwPerRack(Number(e.target.value)); setAcceptance(null); }} /></label>
             <label style={field}><span style={label}>Bulk tier kW / rack</span><input style={input} type="number" min="0" step="0.1" value={bulkTierKwPerRack} onChange={(e) => { setBulkTierKwPerRack(Number(e.target.value)); setAcceptance(null); }} /></label>
           </div>
-          <p style={{ color: "#666", lineHeight: 1.5, marginBottom: 0 }}>Rack density and storage power remain planning assumptions. OEM/BOM-specific values can be added later when validated partner data is available.</p>
+          <p style={{ color: "#666", lineHeight: 1.5, marginBottom: 0 }}>Rack density, storage power, and per-GPU throughput remain planning assumptions. OEM/BOM-specific values can replace them later when validated partner data is available.</p>
         </section>
 
         <section style={{ marginBottom: 18 }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
             <div style={card}><div style={label}>Fast usable</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{tb(result.capacity.fastUsableTb)}</div><div style={{ color: "#666" }}>{result.tiering.fastPct.toFixed(0)}% of usable requirement</div></div>
             <div style={card}><div style={label}>Bulk usable</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{tb(result.capacity.bulkUsableTb)}</div><div style={{ color: "#666" }}>{result.tiering.bulkPct.toFixed(0)}% of usable requirement</div></div>
+            <div style={card}><div style={label}>Active working set</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{tb(result.capacity.activeWorkingSetTb)}</div><div style={{ color: "#666" }}>Fast-tier dataset basis</div></div>
+            <div style={card}><div style={label}>Checkpoint retention</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{tb(result.capacity.checkpointTb)}</div><div style={{ color: "#666" }}>{checkpointsRetained} retained checkpoint{checkpointsRetained === 1 ? "" : "s"}</div></div>
             <div style={card}><div style={label}>Total raw provisioned</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{tb(result.capacity.totalRawTb)}</div><div style={{ color: "#666" }}>After efficiency assumption</div></div>
             <div style={card}><div style={label}>Read throughput</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{gbps(result.throughput.requiredReadGbps)}</div><div style={{ color: "#666" }}>Storage → compute</div></div>
             <div style={card}><div style={label}>Aggregate bandwidth</div><div style={{ fontSize: 30, fontWeight: 900, marginTop: 6 }}>{gbps(result.throughput.aggregateGbps)}</div><div style={{ color: "#666" }}>Read + write planning target</div></div>
@@ -144,13 +165,7 @@ export default function StorageSizerPreview() {
             <a href="/__phase2/power" style={{ ...primaryButton, textDecoration: "none", background: "#222" }}>Open Power preview</a>
             <a href="/__phase2/tco" style={{ ...primaryButton, textDecoration: "none", background: "#fff", color: "#222", border: "1px solid #aaa" }}>Open TCO receiving preview</a>
           </div>
-          {acceptance && <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: acceptance.ok ? "#eaf7ee" : "#fff0f3", border: "1px solid #ddd" }}>{acceptance.ok ? "Storage requirement staged. Downstream tools can now consume it without any OEM assumption." : acceptance.message}</div>}
-        </section>
-
-        <section style={{ ...card, background: "#fff8f8", borderColor: "#efc9cf" }}>
-          <h2 style={{ marginTop: 0 }}>Scope guard</h2>
-          <p style={{ marginBottom: 10, lineHeight: 1.55 }}>Wave 2B remains vendor-neutral requirement sizing. It does not select a storage OEM, array, controller count, protection policy, filesystem, or network topology.</p>
-          <p style={{ marginBottom: 0, lineHeight: 1.55 }}><strong>OEM pricing state:</strong> QUOTE until partner-specific data is available and validated.</p>
+          {acceptance && <div style={{ marginTop: 12, padding: 10, borderRadius: 8, background: acceptance.ok ? "#eaf7ee" : "#fff0f3", border: `1px solid ${acceptance.ok ? "#b8dec3" : "#efc9cf"}` }}>{acceptance.ok ? `Accepted ${acceptance.acceptedAt}` : acceptance.message}</div>}
         </section>
       </main>
     </div>
