@@ -18,6 +18,23 @@ function treatmentLabel(override) {
   return treatment.mode;
 }
 
+function fabricStatusLabel(bundle) {
+  if (!bundle) return null;
+  if (bundle.costStatus === "ENGINEERING-REVIEW") return "ENGINEERING REVIEW";
+  if (!bundle.costResolved) return "COST UNRESOLVED";
+  return `${bundle.priceSource || "EST"} COST BASIS`;
+}
+
+function fabricUnresolvedMessage(bundle) {
+  if (bundle?.costStatus === "ENGINEERING-REVIEW") {
+    return "Fabric requirement accepted for planning, but the modeled topology requires engineering review. Switch/media quantities and power are lower-bound planning values and no Fabric CAPEX override is staged.";
+  }
+  if (bundle?.requirements?.media?.type === "dac") {
+    return "Fabric requirement accepted; CAPEX unresolved. No TCO cost override is staged until switch and DAC cable pricing are supplied. Separate optical transceiver pricing is not required in DAC mode.";
+  }
+  return "Fabric requirement accepted; CAPEX unresolved. No TCO cost override is staged until switch, cable, and transceiver pricing are supplied.";
+}
+
 function OverrideCard({ override, onRevert }) {
   const planningEligible = phase2OverrideCanWriteBack(override);
   const tcoApplyEligible = phase2OverrideCanApplyToTco(override);
@@ -77,7 +94,7 @@ export default function Phase2TcoPreview() {
           <span style={{ ...badge, background: applyEligibleCount === allOverrides.length && allOverrides.length ? "#eaf7ee" : "#fff4d6", color: "#222" }}>{applyEligibleCount} OF {allOverrides.length} ELIGIBLE TO APPLY TO TCO</span>
           {powerBundle?.requirements?.verdict && <span style={{ ...badge, background: "#f3f3f3", color: "#222" }}>FACILITY: {powerBundle.requirements.verdict.replaceAll("-", " ").toUpperCase()}</span>}
           {softwareBundle?.requirements?.horizonYears && <span style={{ ...badge, background: "#f3f3f3", color: "#222" }}>SOFTWARE: {softwareBundle.requirements.horizonYears}-YEAR PLAN</span>}
-          {networkBundle?.requirements?.topology && <span style={{ ...badge, background: networkBundle.costResolved ? "#f3f3f3" : "#fff4d6", color: "#222" }}>FABRIC: {networkBundle.requirements.topology.toUpperCase()} · {networkBundle.costResolved ? "COST EST" : "COST UNRESOLVED"}</span>}
+          {networkBundle?.requirements?.topology && <span style={{ ...badge, background: networkBundle.costResolved ? "#f3f3f3" : "#fff4d6", color: "#222" }}>FABRIC: {networkBundle.requirements.topology.toUpperCase()} · {fabricStatusLabel(networkBundle)}</span>}
         </div>
 
         <div style={{ display: "grid", gap: 20 }}>
@@ -98,7 +115,7 @@ export default function Phase2TcoPreview() {
             ) : (
               <div style={{ display: "grid", gap: 12 }}>
                 {networkOverrides.length > 0 ? networkOverrides.map((override, index) => <OverrideCard key={override.id || index} override={override} onRevert={() => revertBundle(networkBundle, setNetworkBundle, "phase2-network-writeback", index)} />) : (
-                  <div style={{ background: "#fff7e8", border: "1px solid #e4c679", borderRadius: 10, padding: 14 }}><strong>Fabric requirement accepted; CAPEX unresolved.</strong> No TCO cost override is eligible until switch, cable, and transceiver pricing are all supplied.</div>
+                  <div style={{ background: "#fff7e8", border: "1px solid #e4c679", borderRadius: 10, padding: 14 }}><strong>{networkBundle.costStatus === "ENGINEERING-REVIEW" ? "Fabric engineering review required." : "Fabric requirement accepted; CAPEX unresolved."}</strong> {fabricUnresolvedMessage(networkBundle)}</div>
                 )}
                 <div style={{ borderTop: "1px solid #ddd", paddingTop: 12 }}><h4 style={{ margin: "0 0 8px" }}>Fabric requirement and step schedule</h4><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}><div><strong>Technology</strong><br />{networkBundle.requirements?.technology || "—"}</div><div><strong>Switches</strong><br />{networkBundle.requirements?.switches?.total ?? "—"}</div><div><strong>Switch power</strong><br />{Number(networkBundle.requirements?.switchPowerKw || 0).toFixed(1)} kW</div><div><strong>Current fleet CAPEX</strong><br />{networkBundle.costResolved ? formatMoney(networkBundle.requirements?.capitalCostCurrentFleet || 0) : "UNRESOLVED"}</div></div><div style={{ marginTop: 10, color: "#555" }}>Fleet-size schedule: {networkBundle.requirements?.fleetStepSchedule?.length || 0} infrastructure steps, not a per-system scalar.</div></div>
               </div>
