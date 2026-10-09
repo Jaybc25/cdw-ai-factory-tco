@@ -6,12 +6,17 @@ on:
       - "src/rtxProTcoPolicy.js"
       - "src/rtxProLifecycleTco.js"
       - "src/rtxProServerRegistry.js"
+      - "src/rtxProGpuSizing.js"
+      - "src/rtxProInferenceEconomicsConnector.js"
+      - "src/inferenceEconomicsThroughput.js"
+      - "src/InferenceEconomicsGuidedPreview.jsx"
       - "src/RtxProTcoIntake.jsx"
       - "src/RtxProAlternativeCard.jsx"
       - "src/App.jsx"
       - "scripts/validate_rtx_pro_tco_policy.mjs"
       - "scripts/validate_rtx_pro_lifecycle_tco.mjs"
       - "scripts/validate_rtx_pro_tco_handoff_ui.mjs"
+      - "scripts/validate_rtx_pro_ie_handoff.mjs"
       - ".github/workflows/rtx-pro-tco-policy.yml"
   push:
     branches: [main]
@@ -19,12 +24,17 @@ on:
       - "src/rtxProTcoPolicy.js"
       - "src/rtxProLifecycleTco.js"
       - "src/rtxProServerRegistry.js"
+      - "src/rtxProGpuSizing.js"
+      - "src/rtxProInferenceEconomicsConnector.js"
+      - "src/inferenceEconomicsThroughput.js"
+      - "src/InferenceEconomicsGuidedPreview.jsx"
       - "src/RtxProTcoIntake.jsx"
       - "src/RtxProAlternativeCard.jsx"
       - "src/App.jsx"
       - "scripts/validate_rtx_pro_tco_policy.mjs"
       - "scripts/validate_rtx_pro_lifecycle_tco.mjs"
       - "scripts/validate_rtx_pro_tco_handoff_ui.mjs"
+      - "scripts/validate_rtx_pro_ie_handoff.mjs"
       - ".github/workflows/rtx-pro-tco-policy.yml"
   workflow_dispatch: {}
 
@@ -49,5 +59,7 @@ jobs:
         run: node scripts/validate_rtx_pro_lifecycle_tco.mjs
       - name: Validate GPU Sizing to TCO handoff UI
         run: node scripts/validate_rtx_pro_tco_handoff_ui.mjs
+      - name: Validate RTX TCO to Inference Economics handoff
+        run: node scripts/validate_rtx_pro_ie_handoff.mjs
       - name: Production build
         run: npm run build
