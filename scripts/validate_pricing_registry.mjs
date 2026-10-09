@@ -5,6 +5,12 @@ import {
   GPU_SIZING_SYSTEM_MAP,
   GPU_SIZING_PRICE_USD,
 } from "../src/pricingRegistry.js";
+import {
+  RTX_PRO_6000_GPU_SPEC,
+  RTX_PRO_SERVER_CONFIGURATION_POLICY,
+  RTX_PRO_SERVER_CONFIGS,
+  RTX_PRO_CLOUD_COMPARATOR,
+} from "../src/rtxProServerRegistry.js";
 
 const errors = [];
 const expectedProviders = ["AWS", "Azure", "GCP", "OCI", "CoreWeave"];
@@ -86,6 +92,56 @@ for (const gpuClass of expectedSizingClasses) {
   }
 }
 
+// Right-Sized Private AI evidence gate: RTX PRO is staged in its own registry
+// until support/software/power and platform policy are resolved. This ensures
+// that simply adding public server prices cannot activate a client-facing path.
+if (RTX_PRO_6000_GPU_SPEC.vramGB !== 96 || RTX_PRO_6000_GPU_SPEC.powerMaxW !== 600) {
+  errors.push("RTX PRO 6000 Server Edition must preserve NVIDIA's 96 GB / 600 W published specification basis");
+}
+if (JSON.stringify(RTX_PRO_SERVER_CONFIGURATION_POLICY.supportedGpuCounts) !== JSON.stringify([2, 4, 8])) {
+  errors.push("RTX PRO server architecture must remain constrained to the admitted 2/4/8-GPU configuration classes");
+}
+if (RTX_PRO_SERVER_CONFIGURATION_POLICY.oneGpuProductionRecommended !== false) {
+  errors.push("RTX PRO v1 must not create an inferred 1-GPU production server recommendation");
+}
+if (RTX_PRO_SERVER_CONFIGURATION_POLICY.multiGpuModelParallelAutonomous !== false) {
+  errors.push("RTX PRO v1 must keep split-model multi-GPU serving behind engineering validation");
+}
+
+const rtx2 = RTX_PRO_SERVER_CONFIGS["RTX PRO 6000 Server 2-GPU"];
+const rtx4 = RTX_PRO_SERVER_CONFIGS["RTX PRO 6000 Server 4-GPU"];
+const rtx8 = RTX_PRO_SERVER_CONFIGS["RTX PRO 6000 Server 8-GPU"];
+if (rtx2?.configuredSystemSku !== "SYS-212GB-FNR-01-G2" || rtx2?.configuredSystemPriceUSD !== 66680.45 || rtx2?.priceProvenance !== "LISTED") {
+  errors.push("RTX PRO 2-GPU record must preserve the verified configured Supermicro public-list anchor");
+}
+if (rtx4?.configuredSystemSku !== "SYS-422GA-NRT-01-G2" || rtx4?.configuredSystemPriceUSD !== 127673 || rtx4?.priceProvenance !== "LISTED") {
+  errors.push("RTX PRO 4-GPU record must preserve the verified configured Supermicro public-list anchor");
+}
+if (rtx8?.configuredSystemPriceUSD !== null || rtx8?.priceProvenance !== "QUOTE") {
+  errors.push("RTX PRO 8-GPU record must remain quote/evidence-required; do not derive a configured price from barebones chassis + GPU arithmetic");
+}
+for (const row of Object.values(RTX_PRO_SERVER_CONFIGS)) {
+  if (row.clientFacingReady !== false) errors.push(`${row.id}: staging registry must not activate client-facing RTX economics`);
+  if (row.serverPowerKW !== null) errors.push(`${row.id}: server power must remain unresolved until an OEM/full-system value is admitted`);
+  if (row.nvidiaSoftwareUSD !== null || row.supportTerm !== null) errors.push(`${row.id}: unresolved software/support must not be represented as zero-cost facts`);
+}
+
+const cloudRtxExpected = 0.00036522 * 3600 + (20 * 0.000018 * 3600) + (80 * 0.000002 * 3600);
+if (Math.abs(RTX_PRO_CLOUD_COMPARATOR.minimumInstanceRatePerHourUSD - cloudRtxExpected) > 1e-9) {
+  errors.push("Cloud Run RTX PRO comparator must include mandatory GPU + 20 vCPU + 80 GiB memory components");
+}
+if (RTX_PRO_CLOUD_COMPARATOR.gpuRatePerHourUSD === RTX_PRO_CLOUD_COMPARATOR.minimumInstanceRatePerHourUSD) {
+  errors.push("Cloud Run GPU component rate must never masquerade as the total minimum instance rate");
+}
+
+// RTX staging must not leak into the existing active purchase registries yet.
+for (const activeName of Object.keys(ONPREM_SYSTEMS)) {
+  if (/RTX PRO/i.test(activeName)) errors.push("RTX PRO must remain staged outside ONPREM_SYSTEMS until its activation PR");
+}
+for (const activeClass of Object.keys(GPU_SIZING_SYSTEM_MAP)) {
+  if (/RTX/i.test(activeClass)) errors.push("RTX PRO must remain staged outside GPU_SIZING_SYSTEM_MAP until sizing activation");
+}
+
 const tcoSource = fs.readFileSync(new URL("../src/TcoCalculator.jsx", import.meta.url), "utf8");
 const sizingSource = fs.readFileSync(new URL("../src/GpuSizingCalculator.jsx", import.meta.url), "utf8");
 
@@ -112,3 +168,4 @@ console.log("Shared pricing registry validation PASS");
 console.log(`Providers: ${Object.keys(CLOUD_GPU_RATES).join(", ")}`);
 console.log(`On-prem systems: ${Object.keys(ONPREM_SYSTEMS).length}`);
 console.log(`GPU Sizing classes derived from shared systems: ${expectedSizingClasses.join(", ")}`);
+console.log("RTX PRO staging registry: 2/4 listed, 8 quote-required, client-facing activation blocked");
