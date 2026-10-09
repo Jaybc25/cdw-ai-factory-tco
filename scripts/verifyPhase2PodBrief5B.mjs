@@ -30,7 +30,7 @@ const powerFleet = makeFleetIdentity({ systemClass: "DGX B200", systemCount: 8, 
 const powerBundle = {
   fleet: powerFleet,
   costResolved: true,
-  requirements: { acceptedAt: "2026-10-08T10:02:00Z", fleet: powerFleet, upstreamStorageFingerprint: "storage-a", upstreamNetworkFingerprint: "fabric-a", systemName: "DGX B200", verdict: "fits-as-is", racks: { compute: 4, storage: 3, network: 1, total: 8 }, power: { designItKw: 150, facilityDesignKw: 202.5 }, cooling: { coolingTons: 42.6 }, facilityCostResolved: true, facilityCostStatus: "CUSTOMER" },
+  requirements: { acceptedAt: "2026-10-08T10:02:00Z", fleet: powerFleet, upstreamStorageFingerprint: "storage-a", upstreamNetworkFingerprint: "fabric-a", systemName: "DGX B200", verdict: "fits-as-is", racks: { compute: 4, storage: 3, network: 1, total: 8, footprintComplete: true }, networkRackFootprintResolved: true, power: { designItKw: 150, facilityDesignKw: 202.5 }, cooling: { coolingTons: 42.6 }, facilityCostResolved: true, facilityCostStatus: "CUSTOMER" },
   overrides: [override("power.energy.monthly", 12000, "USD/month"), override("power.facility-burden.monthly", 8000, "USD/month")],
 };
 const softwareBundle = {
@@ -54,6 +54,7 @@ assert.equal(brief.stale.length, 0);
 assert.equal(brief.storage.aggregateGBps, 50);
 assert.equal(brief.storage.bandwidthUnit, "GB/s");
 assert.equal(brief.storage.pricingStatus, "OUT-OF-SCOPE");
+assert.equal(brief.facility.networkRackFootprintResolved, true);
 assert.equal(brief.phase1Delta, null, "Additive Phase 1 → Phase 2 delta must remain suppressed");
 assert.equal(brief.phase1Comparison.baselineOnPrem, 2000000);
 assert.equal(brief.phase1Comparison.phase2RefinedLines.powerFacilityHorizon, 720000);
@@ -93,6 +94,25 @@ assert.equal(unresolvedPower.engineeringReviewReady, true);
 assert.equal(unresolvedPower.clientReady, false);
 assert.equal(unresolvedPower.openItemCount, 1);
 assert.ok(unresolvedPower.unresolved.some((x) => x.includes("Facility-burden economics are unresolved")));
+
+const unresolvedNetworkRackFootprint = buildPodBrief({
+  ...dependencies,
+  powerBundle: {
+    ...powerBundle,
+    requirements: {
+      ...powerBundle.requirements,
+      verdict: "partial-check",
+      racks: { compute: 4, storage: 3, network: null, total: null, knownTotal: 7, footprintComplete: false },
+      networkRackFootprintResolved: false,
+    },
+  },
+  phase1Snapshot,
+});
+assert.equal(unresolvedNetworkRackFootprint.engineeringReviewReady, true);
+assert.equal(unresolvedNetworkRackFootprint.clientReady, false, "Unknown network rack footprint must remain an explicit Pod Brief open item");
+assert.equal(unresolvedNetworkRackFootprint.openItemCount, 1);
+assert.equal(unresolvedNetworkRackFootprint.compute.totalRacks, null);
+assert.ok(unresolvedNetworkRackFootprint.unresolved.some((x) => x.includes("Network/fabric rack footprint is unresolved")));
 
 const unresolvedFabric = buildPodBrief({
   ...dependencies,
