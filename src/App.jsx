@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType 
 import LandingPage from "./LandingPage.jsx";
 import TcoCalculator from "./TcoCalculator.jsx";
 import RtxProTcoIntake from "./RtxProTcoIntake.jsx";
+import RtxProCloudComparatorCard from "./RtxProCloudComparatorCard.jsx";
 import GpuSizingCalculator from "./GpuSizingCalculator.jsx";
 import ModelAdvisor from "./ModelAdvisor.jsx";
 import UseCaseExplorer from "./UseCaseExplorer.jsx";
@@ -93,6 +94,7 @@ function RtxProTcoRoute() {
       toolKey="tco"
     >
       <RtxProTcoIntake />
+      <RtxProCloudComparatorCard />
     </SharedToolShell>
   );
 }
@@ -225,7 +227,7 @@ function ToolRoutes() {
           </SharedToolShell>
         )}
       />
-      {E2E_AUTH_BYPASS && <Route path="/__e2e/hybrid-sequence-state" element={<HybridSequenceStateTestRoute />} />}
+      {E2E_AUTH_BYPASS && <Route path="/__test/hybrid-sequence-state" element={<HybridSequenceStateTestRoute />} />}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
