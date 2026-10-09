@@ -4,7 +4,7 @@ import { buildStorageDependencyBundle } from "../src/storageSizerWriteback.js";
 import { calculatePowerPlanner } from "../src/powerPlannerEngine.js";
 import { buildPowerPlannerWritebackBundle } from "../src/powerPlannerWriteback.js";
 
-function makeStorage(baseDatasetTb) {
+function makeStorage(baseDatasetTb, activeWorkingSetTb = "") {
   const result = calculateStorageSizer({
     workload: "training",
     baseDatasetTb,
@@ -15,7 +15,7 @@ function makeStorage(baseDatasetTb) {
     checkpointBytesPerParam: 16,
     checkpointsRetained: 5,
     activeWorkingSetPct: 35,
-    activeWorkingSetTb: "",
+    activeWorkingSetTb,
     indexOverheadPct: 10,
     reservePct: 20,
     usableEfficiency: 0.75,
@@ -60,13 +60,23 @@ function makePower(storage) {
 const storageA = makeStorage(500);
 const storageB = makeStorage(750);
 assert.notEqual(storageA.fingerprint, storageB.fingerprint, "Storage fingerprint must change when accepted inputs change");
-assert.equal(storageA.schemaVersion, 2);
+assert.equal(storageA.schemaVersion, 3);
+assert.equal(storageA.economicsScope, "REQUIREMENT-ONLY");
+assert.equal(storageA.pricingIncluded, false);
+assert.equal(storageA.requirements.pricingStatus, "OUT-OF-SCOPE");
+assert.match(storageA.requirements.pricingNote, /vendor-neutral capacity\/performance\/rack\/power requirement/i);
 assert.equal(storageA.requirements.bandwidthUnit, "GB/s");
 assert.equal(storageA.requirements.aggregateGBps, storageA.requirements.aggregateGbps, "Legacy alias must remain numerically identical during preview migration");
+assert.equal(storageA.assumptions.activeWorkingSet.source, "EST");
 assert.equal(storageA.assumptions.throughputPerGpu.source, "EST");
 assert.equal(storageA.assumptions.rackDensity.source, "EST");
 assert.equal(storageA.assumptions.rackPower.source, "EST");
-assert.equal(storageA.costResolved, false, "Storage OEM/BOM economics remain unresolved until quoted");
+assert.equal("costResolved" in storageA, false, "Storage sizing must not pretend to have unresolved pricing state");
+
+const explicitWorkingSet = makeStorage(500, 120);
+assert.equal(explicitWorkingSet.assumptions.activeWorkingSet.source, "CUSTOMER", "Explicit active working set must preserve customer provenance");
+assert.equal(explicitWorkingSet.assumptions.activeWorkingSet.explicitTb, 120);
+assert.match(explicitWorkingSet.assumptions.activeWorkingSet.note, /customer active-working-set capacity/i);
 
 const powerA = makePower(storageA);
 assert.equal(powerA.requirements.upstreamStorageFingerprint, storageA.fingerprint);
@@ -80,4 +90,4 @@ const powerB = makePower(storageB);
 assert.equal(powerB.requirements.upstreamStorageFingerprint, storageB.fingerprint, "Recompute must bind Power to the new Storage fingerprint");
 assert.notEqual(powerA.requirements.power.storageKw, powerB.requirements.power.storageKw, "Changed Storage sizing should propagate into Power when the requirement changes materially");
 
-console.log("PASS: Phase 2 Storage unit contract, provenance, and Storage → Power dependency verified");
+console.log("PASS: Phase 2 Storage requirement contract, provenance, and Storage → Power dependency verified");
