@@ -92,7 +92,6 @@ export default function PowerPlannerPreview() {
       const upstreamNetwork = useAcceptedNetwork && acceptedNetwork ? { fingerprint: acceptedNetwork.fingerprint, acceptedAt: acceptedNetwork.acceptedAt } : null;
       const bundle = buildPowerPlannerWritebackBundle(result, { systemName, upstreamStorage, upstreamNetwork });
       saveSessionState("phase2-power-writeback", bundle);
-      saveSessionState("phase2-preview-override", { override: bundle.overrides[0], source: "power-planner" });
       setSavedPower(bundle);
       setAcceptance({ ok: true, costResolved: bundle.costResolved, energyIncludedInFacilityBundle: bundle.energyIncludedInFacilityBundle });
     } catch (error) { setAcceptance({ ok: false, message: error.message }); }
