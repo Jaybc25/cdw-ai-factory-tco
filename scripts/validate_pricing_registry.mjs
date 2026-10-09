@@ -11,6 +11,13 @@ import {
   RTX_PRO_SERVER_CONFIGS,
   RTX_PRO_CLOUD_COMPARATOR,
 } from "../src/rtxProServerRegistry.js";
+import {
+  RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB,
+  RTX_PRO_INFERENCE_BENCHMARKS,
+  roundRtxProReplicaDeployment,
+  selectRtxProBenchmark,
+  sizeRtxProInference,
+} from "../src/rtxProGpuSizing.js";
 
 const errors = [];
 const expectedProviders = ["AWS", "Azure", "GCP", "OCI", "CoreWeave"];
@@ -142,6 +149,72 @@ for (const activeClass of Object.keys(GPU_SIZING_SYSTEM_MAP)) {
   if (/RTX/i.test(activeClass)) errors.push("RTX PRO must remain staged outside GPU_SIZING_SYSTEM_MAP until sizing activation");
 }
 
+// Evidence-gated RTX GPU Sizing engine. The engine may exist before UI/TCO
+// activation, but it must reject unsupported extrapolation rather than invent
+// a universal RTX-to-DGX throughput factor.
+if (RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB !== 90) {
+  errors.push("RTX PRO autonomous fit gate must preserve the conservative 90 GB usable-VRAM ceiling");
+}
+if (RTX_PRO_INFERENCE_BENCHMARKS.length < 2 || RTX_PRO_INFERENCE_BENCHMARKS.some((row) => row.derivation !== "DIRECT" || row.modelId !== "llama-3.3-70b")) {
+  errors.push("RTX PRO v1 benchmarks must remain direct model/context/precision anchors, not derived cross-GPU ratios");
+}
+const shortAnchor = selectRtxProBenchmark({ modelId: "llama-3.3-70b", precision: "FP4", avgInputTokens: 1000, avgOutputTokens: 1000 });
+const longAnchor = selectRtxProBenchmark({ modelId: "llama-3.3-70b", precision: "FP4", avgInputTokens: 8192, avgOutputTokens: 1024 });
+if (shortAnchor?.throughputTokPerSecPerGpu !== 1724) errors.push("RTX PRO short-context Llama 3.3 70B anchor must remain 1,724 tok/s/GPU");
+if (longAnchor?.throughputTokPerSecPerGpu !== 296) errors.push("RTX PRO long-context Llama 3.3 70B anchor must remain 296 tok/s/GPU");
+if (selectRtxProBenchmark({ modelId: "llama-3.3-70b", precision: "FP4", avgInputTokens: 12000, avgOutputTokens: 1024 }) !== null) {
+  errors.push("RTX PRO v1 must not extrapolate the admitted 8K input anchor into longer contexts");
+}
+if (selectRtxProBenchmark({ modelId: "muse-glimmer-30b", precision: "FP4", avgInputTokens: 1000, avgOutputTokens: 500 }) !== null) {
+  errors.push("RTX PRO v1 must not reuse Llama 3.3 throughput for an unbenchmarked model");
+}
+
+const rtxRound2 = roundRtxProReplicaDeployment(1);
+const rtxRound4 = roundRtxProReplicaDeployment(3);
+const rtxRound8 = roundRtxProReplicaDeployment(7);
+const rtxRound16 = roundRtxProReplicaDeployment(9);
+if (rtxRound2.totalDeployedGpus !== 2 || rtxRound2.serverGpuCount !== 2) errors.push("One RTX replica must round to the admitted 2-GPU production server, never an inferred 1-GPU server");
+if (rtxRound4.totalDeployedGpus !== 4 || rtxRound4.serverGpuCount !== 4) errors.push("Three RTX replicas must round to the admitted 4-GPU production server");
+if (rtxRound8.totalDeployedGpus !== 8 || rtxRound8.serverGpuCount !== 8) errors.push("Seven RTX replicas must round to the admitted 8-GPU production server");
+if (rtxRound16.totalDeployedGpus !== 16 || rtxRound16.servers !== 2) errors.push("RTX demand above one server must round in whole 8-GPU independent-replica server quanta");
+
+const rtxAutonomous = sizeRtxProInference({
+  modelId: "llama-3.3-70b",
+  precision: "FP4",
+  totalMemoryGB: 48,
+  aggregateTokensPerSecond: 3000,
+  avgInputTokens: 1000,
+  avgOutputTokens: 1000,
+});
+if (!rtxAutonomous.eligible || rtxAutonomous.status !== "AUTONOMOUS_REPLICA_SIZING" || rtxAutonomous.replicas !== 2 || rtxAutonomous.deployment.totalDeployedGpus !== 2) {
+  errors.push("RTX PRO direct-benchmark fit path must autonomously size independent replicas and 2/4/8 server rounding");
+}
+if (rtxAutonomous.budget?.amount !== 66680.45 || rtxAutonomous.budget?.confidence !== "LISTED") {
+  errors.push("A one-server 2-GPU RTX deployment must surface only the direct configured-server public-list hardware anchor");
+}
+const rtxSplitBlocked = sizeRtxProInference({
+  modelId: "llama-3.3-70b",
+  precision: "FP4",
+  totalMemoryGB: 97,
+  aggregateTokensPerSecond: 500,
+  avgInputTokens: 1000,
+  avgOutputTokens: 1000,
+});
+if (rtxSplitBlocked.eligible || rtxSplitBlocked.status !== "ENGINEERING_VALIDATION_REQUIRED") {
+  errors.push("RTX PRO v1 must block autonomous sizing when the model-serving footprint exceeds the single-GPU fit ceiling");
+}
+const rtxEvidenceBlocked = sizeRtxProInference({
+  modelId: "muse-glimmer-30b",
+  precision: "FP4",
+  totalMemoryGB: 30,
+  aggregateTokensPerSecond: 500,
+  avgInputTokens: 1000,
+  avgOutputTokens: 500,
+});
+if (rtxEvidenceBlocked.eligible || rtxEvidenceBlocked.status !== "EVIDENCE_REQUIRED") {
+  errors.push("RTX PRO v1 must block autonomous performance sizing for models without an admitted direct benchmark");
+}
+
 const tcoSource = fs.readFileSync(new URL("../src/TcoCalculator.jsx", import.meta.url), "utf8");
 const sizingSource = fs.readFileSync(new URL("../src/GpuSizingCalculator.jsx", import.meta.url), "utf8");
 
@@ -169,3 +242,4 @@ console.log(`Providers: ${Object.keys(CLOUD_GPU_RATES).join(", ")}`);
 console.log(`On-prem systems: ${Object.keys(ONPREM_SYSTEMS).length}`);
 console.log(`GPU Sizing classes derived from shared systems: ${expectedSizingClasses.join(", ")}`);
 console.log("RTX PRO staging registry: 2/4 listed, 8 quote-required, client-facing activation blocked");
+console.log("RTX PRO sizing engine: single-GPU fit + direct benchmark + independent replica rounding enforced");
