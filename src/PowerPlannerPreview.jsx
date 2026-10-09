@@ -21,12 +21,26 @@ function sourceOptions() {
   </>;
 }
 
+function bundleIsStale(bundle) {
+  return Boolean(
+    bundle?.stale ||
+    bundle?.requirements?.stale ||
+    (bundle?.overrides || []).some((override) => override?.state === PHASE2_STATE.STALE)
+  );
+}
+
 export default function PowerPlannerPreview() {
   const acceptedStorage = useMemo(() => loadSessionState("phase2-storage-writeback"), []);
   const acceptedNetwork = useMemo(() => loadSessionState("phase2-network-writeback"), []);
+  const storageDependencyStale = bundleIsStale(acceptedStorage);
+  const networkDependencyStale = bundleIsStale(acceptedNetwork);
+  const networkEngineeringReview = Boolean(
+    acceptedNetwork?.costStatus === "ENGINEERING-REVIEW" ||
+    acceptedNetwork?.requirements?.topologyFeasibility?.twoTierFeasible === false
+  );
   const [savedPower, setSavedPower] = useState(() => loadSessionState("phase2-power-writeback"));
-  const [useAcceptedStorage, setUseAcceptedStorage] = useState(Boolean(acceptedStorage?.requirements));
-  const [useAcceptedNetwork, setUseAcceptedNetwork] = useState(Boolean(acceptedNetwork?.requirements));
+  const [useAcceptedStorage, setUseAcceptedStorage] = useState(Boolean(acceptedStorage?.requirements) && !storageDependencyStale);
+  const [useAcceptedNetwork, setUseAcceptedNetwork] = useState(Boolean(acceptedNetwork?.requirements) && !networkDependencyStale && !networkEngineeringReview);
   const [systemName, setSystemName] = useState("DGX B200");
   const profile = POWER_PLANNER_SYSTEM_PROFILES[systemName];
   const [systemCount, setSystemCount] = useState(8);
@@ -106,6 +120,9 @@ export default function PowerPlannerPreview() {
 
   function stageForTco() {
     try {
+      if (useAcceptedStorage && storageDependencyStale) throw new Error("Cannot accept Power while the upstream Storage requirement is stale. Recompute and accept Storage first.");
+      if (useAcceptedNetwork && networkDependencyStale) throw new Error("Cannot accept Power while the upstream Fabric requirement is stale. Recompute and accept Fabric first.");
+      if (useAcceptedNetwork && networkEngineeringReview) throw new Error("Cannot accept Power from an engineering-review Fabric result. Resolve Fabric topology first or disable the Fabric dependency and enter a provisional network allowance.");
       const upstreamStorage = useAcceptedStorage && acceptedStorage ? { fingerprint: acceptedStorage.fingerprint, acceptedAt: acceptedStorage.acceptedAt } : null;
       const upstreamNetwork = useAcceptedNetwork && acceptedNetwork ? { fingerprint: acceptedNetwork.fingerprint, acceptedAt: acceptedNetwork.acceptedAt } : null;
       const bundle = buildPowerPlannerWritebackBundle(result, { systemName, upstreamStorage, upstreamNetwork, utilityRateSource, facilityCostSource });
@@ -121,8 +138,8 @@ export default function PowerPlannerPreview() {
     <p style={{ margin: "0 0 10px", color: "#555", fontSize: 17, lineHeight: 1.55 }}>Design power drives capacity checks. Energy-planning power drives energy. Heat rejection tracks IT load rather than PUE-loaded facility demand.</p>
     <p style={{ margin: "0 0 24px", color: "#666", lineHeight: 1.5 }}><strong>{profile.energyBasis}.</strong> Source: {profile.evidenceSource} · reviewed {profile.reviewedAt}. {profile.notes}</p>
 
-    {acceptedStorage?.requirements && <section style={{ ...card, marginBottom: 18, borderLeft: "6px solid #176b31" }}><h2 style={{ marginTop: 0 }}>Accepted Storage dependency</h2><div>{Math.round(acceptedStorage.requirements.totalRawTb).toLocaleString()} TB raw · {acceptedStorage.requirements.storageRacks} racks · {kw(acceptedStorage.requirements.storagePowerKw)} · {Number(acceptedStorage.requirements.aggregateGBps ?? acceptedStorage.requirements.aggregateGbps ?? 0).toFixed(1)} GB/s</div><label><input type="checkbox" checked={useAcceptedStorage} onChange={(e) => { setUseAcceptedStorage(e.target.checked); clearAcceptance(); }} /> Use accepted Storage requirement</label></section>}
-    {acceptedNetwork?.requirements && <section style={{ ...card, marginBottom: 18, borderLeft: "6px solid #176b31" }}><h2 style={{ marginTop: 0 }}>Accepted Fabric dependency</h2><div>{acceptedNetwork.requirements.technology} · {acceptedNetwork.requirements.switches?.total ?? "—"} switches · {kw(acceptedNetwork.requirements.switchPowerKw)} switch power · CAPEX {money(acceptedNetwork.requirements.capitalCostCurrentFleet)}</div><label><input type="checkbox" checked={useAcceptedNetwork} onChange={(e) => { setUseAcceptedNetwork(e.target.checked); clearAcceptance(); }} /> Use accepted Fabric switch power</label></section>}
+    {acceptedStorage?.requirements && <section style={{ ...card, marginBottom: 18, borderLeft: storageDependencyStale ? "6px solid #b7791f" : "6px solid #176b31", background: storageDependencyStale ? "#fff7e8" : "#fff" }}><h2 style={{ marginTop: 0 }}>{storageDependencyStale ? "STALE Storage dependency" : "Accepted Storage dependency"}</h2><div>{Math.round(acceptedStorage.requirements.totalRawTb).toLocaleString()} TB raw · {acceptedStorage.requirements.storageRacks} racks · {kw(acceptedStorage.requirements.storagePowerKw)} · {Number(acceptedStorage.requirements.aggregateGBps ?? acceptedStorage.requirements.aggregateGbps ?? 0).toFixed(1)} GB/s</div>{storageDependencyStale && <p style={{ color: "#7a5600", fontWeight: 700 }}>Recompute and accept Storage before using it in Power.</p>}<label><input type="checkbox" disabled={storageDependencyStale} checked={useAcceptedStorage} onChange={(e) => { setUseAcceptedStorage(e.target.checked); clearAcceptance(); }} /> Use accepted Storage requirement</label></section>}
+    {acceptedNetwork?.requirements && <section style={{ ...card, marginBottom: 18, borderLeft: networkDependencyStale || networkEngineeringReview ? "6px solid #b7791f" : "6px solid #176b31", background: networkDependencyStale || networkEngineeringReview ? "#fff7e8" : "#fff" }}><h2 style={{ marginTop: 0 }}>{networkDependencyStale ? "STALE Fabric dependency" : networkEngineeringReview ? "Fabric requires engineering review" : "Accepted Fabric dependency"}</h2><div>{acceptedNetwork.requirements.technology} · {acceptedNetwork.requirements.switches?.total ?? "—"} switches · {kw(acceptedNetwork.requirements.switchPowerKw)} switch power · CAPEX {money(acceptedNetwork.requirements.capitalCostCurrentFleet)}</div>{networkDependencyStale && <p style={{ color: "#7a5600", fontWeight: 700 }}>Recompute and accept Fabric before using it in Power.</p>}{networkEngineeringReview && <p style={{ color: "#7a5600", fontWeight: 700 }}>This Fabric result is a lower-bound planning result because the modeled topology needs engineering resolution. Its switch power is not accepted into Power.</p>}<label><input type="checkbox" disabled={networkDependencyStale || networkEngineeringReview} checked={useAcceptedNetwork} onChange={(e) => { setUseAcceptedNetwork(e.target.checked); clearAcceptance(); }} /> Use accepted Fabric switch power</label></section>}
     {(powerStaleFromStorage || powerStaleFromNetwork || savedPower?.requirements?.stale) && <section style={{ ...card, marginBottom: 18, background: "#fff7e8" }}><strong>STALE · accepted Power inputs changed</strong><p>Recompute Power before client use or downstream write-back.</p></section>}
 
     <section style={{ ...card, marginBottom: 18 }}><h2 style={{ marginTop: 0 }}>1. Fleet and site inputs</h2><div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
