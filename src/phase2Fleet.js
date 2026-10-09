@@ -39,7 +39,11 @@ export function fleetFromPhase1Snapshot(snapshot) {
 }
 
 export function compareFleetIdentity(canonical, observed, label) {
-  if (!canonical || !observed) return [];
+  if (!canonical) return [];
+  if (!observed) {
+    return [`${label} fleet identity is missing; at least one fleet dimension must be comparable to the canonical Phase 1 fleet.`];
+  }
+
   const issues = [];
   const checks = [
     ["systemClass", "system class"],
@@ -47,10 +51,20 @@ export function compareFleetIdentity(canonical, observed, label) {
     ["gpusPerSystem", "GPUs/system"],
     ["totalGpus", "total GPUs"],
   ];
+
+  let comparableDimensions = 0;
   checks.forEach(([key, text]) => {
-    if (canonical[key] != null && observed[key] != null && canonical[key] !== observed[key]) {
-      issues.push(`${label} fleet mismatch: ${text} is ${observed[key]} but the canonical Phase 1 fleet is ${canonical[key]}.`);
+    if (canonical[key] != null && observed[key] != null) {
+      comparableDimensions += 1;
+      if (canonical[key] !== observed[key]) {
+        issues.push(`${label} fleet mismatch: ${text} is ${observed[key]} but the canonical Phase 1 fleet is ${canonical[key]}.`);
+      }
     }
   });
+
+  if (comparableDimensions === 0) {
+    issues.push(`${label} fleet identity is insufficient; it does not contain any dimension comparable to the canonical Phase 1 fleet.`);
+  }
+
   return issues;
 }
