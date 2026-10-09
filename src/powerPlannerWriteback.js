@@ -30,6 +30,7 @@ export function validatePowerPlannerInputs(result) {
   if (!result?.economics?.facilityCostResolved) warnings.push(i.facilityBranch === "colocation"
     ? "Colocation is selected but no customer/partner monthly bundle has been entered; facility economics remain unresolved and will not write back to TCO."
     : "Owned-datacenter facility burden is blank or zero; facility economics remain unresolved and will not write back to TCO.");
+  if (result?.economics?.energyIncludedInFacilityBundle) warnings.push("Colocation bundle includes electricity. Standalone utility energy will be suppressed from TCO to avoid double counting.");
 
   return { valid: errors.length === 0, errors, warnings };
 }
@@ -63,10 +64,11 @@ export function buildPowerPlannerWritebackBundle(result, {
     upstreamNetworkFingerprint: upstreamNetwork?.fingerprint || null,
   };
 
-  const energy = createPhase2Override({
+  const energyIncludedInFacilityBundle = Boolean(result.economics.energyIncludedInFacilityBundle);
+  const energy = energyIncludedInFacilityBundle ? null : createPhase2Override({
     id: "power.energy.monthly",
     target: "tco.power.energy.monthly",
-    value: Math.round(result.economics.monthlyEnergyCost),
+    value: Math.round(result.economics.monthlyStandaloneEnergyCost ?? result.economics.monthlyEnergyCost),
     unit: "USD/month",
     sourceTool: "power-planner",
     provenance: makeProvenance({
@@ -90,7 +92,7 @@ export function buildPowerPlannerWritebackBundle(result, {
       source: normalizedFacilitySource,
       derivation: facilityDerivation,
       label: result.inputs.facilityBranch === "colocation"
-        ? `${normalizedFacilitySource} colocation monthly bundle`
+        ? `${normalizedFacilitySource} colocation monthly bundle${energyIncludedInFacilityBundle ? " including electricity" : " excluding electricity"}`
         : `${normalizedFacilitySource} facility burden × design IT kW`,
     }),
     dependencies,
@@ -98,7 +100,7 @@ export function buildPowerPlannerWritebackBundle(result, {
   }) : null;
 
   const requirements = {
-    schemaVersion: 2,
+    schemaVersion: 3,
     sourceTool: "power-planner",
     systemName,
     fleet,
@@ -114,6 +116,8 @@ export function buildPowerPlannerWritebackBundle(result, {
     power: result.power,
     cooling: result.cooling,
     utilityRateSource: normalizedUtilitySource,
+    energyIncludedInFacilityBundle,
+    standaloneEnergyWritebackEligible: !energyIncludedInFacilityBundle,
     facilityCostResolved: facilityResolved,
     facilityCostStatus: facilityResolved ? normalizedFacilitySource : "UNRESOLVED",
     facilityCostSource: facilityResolved ? normalizedFacilitySource : null,
@@ -127,7 +131,8 @@ export function buildPowerPlannerWritebackBundle(result, {
     costStatus: facilityResolved ? normalizedFacilitySource : "UNRESOLVED",
     utilityRateSource: normalizedUtilitySource,
     facilityCostSource: facilityResolved ? normalizedFacilitySource : null,
-    overrides: facility ? [energy, facility] : [energy],
+    energyIncludedInFacilityBundle,
+    overrides: [energy, facility].filter(Boolean),
     requirements,
     validation,
   };
