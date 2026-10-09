@@ -41,8 +41,9 @@ for (const scenario of [
     const rtx = page.getByTestId("rtx-lower-cost-qualified");
     await expect(rtx).toBeVisible();
     await expect(rtx).toContainText("Lower-cost alternative");
-    await expect(rtx).toContainText(`${scenario.expectedGpuCount} × NVIDIA RTX PRO 6000 Blackwell Server Edition`);
-    await expect(rtx).toContainText("does not provide NVLink/NVSwitch-style scale-up");
+    await expect(rtx).toContainText(`${scenario.expectedGpuCount} GPUs`);
+    await expect(rtx).toContainText("NVIDIA RTX PRO 6000");
+    await expect(rtx).toContainText("No NVLink scale-up");
     await expect(rtx).toContainText("Tap to select for TCO");
     await expect(rtx).toHaveAttribute("aria-pressed", "false");
 
@@ -52,19 +53,47 @@ for (const scenario of [
 
     const handoff = page.getByTestId("rtx-selected-handoff");
     await expect(handoff).toBeVisible();
-    await expect(handoff).toContainText("Selected next step · RTX PRO TCO");
     const forward = handoff.getByRole("link", { name: "Continue to RTX PRO TCO" });
     await expect(forward).toHaveAttribute("href", /\/tco\/rtx-pro\?/);
     await expect(forward).toHaveAttribute("href", new RegExp(`gpuCount=${scenario.expectedGpuCount}`));
     await expect(forward).toHaveAttribute("href", /benchmarkId=/);
-
-    const tier = rtx.locator("..");
-    await expect(tier.getByText("Higher-growth alternative", { exact: true })).toBeVisible();
-    await expect(page.getByText("No qualifying lower-cost alternative in the current supported catalog.")).toBeHidden();
   });
 }
 
-test("unsupported Gemma benchmark is selectable for explicit 2/4/8 RTX TCO planning without inventing a recommendation", async ({ page }) => {
+test("Qwen3.8 27B is auto-sized from measured RTX serving evidence rather than asking the user to choose a GPU count", async ({ page }) => {
+  await seedGpuSizing(page, {
+    infModelId: "qwen3.8-27b",
+    quant: "FP8",
+    concurrentUsers: 100,
+    targetTokPerUser: 30,
+    avgInputTokens: 2000,
+    avgOutputTokens: 500,
+  });
+  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+
+  const grid = page.getByTestId("gpu-result-choice-grid");
+  await expect(grid).toBeVisible();
+
+  const rtx = page.getByTestId("rtx-lower-cost-qualified");
+  await expect(rtx).toBeVisible();
+  await expect(rtx).toContainText("8 GPUs");
+  await expect(rtx).toContainText("NVIDIA RTX PRO 6000");
+  await expect(rtx).toContainText("Measured serving evidence");
+  await expect(rtx).toContainText("Tap to select for TCO");
+  await expect(rtx).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByTestId("rtx-planning-config-picker")).toHaveCount(0);
+
+  await rtx.click();
+  await expect(rtx).toHaveAttribute("aria-pressed", "true");
+  const handoff = page.getByTestId("rtx-selected-handoff");
+  const forward = handoff.getByRole("link", { name: "Continue to RTX PRO TCO" });
+  await expect(forward).toHaveAttribute("href", /gpuCount=8/);
+  await expect(forward).toHaveAttribute("href", /model=qwen3.8-27b/);
+  await expect(forward).toHaveAttribute("href", /precision=FP8/);
+  await expect(forward).toHaveAttribute("href", /benchmarkId=rtx-pro-6000-qwen3.8-27b-fp8-chat-c24/);
+});
+
+test("unsupported model remains a compact validation candidate and never asks the user to guess 2/4/8 GPUs", async ({ page }) => {
   await seedGpuSizing(page, {
     infModelId: "gemma-4-26b-a4b-it",
     quant: "FP8",
@@ -79,35 +108,13 @@ test("unsupported Gemma benchmark is selectable for explicit 2/4/8 RTX TCO plann
   await expect(candidate).toBeVisible();
   await expect(candidate).toContainText("Potential lower-cost alternative");
   await expect(candidate).toContainText("VALIDATION REQUIRED");
-  await expect(candidate).toContainText("A production GPU count is therefore not inferred");
-  await expect(candidate).toContainText("does not provide NVLink/NVSwitch-style scale-up");
-  await expect(candidate).not.toContainText(/\d+ × NVIDIA RTX PRO/);
-
-  const select = candidate.locator('button[aria-pressed]');
-  await expect(select).toHaveCount(1);
-  await expect(select).toContainText("Tap to select RTX PRO for TCO planning");
-  await expect(select).toHaveAttribute("aria-pressed", "false");
-  await select.click();
-  await expect(select).toHaveAttribute("aria-pressed", "true");
-  await expect(select).toContainText("Selected · choose an RTX PRO planning configuration");
-
-  const picker = candidate.getByTestId("rtx-planning-config-picker");
-  await expect(picker).toBeVisible();
-  await expect(picker).toContainText("user-selected planning scenario");
-  await expect(picker).toContainText("Engineering validation remains required");
-
-  for (const count of [2, 4, 8]) {
-    const link = picker.getByRole("link", { name: `Continue with ${count} GPUs` });
-    await expect(link).toHaveAttribute("href", /\/tco\/rtx-pro\?/);
-    await expect(link).toHaveAttribute("href", new RegExp(`gpuCount=${count}`));
-    await expect(link).toHaveAttribute("href", /model=gemma-4-26b-a4b-it/);
-    await expect(link).toHaveAttribute("href", /precision=FP8/);
-    await expect(link).toHaveAttribute("href", /validationRequired=1/);
-    await expect(link).toHaveAttribute("href", /sizingBasis=USER_SELECTED_PLANNING_SCENARIO/);
-    await expect(link).not.toHaveAttribute("href", /benchmarkId=/);
-  }
-
+  await expect(candidate).toContainText("cannot yet prove a production GPU count");
+  await expect(candidate).not.toContainText(/\d+ GPUs/);
+  await expect(candidate.locator('button[aria-pressed]')).toHaveCount(0);
+  await expect(page.getByTestId("rtx-planning-config-picker")).toHaveCount(0);
+  await expect(candidate.getByText("Continue with 2 GPUs")).toHaveCount(0);
+  await expect(candidate.getByText("Continue with 4 GPUs")).toHaveCount(0);
+  await expect(candidate.getByText("Continue with 8 GPUs")).toHaveCount(0);
+  await expect(candidate.getByText("Why validation is required")).toBeVisible();
   await expect(page.getByTestId("rtx-selected-handoff")).toHaveCount(0);
-  const tier = candidate.locator("..");
-  await expect(tier.getByText("Higher-growth alternative", { exact: true })).toBeVisible();
 });
