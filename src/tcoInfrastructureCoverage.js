@@ -30,7 +30,18 @@ export function getTcoInfrastructureCoverage({
   quoteReview,
 }) {
   const isRackScaleSystem = Number(system?.gpus) >= 72;
-  if (!isWorkloadMode && !isRackScaleSystem && !isRubinPhase1) {
+  // Disclosure-only safeguard for the current 1-3 system DGX planning basis.
+  // This intentionally changes no economics. It makes the fixed shared-cluster
+  // allowance visible in both TCO modes while the right-sized infrastructure
+  // workstream develops platform-aware management/control-plane assumptions.
+  const isSmallEightGpuDgx =
+    !isRubinPhase1 &&
+    Number(system?.gpus) === 8 &&
+    String(systemName || "").startsWith("DGX ") &&
+    Number(systemCount) >= 1 &&
+    Number(systemCount) <= 3;
+
+  if (!isWorkloadMode && !isRackScaleSystem && !isRubinPhase1 && !isSmallEightGpuDgx) {
     return {
       applies: false,
       storageConfirmed: true,
@@ -105,6 +116,8 @@ export function getTcoInfrastructureCoverage({
       ? `High-density quote/coverage review required. Confirm rack, cooling, power distribution, fabric, installation, selected software, and facility costs against a customer/CDW quote or documented existing-facility coverage.${facility === "Equinix" && !coloRateOverridden ? " The generic Equinix bundle is calibrated for eight-GPU systems; enter a quoted NVL72 bundle rate in the rate card." : ""}`
       : requiresArchitectureReview
       ? "The modeled subtotal retains the current shared cluster/storage assumptions. Validate management/network topology, rack/power/cooling, and storage design before treating the savings delta as client-ready."
+      : isSmallEightGpuDgx
+      ? "This 1-3 system DGX scenario includes the current fixed shared management/control-plane planning allowance sized for a multi-system cluster. A smaller deployment may require materially less shared infrastructure; validate the allowance before treating the result as quote-level economics. No modeled cost has been changed by this disclosure."
       : "The shared cluster allowance remains within the current small-cluster planning envelope; storage capacity is still workload-specific.",
   };
 }
