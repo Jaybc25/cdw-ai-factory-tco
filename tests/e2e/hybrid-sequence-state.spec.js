@@ -11,7 +11,7 @@ const FIXTURES = {
 };
 
 test("hybrid architectures execute source-qualified sequence-state fixtures in the browser", async ({ page }) => {
-  await page.goto("/__e2e/hybrid-sequence-state", { waitUntil: "domcontentloaded" });
+  await page.goto("/__test/hybrid-sequence-state", { waitUntil: "domcontentloaded" });
   await expect(page.getByTestId("hybrid-sequence-state-harness")).toBeVisible();
   await expect(page.getByTestId("fixture-inputs")).toHaveAttribute("data-tokens", "8192");
   await expect(page.getByTestId("fixture-inputs")).toHaveAttribute("data-cache-bytes", "2");

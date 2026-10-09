@@ -120,3 +120,17 @@ test("RTX PRO TCO preserves same-scenario inputs, exposes report/audit, and rese
   await expect(fieldByLabelText(page, "Full configured-server power draw")).toHaveValue("");
   await expect(page.getByText("Additional inputs required", { exact: true })).toBeVisible();
 });
+
+test("RTX PRO TCO surfaces the full Google Cloud Run minimum instance floor, not GPU-only pricing", async ({ page }) => {
+  await page.goto(`/tco/rtx-pro?${rtxParams().toString()}`, { waitUntil: "domcontentloaded" });
+
+  const cloudRef = page.getByRole("region", { name: "Google Cloud RTX PRO reference" });
+  await expect(cloudRef).toBeVisible();
+  await expect(cloudRef.getByRole("heading", { name: "Google Cloud Run · RTX PRO 6000 Blackwell", exact: true })).toBeVisible();
+  await expect(cloudRef.getByText("$3.186792/hr", { exact: true })).toBeVisible();
+  await expect(cloudRef.getByText("minimum deployable instance floor", { exact: true })).toBeVisible();
+  await expect(cloudRef.getByText("$1.314792/hr", { exact: true })).toBeVisible();
+  await expect(cloudRef.getByText("Required 20 vCPU", { exact: true })).toBeVisible();
+  await expect(cloudRef.getByText("Required 80 GiB memory", { exact: true })).toBeVisible();
+  await expect(cloudRef.getByText(/not a direct cloud TCO or savings comparison/i)).toBeVisible();
+});

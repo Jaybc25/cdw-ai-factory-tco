@@ -51,7 +51,7 @@ assert(
   "Hybrid sequence-state browser harness must remain gated by the explicit E2E auth-bypass build flag."
 );
 assert(
-  appSource.includes('E2E_AUTH_BYPASS && <Route path="/__e2e/hybrid-sequence-state"'),
+  appSource.includes('E2E_AUTH_BYPASS && <Route path="/__test/hybrid-sequence-state"'),
   "Hybrid sequence-state browser harness route must remain conditional on E2E_AUTH_BYPASS."
 );
 
