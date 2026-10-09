@@ -64,7 +64,7 @@ for (const scenario of [
   });
 }
 
-test("unsupported Gemma benchmark remains non-selectable without inventing a GPU count", async ({ page }) => {
+test("unsupported Gemma benchmark is selectable for explicit 2/4/8 RTX TCO planning without inventing a recommendation", async ({ page }) => {
   await seedGpuSizing(page, {
     infModelId: "gemma-4-26b-a4b-it",
     quant: "FP8",
@@ -82,10 +82,29 @@ test("unsupported Gemma benchmark remains non-selectable without inventing a GPU
   await expect(candidate).toContainText("A production GPU count is therefore not inferred");
   await expect(candidate).toContainText("does not provide NVLink/NVSwitch-style scale-up");
   await expect(candidate).not.toContainText(/\d+ × NVIDIA RTX PRO/);
-  await expect(candidate).not.toHaveAttribute("aria-pressed");
-  await expect(page.getByTestId("rtx-selected-handoff")).toHaveCount(0);
 
+  const select = candidate.getByRole("button", { name: "Tap to select RTX PRO for TCO planning" });
+  await expect(select).toHaveAttribute("aria-pressed", "false");
+  await select.click();
+  await expect(select).toHaveAttribute("aria-pressed", "true");
+
+  const picker = candidate.getByTestId("rtx-planning-config-picker");
+  await expect(picker).toBeVisible();
+  await expect(picker).toContainText("user-selected planning scenario");
+  await expect(picker).toContainText("Engineering validation remains required");
+
+  for (const count of [2, 4, 8]) {
+    const link = picker.getByRole("link", { name: `Continue with ${count} GPUs` });
+    await expect(link).toHaveAttribute("href", /\/tco\/rtx-pro\?/);
+    await expect(link).toHaveAttribute("href", new RegExp(`gpuCount=${count}`));
+    await expect(link).toHaveAttribute("href", /model=gemma-4-26b-a4b-it/);
+    await expect(link).toHaveAttribute("href", /precision=FP8/);
+    await expect(link).toHaveAttribute("href", /validationRequired=1/);
+    await expect(link).toHaveAttribute("href", /sizingBasis=USER_SELECTED_PLANNING_SCENARIO/);
+    await expect(link).not.toHaveAttribute("href", /benchmarkId=/);
+  }
+
+  await expect(page.getByTestId("rtx-selected-handoff")).toHaveCount(0);
   const tier = candidate.locator("..");
   await expect(tier.getByText("Higher-growth alternative", { exact: true })).toBeVisible();
-  await expect(page.getByText("No qualifying lower-cost alternative in the current supported catalog.")).toBeHidden();
 });
