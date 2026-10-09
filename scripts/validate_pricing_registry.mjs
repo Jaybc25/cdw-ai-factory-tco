@@ -155,8 +155,18 @@ for (const activeClass of Object.keys(GPU_SIZING_SYSTEM_MAP)) {
 if (RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB !== 90) {
   errors.push("RTX PRO autonomous fit gate must preserve the conservative 90 GB usable-VRAM ceiling");
 }
-if (RTX_PRO_INFERENCE_BENCHMARKS.length < 2 || RTX_PRO_INFERENCE_BENCHMARKS.some((row) => row.derivation !== "DIRECT" || row.modelId !== "llama-3.3-70b")) {
-  errors.push("RTX PRO v1 benchmarks must remain direct model/context/precision anchors, not derived cross-GPU ratios");
+const allowedRtxEvidenceDerivations = new Set(["DIRECT", "MEASURED"]);
+if (
+  RTX_PRO_INFERENCE_BENCHMARKS.length < 2 ||
+  RTX_PRO_INFERENCE_BENCHMARKS.some((row) =>
+    !allowedRtxEvidenceDerivations.has(row.derivation) ||
+    !row.modelId ||
+    !Number.isFinite(row.throughputTokPerSecPerGpu) ||
+    row.throughputTokPerSecPerGpu <= 0 ||
+    !row.sourceUrl
+  )
+) {
+  errors.push("RTX PRO benchmarks must remain model-specific measured/direct serving anchors with source provenance; derived cross-GPU ratios are not allowed");
 }
 const shortAnchor = selectRtxProBenchmark({ modelId: "llama-3.3-70b", precision: "FP4", avgInputTokens: 1000, avgOutputTokens: 1000 });
 const longAnchor = selectRtxProBenchmark({ modelId: "llama-3.3-70b", precision: "FP4", avgInputTokens: 8192, avgOutputTokens: 1024 });
@@ -236,8 +246,11 @@ if (!sizingSource.includes("].filter((gpu) => GPU_PRICE_USD[gpu.id]);")) {
 if (!sizingSource.includes('import { sizeRtxProInference } from "./rtxProGpuSizing.js";')) {
   errors.push("GPU Sizing must import the evidence-gated RTX PRO sizing engine");
 }
-if (!sizingSource.includes('<RtxProAlternativeCard rtxAlt={result.rtxAlt} compact />')) {
-  errors.push("GPU Sizing must render the RTX PRO server alternative from the evidence-gated result in the lower-cost tier");
+if (
+  !sizingSource.includes('data-testid="gpu-result-choice-grid"') ||
+  !sizingSource.includes('<RtxProAlternativeCard rtxAlt={result.rtxAlt} compact selectable={Boolean(rtxTcoHref)}')
+) {
+  errors.push("GPU Sizing must render the evidence-gated RTX PRO alternative in the restored selectable lower-cost results tier");
 }
 if (sizingSource.includes("const RTX_SPEC") || sizingSource.includes("maxWorkstationGPUs") || sizingSource.includes("Workstation alternative")) {
   errors.push("Legacy workstation-class RTX sizing must not coexist with the production RTX PRO server path");
@@ -257,4 +270,4 @@ console.log(`Providers: ${Object.keys(CLOUD_GPU_RATES).join(", ")}`);
 console.log(`On-prem systems: ${Object.keys(ONPREM_SYSTEMS).length}`);
 console.log(`GPU Sizing classes derived from shared systems: ${expectedSizingClasses.join(", ")}`);
 console.log("RTX PRO staging registry: 2/4 listed, 8 quote-required, client-facing activation blocked");
-console.log("RTX PRO sizing engine: single-GPU fit + direct benchmark + independent replica rounding enforced");
+console.log("RTX PRO sizing engine: single-GPU fit + model-specific measured/direct benchmark + independent replica rounding enforced");

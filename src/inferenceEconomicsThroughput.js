@@ -86,8 +86,10 @@ export function deriveInferenceEconomicsThroughput({
       throughputTokPerSec: benchmark.throughputTokPerSecPerGpu,
       referenceModel: model?.label || benchmark.modelId,
       precision: benchmark.precision,
-      scenario: `DIRECT_CONTEXT_${benchmark.inputTokens}_${benchmark.outputTokens}`,
-      sourceType: "NVIDIA_TENSORRT_LLM",
+      scenario: Number.isFinite(benchmark.maxContextTokens)
+        ? `DIRECT_CONTEXT_UP_TO_${benchmark.maxContextTokens}`
+        : `DIRECT_CONTEXT_${benchmark.inputTokens}_${benchmark.outputTokens}`,
+      sourceType: benchmark.sourceType || "NVIDIA_TENSORRT_LLM",
       sourceLabel: benchmark.source,
       sourceUrl: benchmark.sourceUrl,
       qualified: true,

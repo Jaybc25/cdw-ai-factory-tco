@@ -281,7 +281,12 @@ function computeInference(inputs) {
     modelId: model.id,
     precision: inputs.quant,
     totalMemoryGB,
+    weightMemoryGB,
+    sequenceStateGBPerSequence: sequenceStateMemory.totalGBPerSequence,
+    concurrentUsers: inputs.concurrentUsers,
+    overheadPct: inputs.overheadPct,
     aggregateTokensPerSecond: totalThroughputNeeded,
+    targetTokPerUser: inputs.targetTokPerUser,
     avgInputTokens: inputs.avgInputTokens,
     avgOutputTokens: inputs.avgOutputTokens,
   });
@@ -1056,8 +1061,8 @@ function GPUSizingCalculatorInner() {
     : [mode, trainModel.id, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride, customParamsB].join("|");
   const rtxTcoHref = mode === "Inference" ? buildRtxProTcoHref(result?.rtxAlt) : null;
   const effectiveTcoSelection = tcoSelection === "rtx" && rtxTcoHref ? "rtx" : tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
-  const tcoSelectedClass = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
-  const tcoSelectedCount = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
+  const tcoSelectedClass = effectiveTcoSelection === "rtx" ? "RTX PRO 6000" : effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
+  const tcoSelectedCount = effectiveTcoSelection === "rtx" ? result?.rtxAlt?.deployment?.totalDeployedGpus : effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
   const selectedBudget = effectiveTcoSelection === "rtx" ? null : effectiveTcoSelection === "higher-growth" ? result?.budget?.higherGrowth : result?.budget?.recommended;
   const tcoScaleoutClassification = mode === "Inference" && effectiveTcoSelection !== "rtx" && result && tcoSelectedClass
     ? classifyInferenceScaleout({
@@ -1194,14 +1199,14 @@ function GPUSizingCalculatorInner() {
           <div className="text-2xl font-bold mb-1" style={{ color: CHARCOAL }}>Prepared for {lead.name || "you"}{lead.company ? `, ${lead.company}` : ""}</div>
           <div className="text-xs text-gray-500 mb-6">{new Date().toLocaleDateString()} &middot; {mode} sizing &middot; {modelLabel}</div>
           <div className="mb-6"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2">{result.confidence.note}</p></div>
-          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{effectiveTcoSelection === "higher-growth" ? "Selected configuration for TCO" : "Recommended configuration"}</div>
+          <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">{effectiveTcoSelection === "recommended" ? "Recommended configuration" : "Selected configuration for TCO"}</div>
           <div className="flex flex-wrap gap-3 mb-6">
             <ResultCard
-              icon={effectiveTcoSelection === "higher-growth" ? TrendingUp : Zap}
-              title={effectiveTcoSelection === "higher-growth" ? "Selected for TCO · Higher-growth" : "Recommended"}
+              icon={effectiveTcoSelection === "rtx" ? TrendingDown : effectiveTcoSelection === "higher-growth" ? TrendingUp : Zap}
+              title={effectiveTcoSelection === "rtx" ? "Selected for TCO · Lower-cost" : effectiveTcoSelection === "higher-growth" ? "Selected for TCO · Higher-growth" : "Recommended"}
               gpuClass={tcoSelectedClass}
               gpus={tcoSelectedCount}
-              subtitle={effectiveTcoSelection === "higher-growth" ? getHigherGrowthSubtitle(result.higherGrowth) : "Node-rounded for production"}
+              subtitle={effectiveTcoSelection === "rtx" ? "Right-sized private AI · independent serving replicas" : effectiveTcoSelection === "higher-growth" ? getHigherGrowthSubtitle(result.higherGrowth) : "Node-rounded for production"}
               accent
             />
           </div>
@@ -1249,7 +1254,7 @@ function GPUSizingCalculatorInner() {
             </div>
             <div className="text-xs font-bold uppercase tracking-wide text-gray-500 mb-2">Alternatives considered</div>
             <div className="flex flex-wrap gap-3 mb-6">
-              {mode === "Inference" ? <RtxProAlternativeCard rtxAlt={result.rtxAlt} compact /> : <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />}
+              {mode === "Inference" ? <RtxProAlternativeCard rtxAlt={result.rtxAlt} compact reportOnly /> : <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />}
               <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog."  subtitle={getHigherGrowthSubtitle(result.higherGrowth)}/>
             </div>
             
@@ -1363,11 +1368,11 @@ function GPUSizingCalculatorInner() {
 
           <div className="text-xs uppercase tracking-wide mt-5 mb-2 pb-1 border-b-2" style={{ color: CHARCOAL, borderColor: CHARCOAL }}>3. Node Rounding, Budget &amp; Alternatives</div>
           <AuditFormula label="Recommended (node-rounded) configuration" formula="recommended = CEILING(minTechnical ÷ nodeSize) × nodeSize" substituted={`= CEILING(${result.minTechnical} ÷ ${result.selectedNodeSize}) × ${result.selectedNodeSize}`} result={`${result.recommended} × ${result.selectedClass}`} />
-          <AuditRow label="TCO selection basis" value={effectiveTcoSelection === "higher-growth" ? "User-selected higher-growth alternative" : "Recommended configuration"} />
+          <AuditRow label="TCO selection basis" value={effectiveTcoSelection === "rtx" ? "User-selected lower-cost RTX PRO alternative" : effectiveTcoSelection === "higher-growth" ? "User-selected higher-growth alternative" : "Recommended configuration"} />
           <AuditFormula
             label="Selected configuration for TCO"
-            formula={effectiveTcoSelection === "higher-growth" ? "selected = higher-growth deployment chosen by the user" : "selected = recommended node-rounded configuration"}
-            substituted={effectiveTcoSelection === "higher-growth" ? getHigherGrowthAuditText(result.higherGrowth, mode) : `${result.recommended} × ${result.selectedClass}`}
+            formula={effectiveTcoSelection === "rtx" ? "selected = benchmark-qualified RTX PRO deployment chosen by the user" : effectiveTcoSelection === "higher-growth" ? "selected = higher-growth deployment chosen by the user" : "selected = recommended node-rounded configuration"}
+            substituted={effectiveTcoSelection === "rtx" ? `${result.rtxAlt?.deployment?.totalDeployedGpus ?? "—"} × RTX PRO 6000 · ${result.rtxAlt?.benchmark?.id || "benchmark unavailable"}` : effectiveTcoSelection === "higher-growth" ? getHigherGrowthAuditText(result.higherGrowth, mode) : `${result.recommended} × ${result.selectedClass}`}
             result={`${tcoSelectedCount} × ${tcoSelectedClass}`}
           />
           <AuditFormula
@@ -1539,8 +1544,24 @@ function GPUSizingCalculatorInner() {
             ) : (
             <>
               <div className="mb-4"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2 flex items-start gap-1"><Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{result.confidence.level === "LOW" ? "Low confidence: custom model architecture is not yet verified." : mode === "Inference" ? "Directional sizing: based on benchmark-backed hardware throughput plus modeled workload adjustments." : "Directional sizing: based on published GPU specifications plus an explicit MFU assumption."}</p></div>
-              <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded, sourceable production configuration" accent selectable={Boolean(TCO_OWN_SYS_FOR_CLASS[result.selectedClass])} selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
-              <div className="flex flex-wrap gap-3 mb-6">{mode === "Inference" ? <RtxProAlternativeCard rtxAlt={result.rtxAlt} compact selectable={Boolean(rtxTcoHref)} selected={effectiveTcoSelection === "rtx"} onSelect={() => setTcoSelection("rtx")} /> : <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />}<ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog." subtitle={getHigherGrowthSubtitle(result.higherGrowth)} selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
+              {mode === "Inference" ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6 items-start" data-testid="gpu-result-choice-grid">
+                  <div className="order-2 sm:order-1 sm:col-start-1 sm:row-start-1 sm:row-span-2 flex">
+                    <RtxProAlternativeCard rtxAlt={result.rtxAlt} compact selectable={Boolean(rtxTcoHref)} selected={effectiveTcoSelection === "rtx"} onSelect={() => setTcoSelection("rtx")} />
+                  </div>
+                  <div className="order-1 sm:order-2 sm:col-start-2 sm:row-start-1 flex">
+                    <ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded, sourceable production configuration" accent selectable={Boolean(TCO_OWN_SYS_FOR_CLASS[result.selectedClass])} selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} />
+                  </div>
+                  <div className="order-3 sm:col-start-2 sm:row-start-2 flex">
+                    <ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog." subtitle={getHigherGrowthSubtitle(result.higherGrowth)} selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded, sourceable production configuration" accent selectable={Boolean(TCO_OWN_SYS_FOR_CLASS[result.selectedClass])} selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
+                  <div className="flex flex-wrap gap-3 mb-6"><ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." /><ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog." subtitle={getHigherGrowthSubtitle(result.higherGrowth)} selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
+                </>
+              )}
               <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
     {mode === "Inference" && result.rubinAdvisory && (
       <div className="mb-4 rounded-xl p-4 border border-amber-300 bg-amber-50">
