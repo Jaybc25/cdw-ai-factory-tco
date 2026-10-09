@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState } from "react";
 import TcoCalculator from "./TcoCalculator.jsx";
 import ModelCatalogVisibilityRoute from "./ModelCatalogVisibilityRoute.jsx";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
@@ -49,9 +49,8 @@ export default function Phase2TcoPreview() {
   const [powerBundle, setPowerBundle] = useState(() => loadSessionState("phase2-power-writeback"));
   const [softwareBundle, setSoftwareBundle] = useState(() => loadSessionState("phase2-software-writeback"));
   const [networkBundle, setNetworkBundle] = useState(() => loadSessionState("phase2-network-writeback"));
-  const legacy = useMemo(() => loadSessionState("phase2-preview-override"), []);
 
-  const powerOverrides = powerBundle?.overrides?.length ? powerBundle.overrides : legacy?.override ? [legacy.override] : [];
+  const powerOverrides = powerBundle?.overrides || [];
   const softwareOverrides = softwareBundle?.overrides || [];
   const networkOverrides = networkBundle?.overrides || [];
   const allOverrides = [...powerOverrides, ...softwareOverrides, ...networkOverrides];
@@ -71,7 +70,7 @@ export default function Phase2TcoPreview() {
       <section style={box}>
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#c8102e", marginBottom: 8 }}>Phase 2 · receiving contract</div>
         <h2 style={{ margin: "0 0 8px", fontSize: 24 }}>TCO can now receive accepted Power, Software, and Fabric bundles</h2>
-        <p style={{ margin: "0 0 14px", color: "#555", lineHeight: 1.5 }}>This preview shows the explicit Phase 2 records before any production TCO integration. Accepted values remain visible, attributable, independently revertible, and ineligible when stale or unresolved. Values that refine an existing Phase 1 assumption are also blocked from TCO application until their exact Phase 1 replacement line is mapped.</p>
+        <p style={{ margin: "0 0 14px", color: "#555", lineHeight: 1.5 }}>This preview shows the explicit Phase 2 records before any production TCO integration. Accepted values remain visible, attributable, independently revertible, and ineligible when stale or unresolved. Values that refine an existing Phase 1 assumption are also blocked from TCO application until their exact Phase 1 replacement line is mapped. The receiver reads only complete accepted tool bundles; the older single-override fallback is no longer used.</p>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
           <span style={{ ...badge, background: "#eaf7ee", color: "#176b31" }}>{currentCount} OF {allOverrides.length} CURRENT IN PHASE 2</span>
