@@ -3,11 +3,15 @@ import {
   PHASE2_SOURCE,
   PHASE2_DERIVATION,
   PHASE2_STATE,
+  PHASE2_TCO_TREATMENT,
+  PHASE2_REPLACEMENT_STATUS,
   createPhase2Override,
   evaluatePhase2Override,
   fingerprintInputs,
+  makePhase2TcoTreatment,
   makeProvenance,
   markPhase2OverrideCurrent,
+  phase2OverrideCanApplyToTco,
   phase2OverrideCanWriteBack,
   recomputePhase2Override,
   revertPhase2Override,
@@ -41,6 +45,14 @@ assert.equal(
   "fingerprints must be stable regardless of object key order",
 );
 
+const replacementTreatment = makePhase2TcoTreatment({
+  mode: PHASE2_TCO_TREATMENT.REPLACE_PHASE1,
+  phase1LineFamily: "power-energy",
+  note: "Refines Phase 1 power energy",
+});
+assert.equal(replacementTreatment.replacementStatus, PHASE2_REPLACEMENT_STATUS.PENDING_LINE_MAP);
+assert.equal(replacementTreatment.additiveAllowed, false);
+
 const override = createPhase2Override({
   id: "power.energy.monthly",
   target: "tco.power.energy.monthly",
@@ -50,12 +62,23 @@ const override = createPhase2Override({
   provenance,
   dependencies,
   referenceValue: 12000,
+  tcoTreatment: replacementTreatment,
   createdAt: "2026-10-08T12:00:00.000Z",
 });
 
 assert.equal(override.state, PHASE2_STATE.CURRENT);
 assert.equal(validatePhase2Override(override).valid, true);
-assert.equal(phase2OverrideCanWriteBack(override), true);
+assert.equal(phase2OverrideCanWriteBack(override), true, "current replacement can participate in Phase 2 planning comparisons");
+assert.equal(phase2OverrideCanApplyToTco(override), false, "replacement must not apply to TCO until exact Phase 1 line mapping exists");
+
+const mappedOverride = {
+  ...override,
+  tcoTreatment: {
+    ...override.tcoTreatment,
+    replacementStatus: PHASE2_REPLACEMENT_STATUS.MAPPED,
+  },
+};
+assert.equal(phase2OverrideCanApplyToTco(mappedOverride), true, "mapped/current replacement becomes eligible to apply to TCO");
 
 const unchanged = evaluatePhase2Override(override, sameShapeDifferentOrder);
 assert.equal(unchanged.state, PHASE2_STATE.CURRENT, "equivalent inputs must remain CURRENT");
@@ -68,6 +91,7 @@ const stale = evaluatePhase2Override(
 assert.equal(stale.state, PHASE2_STATE.STALE);
 assert.equal(stale.staleReason, "Utility rate changed");
 assert.equal(phase2OverrideCanWriteBack(stale), false, "STALE values must not write back");
+assert.equal(phase2OverrideCanApplyToTco(stale), false);
 assert.equal(stale.value, override.value, "stale evaluation must preserve the prior visible value");
 
 const staleMarkedCurrent = markPhase2OverrideCurrent(stale);
@@ -84,6 +108,7 @@ assert.equal(recomputed.state, PHASE2_STATE.RECOMPUTED);
 assert.equal(recomputed.staleReason, null);
 assert.equal(recomputed.value, 9814);
 assert.equal(phase2OverrideCanWriteBack(recomputed), true);
+assert.equal(phase2OverrideCanApplyToTco(recomputed), false, "recompute does not bypass pending Phase 1 mapping");
 
 const recomputedMarkedCurrent = markPhase2OverrideCurrent(recomputed);
 assert.equal(recomputedMarkedCurrent.state, PHASE2_STATE.CURRENT, "A recomputed value may be acknowledged as CURRENT");
@@ -92,12 +117,17 @@ assert.equal(phase2OverrideCanWriteBack(recomputedMarkedCurrent), true);
 const reverted = revertPhase2Override(recomputed, "2026-10-08T12:06:00.000Z");
 assert.equal(reverted.state, PHASE2_STATE.REVERTED);
 assert.equal(phase2OverrideCanWriteBack(reverted), false);
+assert.equal(phase2OverrideCanApplyToTco(reverted), false);
 assert.equal(reverted.referenceValue, 12000);
 assert.equal(markPhase2OverrideCurrent(reverted).state, PHASE2_STATE.REVERTED, "REVERTED values must stay reverted");
 
 assert.throws(
   () => makeProvenance({ source: "CUSTOM", derivation: PHASE2_DERIVATION.DIRECT }),
   /Invalid Phase 2 provenance source/,
+);
+assert.throws(
+  () => makePhase2TcoTreatment({ mode: PHASE2_TCO_TREATMENT.REPLACE_PHASE1 }),
+  /phase1LineFamily/,
 );
 
 console.log("Phase 2 contract verification: PASS");
