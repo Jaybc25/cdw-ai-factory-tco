@@ -17,6 +17,8 @@ on:
       - "scripts/validate_rtx_pro_lifecycle_tco.mjs"
       - "scripts/validate_rtx_pro_tco_handoff_ui.mjs"
       - "scripts/validate_rtx_pro_ie_handoff.mjs"
+      - "scripts/validate_rtx_pro_final_adversarial_regression.mjs"
+      - "tests/e2e/rtx-pro-end-to-end.spec.js"
       - ".github/workflows/rtx-pro-tco-policy.yml"
   push:
     branches: [main]
@@ -35,6 +37,8 @@ on:
       - "scripts/validate_rtx_pro_lifecycle_tco.mjs"
       - "scripts/validate_rtx_pro_tco_handoff_ui.mjs"
       - "scripts/validate_rtx_pro_ie_handoff.mjs"
+      - "scripts/validate_rtx_pro_final_adversarial_regression.mjs"
+      - "tests/e2e/rtx-pro-end-to-end.spec.js"
       - ".github/workflows/rtx-pro-tco-policy.yml"
   workflow_dispatch: {}
 
@@ -61,5 +65,7 @@ jobs:
         run: node scripts/validate_rtx_pro_tco_handoff_ui.mjs
       - name: Validate RTX TCO to Inference Economics handoff
         run: node scripts/validate_rtx_pro_ie_handoff.mjs
+      - name: Run final RTX PRO adversarial regression
+        run: node scripts/validate_rtx_pro_final_adversarial_regression.mjs
       - name: Production build
         run: npm run build
