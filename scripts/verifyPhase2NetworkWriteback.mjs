@@ -23,6 +23,8 @@ const result = calculateNetworkFabric(inputs);
 assert.ok(result.switches.total > 0);
 assert.ok(result.estimatedSwitchPowerKw > 0);
 assert.equal(result.bandwidth.storageBandwidthFit, true);
+assert.equal(result.ports.managementPortsExcludedFromFabric, true);
+assert.equal(result.ports.endpointPorts, result.ports.computeEndpointPorts + result.ports.storagePorts);
 
 const schedule = buildFabricStepSchedule(result, { maxFleetSystems: 64 });
 assert.ok(schedule.length > 1, "fabric should scale in infrastructure steps");
@@ -38,9 +40,15 @@ const fingerprint = networkFabricFingerprint(result, storageFingerprint);
 assert.match(fingerprint, /^p2-/);
 
 const bundle = buildNetworkFabricWritebackBundle(result, inputs, { upstreamStorageFingerprint: storageFingerprint });
+assert.equal(bundle.schemaVersion, 2);
 assert.equal(bundle.sourceTool, "network-fabric");
 assert.equal(bundle.upstreamStorageFingerprint, storageFingerprint);
 assert.equal(bundle.requirements.switchPowerKw, result.estimatedSwitchPowerKw);
+assert.equal(bundle.requirements.management.ports, 8);
+assert.equal(bundle.requirements.management.excludedFromHighSpeedFabricSizing, true);
+assert.equal(bundle.requirements.management.sizingStatus, "REQUIREMENT-ONLY");
+assert.match(bundle.requirements.management.note, /separate requirement/i);
+assert.match(bundle.requirements.costNote, /management\/control-plane networking remains outside/i);
 assert.equal(bundle.overrides.length, 1);
 assert.equal(bundle.overrides[0].target, "tco.network.fabric.capex.currentFleet");
 assert.equal(bundle.overrides[0].unit, "USD");
@@ -55,5 +63,10 @@ assert.equal(unresolvedBundle.costStatus, "UNRESOLVED");
 assert.equal(unresolvedBundle.overrides.length, 0, "Unresolved Fabric pricing must not create a zero-dollar TCO override");
 assert.equal(unresolvedBundle.requirements.capitalCostCurrentFleet, null);
 assert.match(unresolvedBundle.requirements.costNote, /no CAPEX override is eligible/i);
+
+const noManagement = calculateNetworkFabric({ ...inputs, managementPorts: 0 });
+const noManagementBundle = buildNetworkFabricWritebackBundle(noManagement, { ...inputs, managementPorts: 0 });
+assert.equal(noManagementBundle.requirements.management.sizingStatus, "NOT-SPECIFIED");
+assert.equal(noManagementBundle.requirements.management.ports, 0);
 
 console.log("Phase 2 Wave 4B network write-back verification: PASS");
