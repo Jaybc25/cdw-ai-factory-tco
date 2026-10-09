@@ -16,6 +16,7 @@ on:
       - "src/NetworkFabric*.jsx"
       - "src/podBrief*.js"
       - "src/PodBrief*.jsx"
+      - "src/sessionState.js"
       - "scripts/verifyPhase2*.mjs"
       - "scripts/verifyNetworkFabric.mjs"
       - "scripts/verifyPodBrief.mjs"
@@ -35,6 +36,7 @@ on:
       - "src/NetworkFabric*.jsx"
       - "src/podBrief*.js"
       - "src/PodBrief*.jsx"
+      - "src/sessionState.js"
       - "scripts/verifyPhase2*.mjs"
       - "scripts/verifyNetworkFabric.mjs"
       - "scripts/verifyPodBrief.mjs"
@@ -81,5 +83,7 @@ jobs:
         run: node scripts/verifyPodBrief.mjs
       - name: Verify Pod Brief 5B
         run: node scripts/verifyPhase2PodBrief5B.mjs
+      - name: Verify local-edit staleness persistence
+        run: node scripts/verifyPhase2LocalEditStaleness.mjs
       - name: Verify full Wave 5C journey
         run: node scripts/verifyPhase2EndToEnd.mjs
