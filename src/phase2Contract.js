@@ -25,6 +25,18 @@ export const PHASE2_STATE = Object.freeze({
   REVERTED: "REVERTED",
 });
 
+export const PHASE2_TCO_TREATMENT = Object.freeze({
+  REPLACE_PHASE1: "REPLACE-PHASE1",
+  ADDITIVE: "ADDITIVE",
+  COMPARISON_ONLY: "COMPARISON-ONLY",
+});
+
+export const PHASE2_REPLACEMENT_STATUS = Object.freeze({
+  PENDING_LINE_MAP: "PENDING-LINE-MAP",
+  MAPPED: "MAPPED",
+  NOT_APPLICABLE: "NOT-APPLICABLE",
+});
+
 function isPlainObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -66,6 +78,28 @@ export function makeProvenance({ source, derivation, asOf = null, label = null }
   return { source, derivation, asOf, label };
 }
 
+export function makePhase2TcoTreatment({
+  mode,
+  phase1LineFamily = null,
+  replacementStatus = mode === PHASE2_TCO_TREATMENT.REPLACE_PHASE1 ? PHASE2_REPLACEMENT_STATUS.PENDING_LINE_MAP : PHASE2_REPLACEMENT_STATUS.NOT_APPLICABLE,
+  additiveAllowed = mode === PHASE2_TCO_TREATMENT.ADDITIVE,
+  note = null,
+} = {}) {
+  if (!Object.values(PHASE2_TCO_TREATMENT).includes(mode)) {
+    throw new Error(`Invalid Phase 2 TCO treatment: ${mode}`);
+  }
+  if (!Object.values(PHASE2_REPLACEMENT_STATUS).includes(replacementStatus)) {
+    throw new Error(`Invalid Phase 2 replacement status: ${replacementStatus}`);
+  }
+  if (mode === PHASE2_TCO_TREATMENT.REPLACE_PHASE1 && additiveAllowed) {
+    throw new Error("Phase 1 replacement values cannot also be additive");
+  }
+  if (mode === PHASE2_TCO_TREATMENT.REPLACE_PHASE1 && !phase1LineFamily) {
+    throw new Error("Phase 1 replacement treatment requires a phase1LineFamily");
+  }
+  return { mode, phase1LineFamily, replacementStatus, additiveAllowed: Boolean(additiveAllowed), note };
+}
+
 export function createPhase2Override({
   id,
   target,
@@ -76,6 +110,7 @@ export function createPhase2Override({
   dependencies = {},
   referenceValue = null,
   referenceUnit = unit,
+  tcoTreatment = null,
   createdAt = new Date().toISOString(),
 }) {
   if (!id || !target || !sourceTool || !unit) {
@@ -83,6 +118,9 @@ export function createPhase2Override({
   }
   if (!provenance?.source || !provenance?.derivation) {
     throw new Error("Phase 2 override requires source + derivation provenance");
+  }
+  if (tcoTreatment?.mode && !Object.values(PHASE2_TCO_TREATMENT).includes(tcoTreatment.mode)) {
+    throw new Error(`Invalid Phase 2 TCO treatment: ${tcoTreatment.mode}`);
   }
 
   const fingerprint = fingerprintInputs(dependencies);
@@ -102,6 +140,7 @@ export function createPhase2Override({
     computedAt: createdAt,
     referenceValue,
     referenceUnit,
+    tcoTreatment,
   };
 }
 
@@ -170,5 +209,11 @@ export function validatePhase2Override(override) {
   if (!Object.values(PHASE2_DERIVATION).includes(override.provenance?.derivation)) errors.push("invalid derivation");
   if (!Object.values(PHASE2_STATE).includes(override.state)) errors.push("invalid state");
   if (!override.inputFingerprint) errors.push("inputFingerprint is required");
+  if (override.tcoTreatment) {
+    if (!Object.values(PHASE2_TCO_TREATMENT).includes(override.tcoTreatment.mode)) errors.push("invalid TCO treatment mode");
+    if (!Object.values(PHASE2_REPLACEMENT_STATUS).includes(override.tcoTreatment.replacementStatus)) errors.push("invalid replacement status");
+    if (override.tcoTreatment.mode === PHASE2_TCO_TREATMENT.REPLACE_PHASE1 && !override.tcoTreatment.phase1LineFamily) errors.push("Phase 1 replacement line family is required");
+    if (override.tcoTreatment.mode === PHASE2_TCO_TREATMENT.REPLACE_PHASE1 && override.tcoTreatment.additiveAllowed) errors.push("Phase 1 replacement cannot be additive");
+  }
   return { valid: errors.length === 0, errors };
 }
