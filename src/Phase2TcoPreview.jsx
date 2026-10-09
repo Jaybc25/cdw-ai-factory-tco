@@ -2,28 +2,42 @@ import React, { useMemo, useState } from "react";
 import TcoCalculator from "./TcoCalculator.jsx";
 import ModelCatalogVisibilityRoute from "./ModelCatalogVisibilityRoute.jsx";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
-import { PHASE2_STATE, phase2OverrideCanWriteBack } from "./phase2Contract.js";
+import { PHASE2_STATE, PHASE2_TCO_TREATMENT, phase2OverrideCanApplyToTco, phase2OverrideCanWriteBack } from "./phase2Contract.js";
 
 const box = { margin: "18px auto 0", width: "min(1120px, calc(100% - 32px))", border: "1px solid #d7d7d7", borderLeft: "6px solid #c8102e", borderRadius: 12, background: "#fff", padding: 18, boxShadow: "0 8px 24px rgba(0,0,0,.05)", fontFamily: "Arial, Helvetica, sans-serif" };
 const badge = { display: "inline-block", borderRadius: 999, padding: "4px 9px", fontSize: 12, fontWeight: 800, marginRight: 8 };
 
 function formatMoney(value) { return `$${Math.round(Number(value || 0)).toLocaleString()}`; }
 
+function treatmentLabel(override) {
+  const treatment = override?.tcoTreatment;
+  if (!treatment) return "LEGACY / UNSPECIFIED";
+  if (treatment.mode === PHASE2_TCO_TREATMENT.REPLACE_PHASE1) {
+    return `${treatment.mode} · ${treatment.replacementStatus}`;
+  }
+  return treatment.mode;
+}
+
 function OverrideCard({ override, onRevert }) {
-  const eligible = phase2OverrideCanWriteBack(override);
+  const planningEligible = phase2OverrideCanWriteBack(override);
+  const tcoApplyEligible = phase2OverrideCanApplyToTco(override);
   const unitLabel = override.unit === "USD/year" ? " / year" : override.unit === "USD/month" ? " / month" : override.unit === "USD" ? "" : ` ${override.unit || ""}`;
   return (
     <div style={{ border: "1px solid #ddd", borderRadius: 10, padding: 14, background: "#fafafa" }}>
       <div style={{ marginBottom: 10 }}>
         <span style={{ ...badge, background: override.state === PHASE2_STATE.STALE ? "#fff4d6" : override.state === PHASE2_STATE.REVERTED ? "#eee" : "#eaf7ee", color: "#222" }}>{override.state}</span>
-        <span style={{ ...badge, background: eligible ? "#eaf7ee" : "#fff0f3", color: eligible ? "#176b31" : "#9b1c31" }}>{eligible ? "WRITE-BACK ELIGIBLE" : "NOT ELIGIBLE"}</span>
+        <span style={{ ...badge, background: planningEligible ? "#eaf7ee" : "#fff0f3", color: planningEligible ? "#176b31" : "#9b1c31" }}>{planningEligible ? "PHASE 2 CURRENT" : "NOT CURRENT"}</span>
+        <span style={{ ...badge, background: tcoApplyEligible ? "#eaf7ee" : "#fff4d6", color: tcoApplyEligible ? "#176b31" : "#7a5600" }}>{tcoApplyEligible ? "TCO APPLY ELIGIBLE" : "TCO APPLY BLOCKED"}</span>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 10 }}>
         <div><strong>Target</strong><br />{override.target}</div>
         <div><strong>Value</strong><br />{formatMoney(override.value)}{unitLabel}</div>
         <div><strong>Source tool</strong><br />{override.sourceTool}</div>
         <div><strong>Provenance</strong><br />{override.provenance?.source} · {override.provenance?.derivation}</div>
+        <div><strong>TCO treatment</strong><br />{treatmentLabel(override)}</div>
+        <div><strong>Phase 1 line family</strong><br />{override.tcoTreatment?.phase1LineFamily || "—"}</div>
       </div>
+      {override.tcoTreatment?.mode === PHASE2_TCO_TREATMENT.REPLACE_PHASE1 && !tcoApplyEligible && <div style={{ marginTop: 10, padding: 10, borderRadius: 8, background: "#fff7e8", border: "1px solid #e4c679", color: "#6d4a00" }}><strong>Replacement mapping required.</strong> This value refines a Phase 1 assumption and must replace the mapped Phase 1 line. It is not additive and cannot be applied to TCO until that exact line mapping exists.</div>}
       <div style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12, overflowWrap: "anywhere", marginTop: 10 }}>Accepted input fingerprint: {override.inputFingerprint}</div>
       {override.staleReason && <div style={{ color: "#9b1c31", marginTop: 8 }}><strong>Why stale:</strong> {override.staleReason}</div>}
       <button type="button" onClick={onRevert} disabled={override.state === PHASE2_STATE.REVERTED} style={{ marginTop: 12, border: "1px solid #aaa", background: "#fff", borderRadius: 8, padding: "9px 12px", fontWeight: 700, cursor: "pointer" }}>Revert this override</button>
@@ -41,7 +55,8 @@ export default function Phase2TcoPreview() {
   const softwareOverrides = softwareBundle?.overrides || [];
   const networkOverrides = networkBundle?.overrides || [];
   const allOverrides = [...powerOverrides, ...softwareOverrides, ...networkOverrides];
-  const eligibleCount = allOverrides.filter(phase2OverrideCanWriteBack).length;
+  const currentCount = allOverrides.filter(phase2OverrideCanWriteBack).length;
+  const applyEligibleCount = allOverrides.filter(phase2OverrideCanApplyToTco).length;
 
   function revertBundle(bundle, setter, key, index) {
     if (!bundle?.overrides?.length) return;
@@ -56,10 +71,11 @@ export default function Phase2TcoPreview() {
       <section style={box}>
         <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#c8102e", marginBottom: 8 }}>Phase 2 · receiving contract</div>
         <h2 style={{ margin: "0 0 8px", fontSize: 24 }}>TCO can now receive accepted Power, Software, and Fabric bundles</h2>
-        <p style={{ margin: "0 0 14px", color: "#555", lineHeight: 1.5 }}>This preview shows the explicit Phase 2 records before any production TCO integration. Accepted values remain visible, attributable, independently revertible, and ineligible when stale or unresolved.</p>
+        <p style={{ margin: "0 0 14px", color: "#555", lineHeight: 1.5 }}>This preview shows the explicit Phase 2 records before any production TCO integration. Accepted values remain visible, attributable, independently revertible, and ineligible when stale or unresolved. Values that refine an existing Phase 1 assumption are also blocked from TCO application until their exact Phase 1 replacement line is mapped.</p>
 
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-          <span style={{ ...badge, background: "#eaf7ee", color: "#176b31" }}>{eligibleCount} OF {allOverrides.length} TOTAL OVERRIDES ELIGIBLE</span>
+          <span style={{ ...badge, background: "#eaf7ee", color: "#176b31" }}>{currentCount} OF {allOverrides.length} CURRENT IN PHASE 2</span>
+          <span style={{ ...badge, background: applyEligibleCount === allOverrides.length && allOverrides.length ? "#eaf7ee" : "#fff4d6", color: "#222" }}>{applyEligibleCount} OF {allOverrides.length} ELIGIBLE TO APPLY TO TCO</span>
           {powerBundle?.requirements?.verdict && <span style={{ ...badge, background: "#f3f3f3", color: "#222" }}>FACILITY: {powerBundle.requirements.verdict.replaceAll("-", " ").toUpperCase()}</span>}
           {softwareBundle?.requirements?.horizonYears && <span style={{ ...badge, background: "#f3f3f3", color: "#222" }}>SOFTWARE: {softwareBundle.requirements.horizonYears}-YEAR PLAN</span>}
           {networkBundle?.requirements?.topology && <span style={{ ...badge, background: networkBundle.costResolved ? "#f3f3f3" : "#fff4d6", color: "#222" }}>FABRIC: {networkBundle.requirements.topology.toUpperCase()} · {networkBundle.costResolved ? "COST EST" : "COST UNRESOLVED"}</span>}
