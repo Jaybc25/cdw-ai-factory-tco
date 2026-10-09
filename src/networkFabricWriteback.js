@@ -1,8 +1,10 @@
 import {
   PHASE2_DERIVATION,
   PHASE2_SOURCE,
+  PHASE2_TCO_TREATMENT,
   createPhase2Override,
   fingerprintInputs,
+  makePhase2TcoTreatment,
   makeProvenance,
 } from "./phase2Contract.js";
 import { makeFleetIdentity } from "./phase2Fleet.js";
@@ -29,6 +31,14 @@ function baseInputsFromResult(result) {
     cableCost: result.inputs.cableCost,
     transceiverCost: result.inputs.transceiverCost,
   };
+}
+
+function fabricReplacementTreatment() {
+  return makePhase2TcoTreatment({
+    mode: PHASE2_TCO_TREATMENT.REPLACE_PHASE1,
+    phase1LineFamily: "network-fabric-capex",
+    note: "Refines the Phase 1 networking/fabric capital assumption. Do not add this CAPEX on top of Phase 1; apply only after the exact Phase 1 networking line mapping is implemented.",
+  });
 }
 
 export function networkFabricFingerprint(result, upstreamStorageFingerprint = null) {
@@ -103,6 +113,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
   const costResolved = pricingResolved && topologyResolved;
   const priceSource = result.inputs.priceSource || "EST";
   const source = provenanceSource(priceSource);
+  const tcoTreatment = fabricReplacementTreatment();
 
   const overrides = costResolved ? [createPhase2Override({
     id: "network.fabric.capex.current-fleet",
@@ -128,10 +139,11 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
       schedule,
     },
     referenceValue: null,
+    tcoTreatment,
   })] : [];
 
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     sourceTool: "network-fabric",
     acceptedAt: new Date().toISOString(),
     fingerprint,
@@ -142,6 +154,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
     costResolved,
     costStatus: costResolved ? priceSource : topologyResolved ? "UNRESOLVED-PRICING" : "ENGINEERING-REVIEW",
     priceSource,
+    tcoTreatment,
     overrides,
     requirements: {
       technology: result.inputs.technology,
@@ -156,6 +169,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
       ports: result.ports,
       bandwidth: result.bandwidth,
       switchPowerKw: result.estimatedSwitchPowerKw,
+      tcoTreatment,
       management: {
         ports: result.inputs.managementPorts,
         excludedFromHighSpeedFabricSizing: true,
@@ -170,7 +184,7 @@ export function buildNetworkFabricWritebackBundle(result, inputs, { upstreamStor
       costNote: !topologyResolved
         ? "The current fleet exceeds the modeled two-tier topology envelope. Fabric switch count, power, cabling, optics, and CAPEX remain lower-bound planning values only; no TCO CAPEX override is eligible until engineering resolves the topology."
         : costResolved
-          ? `${priceSource} high-speed fabric pricing is resolved for ${result.media.type} media. The GPU-system port-count basis is ${result.fabricPortBasis.source}${result.fabricPortBasis.note ? ` (${result.fabricPortBasis.note})` : ""}. Storage networking is ${result.storageFabric.converged ? "explicitly converged into" : "explicitly separate from"} this fabric. Management/control-plane networking remains outside this CAPEX envelope.`
+          ? `${priceSource} high-speed fabric pricing is resolved for ${result.media.type} media. The GPU-system port-count basis is ${result.fabricPortBasis.source}${result.fabricPortBasis.note ? ` (${result.fabricPortBasis.note})` : ""}. Storage networking is ${result.storageFabric.converged ? "explicitly converged into" : "explicitly separate from"} this fabric. Management/control-plane networking remains outside this CAPEX envelope. This Phase 2 CAPEX refines the Phase 1 network/fabric assumption and remains blocked from production TCO application until the exact Phase 1 replacement line is mapped.`
           : optical
             ? `High-speed optical fabric requirement is accepted, but no CAPEX override is eligible until switch, cable, and transceiver prices are supplied. GPU-system port-count basis: ${result.fabricPortBasis.source}. Storage networking is ${result.storageFabric.converged ? "converged" : "separate"}.`
             : `High-speed DAC fabric requirement is accepted, but no CAPEX override is eligible until switch and DAC cable prices are supplied. GPU-system port-count basis: ${result.fabricPortBasis.source}. Storage networking is ${result.storageFabric.converged ? "converged" : "separate"}. Separate optical transceiver pricing is not required in DAC mode.`,
