@@ -1,0 +1,33 @@
+name: RTX lower-cost tier patch
+
+on:
+  push:
+    branches:
+      - feature/rtx-lower-cost-tier
+    paths:
+      - scripts/patch_rtx_lower_cost_tier.mjs
+      - .github/workflows/rtx-lower-cost-tier-patch.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/rtx-lower-cost-tier
+      - name: Apply guarded source patch
+        run: node scripts/patch_rtx_lower_cost_tier.mjs
+      - name: Remove one-time patch files
+        run: |
+          rm scripts/patch_rtx_lower_cost_tier.mjs
+          rm .github/workflows/rtx-lower-cost-tier-patch.yml
+      - name: Commit patched calculator
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/GpuSizingCalculator.jsx scripts/patch_rtx_lower_cost_tier.mjs .github/workflows/rtx-lower-cost-tier-patch.yml
+          git commit -m "Wire RTX PRO into lower-cost alternative tier"
+          git push origin HEAD:feature/rtx-lower-cost-tier
