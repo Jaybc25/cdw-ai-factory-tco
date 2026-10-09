@@ -75,6 +75,8 @@ jobs:
         run: node scripts/verifyPhase2SoftwareStack.mjs
       - name: Verify Software writeback
         run: node scripts/verifyPhase2SoftwareWriteback.mjs
+      - name: Verify Software Phase 1 overlap in Pod Brief
+        run: node scripts/verifyPhase2SoftwareOverlapPodBrief.mjs
       - name: Verify Fabric planner
         run: node scripts/verifyNetworkFabric.mjs
       - name: Verify Fabric writeback
