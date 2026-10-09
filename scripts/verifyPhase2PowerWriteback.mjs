@@ -18,6 +18,7 @@ const base = {
   facilityBranch: "owned-dc",
   ownedFacilityBurdenPerKwMonth: 200,
   coloMonthlyBundle: "",
+  coloBundleIncludesPower: false,
   coolingType: "air-containment",
   coolingCapability: "air-capable",
   availableKwPerRack: 80,
@@ -29,6 +30,8 @@ const result = calculatePowerPlanner(base);
 const validation = validatePowerPlannerInputs(result);
 assert.equal(validation.valid, true);
 assert.equal(result.economics.facilityCostResolved, true);
+assert.equal(result.economics.energyIncludedInFacilityBundle, false);
+assert.equal(result.economics.monthlyStandaloneEnergyCost, result.economics.monthlyEnergyCost);
 
 const bundle = buildPowerPlannerWritebackBundle(result, {
   systemName: "DGX B200",
@@ -39,19 +42,21 @@ assert.equal(bundle.costResolved, true);
 assert.equal(bundle.costStatus, "CUSTOMER");
 assert.equal(bundle.utilityRateSource, "CUSTOMER");
 assert.equal(bundle.facilityCostSource, "CUSTOMER");
+assert.equal(bundle.energyIncludedInFacilityBundle, false);
 assert.equal(bundle.overrides.length, 2);
 assert.equal(bundle.overrides[0].target, "tco.power.energy.monthly");
 assert.equal(bundle.overrides[0].provenance.source, "CUSTOMER");
 assert.equal(bundle.overrides[1].target, "tco.power.facilityBurden.monthly");
 assert.equal(bundle.overrides[1].provenance.source, "CUSTOMER");
 assert.equal(bundle.overrides.every(phase2OverrideCanWriteBack), true);
-assert.equal(bundle.requirements.schemaVersion, 2);
+assert.equal(bundle.requirements.schemaVersion, 3);
 assert.equal(bundle.requirements.systemName, "DGX B200");
 assert.equal(bundle.requirements.racks.total, result.racks.total);
 assert.equal(bundle.requirements.power.designItKw, result.power.designItKw);
 assert.equal(bundle.requirements.cooling.coolingTons, result.cooling.coolingTons);
 assert.equal(bundle.requirements.utilityRateSource, "CUSTOMER");
 assert.equal(bundle.requirements.facilityCostStatus, "CUSTOMER");
+assert.equal(bundle.requirements.standaloneEnergyWritebackEligible, true);
 
 const estimatedUtility = buildPowerPlannerWritebackBundle(result, { systemName: "DGX B200" });
 assert.equal(estimatedUtility.overrides[0].provenance.source, "EST", "Default utility-rate provenance must not claim CUSTOMER evidence");
@@ -85,10 +90,33 @@ const colo = calculatePowerPlanner({ ...base, facilityBranch: "colocation", colo
 const coloBundle = buildPowerPlannerWritebackBundle(colo, { systemName: "DGX B200" });
 assert.equal(coloBundle.costResolved, true);
 assert.equal(coloBundle.costStatus, "QUOTE");
+assert.equal(coloBundle.overrides.length, 2);
+assert.equal(coloBundle.overrides[0].target, "tco.power.energy.monthly");
 assert.equal(coloBundle.overrides[1].provenance.source, "QUOTE");
 assert.equal(coloBundle.overrides[1].provenance.derivation, "DIRECT");
 assert.equal(coloBundle.overrides[1].value, 50000);
 assert.equal(coloBundle.requirements.facilityCostStatus, "QUOTE");
+assert.equal(coloBundle.requirements.energyIncludedInFacilityBundle, false);
+
+const coloPowerIncluded = calculatePowerPlanner({
+  ...base,
+  facilityBranch: "colocation",
+  coloMonthlyBundle: 50000,
+  coloBundleIncludesPower: true,
+});
+assert.equal(coloPowerIncluded.economics.energyIncludedInFacilityBundle, true);
+assert.equal(coloPowerIncluded.economics.monthlyStandaloneEnergyCost, 0);
+assert.equal(coloPowerIncluded.economics.monthlyFacilityTotal, 50000, "All-in colo bundle must not add standalone utility energy again");
+assert.ok(coloPowerIncluded.flags.some((x) => x.includes("including electricity")));
+const coloPowerIncludedBundle = buildPowerPlannerWritebackBundle(coloPowerIncluded, { systemName: "DGX B200" });
+assert.equal(coloPowerIncludedBundle.costResolved, true);
+assert.equal(coloPowerIncludedBundle.energyIncludedInFacilityBundle, true);
+assert.equal(coloPowerIncludedBundle.overrides.length, 1, "All-in colo bundle must suppress standalone energy TCO override");
+assert.equal(coloPowerIncludedBundle.overrides[0].target, "tco.power.facilityBurden.monthly");
+assert.equal(coloPowerIncludedBundle.overrides[0].value, 50000);
+assert.match(coloPowerIncludedBundle.overrides[0].provenance.label, /including electricity/i);
+assert.equal(coloPowerIncludedBundle.requirements.standaloneEnergyWritebackEligible, false);
+assert.ok(coloPowerIncludedBundle.validation.warnings.some((x) => x.includes("suppressed from TCO")));
 
 const customerColoBundle = buildPowerPlannerWritebackBundle(colo, {
   systemName: "DGX B200",
