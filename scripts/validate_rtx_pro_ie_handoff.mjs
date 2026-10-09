@@ -82,7 +82,7 @@ const card = fs.readFileSync("src/RtxProAlternativeCard.jsx", "utf8");
 const gpuSizing = fs.readFileSync("src/GpuSizingCalculator.jsx", "utf8");
 
 for (const [source, text, message] of [
-  [card, "benchmarkId: benchmark.id", "RTX TCO href helper must preserve the admitted RTX benchmark id."],
+  [card, "benchmarkId: evaluatedAlt.benchmark.id", "RTX TCO href helper must preserve the admitted RTX benchmark id."],
   [gpuSizing, "buildRtxProTcoHref", "GPU Sizing must use the guarded RTX TCO handoff helper."],
   [intake, "buildRtxProInferenceEconomicsHandoff", "RTX TCO must use the guarded RTX IE connector."],
   [intake, "Continue to Inference Economics", "Client-ready RTX lifecycle TCO must expose the IE continuation action."],
