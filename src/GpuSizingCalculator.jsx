@@ -15,7 +15,7 @@ import { RUBIN_GPU_SIZING_SPECS, RUBIN_TRAINING_CANDIDATES } from "./rubinGpuSiz
 import { buildInferenceEconomicsGpuSizingHandoff } from "./inferenceEconomicsConnector.js";
 import { classifyInferenceScaleout } from "./inferenceScaleoutClassification.js";
 import { sizeRtxProInference } from "./rtxProGpuSizing.js";
-import RtxProAlternativeCard from "./RtxProAlternativeCard.jsx";
+import RtxProAlternativeCard, { buildRtxProTcoHref } from "./RtxProAlternativeCard.jsx";
 
 // ---------------------------------------------------------------------------
 // Tooltip copy -- same rubric as the TCO tool: <=2 sentences core (3 with a
@@ -1054,11 +1054,12 @@ function GPUSizingCalculatorInner() {
   const sizingScenarioKey = mode === "Inference"
     ? [mode, infModel.id, quant, concurrentUsers, targetTokPerUser, avgInputTokens, avgOutputTokens, kvBytesPerElement, overheadPct, infGpuOverride, customParamsB, customLayers, customKvHeads, customHeadDim].join("|")
     : [mode, trainModel.id, taskType, precision, datasetTokensB, targetDays, mfu, trainGpuOverride, customParamsB].join("|");
-  const effectiveTcoSelection = tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
+  const rtxTcoHref = mode === "Inference" ? buildRtxProTcoHref(result?.rtxAlt) : null;
+  const effectiveTcoSelection = tcoSelection === "rtx" && rtxTcoHref ? "rtx" : tcoSelection === "higher-growth" && result?.higherGrowth?.class ? "higher-growth" : "recommended";
   const tcoSelectedClass = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.class : result?.selectedClass;
   const tcoSelectedCount = effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.recommended : result?.recommended;
-  const selectedBudget = effectiveTcoSelection === "higher-growth" ? result?.budget?.higherGrowth : result?.budget?.recommended;
-  const tcoScaleoutClassification = mode === "Inference" && result && tcoSelectedClass
+  const selectedBudget = effectiveTcoSelection === "rtx" ? null : effectiveTcoSelection === "higher-growth" ? result?.budget?.higherGrowth : result?.budget?.recommended;
+  const tcoScaleoutClassification = mode === "Inference" && effectiveTcoSelection !== "rtx" && result && tcoSelectedClass
     ? classifyInferenceScaleout({
         hardwareClass: tcoSelectedClass,
         weightMemoryGB: result.weightMemoryGB,
@@ -1539,7 +1540,7 @@ function GPUSizingCalculatorInner() {
             <>
               <div className="mb-4"><ConfidenceBadge level={result.confidence.level} /><p className="text-xs text-gray-500 mt-2 flex items-start gap-1"><Info className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />{result.confidence.level === "LOW" ? "Low confidence: custom model architecture is not yet verified." : mode === "Inference" ? "Directional sizing: based on benchmark-backed hardware throughput plus modeled workload adjustments." : "Directional sizing: based on published GPU specifications plus an explicit MFU assumption."}</p></div>
               <div className="flex flex-wrap gap-3 mb-4"><ResultCard icon={Zap} title="Recommended" gpuClass={result.selectedClass} gpus={result.recommended} subtitle="Node-rounded, sourceable production configuration" accent selectable={Boolean(TCO_OWN_SYS_FOR_CLASS[result.selectedClass])} selected={effectiveTcoSelection === "recommended"} onSelect={() => setTcoSelection("recommended")} /></div>
-              <div className="flex flex-wrap gap-3 mb-6">{mode === "Inference" ? <RtxProAlternativeCard rtxAlt={result.rtxAlt} compact /> : <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />}<ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog." subtitle={getHigherGrowthSubtitle(result.higherGrowth)} selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
+              <div className="flex flex-wrap gap-3 mb-6">{mode === "Inference" ? <RtxProAlternativeCard rtxAlt={result.rtxAlt} compact selectable={Boolean(rtxTcoHref)} selected={effectiveTcoSelection === "rtx"} onSelect={() => setTcoSelection("rtx")} /> : <ResultCard icon={TrendingDown} title="Lower-cost alternative" gpuClass={result.lowerCost.class} gpus={result.lowerCost.recommended} emptyMessage="No qualifying lower-cost alternative in the current supported catalog." />}<ResultCard icon={TrendingUp} title="Higher-growth alternative" gpuClass={result.higherGrowth.class} gpus={result.higherGrowth.recommended} emptyMessage="No qualifying higher-growth capacity step in the current supported catalog." subtitle={getHigherGrowthSubtitle(result.higherGrowth)} selectable={Boolean(result.higherGrowth.class && TCO_OWN_SYS_FOR_CLASS[result.higherGrowth.class])} selected={effectiveTcoSelection === "higher-growth"} onSelect={() => setTcoSelection("higher-growth")} /></div>
               <BudgetPanel budget={selectedBudget ? { recommended: selectedBudget } : null} />
     {mode === "Inference" && result.rubinAdvisory && (
       <div className="mb-4 rounded-xl p-4 border border-amber-300 bg-amber-50">
@@ -1560,7 +1561,15 @@ function GPUSizingCalculatorInner() {
               {mode === "Inference" && <UtilizationPanel result={result} workingDayHours={workingDayHours} onWorkingDayHoursChange={setWorkingDayHours} />}
               
               <div className="text-xs text-gray-500 p-3 bg-gray-50 rounded-lg mb-4"><strong>Sizing method:</strong> {mode === "Inference" ? `Meet both ${result.totalMemoryGB.toFixed(1)} GB of modeled memory and ${result.totalThroughputNeeded.toLocaleString()} tok/s of aggregate demand, then round up to a ${result.selectedNodeSize}-GPU node. MLPerf Offline throughput does not establish per-request response speed (TTFT/TPOT).` : `Fit ${result.trainingMemoryGB.toFixed(1)} GB of modeled training state and meet the training time target, then round up to a ${result.selectedNodeSize}-GPU node. Activation and temporary-workspace memory are not separately modeled.`} See the calculation audit for evidence and detailed assumptions.</div>
-              <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} gpuDemandCount={effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.workload : result?.minTechnical} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} scaleoutClassification={tcoScaleoutClassification} />
+              {effectiveTcoSelection === "rtx" && rtxTcoHref ? (
+                <div className="mb-6 rounded-xl p-4 border border-blue-200 bg-blue-50" data-testid="rtx-selected-handoff">
+                  <div className="text-xs font-bold uppercase tracking-wide text-blue-800 mb-1">Selected next step · RTX PRO TCO</div>
+                  <div className="text-xs text-blue-900 mb-3">Carry the selected right-sized RTX PRO configuration into lifecycle TCO, then continue into Inference Economics using the same GPU count, model, precision, and admitted benchmark evidence.</div>
+                  <a href={rtxTcoHref} className="inline-flex text-xs font-semibold px-3 py-1.5 rounded-lg text-white" style={{ background: RED }}>Continue to RTX PRO TCO</a>
+                </div>
+              ) : (
+                <TcoHandoff selectedClass={tcoSelectedClass} recommended={tcoSelectedCount} gpuDemandCount={effectiveTcoSelection === "higher-growth" ? result?.higherGrowth?.workload : result?.minTechnical} sizingBasis={effectiveTcoSelection} mode={mode} workingDayHours={workingDayHours} concurrentUsers={mode === "Inference" ? concurrentUsers : null} targetTokPerUser={mode === "Inference" ? targetTokPerUser : null} model={mode === "Inference" ? infModel : trainModel} modelParamsB={mode === "Inference" ? getModelParamsB(infModel, customParamsB) : getModelParamsB(trainModel, customParamsB)} quant={mode === "Inference" ? quant : null} scaleoutClassification={tcoScaleoutClassification} />
+              )}
               <div className="mt-3 flex flex-col sm:flex-row gap-2">
                 <button onClick={requestReport} className="w-full sm:flex-1 text-sm font-bold py-2.5 rounded-lg text-white" style={{ background: RED }}>Get the full sizing report</button>
                 <button onClick={openAudit} className="w-full sm:w-auto text-sm font-semibold py-2.5 px-4 rounded-lg border border-gray-300 bg-white" style={{ color: CHARCOAL }}>Calculation Methodology &amp; Audit Trail</button>

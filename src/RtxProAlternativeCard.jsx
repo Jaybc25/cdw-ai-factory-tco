@@ -48,6 +48,19 @@ function rebuildDistributedMemoryAlternative(original) {
   });
 }
 
+export function buildRtxProTcoHref(rtxAlt) {
+  const evaluatedAlt = rebuildDistributedMemoryAlternative(rtxAlt);
+  if (!evaluatedAlt?.eligible || evaluatedAlt.deployment?.servers !== 1 || !evaluatedAlt.benchmark) return null;
+  const params = new URLSearchParams({
+    gpuCount: String(evaluatedAlt.deployment.serverGpuCount),
+    model: evaluatedAlt.benchmark.modelId,
+    precision: evaluatedAlt.benchmark.precision,
+    benchmarkId: evaluatedAlt.benchmark.id,
+    source: "gpu-sizing",
+  });
+  return `/tco/rtx-pro?${params.toString()}`;
+}
+
 function TradeoffNote({ candidate = false }) {
   return (
     <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
@@ -56,15 +69,14 @@ function TradeoffNote({ candidate = false }) {
   );
 }
 
-export default function RtxProAlternativeCard({ rtxAlt, compact = false, reportOnly = false }) {
+export default function RtxProAlternativeCard({ rtxAlt, compact = false, reportOnly = false, selectable = false, selected = false, onSelect = null }) {
   if (!rtxAlt) return null;
 
-  // The enterprise recommendation remains the future-growth path; RTX PRO is
-  // evaluated as the right-sized/lower-entry-cost path within its evidence gate.
   const evaluatedAlt = rebuildDistributedMemoryAlternative(rtxAlt);
+  const selectedClasses = selected ? "border-red-500 ring-2 ring-red-100" : "border-blue-200";
   const shell = compact
-    ? "rounded-xl p-5 flex-1 min-w-[220px] border border-blue-200 bg-blue-50"
-    : "mb-4 rounded-xl p-4 border border-blue-200 bg-blue-50";
+    ? `rounded-xl p-5 flex-1 min-w-[220px] border ${selectedClasses} bg-blue-50 text-left`
+    : `mb-4 rounded-xl p-4 border ${selectedClasses} bg-blue-50 text-left`;
 
   if (!evaluatedAlt.eligible) {
     const evidenceCandidate = evaluatedAlt.status === "EVIDENCE_REQUIRED" && evaluatedAlt.fitsOneGpu;
@@ -107,20 +119,18 @@ export default function RtxProAlternativeCard({ rtxAlt, compact = false, reportO
     ? `$${Math.round(budget.amount).toLocaleString("en-US")} configured server hardware · ${budget.confidence}`
     : "Configured system price requires quote / evidence validation";
   const journeyEligible = deployment.servers === 1;
-  const tcoParams = new URLSearchParams({
-    gpuCount: String(deployment.serverGpuCount),
-    model: benchmark.modelId,
-    precision: benchmark.precision,
-    benchmarkId: benchmark.id,
-    source: "gpu-sizing",
-  });
 
-  return (
-    <div className={shell} data-testid="rtx-lower-cost-qualified">
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="text-xs font-bold uppercase tracking-wide text-blue-800">Lower-cost alternative · Right-sized private AI</div>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">EVIDENCE-GATED</span>
       </div>
+      {selectable && !reportOnly && (
+        <div className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: selected ? "#CC0000" : "#2563EB" }}>
+          {selected ? "Selected for TCO" : "Tap to select for TCO"}
+        </div>
+      )}
       <div className="text-lg font-bold text-blue-950 mb-1">
         {deployment.totalDeployedGpus} × NVIDIA RTX PRO 6000 Blackwell Server Edition
       </div>
@@ -137,9 +147,9 @@ export default function RtxProAlternativeCard({ rtxAlt, compact = false, reportO
       <div className="text-xs text-blue-900 mb-1"><strong>Estimated peak utilization:</strong> {Math.round(evaluatedAlt.utilization * 100)}% of deployed RTX replica capacity.</div>
       <div className="text-xs text-blue-900"><strong>Hardware budget status:</strong> {budgetText}. Support, NVIDIA software, shared infrastructure, storage, facilities, operations, and transition costs are not included here.</div>
       <TradeoffNote />
-      {!reportOnly && journeyEligible ? (
+      {!reportOnly && !selectable && journeyEligible ? (
         <a
-          href={`/tco/rtx-pro?${tcoParams.toString()}`}
+          href={buildRtxProTcoHref(evaluatedAlt)}
           className="inline-flex mt-3 text-xs font-semibold px-3 py-1.5 rounded-lg text-white"
           style={{ background: "#CC0000" }}
         >
@@ -148,6 +158,16 @@ export default function RtxProAlternativeCard({ rtxAlt, compact = false, reportO
       ) : !reportOnly && !journeyEligible ? (
         <div className="mt-3 text-xs font-semibold text-blue-900">Multi-server RTX TCO remains project-specific; autonomous TCO activation is limited to one physical RTX PRO server.</div>
       ) : null}
-    </div>
+    </>
   );
+
+  if (selectable && journeyEligible && !reportOnly) {
+    return (
+      <button type="button" className={shell} data-testid="rtx-lower-cost-qualified" aria-pressed={selected} onClick={onSelect}>
+        {content}
+      </button>
+    );
+  }
+
+  return <div className={shell} data-testid="rtx-lower-cost-qualified">{content}</div>;
 }
