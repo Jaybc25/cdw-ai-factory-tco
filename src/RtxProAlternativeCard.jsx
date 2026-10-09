@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useLayoutEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { loadSessionState } from "./sessionState.js";
 import { getModelById, getModelParamsB } from "./modelRegistry.js";
 import { getInferenceSequenceStateMemory } from "./modelSizingMethodology.js";
@@ -48,6 +49,31 @@ function rebuildDistributedMemoryAlternative(original) {
   });
 }
 
+function useLowerCostTierTarget() {
+  const [target, setTarget] = useState(null);
+
+  useLayoutEffect(() => {
+    if (typeof document === "undefined") return undefined;
+
+    const titleNode = Array.from(document.querySelectorAll("span")).find(
+      (node) => node.textContent?.trim() === "Lower-cost alternative",
+    );
+    const legacyCard = titleNode?.parentElement?.parentElement;
+    const alternativesRow = legacyCard?.parentElement;
+    if (!legacyCard || !alternativesRow) return undefined;
+
+    const previousDisplay = legacyCard.style.display;
+    legacyCard.style.display = "none";
+    setTarget(alternativesRow);
+
+    return () => {
+      legacyCard.style.display = previousDisplay;
+    };
+  }, []);
+
+  return target;
+}
+
 function TradeoffNote({ candidate = false }) {
   return (
     <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-950">
@@ -57,19 +83,23 @@ function TradeoffNote({ candidate = false }) {
 }
 
 export default function RtxProAlternativeCard({ rtxAlt, compact = false }) {
+  const lowerCostTierTarget = useLowerCostTierTarget();
   if (!rtxAlt) return null;
 
   // The enterprise recommendation remains the future-growth path; RTX PRO is
   // evaluated as the right-sized/lower-entry-cost path within its evidence gate.
   const evaluatedAlt = rebuildDistributedMemoryAlternative(rtxAlt);
-  const shell = compact
+  const inLowerCostTier = Boolean(lowerCostTierTarget);
+  const shell = compact || inLowerCostTier
     ? "rounded-xl p-5 flex-1 min-w-[220px] border border-blue-200 bg-blue-50"
     : "mb-4 rounded-xl p-4 border border-blue-200 bg-blue-50";
+  const tierStyle = inLowerCostTier ? { order: -1 } : undefined;
+  const place = (node) => lowerCostTierTarget ? createPortal(node, lowerCostTierTarget) : node;
 
   if (!evaluatedAlt.eligible) {
     const evidenceCandidate = evaluatedAlt.status === "EVIDENCE_REQUIRED" && evaluatedAlt.fitsOneGpu;
-    return (
-      <div className={shell} data-testid="rtx-lower-cost-candidate">
+    return place(
+      <div className={shell} style={tierStyle} data-testid="rtx-lower-cost-candidate">
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="text-xs font-bold uppercase tracking-wide text-blue-800">
             {evidenceCandidate ? "Potential lower-cost alternative" : "Lower-cost alternative evaluation"}
@@ -95,7 +125,7 @@ export default function RtxProAlternativeCard({ rtxAlt, compact = false }) {
             <TradeoffNote candidate />
           </>
         )}
-      </div>
+      </div>,
     );
   }
 
@@ -115,8 +145,8 @@ export default function RtxProAlternativeCard({ rtxAlt, compact = false }) {
     source: "gpu-sizing",
   });
 
-  return (
-    <div className={shell} data-testid="rtx-lower-cost-qualified">
+  return place(
+    <div className={shell} style={tierStyle} data-testid="rtx-lower-cost-qualified">
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="text-xs font-bold uppercase tracking-wide text-blue-800">Lower-cost alternative · Right-sized private AI</div>
         <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-100 text-blue-800">EVIDENCE-GATED</span>
@@ -148,6 +178,6 @@ export default function RtxProAlternativeCard({ rtxAlt, compact = false }) {
       ) : (
         <div className="mt-3 text-xs font-semibold text-blue-900">Multi-server RTX TCO remains project-specific; autonomous TCO activation is limited to one physical RTX PRO server.</div>
       )}
-    </div>
+    </div>,
   );
 }
