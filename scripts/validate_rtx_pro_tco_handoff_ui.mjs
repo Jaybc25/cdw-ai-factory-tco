@@ -8,6 +8,10 @@ function requireText(source, text, message) {
   if (!source.includes(text)) throw new Error(message);
 }
 
+function rejectText(source, text, message) {
+  if (source.includes(text)) throw new Error(message);
+}
+
 requireText(app, 'path="/tco/rtx-pro"', "RTX PRO TCO route must remain registered.");
 requireText(app, "<RtxProTcoIntake />", "RTX PRO TCO route must render the input-aware intake surface.");
 requireText(card, "Continue to RTX PRO TCO", "Evidence-qualified single-server RTX sizing must expose a TCO handoff.");
@@ -26,13 +30,22 @@ for (const required of [
 ]) {
   requireText(intake, required, `RTX TCO intake is missing required field: ${required}`);
 }
-requireText(intake, "buildRtxProSingleServerTcoPolicy", "RTX TCO UI must use the validated policy helper rather than duplicate its readiness rules.");
-requireText(intake, "fullLifecycleInputsReady = policy.clientReady && powerRate !== null", "RTX TCO readiness must require both policy completeness and an explicit facility power basis.");
-requireText(intake, "does not sum software/support/services into lifecycle TCO until their commercial term", "RTX TCO UI must not manufacture a lifecycle total before commercial term normalization.");
-requireText(intake, "Intentionally no universal RTX default", "Facility/power economics must remain customer-specific in the RTX path.");
 
-console.log("RTX PRO GPU Sizing → TCO handoff UI validation PASS");
+requireText(intake, "buildRtxProSingleServerTcoPolicy", "RTX TCO UI must use the validated policy helper rather than duplicate its readiness rules.");
+requireText(intake, "buildRtxProLifecycleTco", "RTX TCO UI must use the validated lifecycle engine rather than duplicate lifecycle math.");
+requireText(intake, "TCO horizon", "RTX TCO UI must expose a 1/3/5-year horizon control.");
+requireText(intake, "Annual amount", "RTX recurring commercial inputs must support annual basis.");
+requireText(intake, "Total for quoted term", "RTX recurring commercial inputs must support term-total basis.");
+requireText(intake, "Quoted term coverage", "Term-total inputs must carry explicit coverage years.");
+requireText(intake, "Directional lifecycle TCO", "RTX TCO UI must render the validated lifecycle total when ready.");
+requireText(intake, "lifecycle.totalTcoUSD", "Displayed RTX lifecycle total must come from the tested engine output.");
+requireText(intake, "the tool does not infer renewal pricing", "RTX TCO UI must disclose that renewal pricing is not invented.");
+requireText(intake, "Intentionally no universal RTX default", "Facility/power economics must remain customer-specific in the RTX path.");
+rejectText(intake, "does not sum software/support/services into lifecycle TCO until their commercial term", "The pre-lifecycle placeholder disclosure must be removed after lifecycle normalization is active.");
+
+console.log("RTX PRO GPU Sizing → lifecycle TCO UI validation PASS");
 console.log("- single-server evidence-qualified sizing can continue to RTX TCO");
 console.log("- multi-server RTX remains project-specific");
-console.log("- required commercial/workload/facility inputs are explicit");
-console.log("- no premature lifecycle total is manufactured");
+console.log("- required commercial/workload/facility inputs remain explicit");
+console.log("- recurring commercial term basis and coverage are explicit");
+console.log("- displayed lifecycle total is sourced from the validated engine");
