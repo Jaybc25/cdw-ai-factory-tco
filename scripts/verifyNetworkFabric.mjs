@@ -5,6 +5,7 @@ import {
   FABRIC_TECHNOLOGY,
   FABRIC_LINK_MEDIA,
   FABRIC_PRICE_SOURCE,
+  STORAGE_FABRIC_MODE,
 } from "../src/networkFabricEngine.js";
 
 const base = {
@@ -12,6 +13,7 @@ const base = {
   linkGbps: 400,
   linkMedia: FABRIC_LINK_MEDIA.OPTICAL,
   priceSource: FABRIC_PRICE_SOURCE.EST,
+  storageFabricMode: STORAGE_FABRIC_MODE.CONVERGED,
   gpuSystems: 8,
   fabricPortsPerSystem: 8,
   storageAggregateGbps: 400,
@@ -29,6 +31,8 @@ const base = {
 const result = calculateNetworkFabric(base);
 assert.equal(result.inputs.linkMedia, "optical");
 assert.equal(result.inputs.priceSource, "EST");
+assert.equal(result.storageFabric.converged, true);
+assert.equal(result.storageFabric.status, "CONVERGED");
 assert.equal(result.ports.computeEndpointPorts, 64);
 assert.equal(result.ports.storagePorts, 2);
 assert.equal(result.ports.dataPlaneEndpointPorts, 66);
@@ -37,6 +41,7 @@ assert.equal(result.ports.managementPorts, 8);
 assert.equal(result.ports.managementPortsExcludedFromFabric, true);
 assert.ok(result.switches.total >= 1);
 assert.equal(result.bandwidth.storageBandwidthFit, true);
+assert.equal(result.bandwidth.storageCheckApplicable, true);
 assert.equal(result.topologyFeasibility.twoTierFeasible, true);
 assert.equal(result.topologyFeasibility.status, "FEASIBLE");
 assert.equal(result.media.opticalTransceiversRequired, true);
@@ -45,6 +50,27 @@ assert.ok(result.estimatedSwitchPowerKw > 0);
 assert.ok(result.flags.some((x) => x.includes("management ports are tracked as out-of-band")));
 assert.ok(result.flags.some((x) => x.includes("Switch cost is unresolved")));
 assert.ok(result.flags.some((x) => x.includes("Optical transceiver economics are unresolved")));
+
+const separateStorage = calculateNetworkFabric({
+  ...base,
+  storageFabricMode: STORAGE_FABRIC_MODE.SEPARATE,
+});
+assert.equal(separateStorage.storageFabric.converged, false);
+assert.equal(separateStorage.storageFabric.status, "SEPARATE");
+assert.equal(separateStorage.ports.storagePorts, 0, "separate storage network must not consume high-speed compute-fabric ports");
+assert.equal(separateStorage.ports.requestedStoragePorts, 2);
+assert.equal(separateStorage.ports.dataPlaneEndpointPorts, 64);
+assert.equal(separateStorage.bandwidth.storageBandwidthFit, null);
+assert.equal(separateStorage.bandwidth.storageCheckApplicable, false);
+assert.ok(separateStorage.flags.some((x) => x.includes("Storage networking is modeled as separate")));
+assert.ok(separateStorage.switches.total <= result.switches.total);
+
+const separateValidation = validateNetworkFabricInputs({
+  ...base,
+  storageFabricMode: STORAGE_FABRIC_MODE.SEPARATE,
+});
+assert.equal(separateValidation.valid, true);
+assert.ok(separateValidation.warnings.some((x) => x.includes("Storage networking is separate")));
 
 const dac = calculateNetworkFabric({
   ...base,
