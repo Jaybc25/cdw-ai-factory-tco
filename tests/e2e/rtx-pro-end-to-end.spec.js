@@ -5,8 +5,12 @@ test.skip(!AUTH_BYPASSED, BYPASS_ONLY_REASON);
 
 const BENCH = "rtx-pro-6000-llama-3.3-70b-fp4-1k1k";
 
+function fieldByLabelText(page, label) {
+  return page.locator("label").filter({ hasText: label }).locator('input[type="number"]').first();
+}
+
 async function fillMoney(page, label, value) {
-  await page.getByLabel(label, { exact: true }).fill(String(value));
+  await fieldByLabelText(page, label).fill(String(value));
 }
 
 test("RTX PRO single-server TCO hands exact benchmark and lifecycle TCO into IE", async ({ page }) => {
@@ -27,8 +31,8 @@ test("RTX PRO single-server TCO hands exact benchmark and lifecycle TCO into IE"
   await fillMoney(page, "Professional services / implementation", 8000);
   await fillMoney(page, "Workload-derived storage", 12000);
   await fillMoney(page, "Incremental admin / operations labor (annual)", 15000);
-  await page.getByLabel("Full configured-server power draw", { exact: true }).fill("2.5");
-  await page.getByLabel("Facility power burden", { exact: true }).fill("100");
+  await fieldByLabelText(page, "Full configured-server power draw").fill("2.5");
+  await fieldByLabelText(page, "Facility power burden").fill("100");
 
   await expect(page.getByText("3-year directional TCO ready", { exact: true })).toBeVisible();
   await expect(page.getByText("Directional lifecycle TCO", { exact: true })).toBeVisible();
@@ -76,6 +80,12 @@ test("RTX PRO IE rejects a tampered benchmark id", async ({ page }) => {
   });
 
   await page.goto(`/inference-economics?${params.toString()}`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByText(/inherited RTX PRO benchmark could not be resolved/i)).toBeVisible();
+  await expect(page.getByText("RTX PRO 6000", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Adjust RTX PRO TCO inputs", exact: true })).toHaveAttribute("href", "/tco/rtx-pro");
+
+  // Supply the normal remaining user inputs. A tampered benchmark id must still
+  // suppress economics; otherwise the URL could manufacture RTX capacity.
+  await page.getByPlaceholder("Required for capacity check, e.g. 0.5").fill("0.5");
+  await page.getByPlaceholder("e.g. 2000000000").fill("100000000");
   await expect(page.getByText(/\/ 1M output tokens/)).toHaveCount(0);
 });
