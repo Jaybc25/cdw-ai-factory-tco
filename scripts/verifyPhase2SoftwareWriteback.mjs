@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { calculateSoftwareStack, LICENSE_MODE, SOFTWARE_TCO_TREATMENT } from "../src/softwareStackEngine.js";
 import { buildSoftwareStackWritebackBundle, softwareStackFingerprint } from "../src/softwareStackWriteback.js";
+import { PHASE2_TCO_TREATMENT, phase2OverrideCanApplyToTco } from "../src/phase2Contract.js";
 
 const inputs = {
   horizonYears: 3,
@@ -43,6 +44,7 @@ const result = calculateSoftwareStack(inputs);
 const fingerprintA = softwareStackFingerprint(result);
 const bundle = buildSoftwareStackWritebackBundle(result, inputs);
 
+assert.equal(bundle.schemaVersion, 3);
 assert.equal(bundle.overrides.length, 3, "one override per planning year");
 assert.equal(bundle.overrides[0].unit, "USD/year");
 assert.equal(bundle.overrides[0].target, "tco.software.year1.total");
@@ -53,6 +55,10 @@ assert.ok(bundle.requirements.totals.operations > 0, "open-source operating cost
 assert.equal(bundle.fingerprint, fingerprintA);
 assert.equal(bundle.fleet.totalGpus, 16, "consistent GPU-priced rows should establish a comparable Software fleet identity");
 assert.equal(bundle.phase1OverlapResolved, true);
+assert.equal(bundle.tcoTreatment.mode, PHASE2_TCO_TREATMENT.ADDITIVE);
+assert.equal(bundle.tcoTreatment.additiveAllowed, true);
+assert.equal(bundle.overrides[0].tcoTreatment.mode, PHASE2_TCO_TREATMENT.ADDITIVE);
+assert.equal(phase2OverrideCanApplyToTco(bundle.overrides[0]), true, "Software override may apply only after contributing components are explicitly classified incremental to Phase 1");
 
 const changed = calculateSoftwareStack({
   ...inputs,
@@ -117,6 +123,8 @@ assert.equal(bundledPlatformBundle.costResolved, true);
 assert.deepEqual(bundledPlatformBundle.overlapSummary.includedInPhase1Components, ["AI enterprise platform"]);
 assert.equal(bundledPlatformBundle.requirements.totals.total > bundledPlatformBundle.overlapSummary.tcoEligibleTotal, true, "gross stack economics should retain included Phase 1 components");
 assert.equal(bundledPlatformBundle.overrides[0].value, Math.round(bundledPlatform.tcoEligibleYearlyTotals[0].total), "Phase 1-included software must be excluded from incremental TCO write-back");
+assert.equal(bundledPlatformBundle.overrides[0].tcoTreatment.mode, PHASE2_TCO_TREATMENT.ADDITIVE);
+assert.equal(phase2OverrideCanApplyToTco(bundledPlatformBundle.overrides[0]), true, "remaining software after Phase 1 exclusions is explicitly additive");
 
 const unresolvedOverlapInputs = {
   ...inputs,
