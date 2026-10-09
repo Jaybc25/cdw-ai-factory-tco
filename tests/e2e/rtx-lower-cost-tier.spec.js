@@ -29,24 +29,31 @@ async function seedGpuSizing(page, overrides) {
   }, state);
 }
 
-test("evidence-qualified RTX PRO replaces the inference lower-cost slot and continues into the forward journey", async ({ page }) => {
-  await seedGpuSizing(page, {});
-  await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
+for (const scenario of [
+  { concurrentUsers: 10, expectedGpuCount: 2 },
+  { concurrentUsers: 120, expectedGpuCount: 4 },
+  { concurrentUsers: 360, expectedGpuCount: 8 },
+]) {
+  test(`evidence-qualified RTX PRO ${scenario.expectedGpuCount}-GPU alternative continues into the forward journey`, async ({ page }) => {
+    await seedGpuSizing(page, { concurrentUsers: scenario.concurrentUsers });
+    await page.goto("/gpu-sizing", { waitUntil: "domcontentloaded" });
 
-  const rtx = page.getByTestId("rtx-lower-cost-qualified");
-  await expect(rtx).toBeVisible();
-  await expect(rtx).toContainText("Lower-cost alternative");
-  await expect(rtx).toContainText("2 × NVIDIA RTX PRO 6000 Blackwell Server Edition");
-  await expect(rtx).toContainText("does not provide NVLink/NVSwitch-style scale-up");
-  const forward = rtx.getByRole("link", { name: "Continue with RTX PRO" });
-  await expect(forward).toHaveAttribute("href", /\/tco\/rtx-pro\?/);
-  await expect(forward).toHaveAttribute("href", /gpuCount=2/);
-  await expect(forward).toHaveAttribute("href", /benchmarkId=/);
+    const rtx = page.getByTestId("rtx-lower-cost-qualified");
+    await expect(rtx).toBeVisible();
+    await expect(rtx).toContainText("Lower-cost alternative");
+    await expect(rtx).toContainText(`${scenario.expectedGpuCount} × NVIDIA RTX PRO 6000 Blackwell Server Edition`);
+    await expect(rtx).toContainText("does not provide NVLink/NVSwitch-style scale-up");
 
-  const tier = rtx.locator("..");
-  await expect(tier.getByText("Higher-growth alternative", { exact: true })).toBeVisible();
-  await expect(page.getByText("No qualifying lower-cost alternative in the current supported catalog.")).toBeHidden();
-});
+    const forward = rtx.getByRole("link", { name: "Continue with RTX PRO" });
+    await expect(forward).toHaveAttribute("href", /\/tco\/rtx-pro\?/);
+    await expect(forward).toHaveAttribute("href", new RegExp(`gpuCount=${scenario.expectedGpuCount}`));
+    await expect(forward).toHaveAttribute("href", /benchmarkId=/);
+
+    const tier = rtx.locator("..");
+    await expect(tier.getByText("Higher-growth alternative", { exact: true })).toBeVisible();
+    await expect(page.getByText("No qualifying lower-cost alternative in the current supported catalog.")).toBeHidden();
+  });
+}
 
 test("unsupported Gemma benchmark shows RTX PRO as a potential lower-cost candidate without inventing a GPU count", async ({ page }) => {
   await seedGpuSizing(page, {
