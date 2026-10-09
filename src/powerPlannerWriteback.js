@@ -18,7 +18,8 @@ export function validatePowerPlannerInputs(result) {
   if (!(i.pue >= 1 && i.pue <= 3)) errors.push("PUE must be between 1.0 and 3.0 for this planning tool.");
   if (i.utilityRatePerKwh < 0) errors.push("Utility rate cannot be negative.");
 
-  if (i.provisionalNetworkKw === 0) warnings.push("Network/head-node power is still 0 kW; result remains provisional until Fabric supplies this dependency or a planning allowance is entered.");
+  if (!result?.networkPower?.acceptedFabricPower && i.provisionalNetworkKw === 0) warnings.push("Network/head-node power is still 0 kW; result remains provisional until Fabric supplies switch power or a planning allowance is entered.");
+  if (result?.networkPower?.acceptedFabricPower && result.networkPower.managementHeadNodeKw === 0) warnings.push("Accepted Fabric switch power is included, but management/head-node power is 0 kW. Confirm that management, control-plane, and head-node power is intentionally excluded before client use.");
   if (result?.verdict === "requirement-only") warnings.push("No site-capacity inputs were provided, so the result is a requirement only, not a facility-fit verdict.");
   if (result?.verdict === "partial-check") warnings.push("Only part of the customer site-capacity data was provided. Rack kW, total facility kW, and rack positions are all required before a FITS AS-IS verdict is allowed.");
   if (result?.verdict === "retrofit") warnings.push("The stated site does not fit at least one design requirement and should route to facility engineering / retrofit discovery.");
@@ -31,20 +32,14 @@ export function validatePowerPlannerInputs(result) {
 
 export function buildPowerPlannerWritebackBundle(result, { systemName = null, upstreamStorage = null, upstreamNetwork = null } = {}) {
   const validation = validatePowerPlannerInputs(result);
-  if (!validation.valid) {
-    throw new Error(`Cannot stage Power Planner write-back: ${validation.errors.join(" ")}`);
-  }
+  if (!validation.valid) throw new Error(`Cannot stage Power Planner write-back: ${validation.errors.join(" ")}`);
 
-  const fleet = makeFleetIdentity({
-    systemClass: systemName,
-    systemCount: result.inputs.systemCount,
-    source: "power-planner",
-  });
-
+  const fleet = makeFleetIdentity({ systemClass: systemName, systemCount: result.inputs.systemCount, source: "power-planner" });
   const dependencies = {
     systemName,
     fleet,
     ...result.inputs,
+    networkPower: result.networkPower,
     racks: result.racks,
     designItKw: result.power.designItKw,
     facilityDesignKw: result.power.facilityDesignKw,
@@ -58,23 +53,14 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     value: Math.round(result.economics.monthlyEnergyCost),
     unit: "USD/month",
     sourceTool: "power-planner",
-    provenance: makeProvenance({
-      source: PHASE2_SOURCE.CUSTOMER,
-      derivation: PHASE2_DERIVATION.CALCULATED,
-      label: "Customer utility rate × average IT load × PUE × 730 hours",
-    }),
+    provenance: makeProvenance({ source: PHASE2_SOURCE.CUSTOMER, derivation: PHASE2_DERIVATION.CALCULATED, label: "Customer utility rate × average IT load × PUE × 730 hours" }),
     dependencies,
     referenceValue: null,
   });
 
-  const facilitySource = result.inputs.facilityBranch === "colocation"
-    ? PHASE2_SOURCE.QUOTE
-    : PHASE2_SOURCE.CUSTOMER;
-  const facilityDerivation = result.inputs.facilityBranch === "colocation"
-    ? PHASE2_DERIVATION.DIRECT
-    : PHASE2_DERIVATION.CALCULATED;
   const facilityResolved = Boolean(result.economics.facilityCostResolved);
-
+  const facilitySource = result.inputs.facilityBranch === "colocation" ? PHASE2_SOURCE.QUOTE : PHASE2_SOURCE.CUSTOMER;
+  const facilityDerivation = result.inputs.facilityBranch === "colocation" ? PHASE2_DERIVATION.DIRECT : PHASE2_DERIVATION.CALCULATED;
   const facility = facilityResolved ? createPhase2Override({
     id: "power.facility-burden.monthly",
     target: "tco.power.facilityBurden.monthly",
@@ -84,9 +70,7 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     provenance: makeProvenance({
       source: facilitySource,
       derivation: facilityDerivation,
-      label: result.inputs.facilityBranch === "colocation"
-        ? "Customer/partner colocation monthly bundle"
-        : "Customer facility burden × design IT kW",
+      label: result.inputs.facilityBranch === "colocation" ? "Customer/partner colocation monthly bundle" : "Customer facility burden × design IT kW",
     }),
     dependencies,
     referenceValue: null,
@@ -105,6 +89,7 @@ export function buildPowerPlannerWritebackBundle(result, { systemName = null, up
     verdict: result.verdict,
     siteCheck: result.siteCheck,
     racks: result.racks,
+    networkPower: result.networkPower,
     power: result.power,
     cooling: result.cooling,
     facilityCostResolved: facilityResolved,
