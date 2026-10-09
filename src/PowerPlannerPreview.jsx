@@ -68,7 +68,9 @@ export default function PowerPlannerPreview() {
     const staleReason = reasons.join(" ");
     const next = {
       ...savedPower,
-      overrides: (savedPower.overrides || []).map((override) => ({ ...override, state: PHASE2_STATE.STALE, staleReason })),
+      overrides: (savedPower.overrides || []).map((override) => override?.state === PHASE2_STATE.REVERTED
+        ? override
+        : { ...override, state: PHASE2_STATE.STALE, staleReason }),
       requirements: { ...savedPower.requirements, stale: true, staleReason, currentUpstreamStorageFingerprint: currentStorageFingerprint, currentUpstreamNetworkFingerprint: currentNetworkFingerprint },
     };
     saveSessionState("phase2-power-writeback", next);
