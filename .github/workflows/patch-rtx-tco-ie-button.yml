@@ -1,0 +1,61 @@
+name: Apply guarded RTX TCO to IE button patch
+
+on:
+  push:
+    branches: [feature/rtx-pro-ie-handoff]
+    paths:
+      - ".github/workflows/patch-rtx-tco-ie-button.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/rtx-pro-ie-handoff
+      - name: Apply exact-string guarded patches
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected exactly one match, found {count}: {old[:100]!r}")
+              p.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "src/RtxProTcoIntake.jsx",
+              'import { buildRtxProLifecycleTco } from "./rtxProLifecycleTco.js";\n',
+              'import { buildRtxProLifecycleTco } from "./rtxProLifecycleTco.js";\nimport { buildRtxProInferenceEconomicsHandoff } from "./rtxProInferenceEconomicsConnector.js";\n'
+          )
+          replace_once(
+              "src/RtxProTcoIntake.jsx",
+              '  const precision = params.get("precision") || null;\n',
+              '  const precision = params.get("precision") || null;\n  const benchmarkId = params.get("benchmarkId") || null;\n'
+          )
+          replace_once(
+              "src/RtxProTcoIntake.jsx",
+              '  const lifecycleReady = policy.clientReady && lifecycle.clientReady;\n',
+              '  const lifecycleReady = policy.clientReady && lifecycle.clientReady;\n  const ieHandoff = useMemo(() => buildRtxProInferenceEconomicsHandoff({\n    gpuCount,\n    modelId: model,\n    quant: precision,\n    horizonYears,\n    onPremTcoUsd: lifecycleReady ? lifecycle.totalTcoUSD : null,\n    benchmarkId,\n  }), [gpuCount, model, precision, horizonYears, lifecycleReady, lifecycle.totalTcoUSD, benchmarkId]);\n'
+          )
+          replace_once(
+              "src/RtxProTcoIntake.jsx",
+              '        <a href="/tco" className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: RED }}>Open enterprise TCO calculator</a>\n',
+              '        {lifecycleReady && ieHandoff.eligible && (\n          <a href={ieHandoff.href} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: RED }}>Continue to Inference Economics</a>\n        )}\n        <a href="/tco" className="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white">Open enterprise TCO calculator</a>\n'
+          )
+
+          Path(".github/workflows/patch-rtx-tco-ie-button.yml").unlink()
+          PY
+      - name: Commit guarded patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/RtxProTcoIntake.jsx .github/workflows/patch-rtx-tco-ie-button.yml
+          git commit -m "Connect RTX lifecycle TCO to Inference Economics"
+          git push origin HEAD:feature/rtx-pro-ie-handoff
