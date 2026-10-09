@@ -102,7 +102,9 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
     ["Software", softwareBundle],
     ["Fabric", fabricBundle],
   ].forEach(([label, bundle]) => {
-    if ((bundle?.overrides || []).some((item) => item.state === PHASE2_STATE.STALE)) stale.push(`${label} contains stale accepted values and must be recomputed before client use.`);
+    if (bundle?.stale || bundle?.requirements?.stale || (bundle?.overrides || []).some((item) => item.state === PHASE2_STATE.STALE)) {
+      stale.push(`${label} contains stale accepted values and must be recomputed before client use.`);
+    }
   });
   stale.push(...dependencyFreshnessIssues({ storageBundle, fabricBundle, powerBundle }));
 
