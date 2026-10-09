@@ -26,6 +26,11 @@ function storageBandwidthGbps(requirements) { return storageAggregateGBps(requir
 export default function NetworkFabricPreview() {
   const acceptedStorage = useMemo(() => loadSessionState("phase2-storage-writeback"), []);
   const storageReq = acceptedStorage?.requirements || null;
+  const storageStale = Boolean(
+    acceptedStorage?.stale ||
+    acceptedStorage?.requirements?.stale ||
+    (acceptedStorage?.overrides || []).some((override) => override?.state === "STALE")
+  );
   const [acceptance, setAcceptance] = useState(null);
 
   const [technology, setTechnology] = useState(FABRIC_TECHNOLOGY.INFINIBAND);
@@ -76,7 +81,7 @@ export default function NetworkFabricPreview() {
   const validation = useMemo(() => validateNetworkFabricInputs(inputs), [inputs]);
 
   function pullStorage() {
-    if (!storageReq) return;
+    if (!storageReq || storageStale) return;
     const requiredGbps = storageBandwidthGbps(storageReq);
     setStorageAggregateGbps(requiredGbps);
     setStoragePorts(Math.max(1, Math.ceil(requiredGbps / linkGbps)));
@@ -85,6 +90,7 @@ export default function NetworkFabricPreview() {
 
   function stageFabric() {
     try {
+      if (storageStale) throw new Error("Cannot accept Fabric while the upstream Storage requirement is stale. Recompute and accept Storage first.");
       const bundle = buildNetworkFabricWritebackBundle(result, inputs, {
         upstreamStorageFingerprint: acceptedStorage?.fingerprint || null,
       });
@@ -115,10 +121,11 @@ export default function NetworkFabricPreview() {
         </p>
 
         {storageReq && (
-          <section style={{ ...card, marginBottom: 18, borderLeft: "6px solid #176b31" }}>
-            <h2 style={{ margin: "0 0 8px" }}>Accepted Storage dependency available</h2>
+          <section style={{ ...card, marginBottom: 18, borderLeft: storageStale ? "6px solid #b7791f" : "6px solid #176b31", background: storageStale ? "#fff7e8" : "#fff" }}>
+            <h2 style={{ margin: "0 0 8px" }}>{storageStale ? "STALE Storage dependency" : "Accepted Storage dependency available"}</h2>
             <p style={{ margin: "0 0 12px", color: "#555", lineHeight: 1.5 }}>Storage requires {storageAggregateGBps(storageReq).toFixed(1)} GB/s aggregate bandwidth ({gbps(storageBandwidthGbps(storageReq))}). Importing that requirement does not assume storage shares the compute fabric; choose that relationship explicitly below.</p>
-            <button type="button" onClick={pullStorage} style={{ border: 0, borderRadius: 8, padding: "10px 14px", background: "#176b31", color: "#fff", fontWeight: 800, cursor: "pointer" }}>Use accepted Storage bandwidth</button>
+            {storageStale && <p style={{ margin: "0 0 12px", color: "#7a5600", fontWeight: 700 }}>Recompute and accept Storage before using this dependency or accepting Fabric.</p>}
+            <button type="button" disabled={storageStale} onClick={pullStorage} style={{ border: 0, borderRadius: 8, padding: "10px 14px", background: "#176b31", color: "#fff", fontWeight: 800, cursor: storageStale ? "not-allowed" : "pointer", opacity: storageStale ? .45 : 1 }}>Use accepted Storage bandwidth</button>
             <div style={{ marginTop: 8, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12 }}>Storage fingerprint: {acceptedStorage.fingerprint || "—"}</div>
           </section>
         )}
@@ -187,11 +194,11 @@ export default function NetworkFabricPreview() {
           <h2 style={{ marginTop: 0 }}>4. Explicit downstream handoff</h2>
           <p style={{ color: "#555", lineHeight: 1.55 }}>Accepting stages topology/port/media requirements, the explicit GPU-system port-count basis, the explicit storage-network relationship, the fleet-size step schedule, switch power, and CAPEX only when both topology and pricing are resolved. Power consumes accepted switch power while management/head-node power remains a separate allowance.</p>
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-            <button type="button" style={{ ...primaryButton, opacity: validation.valid ? 1 : .45 }} disabled={!validation.valid} onClick={stageFabric}>Accept and stage Fabric</button>
+            <button type="button" style={{ ...primaryButton, opacity: validation.valid && !storageStale ? 1 : .45, cursor: validation.valid && !storageStale ? "pointer" : "not-allowed" }} disabled={!validation.valid || storageStale} onClick={stageFabric}>Accept and stage Fabric</button>
             <a href="/__phase2/power" style={{ fontWeight: 800, color: "#c8102e" }}>Open Power preview</a>
             <a href="/__phase2/tco" style={{ fontWeight: 800, color: "#c8102e" }}>Open TCO receiving preview</a>
           </div>
-          {acceptance?.ok && <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: acceptance.costResolved ? "#eaf7ee" : "#fff7e8", border: acceptance.costResolved ? "1px solid #b8dec3" : "1px solid #e4c679" }}><strong>Staged.</strong> Fabric fingerprint: <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{acceptance.fingerprint}</span>. {acceptance.costResolved ? `${acceptance.priceSource} network economics are eligible for TCO.` : `Network economics remain ${acceptance.costStatus}; no Fabric CAPEX override is staged.`}</div>}
+          {acceptance?.ok && <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: acceptance.costResolved ? "#eaf7ee" : "#fff7e8", border: acceptance.costResolved ? "1px solid #b8dec3" : "1px solid #e4c679" }}><strong>Staged.</strong> Fabric fingerprint: <span style={{ fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>{acceptance.fingerprint}</span>. {acceptance.costResolved ? `${acceptance.priceSource} network economics are staged as a Phase 1 replacement candidate; production TCO application remains blocked until the exact Phase 1 network/fabric replacement line is mapped.` : `Network economics remain ${acceptance.costStatus}; no Fabric CAPEX override is staged.`}</div>}
           {acceptance && !acceptance.ok && <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: "#fff0f3", border: "1px solid #efc9cf", color: "#9b1c31" }}>{acceptance.message}</div>}
         </section>
 
