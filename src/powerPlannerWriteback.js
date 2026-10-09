@@ -16,9 +16,9 @@ export function validatePowerPlannerInputs(result) {
   const i = result?.inputs || {};
 
   if (!i.systemCount || i.systemCount < 1) errors.push("At least one system is required.");
-  if (!(i.avgKwPerSystem > 0)) errors.push("Average kW per system must be greater than 0.");
+  if (!(i.avgKwPerSystem > 0)) errors.push("Energy-planning kW per system must be greater than 0.");
   if (!(i.designKwPerSystem > 0)) errors.push("Design / max kW per system must be greater than 0.");
-  if (i.designKwPerSystem < i.avgKwPerSystem) errors.push("Design / max kW per system cannot be lower than average kW per system.");
+  if (i.designKwPerSystem < i.avgKwPerSystem) errors.push("Design / max kW per system cannot be lower than energy-planning kW per system.");
   if (!(i.pue >= 1 && i.pue <= 3)) errors.push("PUE must be between 1.0 and 3.0 for this planning tool.");
   if (i.utilityRatePerKwh < 0) errors.push("Utility rate cannot be negative.");
 
@@ -75,7 +75,7 @@ export function buildPowerPlannerWritebackBundle(result, {
     provenance: makeProvenance({
       source: normalizedUtilitySource,
       derivation: PHASE2_DERIVATION.CALCULATED,
-      label: `${normalizedUtilitySource} utility rate × average IT load × PUE × 730 hours`,
+      label: `${normalizedUtilitySource} utility rate × energy-planning IT load × PUE × 730 hours`,
     }),
     dependencies,
     referenceValue: null,
