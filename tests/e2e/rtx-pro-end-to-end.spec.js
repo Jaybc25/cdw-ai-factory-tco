@@ -13,6 +13,10 @@ async function fillMoney(page, label, value) {
   await fieldByLabelText(page, label).fill(String(value));
 }
 
+function rtxBackLink(page) {
+  return page.getByRole("link", { name: /Adjust RTX PRO TCO inputs/ });
+}
+
 test("RTX PRO single-server TCO hands exact benchmark and lifecycle TCO into IE", async ({ page }) => {
   const params = new URLSearchParams({
     gpuCount: "2",
@@ -52,7 +56,7 @@ test("RTX PRO single-server TCO hands exact benchmark and lifecycle TCO into IE"
 
   await ieLink.click();
   await expect(page).toHaveURL(/\/inference-economics\?/);
-  await expect(page.getByRole("link", { name: "Adjust RTX PRO TCO inputs", exact: true })).toHaveAttribute("href", "/tco/rtx-pro");
+  await expect(rtxBackLink(page)).toHaveAttribute("href", "/tco/rtx-pro");
   await expect(page.getByText("RTX PRO 6000", { exact: true }).first()).toBeVisible();
 
   await page.getByPlaceholder("Required for capacity check, e.g. 0.5").fill("0.5");
@@ -81,7 +85,7 @@ test("RTX PRO IE rejects a tampered benchmark id", async ({ page }) => {
 
   await page.goto(`/inference-economics?${params.toString()}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("RTX PRO 6000", { exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: "Adjust RTX PRO TCO inputs", exact: true })).toHaveAttribute("href", "/tco/rtx-pro");
+  await expect(rtxBackLink(page)).toHaveAttribute("href", "/tco/rtx-pro");
 
   // Supply the normal remaining user inputs. A tampered benchmark id must still
   // suppress economics; otherwise the URL could manufacture RTX capacity.
