@@ -74,6 +74,7 @@ export function calculatePowerPlanner(inputs) {
   const facilityBranch = inputs.facilityBranch === "colocation" ? "colocation" : "owned-dc";
   const ownedFacilityBurdenPerKwMonth = optionalNonNegative(inputs.ownedFacilityBurdenPerKwMonth);
   const coloMonthlyBundle = optionalNonNegative(inputs.coloMonthlyBundle);
+  const coloBundleIncludesPower = facilityBranch === "colocation" && Boolean(inputs.coloBundleIncludesPower);
   const coolingType = inputs.coolingType || "air-standard";
   const coolingCapability = inputs.coolingCapability || "air-capable";
 
@@ -104,7 +105,9 @@ export function calculatePowerPlanner(inputs) {
     : facilityBranch === "owned-dc"
       ? designItKw * ownedFacilityBurdenPerKwMonth
       : coloMonthlyBundle;
-  const monthlyFacilityTotal = monthlyFacilityBurden == null ? null : monthlyEnergyCost + monthlyFacilityBurden;
+  const energyIncludedInFacilityBundle = facilityBranch === "colocation" && coloBundleIncludesPower;
+  const monthlyStandaloneEnergyCost = energyIncludedInFacilityBundle ? 0 : monthlyEnergyCost;
+  const monthlyFacilityTotal = monthlyFacilityBurden == null ? null : monthlyStandaloneEnergyCost + monthlyFacilityBurden;
 
   const coolingMismatch = coolingCapability === "liquid-only" && !["direct-liquid", "immersion"].includes(coolingType);
   const rackPowerMismatch = availableKwPerRack != null && computeRackDesignKw > availableKwPerRack;
@@ -130,6 +133,7 @@ export function calculatePowerPlanner(inputs) {
   if (!facilityCostResolved) flags.push(facilityBranch === "owned-dc"
     ? "Owned-datacenter facility burden is unresolved. Enter a customer-supported $/design-kW-month value before treating facility economics as TCO-ready."
     : "Colocation facility burden is unresolved. Enter a customer/partner monthly bundle before treating facility economics as TCO-ready.");
+  if (energyIncludedInFacilityBundle) flags.push("Colocation bundle is marked as including electricity. Utility energy remains visible for capacity/consumption planning but is suppressed as a separate TCO cost to avoid double counting.");
 
   return {
     inputs: {
@@ -148,6 +152,7 @@ export function calculatePowerPlanner(inputs) {
       facilityBranch,
       ownedFacilityBurdenPerKwMonth,
       coloMonthlyBundle,
+      coloBundleIncludesPower,
       coolingType,
       coolingCapability,
       availableKwPerRack,
@@ -165,18 +170,26 @@ export function calculatePowerPlanner(inputs) {
     },
     power: { computeAvgKw, computeDesignKw, storageKw, networkKw: effectiveNetworkKw, averageItKw, designItKw, facilityDesignKw, avgRackDesignKw, computeRackDesignKw },
     cooling: { heatBtuPerHour, coolingTons },
-    economics: { monthlyKwh, monthlyEnergyCost, monthlyFacilityBurden, monthlyFacilityTotal, facilityCostResolved },
+    economics: {
+      monthlyKwh,
+      monthlyEnergyCost,
+      monthlyStandaloneEnergyCost,
+      energyIncludedInFacilityBundle,
+      monthlyFacilityBurden,
+      monthlyFacilityTotal,
+      facilityCostResolved,
+    },
     verdict,
     siteCheck: { inputsProvided: siteInputsProvided, complete: siteInputsComplete },
     flags,
     methodology: {
-      energy: "average IT kW × PUE × 730 hours × utility rate",
+      energy: "average IT kW × PUE × 730 hours × utility rate; suppressed as a separate TCO cost when an accepted colocation bundle is explicitly marked as including electricity",
       facilityDemand: "design IT kW × PUE",
       heatRejection: "design IT kW × 3,412 BTU/hr per kW",
       coolingTons: "BTU/hr ÷ 12,000",
       storagePower: explicitStoragePowerKw == null ? "storage PB × provisional kW/PB" : "accepted Storage Sizer power requirement",
       networkPower: acceptedFabricPower ? "accepted Fabric switch kW + explicit management/head-node kW" : "provisional combined network + head-node kW",
-      facilityBurden: facilityBranch === "owned-dc" ? "design IT kW × customer-supported owned facility burden $/kW-month; unresolved when blank/zero" : "customer/partner colocation monthly bundle; unresolved when blank/zero",
+      facilityBurden: facilityBranch === "owned-dc" ? "design IT kW × customer-supported owned facility burden $/kW-month; unresolved when blank/zero" : `customer/partner colocation monthly bundle; ${coloBundleIncludesPower ? "electricity included, so standalone utility cost is suppressed" : "electricity excluded, so standalone utility cost remains separate"}`,
     },
   };
 }
