@@ -49,14 +49,26 @@ assert.equal(bundle.overrides[0].provenance.source, "CUSTOMER");
 assert.equal(bundle.overrides[1].target, "tco.power.facilityBurden.monthly");
 assert.equal(bundle.overrides[1].provenance.source, "CUSTOMER");
 assert.equal(bundle.overrides.every(phase2OverrideCanWriteBack), true);
-assert.equal(bundle.requirements.schemaVersion, 3);
+assert.equal(bundle.requirements.schemaVersion, 4);
 assert.equal(bundle.requirements.systemName, "DGX B200");
 assert.equal(bundle.requirements.racks.total, result.racks.total);
+assert.equal(bundle.requirements.networkRackFootprintResolved, true);
 assert.equal(bundle.requirements.power.designItKw, result.power.designItKw);
 assert.equal(bundle.requirements.cooling.coolingTons, result.cooling.coolingTons);
 assert.equal(bundle.requirements.utilityRateSource, "CUSTOMER");
 assert.equal(bundle.requirements.facilityCostStatus, "CUSTOMER");
 assert.equal(bundle.requirements.standaloneEnergyWritebackEligible, true);
+
+const unresolvedRackResult = calculatePowerPlanner({ ...base, networkRacks: "" });
+const unresolvedRackValidation = validatePowerPlannerInputs(unresolvedRackResult);
+assert.equal(unresolvedRackValidation.valid, true, "Rack-footprint uncertainty must remain stageable as an explicit planning open item");
+assert.equal(unresolvedRackResult.racks.total, null);
+assert.ok(unresolvedRackValidation.warnings.some((x) => x.includes("rack footprint is unresolved")));
+const unresolvedRackBundle = buildPowerPlannerWritebackBundle(unresolvedRackResult, { systemName: "DGX B200" });
+assert.equal(unresolvedRackBundle.requirements.networkRackFootprintResolved, false);
+assert.equal(unresolvedRackBundle.requirements.racks.network, null);
+assert.equal(unresolvedRackBundle.requirements.racks.total, null);
+assert.equal(unresolvedRackBundle.requirements.verdict, "partial-check");
 
 const estimatedUtility = buildPowerPlannerWritebackBundle(result, { systemName: "DGX B200" });
 assert.equal(estimatedUtility.overrides[0].provenance.source, "EST", "Default utility-rate provenance must not claim CUSTOMER evidence");
