@@ -4,9 +4,9 @@ import {
   getRtxProServerConfigByGpuCount,
 } from "./rtxProServerRegistry.js";
 
-export const RTX_PRO_GPU_SIZING_VERSION = "2026-10-09.v2";
+export const RTX_PRO_GPU_SIZING_VERSION = "2026-10-09.v3";
 
-// Autonomous v1 deliberately admits only direct model/context/precision anchors.
+// Autonomous sizing admits only measured model/precision serving anchors.
 // Do not convert B200/H200 throughput into a universal RTX factor.
 export const RTX_PRO_INFERENCE_BENCHMARKS = Object.freeze([
   Object.freeze({
@@ -19,6 +19,7 @@ export const RTX_PRO_INFERENCE_BENCHMARKS = Object.freeze([
     throughputTokPerSecPerGpu: 1724,
     topology: "TP1 / single GPU",
     framework: "TensorRT-LLM",
+    sourceType: "NVIDIA_TENSORRT_LLM",
     source: "NVIDIA Data Center Deep Learning Inference Performance",
     sourceUrl: "https://developer.nvidia.com/deep-learning-performance-training-inference/ai-inference",
     provenance: "LISTED",
@@ -35,11 +36,31 @@ export const RTX_PRO_INFERENCE_BENCHMARKS = Object.freeze([
     throughputTokPerSecPerGpu: 296,
     topology: "TP1 / single GPU",
     framework: "TensorRT-LLM",
+    sourceType: "NVIDIA_TENSORRT_LLM",
     source: "NVIDIA Data Center Deep Learning Inference Performance",
     sourceUrl: "https://developer.nvidia.com/deep-learning-performance-training-inference/ai-inference",
     provenance: "LISTED",
     derivation: "DIRECT",
     asOf: "2026-10-08",
+  }),
+  Object.freeze({
+    id: "rtx-pro-6000-qwen3.8-27b-fp8-chat-c24",
+    gpuClass: RTX_PRO_6000_GPU_SPEC.id,
+    modelId: "qwen3.8-27b",
+    precision: "FP8",
+    maxContextTokens: 32768,
+    throughputTokPerSecPerGpu: 736,
+    concurrentStreamsPerGpu: 24,
+    minPerStreamTokPerSec: 33.9,
+    topology: "TP1 / single GPU",
+    framework: "vLLM 0.27.1 · no MTP",
+    sourceType: "INDEPENDENT_MEASURED",
+    source: "EcoHash Qwen3.8-27B RTX PRO 6000 concurrency sweep",
+    sourceUrl: "https://github.com/ecohash-ai/ecohash-benchmarks/blob/main/llm/speculative-decoding-qwen3.8-27b.md",
+    provenance: "MEASURED",
+    derivation: "DIRECT",
+    asOf: "2026-08-19",
+    evidenceNote: "Chat workload at concurrency 24 measured 736 output tok/s with p95 TPOT 29.45 ms. Used as a directional serving anchor only when the requested per-stream rate is <=33.9 tok/s and the average request context is within the tested 32K serving configuration.",
   }),
 ]);
 
@@ -53,17 +74,30 @@ export function getRtxProBenchmarkById(benchmarkId) {
 // class GPU, so v1 uses 90 GB as the autonomous single-GPU-fit ceiling.
 export const RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB = 90;
 
-export function selectRtxProBenchmark({ modelId, precision, avgInputTokens, avgOutputTokens }) {
+function benchmarkContainsWorkload(row, avgInputTokens, avgOutputTokens) {
+  const input = Number(avgInputTokens);
+  const output = Number(avgOutputTokens);
+  if (Number.isFinite(row.maxContextTokens)) {
+    return Number.isFinite(input) && Number.isFinite(output) && input >= 0 && output >= 0 && (input + output) <= row.maxContextTokens;
+  }
+  return input <= row.inputTokens && output <= row.outputTokens;
+}
+
+export function selectRtxProBenchmark({ modelId, precision, avgInputTokens, avgOutputTokens, targetTokPerUser = null }) {
   const exactModel = RTX_PRO_INFERENCE_BENCHMARKS.filter(
     (row) => row.modelId === modelId && row.precision === precision,
   );
   if (!exactModel.length) return null;
 
-  // Choose the smallest admitted context envelope that contains the workload.
-  // This prevents a short-context anchor from being extrapolated into long RAG.
+  const targetRate = Number(targetTokPerUser);
   return exactModel
-    .filter((row) => Number(avgInputTokens) <= row.inputTokens && Number(avgOutputTokens) <= row.outputTokens)
-    .sort((a, b) => (a.inputTokens + a.outputTokens) - (b.inputTokens + b.outputTokens))[0] || null;
+    .filter((row) => benchmarkContainsWorkload(row, avgInputTokens, avgOutputTokens))
+    .filter((row) => !Number.isFinite(row.minPerStreamTokPerSec) || !Number.isFinite(targetRate) || targetRate <= row.minPerStreamTokPerSec)
+    .sort((a, b) => {
+      const aEnvelope = Number.isFinite(a.maxContextTokens) ? a.maxContextTokens : (a.inputTokens + a.outputTokens);
+      const bEnvelope = Number.isFinite(b.maxContextTokens) ? b.maxContextTokens : (b.inputTokens + b.outputTokens);
+      return aEnvelope - bEnvelope;
+    })[0] || null;
 }
 
 export function roundRtxProReplicaDeployment(replicaCount) {
@@ -139,10 +173,13 @@ export function sizeRtxProInference({
   concurrentUsers,
   overheadPct,
   aggregateTokensPerSecond,
+  targetTokPerUser,
   avgInputTokens,
   avgOutputTokens,
 }) {
   const demandTokPerSec = Number(aggregateTokensPerSecond);
+  const userCount = Number(concurrentUsers);
+  const targetRate = Number(targetTokPerUser);
   const detailedMemory = hasDetailedReplicaMemoryInputs({
     weightMemoryGB,
     sequenceStateGBPerSequence,
@@ -150,9 +187,6 @@ export function sizeRtxProInference({
     overheadPct,
   });
 
-  // Backward-compatible fallback for older callers/validators. New production
-  // GPU Sizing passes the detailed components so aggregate sequence state is
-  // distributed across independent RTX replicas rather than assigned to one GPU.
   if (!detailedMemory) {
     const memoryGB = Number(totalMemoryGB);
     const fitsOneGpu = Number.isFinite(memoryGB) && memoryGB > 0 && memoryGB <= RTX_PRO_AUTONOMOUS_USABLE_VRAM_GB;
@@ -182,12 +216,12 @@ export function sizeRtxProInference({
     }
   }
 
-  const benchmark = selectRtxProBenchmark({ modelId, precision, avgInputTokens, avgOutputTokens });
+  const benchmark = selectRtxProBenchmark({ modelId, precision, avgInputTokens, avgOutputTokens, targetTokPerUser });
   if (!benchmark) {
     return {
       status: "EVIDENCE_REQUIRED",
       eligible: false,
-      reason: "The model fits one RTX PRO GPU, but no direct admitted RTX PRO benchmark matches this model, precision, and context envelope. V1 does not substitute a universal RTX-to-DGX performance factor.",
+      reason: "The model fits one RTX PRO GPU, but no admitted RTX PRO serving benchmark matches this model, precision, context envelope, and requested per-stream rate. The tool does not substitute a universal RTX-to-DGX performance factor or ask the user to guess a GPU count.",
       fitsOneGpu: true,
       benchmark: null,
       deployment: null,
@@ -208,6 +242,9 @@ export function sizeRtxProInference({
   }
 
   const throughputReplicaCount = Math.ceil(demandTokPerSec / benchmark.throughputTokPerSecPerGpu);
+  const concurrencyReplicaCount = Number.isFinite(benchmark.concurrentStreamsPerGpu) && Number.isFinite(userCount) && userCount > 0
+    ? Math.ceil(userCount / benchmark.concurrentStreamsPerGpu)
+    : 1;
   const memoryGpuSlots = detailedMemory
     ? requiredGpuSlotsForMemory({ weightMemoryGB, sequenceStateGBPerSequence, concurrentUsers, overheadPct })
     : 1;
@@ -224,7 +261,7 @@ export function sizeRtxProInference({
     };
   }
 
-  const replicas = Math.max(throughputReplicaCount, memoryGpuSlots);
+  const replicas = Math.max(throughputReplicaCount, concurrencyReplicaCount, memoryGpuSlots);
   const deployment = roundRtxProReplicaDeployment(replicas);
   const config = deployment.serverConfig;
   const listedSingleServer = deployment.servers === 1 && Number.isFinite(config?.configuredSystemPriceUSD);
@@ -255,12 +292,13 @@ export function sizeRtxProInference({
     status: "AUTONOMOUS_REPLICA_SIZING",
     eligible: true,
     reason: detailedMemory
-      ? "Model weights fit one RTX PRO GPU; concurrent sequence state is distributed across independent replicas, and a direct model/context/precision benchmark is admitted."
-      : "Model fits one RTX PRO GPU and a direct model/context/precision benchmark is admitted; capacity scales through independent replicas rather than model splitting.",
+      ? "Model weights fit one RTX PRO GPU; concurrent sequence state is distributed across independent replicas, and a measured model/precision serving benchmark is admitted."
+      : "Model fits one RTX PRO GPU and a measured model/precision serving benchmark is admitted; capacity scales through independent replicas rather than model splitting.",
     fitsOneGpu: true,
     benchmark,
     replicas,
     throughputReplicaCount,
+    concurrencyReplicaCount,
     memoryGpuSlots,
     memoryBasis: perGpuMemory,
     deployment,
