@@ -24,8 +24,9 @@ export function validatePowerPlannerInputs(result) {
 
   if (!result?.networkPower?.acceptedFabricPower && i.provisionalNetworkKw === 0) warnings.push("Network/head-node power is still 0 kW; result remains provisional until Fabric supplies switch power or a planning allowance is entered.");
   if (result?.networkPower?.acceptedFabricPower && result.networkPower.managementHeadNodeKw === 0) warnings.push("Accepted Fabric switch power is included, but management/head-node power is 0 kW. Confirm that management, control-plane, and head-node power is intentionally excluded before client use.");
+  if (result?.racks?.footprintComplete === false) warnings.push("Network/fabric rack footprint is unresolved. Total rack count and rack-position fit must remain provisional until planned network rack positions are entered.");
   if (result?.verdict === "requirement-only") warnings.push("No site-capacity inputs were provided, so the result is a requirement only, not a facility-fit verdict.");
-  if (result?.verdict === "partial-check") warnings.push("Only part of the customer site-capacity data was provided. Rack kW, total facility kW, and rack positions are all required before a FITS AS-IS verdict is allowed.");
+  if (result?.verdict === "partial-check") warnings.push("Only part of the customer site-capacity or rack-footprint data is complete. Rack kW, total facility kW, rack positions, and network/fabric rack footprint are all required before a FITS AS-IS verdict is allowed.");
   if (result?.verdict === "retrofit") warnings.push("The stated site does not fit at least one design requirement and should route to facility engineering / retrofit discovery.");
   if (!result?.economics?.facilityCostResolved) warnings.push(i.facilityBranch === "colocation"
     ? "Colocation is selected but no customer/partner monthly bundle has been entered; facility economics remain unresolved and will not write back to TCO."
@@ -100,7 +101,7 @@ export function buildPowerPlannerWritebackBundle(result, {
   }) : null;
 
   const requirements = {
-    schemaVersion: 3,
+    schemaVersion: 4,
     sourceTool: "power-planner",
     systemName,
     fleet,
@@ -112,6 +113,7 @@ export function buildPowerPlannerWritebackBundle(result, {
     verdict: result.verdict,
     siteCheck: result.siteCheck,
     racks: result.racks,
+    networkRackFootprintResolved: result.racks?.footprintComplete !== false,
     networkPower: result.networkPower,
     power: result.power,
     cooling: result.cooling,
