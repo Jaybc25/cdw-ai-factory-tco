@@ -30,17 +30,32 @@ const validation = validatePowerPlannerInputs(result);
 assert.equal(validation.valid, true);
 assert.equal(result.economics.facilityCostResolved, true);
 
-const bundle = buildPowerPlannerWritebackBundle(result, { systemName: "DGX B200" });
+const bundle = buildPowerPlannerWritebackBundle(result, {
+  systemName: "DGX B200",
+  utilityRateSource: "CUSTOMER",
+  facilityCostSource: "CUSTOMER",
+});
 assert.equal(bundle.costResolved, true);
+assert.equal(bundle.costStatus, "CUSTOMER");
+assert.equal(bundle.utilityRateSource, "CUSTOMER");
+assert.equal(bundle.facilityCostSource, "CUSTOMER");
 assert.equal(bundle.overrides.length, 2);
 assert.equal(bundle.overrides[0].target, "tco.power.energy.monthly");
+assert.equal(bundle.overrides[0].provenance.source, "CUSTOMER");
 assert.equal(bundle.overrides[1].target, "tco.power.facilityBurden.monthly");
+assert.equal(bundle.overrides[1].provenance.source, "CUSTOMER");
 assert.equal(bundle.overrides.every(phase2OverrideCanWriteBack), true);
+assert.equal(bundle.requirements.schemaVersion, 2);
 assert.equal(bundle.requirements.systemName, "DGX B200");
 assert.equal(bundle.requirements.racks.total, result.racks.total);
 assert.equal(bundle.requirements.power.designItKw, result.power.designItKw);
 assert.equal(bundle.requirements.cooling.coolingTons, result.cooling.coolingTons);
+assert.equal(bundle.requirements.utilityRateSource, "CUSTOMER");
 assert.equal(bundle.requirements.facilityCostStatus, "CUSTOMER");
+
+const estimatedUtility = buildPowerPlannerWritebackBundle(result, { systemName: "DGX B200" });
+assert.equal(estimatedUtility.overrides[0].provenance.source, "EST", "Default utility-rate provenance must not claim CUSTOMER evidence");
+assert.equal(estimatedUtility.costStatus, "CUSTOMER", "Resolved owned-DC burden defaults to customer-supported facility source");
 
 const unresolvedOwned = calculatePowerPlanner({ ...base, ownedFacilityBurdenPerKwMonth: "" });
 const unresolvedOwnedValidation = validatePowerPlannerInputs(unresolvedOwned);
@@ -53,6 +68,7 @@ assert.equal(unresolvedOwnedBundle.costResolved, false);
 assert.equal(unresolvedOwnedBundle.costStatus, "UNRESOLVED");
 assert.equal(unresolvedOwnedBundle.overrides.length, 1, "Unresolved facility burden must not become a $0 TCO override");
 assert.equal(unresolvedOwnedBundle.overrides[0].target, "tco.power.energy.monthly");
+assert.equal(unresolvedOwnedBundle.overrides[0].provenance.source, "EST");
 assert.equal(unresolvedOwnedBundle.requirements.facilityCostStatus, "UNRESOLVED");
 
 const invalid = calculatePowerPlanner({ ...base, designKwPerSystem: 10, avgKwPerSystem: 14.4 });
@@ -68,9 +84,18 @@ assert.equal(unresolvedColoBundle.requirements.facilityCostStatus, "UNRESOLVED")
 const colo = calculatePowerPlanner({ ...base, facilityBranch: "colocation", coloMonthlyBundle: 50000 });
 const coloBundle = buildPowerPlannerWritebackBundle(colo, { systemName: "DGX B200" });
 assert.equal(coloBundle.costResolved, true);
+assert.equal(coloBundle.costStatus, "QUOTE");
 assert.equal(coloBundle.overrides[1].provenance.source, "QUOTE");
 assert.equal(coloBundle.overrides[1].provenance.derivation, "DIRECT");
 assert.equal(coloBundle.overrides[1].value, 50000);
 assert.equal(coloBundle.requirements.facilityCostStatus, "QUOTE");
+
+const customerColoBundle = buildPowerPlannerWritebackBundle(colo, {
+  systemName: "DGX B200",
+  facilityCostSource: "CUSTOMER",
+});
+assert.equal(customerColoBundle.costStatus, "CUSTOMER");
+assert.equal(customerColoBundle.overrides[1].provenance.source, "CUSTOMER");
+assert.equal(customerColoBundle.requirements.facilityCostStatus, "CUSTOMER");
 
 console.log("Phase 2 Power Planner write-back verification passed");
