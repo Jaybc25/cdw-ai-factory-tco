@@ -29,12 +29,39 @@ assert.equal(base.power.computeDesignKw, 128);
 assert.equal(base.power.designItKw, 150);
 assert.equal(base.power.facilityDesignKw, 202.5);
 assert.equal(base.power.computeRackDesignKw, 32);
+assert.equal(base.networkPower.acceptedFabricPower, false);
+assert.equal(base.networkPower.totalKw, 12);
 assert.ok(Math.abs(base.cooling.heatBtuPerHour - 511800) < 0.001);
 assert.ok(Math.abs(base.cooling.coolingTons - 42.65) < 0.01);
 assert.ok(Math.abs(base.economics.monthlyKwh - (137.2 * 1.35 * 730)) < 0.001);
 assert.equal(base.verdict, "fits-as-is");
 assert.equal(base.siteCheck.complete, true);
 assert.equal(base.flags.length, 0);
+
+const acceptedFabric = calculatePowerPlanner({
+  ...base.inputs,
+  storageRacks: 1,
+  networkRacks: 1,
+  provisionalNetworkKw: 12,
+  fabricSwitchPowerKw: 4.5,
+  managementHeadNodeKw: 3.5,
+});
+assert.equal(acceptedFabric.networkPower.acceptedFabricPower, true);
+assert.equal(acceptedFabric.networkPower.switchKw, 4.5);
+assert.equal(acceptedFabric.networkPower.managementHeadNodeKw, 3.5);
+assert.equal(acceptedFabric.networkPower.totalKw, 8);
+assert.equal(acceptedFabric.power.networkKw, 8);
+assert.equal(acceptedFabric.power.designItKw, 146, "Accepted Fabric switch power must add to, not erase, management/head-node power");
+
+const acceptedFabricMissingManagement = calculatePowerPlanner({
+  ...base.inputs,
+  storageRacks: 1,
+  networkRacks: 1,
+  fabricSwitchPowerKw: 4.5,
+  managementHeadNodeKw: "",
+});
+assert.equal(acceptedFabricMissingManagement.networkPower.totalKw, 4.5);
+assert.ok(acceptedFabricMissingManagement.flags.some((f) => f.includes("management/head-node allowance is 0 kW")));
 
 const requirementOnly = calculatePowerPlanner({
   ...base.inputs,
