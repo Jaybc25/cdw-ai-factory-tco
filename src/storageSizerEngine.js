@@ -3,6 +3,7 @@ export const STORAGE_WORKLOAD_PROFILES = Object.freeze({
     label: "Training / fine-tuning",
     suggestedActiveWorkingSetPct: 35,
     archiveFraction: 0.65,
+    throughputGBpsPerGpu: 1.0,
     throughputGbpsPerGpu: 1.0,
     notes: "Training usually needs a performance tier for the active working set and checkpoints, while the broader dataset can remain on bulk capacity. The working-set percentage is a starting suggestion, not a vendor rule.",
   },
@@ -10,6 +11,7 @@ export const STORAGE_WORKLOAD_PROFILES = Object.freeze({
     label: "Inference / serving",
     suggestedActiveWorkingSetPct: 20,
     archiveFraction: 0.80,
+    throughputGBpsPerGpu: 0.25,
     throughputGbpsPerGpu: 0.25,
     notes: "Inference generally needs a smaller active artifact/model set on fast storage, with more historical artifacts and retained data on bulk capacity.",
   },
@@ -17,6 +19,7 @@ export const STORAGE_WORKLOAD_PROFILES = Object.freeze({
     label: "RAG / knowledge retrieval",
     suggestedActiveWorkingSetPct: 30,
     archiveFraction: 0.70,
+    throughputGBpsPerGpu: 0.40,
     throughputGbpsPerGpu: 0.40,
     notes: "RAG fast-tier demand is driven by the active corpus plus index/embedding structures. The working-set percentage is only a planning starting point.",
   },
@@ -24,6 +27,7 @@ export const STORAGE_WORKLOAD_PROFILES = Object.freeze({
     label: "Vision / multimodal",
     suggestedActiveWorkingSetPct: 40,
     archiveFraction: 0.60,
+    throughputGBpsPerGpu: 0.75,
     throughputGbpsPerGpu: 0.75,
     notes: "Large source objects can increase both active working-set capacity and ingest/scan bandwidth. The suggested working-set percentage should be replaced with customer evidence when available.",
   },
@@ -92,10 +96,10 @@ export function calculateStorageSizer(inputs) {
   const usableEfficiency = clamp(n(inputs.usableEfficiency, 0.75), 0.01, 1);
   const reservePct = Math.max(0, n(inputs.reservePct, 20));
   const gpuCount = Math.max(0, Math.round(n(inputs.gpuCount)));
-  const manualThroughputGbps = inputs.manualThroughputGbps === "" || inputs.manualThroughputGbps == null
-    ? null
-    : Math.max(0, n(inputs.manualThroughputGbps));
-  const ingestGbps = Math.max(0, n(inputs.ingestGbps));
+  const manualThroughputGBps = inputs.manualThroughputGBps === "" || inputs.manualThroughputGBps == null
+    ? (inputs.manualThroughputGbps === "" || inputs.manualThroughputGbps == null ? null : Math.max(0, n(inputs.manualThroughputGbps)))
+    : Math.max(0, n(inputs.manualThroughputGBps));
+  const ingestGBps = inputs.ingestGBps == null ? Math.max(0, n(inputs.ingestGbps)) : Math.max(0, n(inputs.ingestGBps));
   const fastTierTbPerRack = Math.max(1, n(inputs.fastTierTbPerRack, 500));
   const bulkTierTbPerRack = Math.max(1, n(inputs.bulkTierTbPerRack, 1000));
   const fastTierKwPerRack = Math.max(0, n(inputs.fastTierKwPerRack, 6));
@@ -124,10 +128,10 @@ export function calculateStorageSizer(inputs) {
   const bulkRawTb = bulkUsableTb / usableEfficiency;
   const totalRawTb = fastRawTb + bulkRawTb;
 
-  const gpuDrivenGbps = gpuCount * profile.throughputGbpsPerGpu;
-  const requiredReadGbps = manualThroughputGbps == null ? Math.max(gpuDrivenGbps, ingestGbps) : manualThroughputGbps;
-  const requiredWriteGbps = Math.max(ingestGbps, requiredReadGbps * 0.35);
-  const aggregateGbps = requiredReadGbps + requiredWriteGbps;
+  const gpuDrivenGBps = gpuCount * profile.throughputGBpsPerGpu;
+  const requiredReadGBps = manualThroughputGBps == null ? Math.max(gpuDrivenGBps, ingestGBps) : manualThroughputGBps;
+  const requiredWriteGBps = Math.max(ingestGBps, requiredReadGBps * 0.35);
+  const aggregateGBps = requiredReadGBps + requiredWriteGBps;
 
   const fastRacks = Math.ceil(fastRawTb / fastTierTbPerRack);
   const bulkRacks = Math.ceil(bulkRawTb / bulkTierTbPerRack);
@@ -141,7 +145,7 @@ export function calculateStorageSizer(inputs) {
 
   const flags = [];
   if (fastUsableTb > bulkUsableTb * 2) flags.push("Fast-tier requirement dominates the design; validate active-working-set, checkpoint-retention, and index assumptions.");
-  if (aggregateGbps >= 50) flags.push("Aggregate storage bandwidth is high enough that Fabric design will be a primary dependency.");
+  if (aggregateGBps >= 50) flags.push("Aggregate storage bandwidth is high enough that Fabric design will be a primary dependency.");
   if (reservePct < 10) flags.push("Reserve capacity below 10% leaves little operational headroom.");
   if (copies > 2) flags.push("More than two copies materially increase capacity; confirm whether protection is already included in the usable-efficiency assumption.");
   if (explicitActiveWorkingSetTb != null && explicitActiveWorkingSetTb > replicatedDatasetTb) flags.push("Explicit active working-set TB exceeds the replicated dataset and has been capped at the replicated dataset size.");
@@ -164,8 +168,10 @@ export function calculateStorageSizer(inputs) {
       usableEfficiency,
       reservePct,
       gpuCount,
-      manualThroughputGbps,
-      ingestGbps,
+      manualThroughputGBps,
+      manualThroughputGbps: manualThroughputGBps,
+      ingestGBps,
+      ingestGbps: ingestGBps,
       fastTierTbPerRack,
       bulkTierTbPerRack,
       fastTierKwPerRack,
@@ -186,15 +192,27 @@ export function calculateStorageSizer(inputs) {
       totalRawTb,
     },
     throughput: {
-      gpuDrivenGbps,
-      requiredReadGbps,
-      requiredWriteGbps,
-      aggregateGbps,
+      gpuDrivenGBps,
+      requiredReadGBps,
+      requiredWriteGBps,
+      aggregateGBps,
+      // Backward-compatible aliases retained during preview migration. Values are GB/s, not Gbps.
+      gpuDrivenGbps: gpuDrivenGBps,
+      requiredReadGbps: requiredReadGBps,
+      requiredWriteGbps: requiredWriteGBps,
+      aggregateGbps: aggregateGBps,
+      unit: "GB/s",
     },
     racks: { fast: fastRacks, bulk: bulkRacks, total: totalRacks },
     estimatedPowerKw,
     tiering,
     flags,
+    assumptions: {
+      throughputPerGpuSource: "EST",
+      rackDensitySource: "EST",
+      rackPowerSource: "EST",
+      activeWorkingSetSource: explicitActiveWorkingSetTb == null ? "EST" : "CUSTOMER",
+    },
     methodology: {
       horizonGrowth: "base dataset × (1 + annual growth)^(years - 1); sizes capacity at the start of the final planning year",
       activeWorkingSet: explicitActiveWorkingSetTb == null
@@ -203,10 +221,11 @@ export function calculateStorageSizer(inputs) {
       checkpoints: "model parameters (billions) × checkpoint bytes/parameter × retained checkpoints ÷ 1,000 = decimal TB",
       usableCapacity: "active working set + checkpoints + index/metadata overhead on fast tier; remaining replicated dataset on bulk tier; then operational reserve",
       rawCapacity: "usable capacity ÷ usable-efficiency assumption",
-      throughput: manualThroughputGbps == null
-        ? "max(GPU-scaled workload throughput, ingest throughput), plus write allowance"
-        : "customer-supplied read throughput, plus write allowance",
-      power: "planning rack count × provisional kW/rack; replaced later by vendor/BOM detail",
+      throughput: manualThroughputGBps == null
+        ? "max(EST GPU-scaled workload throughput, ingest throughput), plus conservative write allowance = max(ingest, 35% of read)"
+        : "customer-supplied read throughput, plus conservative write allowance = max(ingest, 35% of read)",
+      rackDensity: "EST planning TB/rack assumptions pending OEM/BOM validation",
+      power: "EST planning rack count × provisional kW/rack; replaced later by vendor/BOM detail",
     },
   };
 }
