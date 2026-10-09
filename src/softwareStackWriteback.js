@@ -1,8 +1,10 @@
 import {
   PHASE2_DERIVATION,
   PHASE2_SOURCE,
+  PHASE2_TCO_TREATMENT,
   createPhase2Override,
   fingerprintInputs,
+  makePhase2TcoTreatment,
   makeProvenance,
 } from "./phase2Contract.js";
 import { makeFleetIdentity } from "./phase2Fleet.js";
@@ -34,6 +36,14 @@ function softwareFleet(result) {
   return makeFleetIdentity({ totalGpus: unique.length === 1 ? unique[0] : null, source: "software-stack" });
 }
 
+function softwareOverrideTreatment() {
+  return makePhase2TcoTreatment({
+    mode: PHASE2_TCO_TREATMENT.ADDITIVE,
+    phase1LineFamily: null,
+    note: "Only software components explicitly classified as additive after Phase 1 overlap review contribute to this override. Components classified as included in Phase 1 are excluded; review-required components block the bundle before overrides are created.",
+  });
+}
+
 export function softwareStackFingerprint(result) {
   const fleet = softwareFleet(result);
   return fingerprintInputs({
@@ -57,6 +67,7 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
   const pricingResolved = unresolvedCommercial.length === 0;
   const overlapResolved = unresolvedOverlap.length === 0;
   const costResolved = pricingResolved && overlapResolved;
+  const tcoTreatment = softwareOverrideTreatment();
   const dependencies = {
     softwareStackFingerprint: fingerprint,
     fleet,
@@ -79,6 +90,7 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
     }),
     dependencies,
     referenceValue: null,
+    tcoTreatment,
   })) : [];
 
   const rows = result.rows.map((row) => ({
@@ -106,11 +118,13 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
   } else if (!overlapResolved) {
     costNote = `Software requirement is accepted, but no annual TCO overrides are eligible until Phase 1 overlap is resolved for: ${unresolvedOverlap.map((row) => row.name).join(", ")}.`;
   } else if (overlapSummary.includedInPhase1Components.length > 0) {
-    costNote = `Software economics are resolved. Components marked included in Phase 1 are retained in the stack record but excluded from incremental Phase 2 TCO write-back: ${overlapSummary.includedInPhase1Components.join(", ")}.`;
+    costNote = `Software economics are resolved. Components marked included in Phase 1 are retained in the stack record but excluded from incremental Phase 2 TCO write-back: ${overlapSummary.includedInPhase1Components.join(", ")}. Remaining overrides are explicitly additive after that overlap treatment.`;
+  } else {
+    costNote = "Software economics are resolved. All staged software overrides are explicitly additive because each contributing component has been classified as incremental to Phase 1.";
   }
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     sourceTool: "software-stack",
     acceptedAt: new Date().toISOString(),
     fingerprint,
@@ -122,6 +136,7 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
     unresolvedCommercialComponents: unresolvedCommercial.map((row) => row.name),
     unresolvedPhase1OverlapComponents: unresolvedOverlap.map((row) => row.name),
     overlapSummary,
+    tcoTreatment,
     overrides: yearlyOverrides,
     requirements: {
       horizonYears: result.horizonYears,
@@ -131,6 +146,7 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
       tcoEligibleYearlyTotals,
       totals: result.totals,
       overlapSummary,
+      tcoTreatment,
       validationWarnings: validation.warnings,
       modelWarnings: result.warnings,
       costNote,
