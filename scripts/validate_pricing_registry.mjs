@@ -236,8 +236,8 @@ if (!sizingSource.includes("].filter((gpu) => GPU_PRICE_USD[gpu.id]);")) {
 if (!sizingSource.includes('import { sizeRtxProInference } from "./rtxProGpuSizing.js";')) {
   errors.push("GPU Sizing must import the evidence-gated RTX PRO sizing engine");
 }
-if (!sizingSource.includes('<RtxProAlternativeCard rtxAlt={result.rtxAlt} />')) {
-  errors.push("GPU Sizing must render the RTX PRO server alternative from the evidence-gated result");
+if (!sizingSource.includes('<RtxProAlternativeCard rtxAlt={result.rtxAlt} compact />')) {
+  errors.push("GPU Sizing must render the RTX PRO server alternative from the evidence-gated result in the lower-cost tier");
 }
 if (sizingSource.includes("const RTX_SPEC") || sizingSource.includes("maxWorkstationGPUs") || sizingSource.includes("Workstation alternative")) {
   errors.push("Legacy workstation-class RTX sizing must not coexist with the production RTX PRO server path");

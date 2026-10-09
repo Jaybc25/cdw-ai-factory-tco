@@ -49,8 +49,8 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
   // 100-user, 30 tok/s scenario, all supported 8-GPU classes fit in one
   // deployable node; deterministic tie-breaking selects B200.
   await chooseInferenceModel(page, "muse-glimmer-30b");
-  await expect(resultCard(page, "Minimum technical")).toContainText("1 GPU");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B200");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("1 GPU");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("B200");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // MoE: Scout is only 17B active per token but 109B resident. The one-sided
@@ -60,8 +60,8 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
   // the one-technical-GPU B300, so the production recommendation remains one
   // 8-GPU node without paying extra for unused technical efficiency.
   await chooseInferenceModel(page, "llama-4-scout");
-  await expect(resultCard(page, "Minimum technical")).toContainText("2 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B200");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("2 GPUs");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("B200");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // Hybrid: Maverick has the same 17B active-per-token concept as Scout but
@@ -70,8 +70,8 @@ test("inference sizing keeps dense, MoE, and hybrid residency semantics distinct
   // GPUs but still fits safely within one 8-GPU node, so its lower deployed cost
   // wins over the two-technical-GPU B300 option with the same deployed footprint.
   await chooseInferenceModel(page, "llama-4-maverick");
-  await expect(resultCard(page, "Minimum technical")).toContainText("3 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B200");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("3 GPUs");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("B200");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 });
 
@@ -101,15 +101,15 @@ test("inference throughput anchor is precision-aware instead of reusing FP4 unch
 
   const quantSelect = page.locator("select").filter({ has: page.locator('option[value="FP4"]') }).first();
   await quantSelect.selectOption("FP4");
-  await expect(resultCard(page, "Minimum technical")).toContainText("23 GPUs");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("23 GPUs");
   await expect(resultCard(page, "Recommended")).toContainText("24 GPUs");
 
   await quantSelect.selectOption("FP8");
-  await expect(resultCard(page, "Minimum technical")).toContainText("46 GPUs");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("46 GPUs");
   await expect(resultCard(page, "Recommended")).toContainText("48 GPUs");
 
   await quantSelect.selectOption("FP16");
-  await expect(resultCard(page, "Minimum technical")).toContainText("92 GPUs");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("92 GPUs");
   await expect(resultCard(page, "Recommended")).toContainText("96 GPUs");
 
   await page.getByRole("button", { name: "Calculation Methodology & Audit Trail" }).click();
@@ -127,8 +127,8 @@ test("training sizing uses total parameters for resident state and active parame
   // default full-fine-tune/BF16/50B-token/14-day/40%-MFU scenario needs five
   // technical Rubin NVL8 GPUs and node-rounds to one 8-GPU system.
   await chooseInferenceModel(page, "muse-glimmer-30b");
-  await expect(resultCard(page, "Minimum technical")).toContainText("5 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("Rubin NVL8");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("5 GPUs");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("Rubin NVL8");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // MoE Scout: 109B resident state drives fit memory while only 17B active
@@ -136,8 +136,8 @@ test("training sizing uses total parameters for resident state and active parame
   // error: 109B × 18 bytes/param = 1,962 GB, which needs 7 B300s and
   // node-rounds to one 8-GPU system.
   await chooseInferenceModel(page, "llama-4-scout");
-  await expect(resultCard(page, "Minimum technical")).toContainText("7 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B300");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("7 GPUs");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("B300");
   await expect(resultCard(page, "Recommended")).toContainText("8 GPUs");
 
   // Hybrid Maverick shares Scout's 17B active-compute concept but has 400B
@@ -145,8 +145,8 @@ test("training sizing uses total parameters for resident state and active parame
   // resident state is 7,200 GB, driving 25 technical B300s and 32 node-rounded.
   // This pair remains a regression guard against collapsing residency into active parameters.
   await chooseInferenceModel(page, "llama-4-maverick");
-  await expect(resultCard(page, "Minimum technical")).toContainText("25 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B300");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("25 GPUs");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("B300");
   await expect(resultCard(page, "Recommended")).toContainText("32 GPUs");
 });
 
@@ -206,8 +206,8 @@ test("rack-scale same-footprint recommendation preserves GPU Sizing to TCO hando
   // the workload needs 153 technical GPUs and node-rounds to 160 B200s. The
   // other current Blackwell classes require at least 216 deployed GPUs here,
   // so deployable footprint remains the first recommendation criterion.
-  await expect(resultCard(page, "Minimum technical")).toContainText("153 GPUs");
-  await expect(resultCard(page, "Minimum technical")).toContainText("B200");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("153 GPUs");
+  await expect(resultCard(page, "Unrounded requirement")).toContainText("B200");
   await expect(resultCard(page, "Recommended")).toContainText("160 GPUs");
   await expect(resultCard(page, "Recommended")).toContainText("B200");
   await expect(page.getByText("TCO modeling not yet activated", { exact: true })).toHaveCount(0);

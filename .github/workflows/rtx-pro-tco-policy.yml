@@ -12,12 +12,14 @@ on:
       - "src/InferenceEconomicsGuidedPreview.jsx"
       - "src/RtxProTcoIntake.jsx"
       - "src/RtxProAlternativeCard.jsx"
+      - "src/GpuSizingCalculator.jsx"
       - "src/App.jsx"
       - "scripts/validate_rtx_pro_tco_policy.mjs"
       - "scripts/validate_rtx_pro_lifecycle_tco.mjs"
       - "scripts/validate_rtx_pro_tco_handoff_ui.mjs"
       - "scripts/validate_rtx_pro_ie_handoff.mjs"
       - "scripts/validate_rtx_pro_final_adversarial_regression.mjs"
+      - "scripts/validate_rtx_lower_cost_tier.mjs"
       - "tests/e2e/rtx-pro-end-to-end.spec.js"
       - ".github/workflows/rtx-pro-tco-policy.yml"
   push:
@@ -32,12 +34,14 @@ on:
       - "src/InferenceEconomicsGuidedPreview.jsx"
       - "src/RtxProTcoIntake.jsx"
       - "src/RtxProAlternativeCard.jsx"
+      - "src/GpuSizingCalculator.jsx"
       - "src/App.jsx"
       - "scripts/validate_rtx_pro_tco_policy.mjs"
       - "scripts/validate_rtx_pro_lifecycle_tco.mjs"
       - "scripts/validate_rtx_pro_tco_handoff_ui.mjs"
       - "scripts/validate_rtx_pro_ie_handoff.mjs"
       - "scripts/validate_rtx_pro_final_adversarial_regression.mjs"
+      - "scripts/validate_rtx_lower_cost_tier.mjs"
       - "tests/e2e/rtx-pro-end-to-end.spec.js"
       - ".github/workflows/rtx-pro-tco-policy.yml"
   workflow_dispatch: {}
@@ -67,5 +71,7 @@ jobs:
         run: node scripts/validate_rtx_pro_ie_handoff.mjs
       - name: Run final RTX PRO adversarial regression
         run: node scripts/validate_rtx_pro_final_adversarial_regression.mjs
+      - name: Validate RTX lower-cost tier presentation
+        run: node scripts/validate_rtx_lower_cost_tier.mjs
       - name: Production build
         run: npm run build
