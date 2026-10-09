@@ -140,7 +140,7 @@ export function recomputePhase2Override(
 
 export function markPhase2OverrideCurrent(override) {
   if (!override) throw new Error("Override is required");
-  if (override.state === PHASE2_STATE.REVERTED) return override;
+  if (override.state === PHASE2_STATE.REVERTED || override.state === PHASE2_STATE.STALE) return override;
   return { ...override, state: PHASE2_STATE.CURRENT, staleReason: null };
 }
 
