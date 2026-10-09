@@ -43,6 +43,11 @@ export const RTX_PRO_INFERENCE_BENCHMARKS = Object.freeze([
   }),
 ]);
 
+export function getRtxProBenchmarkById(benchmarkId) {
+  if (!benchmarkId) return null;
+  return RTX_PRO_INFERENCE_BENCHMARKS.find((row) => row.id === benchmarkId) || null;
+}
+
 // Keep a small reserve beyond the calculator's explicit runtime-overhead input.
 // NVIDIA's Llama 3.3 70B NIM system card recommends 90 GB for FP8 on a 96 GB
 // class GPU, so v1 uses 90 GB as the autonomous single-GPU-fit ceiling.
