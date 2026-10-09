@@ -27,6 +27,8 @@ assert.equal(result.ports.managementPorts, 8);
 assert.equal(result.ports.managementPortsExcludedFromFabric, true);
 assert.ok(result.switches.total >= 1);
 assert.equal(result.bandwidth.storageBandwidthFit, true);
+assert.equal(result.topologyFeasibility.twoTierFeasible, true);
+assert.equal(result.topologyFeasibility.status, "FEASIBLE");
 assert.ok(result.estimatedSwitchPowerKw > 0);
 assert.ok(result.flags.some((x) => x.includes("management ports are tracked as out-of-band")));
 assert.ok(result.flags.some((x) => x.includes("Switch cost is unresolved")));
@@ -44,6 +46,25 @@ assert.ok(validation.warnings.some((x) => x.includes("Management/control-plane p
 const bandwidthFail = calculateNetworkFabric({ ...base, storageAggregateGbps: 1200, storagePorts: 2 });
 assert.equal(bandwidthFail.bandwidth.storageBandwidthFit, false);
 assert.ok(bandwidthFail.flags.some((x) => x.includes("Storage requires")));
+
+const largeFleet = calculateNetworkFabric({
+  ...base,
+  gpuSystems: 512,
+  fabricPortsPerSystem: 8,
+  storagePorts: 0,
+  storageAggregateGbps: 0,
+  managementPorts: 0,
+  switchRadix: 64,
+  targetOversubscription: 1,
+  switchCost: 20000,
+  cableCost: 500,
+  transceiverCost: 750,
+});
+assert.equal(largeFleet.topology, "multi-tier-review");
+assert.equal(largeFleet.topologyFeasibility.twoTierFeasible, false);
+assert.equal(largeFleet.topologyFeasibility.requiresAdditionalTier, true);
+assert.equal(largeFleet.topologyFeasibility.status, "ENGINEERING-REVIEW");
+assert.ok(largeFleet.flags.some((x) => x.includes("two-tier fabric is not physically feasible")));
 
 const invalid = validateNetworkFabricInputs({ ...base, gpuSystems: 0 });
 assert.equal(invalid.valid, false);
