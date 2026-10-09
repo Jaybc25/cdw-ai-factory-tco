@@ -1,13 +1,23 @@
 import {
   PHASE2_DERIVATION,
   PHASE2_SOURCE,
+  PHASE2_TCO_TREATMENT,
   createPhase2Override,
+  makePhase2TcoTreatment,
   makeProvenance,
 } from "./phase2Contract.js";
 import { makeFleetIdentity } from "./phase2Fleet.js";
 
 function normalizeSource(value, fallback) {
   return Object.values(PHASE2_SOURCE).includes(value) ? value : fallback;
+}
+
+function replacementTreatment(phase1LineFamily, note) {
+  return makePhase2TcoTreatment({
+    mode: PHASE2_TCO_TREATMENT.REPLACE_PHASE1,
+    phase1LineFamily,
+    note,
+  });
 }
 
 export function validatePowerPlannerInputs(result) {
@@ -79,6 +89,10 @@ export function buildPowerPlannerWritebackBundle(result, {
     }),
     dependencies,
     referenceValue: null,
+    tcoTreatment: replacementTreatment(
+      "power-energy",
+      "Refines the Phase 1 power-energy assumption. Do not add this value on top of Phase 1; apply only after the exact Phase 1 power-energy line mapping is implemented.",
+    ),
   });
 
   const facilityResolved = Boolean(result.economics.facilityCostResolved);
@@ -98,10 +112,14 @@ export function buildPowerPlannerWritebackBundle(result, {
     }),
     dependencies,
     referenceValue: null,
+    tcoTreatment: replacementTreatment(
+      "power-facility-burden",
+      "Refines the Phase 1 facility/power burden assumption. Do not add this value on top of Phase 1; apply only after the exact Phase 1 facility-cost line mapping is implemented.",
+    ),
   }) : null;
 
   const requirements = {
-    schemaVersion: 4,
+    schemaVersion: 5,
     sourceTool: "power-planner",
     systemName,
     fleet,
@@ -123,6 +141,12 @@ export function buildPowerPlannerWritebackBundle(result, {
     facilityCostResolved: facilityResolved,
     facilityCostStatus: facilityResolved ? normalizedFacilitySource : "UNRESOLVED",
     facilityCostSource: facilityResolved ? normalizedFacilitySource : null,
+    tcoTreatment: {
+      mode: PHASE2_TCO_TREATMENT.REPLACE_PHASE1,
+      additiveAllowed: false,
+      replacementStatus: "PENDING-LINE-MAP",
+      note: "Power Planner economics refine Phase 1 power/facility assumptions and must replace mapped Phase 1 lines rather than be added to the Phase 1 total.",
+    },
     flags: result.flags,
     validationWarnings: validation.warnings,
   };
@@ -134,6 +158,7 @@ export function buildPowerPlannerWritebackBundle(result, {
     utilityRateSource: normalizedUtilitySource,
     facilityCostSource: facilityResolved ? normalizedFacilitySource : null,
     energyIncludedInFacilityBundle,
+    tcoTreatment: requirements.tcoTreatment,
     overrides: [energy, facility].filter(Boolean),
     requirements,
     validation,
