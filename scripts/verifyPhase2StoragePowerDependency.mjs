@@ -11,7 +11,11 @@ function makeStorage(baseDatasetTb) {
     annualGrowthPct: 25,
     years: 3,
     copies: 2,
-    checkpointMultiplier: 0.5,
+    modelParamsBillions: 70,
+    checkpointBytesPerParam: 16,
+    checkpointsRetained: 5,
+    activeWorkingSetPct: 35,
+    activeWorkingSetTb: "",
     indexOverheadPct: 10,
     reservePct: 20,
     usableEfficiency: 0.75,
@@ -56,6 +60,13 @@ function makePower(storage) {
 const storageA = makeStorage(500);
 const storageB = makeStorage(750);
 assert.notEqual(storageA.fingerprint, storageB.fingerprint, "Storage fingerprint must change when accepted inputs change");
+assert.equal(storageA.schemaVersion, 2);
+assert.equal(storageA.requirements.bandwidthUnit, "GB/s");
+assert.equal(storageA.requirements.aggregateGBps, storageA.requirements.aggregateGbps, "Legacy alias must remain numerically identical during preview migration");
+assert.equal(storageA.assumptions.throughputPerGpu.source, "EST");
+assert.equal(storageA.assumptions.rackDensity.source, "EST");
+assert.equal(storageA.assumptions.rackPower.source, "EST");
+assert.equal(storageA.costResolved, false, "Storage OEM/BOM economics remain unresolved until quoted");
 
 const powerA = makePower(storageA);
 assert.equal(powerA.requirements.upstreamStorageFingerprint, storageA.fingerprint);
@@ -69,4 +80,4 @@ const powerB = makePower(storageB);
 assert.equal(powerB.requirements.upstreamStorageFingerprint, storageB.fingerprint, "Recompute must bind Power to the new Storage fingerprint");
 assert.notEqual(powerA.requirements.power.storageKw, powerB.requirements.power.storageKw, "Changed Storage sizing should propagate into Power when the requirement changes materially");
 
-console.log("PASS: Phase 2 Storage → Power dependency fingerprint and recompute behavior verified");
+console.log("PASS: Phase 2 Storage unit contract, provenance, and Storage → Power dependency verified");
