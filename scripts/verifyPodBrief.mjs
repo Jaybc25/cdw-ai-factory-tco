@@ -75,7 +75,10 @@ const phase1Snapshot = {
 };
 const brief = buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle, phase1Snapshot });
 assert.deepEqual(brief.canonicalFleet, canonicalFleet);
-assert.equal(brief.clientReady, true);
+assert.equal(brief.engineeringReviewReady, true);
+assert.equal(brief.clientReady, false, "Unresolved Storage pricing must prevent unqualified client-ready status");
+assert.equal(brief.openItemCount, 1);
+assert.match(brief.status, /READY FOR ENGINEERING REVIEW/);
 assert.equal(brief.fleetIssues.length, 0);
 assert.equal(brief.compute.totalRacks, 8);
 assert.equal(brief.storage.totalRawTb, 1400);
@@ -90,11 +93,13 @@ assert.ok(brief.unresolved.some((item) => item.includes("Storage OEM/BOM pricing
 const mismatchedSoftware = { ...softwareBundle, fleet: makeFleetIdentity({ totalGpus: 16, source: "software-stack" }) };
 const fleetMismatchBrief = buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle: mismatchedSoftware, phase1Snapshot });
 assert.equal(fleetMismatchBrief.clientReady, false);
+assert.equal(fleetMismatchBrief.engineeringReviewReady, false);
 assert.ok(fleetMismatchBrief.fleetIssues.some((item) => item.includes("Software fleet mismatch")));
 
 const staleFabric = { ...fabricBundle, upstreamStorageFingerprint: "storage-old" };
 const dependencyStaleBrief = buildPodBrief({ storageBundle, fabricBundle: staleFabric, powerBundle, softwareBundle, phase1Snapshot });
 assert.equal(dependencyStaleBrief.clientReady, false);
+assert.equal(dependencyStaleBrief.engineeringReviewReady, false);
 assert.ok(dependencyStaleBrief.stale.some((item) => item.includes("Network Fabric is stale")));
 
 const stalePower = {
@@ -103,11 +108,13 @@ const stalePower = {
 };
 const staleBrief = buildPodBrief({ storageBundle, fabricBundle, powerBundle: stalePower, softwareBundle, phase1Snapshot });
 assert.equal(staleBrief.clientReady, false);
+assert.equal(staleBrief.engineeringReviewReady, false);
 assert.ok(staleBrief.stale.length > 0);
 assert.equal(staleBrief.economics.powerMonthly, 0);
 
 const incomplete = buildPodBrief({ storageBundle: null, fabricBundle: null, powerBundle: null, softwareBundle: null });
 assert.equal(incomplete.clientReady, false);
+assert.equal(incomplete.engineeringReviewReady, false);
 assert.equal(incomplete.unresolved.length, 5);
 
 console.log("Phase 2 Pod Brief verification: PASS");
