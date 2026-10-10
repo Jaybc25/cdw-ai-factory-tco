@@ -1,19 +1,23 @@
 import { PHASE2_DERIVATION, PHASE2_SOURCE, makeProvenance } from "./phase2Contract.js";
 
+function unresolvedProfile(name, notes) {
+  return {
+    avgKwPerSystem: "",
+    designKwPerSystem: "",
+    systemsPerRack: "",
+    coolingCapability: "customer-required",
+    evidenceSource: PHASE2_SOURCE.EST,
+    evidenceAsOf: "2026-10-10",
+    reviewedAt: "2026-10-10",
+    energyBasis: "EXPLICIT CUSTOMER/OEM INPUT REQUIRED",
+    notes: `${name} is part of the canonical Phase 1 fleet taxonomy, but Phase 2 does not yet carry a source-verified power/rack profile for it. No numeric default is invented. Enter explicit energy-planning kW, design/max kW, and systems/rack before acceptance. ${notes || ""}`.trim(),
+    provenance: null,
+    designProvenance: null,
+    unresolvedProfile: true,
+  };
+}
+
 export const POWER_PLANNER_SYSTEM_PROFILES = Object.freeze({
-  "DGX B200": {
-    avgKwPerSystem: 14.3,
-    designKwPerSystem: 14.3,
-    systemsPerRack: 2,
-    coolingCapability: "air-capable",
-    evidenceSource: PHASE2_SOURCE.LISTED,
-    evidenceAsOf: "2026-10-08",
-    reviewedAt: "2026-10-08",
-    energyBasis: "LISTED MAX AS CONSERVATIVE ENERGY DEFAULT",
-    notes: "NVIDIA's current DGX B200 datasheet lists approximately 14.3 kW maximum system power. The preview uses that listed maximum as the conservative energy-planning default and as design power until a customer supplies a measured/expected operating load.",
-    provenance: makeProvenance({ source: PHASE2_SOURCE.LISTED, derivation: PHASE2_DERIVATION.DIRECT, asOf: "2026-10-08", label: "NVIDIA DGX B200 datasheet: ~14.3 kW max system power" }),
-    designProvenance: makeProvenance({ source: PHASE2_SOURCE.LISTED, derivation: PHASE2_DERIVATION.DIRECT, asOf: "2026-10-08", label: "NVIDIA DGX B200 datasheet: ~14.3 kW max system power" }),
-  },
   "DGX H200": {
     avgKwPerSystem: 10.2,
     designKwPerSystem: 10.2,
@@ -27,7 +31,21 @@ export const POWER_PLANNER_SYSTEM_PROFILES = Object.freeze({
     provenance: makeProvenance({ source: PHASE2_SOURCE.LISTED, derivation: PHASE2_DERIVATION.DIRECT, asOf: "2026-10-08", label: "NVIDIA DGX H200 datasheet: 10.2 kW max, standard configuration" }),
     designProvenance: makeProvenance({ source: PHASE2_SOURCE.LISTED, derivation: PHASE2_DERIVATION.DIRECT, asOf: "2026-10-08", label: "NVIDIA DGX H200 datasheet: 10.2 kW max, standard configuration" }),
   },
-  "GB200 NVL72": {
+  "DGX B200": {
+    avgKwPerSystem: 14.3,
+    designKwPerSystem: 14.3,
+    systemsPerRack: 2,
+    coolingCapability: "air-capable",
+    evidenceSource: PHASE2_SOURCE.LISTED,
+    evidenceAsOf: "2026-10-08",
+    reviewedAt: "2026-10-08",
+    energyBasis: "LISTED MAX AS CONSERVATIVE ENERGY DEFAULT",
+    notes: "NVIDIA's current DGX B200 datasheet lists approximately 14.3 kW maximum system power. The preview uses that listed maximum as the conservative energy-planning default and as design power until a customer supplies a measured/expected operating load.",
+    provenance: makeProvenance({ source: PHASE2_SOURCE.LISTED, derivation: PHASE2_DERIVATION.DIRECT, asOf: "2026-10-08", label: "NVIDIA DGX B200 datasheet: ~14.3 kW max system power" }),
+    designProvenance: makeProvenance({ source: PHASE2_SOURCE.LISTED, derivation: PHASE2_DERIVATION.DIRECT, asOf: "2026-10-08", label: "NVIDIA DGX B200 datasheet: ~14.3 kW max system power" }),
+  },
+  "DGX B300": unresolvedProfile("DGX B300"),
+  "DGX GB200 NVL-72": {
     avgKwPerSystem: 120,
     designKwPerSystem: 125,
     systemsPerRack: 1,
@@ -40,7 +58,19 @@ export const POWER_PLANNER_SYSTEM_PROFILES = Object.freeze({
     provenance: makeProvenance({ source: PHASE2_SOURCE.LISTED, derivation: PHASE2_DERIVATION.DIRECT, asOf: "2026-10-08", label: "NVIDIA Mission Control: GB200 NVL72 ~120 kW full-load rack power" }),
     designProvenance: makeProvenance({ source: PHASE2_SOURCE.LISTED, derivation: PHASE2_DERIVATION.DIRECT, asOf: "2026-10-08", label: "NVIDIA Dynamic Power Software reference topology: 125 kW GB200 rack PDU envelope" }),
   },
+  "DGX GB300 NVL-72": unresolvedProfile("DGX GB300 NVL-72"),
+  "DGX Rubin NVL8": unresolvedProfile("DGX Rubin NVL8", "Treat any early planning value as provisional until an authoritative product/OEM basis is recorded."),
+  "DGX Vera Rubin NVL72": unresolvedProfile("DGX Vera Rubin NVL72", "Treat any early planning value as provisional until an authoritative product/OEM basis is recorded."),
 });
+
+export const POWER_PLANNER_SYSTEM_ALIASES = Object.freeze({
+  "GB200 NVL72": "DGX GB200 NVL-72",
+  "DGX GB200 NVL72": "DGX GB200 NVL-72",
+});
+
+export function canonicalPowerPlannerSystemName(name) {
+  return POWER_PLANNER_SYSTEM_ALIASES[name] || name;
+}
 
 const BTU_PER_HOUR_PER_KW = 3412;
 const BTU_PER_HOUR_PER_TON = 12000;
@@ -60,7 +90,9 @@ export function calculatePowerPlanner(inputs) {
   const systemCount = Math.max(0, Math.ceil(n(inputs.systemCount)));
   const avgKwPerSystem = Math.max(0, n(inputs.avgKwPerSystem));
   const designKwPerSystem = Math.max(0, n(inputs.designKwPerSystem));
-  const systemsPerRack = Math.max(1, n(inputs.systemsPerRack, 1));
+  const systemsPerRackInput = optionalNonNegative(inputs.systemsPerRack);
+  const systemsPerRackProvided = systemsPerRackInput != null && systemsPerRackInput > 0;
+  const systemsPerRack = Math.max(1, systemsPerRackInput ?? 1);
   const storagePb = Math.max(0, n(inputs.storagePb));
   const storageKwPerPb = Math.max(0, n(inputs.storageKwPerPb, 10));
   const explicitStoragePowerKw = optionalNonNegative(inputs.storagePowerKw);
@@ -136,6 +168,7 @@ export function calculatePowerPlanner(inputs) {
   else if (siteInputsProvided > 0 || !rackFootprintComplete) verdict = "partial-check";
 
   const flags = [];
+  if (!systemsPerRackProvided) flags.push("Systems per rack is blank or zero. Enter an explicit rack-density assumption before accepting Power; the displayed calculation uses 1 only as a non-accepted placeholder.");
   if (!pueProvided) flags.push("PUE is blank or zero. Enter an explicit PUE before accepting Power; the displayed calculation uses 1.0 only as a non-accepted placeholder.");
   if (!utilityRateProvided) flags.push("Utility rate is blank or zero. Enter an explicit $/kWh rate before accepting Power; no zero-dollar energy assumption will be accepted.");
   if (coolingMismatch) flags.push("Selected system requires liquid cooling but the chosen facility cooling type is not liquid-capable.");
@@ -157,6 +190,7 @@ export function calculatePowerPlanner(inputs) {
       avgKwPerSystem,
       designKwPerSystem,
       systemsPerRack,
+      systemsPerRackProvided,
       storagePb,
       storageKwPerPb,
       storagePowerKw: explicitStoragePowerKw,
@@ -210,6 +244,8 @@ export function calculatePowerPlanner(inputs) {
       networkPower: acceptedFabricPower ? "accepted Fabric switch kW + explicit management/head-node kW" : "provisional combined network + head-node kW",
       networkRacks: effectiveNetworkKw > 0 ? "explicit network/fabric rack positions; unresolved when blank" : "0 racks when no network power is modeled",
       facilityBurden: facilityBranch === "owned-dc" ? "design IT kW × customer-supported owned facility burden $/kW-month; unresolved when blank/zero" : `customer/partner colocation monthly bundle; ${coloBundleIncludesPower ? "electricity included, so standalone utility cost is suppressed" : "electricity excluded, so standalone utility cost remains separate"}`,
+      rackFit: "compute design kW ÷ compute racks compared with stated rack kW; total rack-position check is allowed only when network rack footprint is explicit",
+      verdict: "fits-as-is requires all three site-capacity inputs plus a resolved network rack footprint; otherwise requirement-only or partial-check unless a stated constraint already fails",
     },
   };
 }
