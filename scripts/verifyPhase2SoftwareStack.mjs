@@ -63,6 +63,36 @@ const platformRow = bundle.requirements.rows.find((row) => row.id === "platform"
 assert.equal(platformRow.priceSource, PHASE2_SOURCE.QUOTE, "Selected source provenance must survive calculation and writeback");
 assert.equal(platformRow.provenance.source, PHASE2_SOURCE.QUOTE);
 assert.equal(platformRow.tcoTreatment, SOFTWARE_TCO_TREATMENT.ADDITIVE);
+assert.equal(bundle.aggregatePricingMixed, true, "Mixed row sources must be visible at the aggregate bundle level");
+assert.deepEqual(bundle.aggregatePricingSources, [PHASE2_SOURCE.EST, PHASE2_SOURCE.QUOTE]);
+assert.equal(bundle.costStatus, PHASE2_SOURCE.EST, "Mixed aggregate pricing must not falsely claim QUOTE/CUSTOMER/LISTED provenance");
+assert.equal(bundle.overrides[0].provenance.source, PHASE2_SOURCE.EST);
+assert.match(bundle.overrides[0].provenance.label, /mixed \(EST, QUOTE\)/i);
+
+const quoteOnlyInputs = {
+  horizonYears: 2,
+  annualEscalationPct: 0,
+  components: [{
+    id: "quoted-platform",
+    category: "platform",
+    name: "Quoted platform",
+    mode: LICENSE_MODE.COMMERCIAL,
+    unit: "GPU",
+    quantity: 8,
+    annualUnitPrice: 1000,
+    annualOpsCost: 5000,
+    oneTimeCost: 2500,
+    supportPct: 10,
+    entitlementNotes: "quote-backed",
+    priceSource: PHASE2_SOURCE.QUOTE,
+    tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE,
+  }],
+};
+const quoteOnlyBundle = buildSoftwareStackWritebackBundle(calculateSoftwareStack(quoteOnlyInputs), quoteOnlyInputs);
+assert.equal(quoteOnlyBundle.aggregatePricingMixed, false);
+assert.deepEqual(quoteOnlyBundle.aggregatePricingSources, [PHASE2_SOURCE.QUOTE]);
+assert.equal(quoteOnlyBundle.costStatus, PHASE2_SOURCE.QUOTE);
+assert.equal(quoteOnlyBundle.overrides[0].provenance.source, PHASE2_SOURCE.QUOTE, "Single-source aggregate should inherit that source");
 
 const unresolvedInputs = {
   horizonYears: 3,
