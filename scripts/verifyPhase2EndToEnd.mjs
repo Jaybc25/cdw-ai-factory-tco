@@ -5,7 +5,7 @@ import { calculateNetworkFabric } from "../src/networkFabricEngine.js";
 import { buildNetworkFabricWritebackBundle } from "../src/networkFabricWriteback.js";
 import { calculatePowerPlanner } from "../src/powerPlannerEngine.js";
 import { buildPowerPlannerWritebackBundle } from "../src/powerPlannerWriteback.js";
-import { calculateSoftwareStack, LICENSE_MODE } from "../src/softwareStackEngine.js";
+import { calculateSoftwareStack, LICENSE_MODE, SOFTWARE_TCO_TREATMENT } from "../src/softwareStackEngine.js";
 import { buildSoftwareStackWritebackBundle } from "../src/softwareStackWriteback.js";
 import { buildPodBrief } from "../src/podBriefEngine.js";
 import { createAcceptedPodBriefRecord, evaluateAcceptedPodBrief, POD_BRIEF_STATUS } from "../src/podBriefState.js";
@@ -34,12 +34,18 @@ const storageBundle = buildStorageDependencyBundle(storageResult, { workload: st
 assert.ok(storageBundle.fingerprint, "Storage bundle must carry a fingerprint");
 assert.equal(storageBundle.fleet.totalGpus, 64);
 assert.ok(storageBundle.requirements.totalRawTb > 0, "Storage must produce positive raw capacity");
+assert.equal(storageBundle.pricingIncluded, false, "Storage sizing is requirement-only; OEM/BOM pricing is not part of this calculator");
 
 const unresolvedFabricInputs = {
   technology: "infiniband",
   linkGbps: 400,
+  linkMedia: "optical",
+  priceSource: "EST",
+  storageFabricMode: "converged",
   gpuSystems: 8,
   fabricPortsPerSystem: 8,
+  fabricPortsPerSystemSource: "EST",
+  fabricPortsPerSystemNote: "End-to-end planning fixture",
   storageAggregateGbps: storageBundle.requirements.aggregateGbps * 8,
   storagePorts: Math.max(2, Math.ceil((storageBundle.requirements.aggregateGbps * 8) / 400)),
   managementPorts: 8,
@@ -104,13 +110,15 @@ const softwareInputs = {
   horizonYears: 3,
   annualEscalationPct: 3,
   components: [
-    { id: "platform", category: "platform", name: "AI enterprise platform", mode: LICENSE_MODE.COMMERCIAL, unit: "GPU", quantity: 64, annualUnitPrice: 2500, supportPct: 15, annualOpsCost: 6000, oneTimeCost: 8000, entitlementNotes: "3-year quote", priceSource: PHASE2_SOURCE.QUOTE },
-    { id: "orchestration", category: "orchestration", name: "Cluster orchestration", mode: LICENSE_MODE.OPEN_SOURCE, unit: "GPU", quantity: 64, annualUnitPrice: 0, supportPct: 0, annualOpsCost: 18000, oneTimeCost: 12000, entitlementNotes: "community + internal ops", priceSource: PHASE2_SOURCE.EST },
+    { id: "platform", category: "platform", name: "AI enterprise platform", mode: LICENSE_MODE.COMMERCIAL, unit: "GPU", quantity: 64, annualUnitPrice: 2500, supportPct: 15, annualOpsCost: 6000, oneTimeCost: 8000, entitlementNotes: "3-year quote", priceSource: PHASE2_SOURCE.QUOTE, tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE },
+    { id: "orchestration", category: "orchestration", name: "Cluster orchestration", mode: LICENSE_MODE.OPEN_SOURCE, unit: "GPU", quantity: 64, annualUnitPrice: 0, supportPct: 0, annualOpsCost: 18000, oneTimeCost: 12000, entitlementNotes: "community + internal ops", priceSource: PHASE2_SOURCE.EST, tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE },
   ],
 };
 const softwareResult = calculateSoftwareStack(softwareInputs);
 const softwareBundle = buildSoftwareStackWritebackBundle(softwareResult, softwareInputs);
 assert.equal(softwareBundle.fleet.totalGpus, 64);
+assert.equal(softwareBundle.phase1OverlapResolved, true);
+assert.equal(softwareBundle.overrides.length, 3, "Resolved additive Software fixture should stage one override per year");
 const platformRow = softwareBundle.requirements.rows.find((row) => row.id === "platform");
 assert.equal(platformRow.priceSource, PHASE2_SOURCE.QUOTE, "Selected software price-source provenance must survive calculation/writeback");
 assert.equal(platformRow.provenance.source, PHASE2_SOURCE.QUOTE);
@@ -122,14 +130,15 @@ const phase1Snapshot = {
 };
 const brief = buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle, phase1Snapshot });
 assert.equal(brief.engineeringReviewReady, true, "Complete/current four-pillar sizing should be ready for engineering review");
-assert.equal(brief.clientReady, false, "Unresolved Storage OEM/BOM pricing must prevent unqualified client-ready status");
-assert.equal(brief.openItemCount, 1);
-assert.match(brief.status, /^READY FOR ENGINEERING REVIEW/);
+assert.equal(brief.clientReady, true, "Storage OEM/BOM pricing is outside the Storage Sizer scope and must not create a fake Pod Brief open item");
+assert.equal(brief.openItemCount, 0);
+assert.equal(brief.status, "PRE-ARCHITECTURE READY");
 assert.equal(brief.fleetIssues.length, 0);
 assert.equal(brief.stale.length, 0);
 assert.equal(brief.canonicalFleet.systemClass, "DGX B200");
 assert.equal(brief.canonicalFleet.systemCount, 8);
 assert.equal(brief.canonicalFleet.totalGpus, 64);
+assert.equal(brief.storage.pricingStatus, "OUT-OF-SCOPE");
 assert.equal(brief.phase1Delta, null, "The Pod Brief must not calculate an additive Phase 1 → Phase 2 total");
 assert.equal(brief.phase1Comparison.baselineOnPrem, 2000000);
 assert.equal(brief.phase1Comparison.additiveTotalSuppressed, true);
@@ -170,6 +179,6 @@ const stalePowerBundle = { ...powerBundle, overrides: powerBundle.overrides.map(
 const stalePowerBrief = buildPodBrief({ storageBundle, fabricBundle, powerBundle: stalePowerBundle, softwareBundle, phase1Snapshot });
 assert.equal(stalePowerBrief.engineeringReviewReady, false, "A stale Power result must block engineering-review readiness");
 assert.equal(stalePowerBrief.clientReady, false, "A stale Power result must block client readiness");
-assert.equal(stalePowerBrief.economics.powerMonthly, 0, "Stale Power overrides must be excluded from economics");
+assert.equal(stalePowerBrief.economics.powerMonthly, null, "Stale Power overrides must be excluded and remain unresolved rather than masquerading as $0");
 
 console.log("Phase 2 Wave 5C end-to-end acceptance verification passed.");
