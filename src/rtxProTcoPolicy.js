@@ -1,6 +1,6 @@
 import { getRtxProServerConfigByGpuCount } from "./rtxProServerRegistry.js";
 
-export const RTX_PRO_TCO_POLICY_VERSION = "2026-10-08.v1";
+export const RTX_PRO_TCO_POLICY_VERSION = "2026-10-10.v2";
 
 function hasExplicitFiniteNumber(value) {
   return value !== null && value !== undefined && value !== "" && Number.isFinite(Number(value));
@@ -13,12 +13,15 @@ function hasExplicitPositiveNumber(value) {
 // V1 TCO activation is intentionally limited to one physical RTX PRO server.
 // Multi-server deployments can still be sized in GPU Sizing, but coordinated
 // management/networking economics remain project-specific until separately
-// evidenced. Unknown commercial values are never coerced to zero.
+// evidenced. Planning estimates may support directional TCO, but quote-only
+// configuration facts remain explicit client-ready confirmations.
 export function buildRtxProSingleServerTcoPolicy({
   gpuCount,
   existingServerManagement = true,
   existingEthernet = true,
   existingRackCapacity = true,
+  hardwarePlanningUSD = null,
+  hardwarePlanningProvenance = null,
   nvidiaSoftwareUSD = null,
   supportUSD = null,
   professionalServicesUSD = null,
@@ -30,12 +33,14 @@ export function buildRtxProSingleServerTcoPolicy({
   if (!config || ![2, 4, 8].includes(Number(gpuCount))) {
     return {
       status: "UNSUPPORTED_CONFIGURATION",
+      directionalReady: false,
       clientReady: false,
       reason: "RTX PRO TCO v1 supports one admitted 2/4/8-GPU server configuration only.",
     };
   }
 
   const requiredInputs = [];
+  const confirmationInputs = [];
   if (!hasExplicitFiniteNumber(nvidiaSoftwareUSD)) requiredInputs.push("NVIDIA software/support entitlement");
   if (!hasExplicitFiniteNumber(supportUSD)) requiredInputs.push("OEM/server support");
   if (!hasExplicitFiniteNumber(professionalServicesUSD)) requiredInputs.push("professional services / implementation");
@@ -43,8 +48,18 @@ export function buildRtxProSingleServerTcoPolicy({
   if (!hasExplicitFiniteNumber(adminFteAnnualUSD)) requiredInputs.push("incremental administration / operations labor");
   if (!hasExplicitPositiveNumber(serverPowerKW)) requiredInputs.push("full configured-server power draw");
 
-  const hardwareResolved = Number.isFinite(config.configuredSystemPriceUSD);
-  if (!hardwareResolved) requiredInputs.unshift("configured 8-GPU OEM/CDW server price");
+  const listedHardwareResolved = Number.isFinite(config.configuredSystemPriceUSD);
+  const planningHardwareResolved = hasExplicitPositiveNumber(hardwarePlanningUSD);
+  const hardwareUSD = listedHardwareResolved
+    ? Number(config.configuredSystemPriceUSD)
+    : planningHardwareResolved
+      ? Number(hardwarePlanningUSD)
+      : null;
+
+  if (hardwareUSD == null) requiredInputs.unshift("configured 8-GPU OEM/CDW server price or planning estimate");
+  if (!listedHardwareResolved && planningHardwareResolved) {
+    confirmationInputs.push("configured 8-GPU OEM/CDW server quote");
+  }
 
   const assumptions = {
     managementControlPlaneCapexUSD: existingServerManagement ? 0 : null,
@@ -65,23 +80,29 @@ export function buildRtxProSingleServerTcoPolicy({
   if (assumptions.fabricCapexUSD == null) requiredInputs.push("network/fabric if existing Ethernet is not used");
   if (assumptions.rackCapexUSD == null) requiredInputs.push("rack capacity if a new rack is required");
 
+  const directionalReady = requiredInputs.length === 0;
+  const clientReady = directionalReady && confirmationInputs.length === 0;
+
   return {
     id: `rtx-pro-single-server-${gpuCount}gpu`,
     platformClass: "RTX_PRO_SERVER",
-    status: requiredInputs.length ? "INPUTS_REQUIRED" : "READY_FOR_DIRECTIONAL_TCO",
-    clientReady: requiredInputs.length === 0,
+    status: directionalReady ? (clientReady ? "READY_FOR_DIRECTIONAL_TCO" : "READY_FOR_PLANNING_TCO") : "INPUTS_REQUIRED",
+    directionalReady,
+    clientReady,
     gpuCount: Number(gpuCount),
     serverCount: 1,
     hardware: {
       configuredSystemSku: config.configuredSystemSku,
-      configuredSystemPriceUSD: config.configuredSystemPriceUSD,
-      priceProvenance: config.priceProvenance,
-      priceDerivation: config.priceDerivation,
-      priceAsOf: config.priceAsOf,
-      source: config.pricingSource,
+      configuredSystemPriceUSD: hardwareUSD,
+      priceProvenance: listedHardwareResolved ? config.priceProvenance : (hardwarePlanningProvenance?.source || "EST"),
+      priceDerivation: listedHardwareResolved ? config.priceDerivation : (hardwarePlanningProvenance?.derivation || "PLANNING_ESTIMATE"),
+      priceAsOf: listedHardwareResolved ? config.priceAsOf : (hardwarePlanningProvenance?.asOf || config.priceAsOf),
+      source: listedHardwareResolved ? config.pricingSource : (hardwarePlanningProvenance?.basis || config.pricingSource),
+      quoteRequired: !listedHardwareResolved,
     },
     assumptions,
     requiredInputs: Object.freeze([...new Set(requiredInputs)]),
+    confirmationInputs: Object.freeze([...new Set(confirmationInputs)]),
     userInputs: {
       nvidiaSoftwareUSD: hasExplicitFiniteNumber(nvidiaSoftwareUSD) ? Number(nvidiaSoftwareUSD) : null,
       supportUSD: hasExplicitFiniteNumber(supportUSD) ? Number(supportUSD) : null,
@@ -90,6 +111,10 @@ export function buildRtxProSingleServerTcoPolicy({
       adminFteAnnualUSD: hasExplicitFiniteNumber(adminFteAnnualUSD) ? Number(adminFteAnnualUSD) : null,
       serverPowerKW: hasExplicitPositiveNumber(serverPowerKW) ? Number(serverPowerKW) : null,
     },
-    note: "Directional TCO only after every required commercial/workload input is supplied. This policy deliberately avoids the legacy DGX $600K cluster allowance, DGX fabric assumptions, and any universal RTX storage default.",
+    note: clientReady
+      ? "Directional TCO using explicit sourced/planning inputs."
+      : directionalReady
+        ? "Planning TCO is available from an explicitly labeled hardware estimate; replace the estimate with a configured OEM/CDW quote before client-ready use."
+        : "Directional TCO requires the remaining commercial/workload inputs. This policy deliberately avoids the legacy DGX $600K cluster allowance and DGX fabric assumptions.",
   };
 }
