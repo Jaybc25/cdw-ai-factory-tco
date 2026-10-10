@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { calculatePowerPlanner } from "../src/powerPlannerEngine.js";
+import { validatePowerPlannerInputs } from "../src/powerPlannerWriteback.js";
 
 const base = calculatePowerPlanner({
   systemCount: 8,
@@ -39,6 +40,27 @@ assert.ok(Math.abs(base.economics.monthlyKwh - (137.2 * 1.35 * 730)) < 0.001);
 assert.equal(base.verdict, "fits-as-is");
 assert.equal(base.siteCheck.complete, true);
 assert.equal(base.flags.length, 0);
+assert.equal(validatePowerPlannerInputs(base).valid, true);
+
+const blankPue = calculatePowerPlanner({ ...base.inputs, storageRacks: 1, pue: "" });
+assert.equal(blankPue.inputs.pueProvided, false, "blank PUE must remain distinguishable from an explicit 1.0");
+assert.equal(blankPue.inputs.pue, 1, "display math may use 1.0 as a non-accepted placeholder");
+assert.equal(validatePowerPlannerInputs(blankPue).valid, false, "blank PUE must block acceptance");
+assert.ok(validatePowerPlannerInputs(blankPue).errors.some((x) => x.includes("PUE is required")));
+
+const zeroedBlankPue = calculatePowerPlanner({ ...base.inputs, storageRacks: 1, pue: 0 });
+assert.equal(zeroedBlankPue.inputs.pueProvided, false, "Number('') style zero coercion must not make PUE look supplied");
+assert.equal(validatePowerPlannerInputs(zeroedBlankPue).valid, false);
+
+const blankUtility = calculatePowerPlanner({ ...base.inputs, storageRacks: 1, utilityRatePerKwh: "" });
+assert.equal(blankUtility.inputs.utilityRateProvided, false, "blank utility rate must remain unresolved");
+assert.equal(blankUtility.economics.monthlyEnergyCost, 0, "placeholder math may be zero but cannot be accepted");
+assert.equal(validatePowerPlannerInputs(blankUtility).valid, false, "blank utility rate must block a $0 energy override");
+assert.ok(validatePowerPlannerInputs(blankUtility).errors.some((x) => x.includes("Utility rate is required")));
+
+const zeroedBlankUtility = calculatePowerPlanner({ ...base.inputs, storageRacks: 1, utilityRatePerKwh: 0 });
+assert.equal(zeroedBlankUtility.inputs.utilityRateProvided, false, "Number('') style zero coercion must not make utility rate look supplied");
+assert.equal(validatePowerPlannerInputs(zeroedBlankUtility).valid, false);
 
 const acceptedFabric = calculatePowerPlanner({
   ...base.inputs,
