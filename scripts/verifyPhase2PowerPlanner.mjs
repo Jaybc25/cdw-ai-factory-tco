@@ -1,6 +1,22 @@
 import assert from "node:assert/strict";
-import { calculatePowerPlanner } from "../src/powerPlannerEngine.js";
+import { POWER_PLANNER_SYSTEM_PROFILES, canonicalPowerPlannerSystemName, calculatePowerPlanner } from "../src/powerPlannerEngine.js";
 import { validatePowerPlannerInputs } from "../src/powerPlannerWriteback.js";
+
+const expectedCanonicalProfiles = [
+  "DGX H200",
+  "DGX B200",
+  "DGX B300",
+  "DGX GB200 NVL-72",
+  "DGX GB300 NVL-72",
+  "DGX Rubin NVL8",
+  "DGX Vera Rubin NVL72",
+];
+assert.deepEqual(Object.keys(POWER_PLANNER_SYSTEM_PROFILES), expectedCanonicalProfiles, "Power must expose the same canonical pre-RTX system classes as Phase 1");
+assert.equal(canonicalPowerPlannerSystemName("GB200 NVL72"), "DGX GB200 NVL-72", "legacy GB200 naming must normalize to the canonical fleet name");
+assert.equal(POWER_PLANNER_SYSTEM_PROFILES["DGX GB200 NVL-72"].avgKwPerSystem, 120);
+assert.equal(POWER_PLANNER_SYSTEM_PROFILES["DGX B300"].unresolvedProfile, true, "unsupported numeric profiles must remain explicit-input rather than invented defaults");
+assert.equal(POWER_PLANNER_SYSTEM_PROFILES["DGX B300"].avgKwPerSystem, "");
+assert.equal(POWER_PLANNER_SYSTEM_PROFILES["DGX GB300 NVL-72"].designKwPerSystem, "");
 
 const base = calculatePowerPlanner({
   systemCount: 8,
@@ -41,6 +57,28 @@ assert.equal(base.verdict, "fits-as-is");
 assert.equal(base.siteCheck.complete, true);
 assert.equal(base.flags.length, 0);
 assert.equal(validatePowerPlannerInputs(base).valid, true);
+
+const blankRackDensity = calculatePowerPlanner({ ...base.inputs, storageRacks: 1, systemsPerRack: "" });
+assert.equal(blankRackDensity.inputs.systemsPerRackProvided, false, "blank systems/rack must remain distinguishable from an explicit value");
+assert.equal(blankRackDensity.inputs.systemsPerRack, 1, "display math may use 1 only as a non-accepted placeholder");
+assert.equal(validatePowerPlannerInputs(blankRackDensity).valid, false, "blank rack density must block acceptance");
+assert.ok(validatePowerPlannerInputs(blankRackDensity).errors.some((x) => x.includes("Systems per rack is required")));
+
+const zeroRackDensity = calculatePowerPlanner({ ...base.inputs, storageRacks: 1, systemsPerRack: 0 });
+assert.equal(zeroRackDensity.inputs.systemsPerRackProvided, false);
+assert.equal(validatePowerPlannerInputs(zeroRackDensity).valid, false);
+
+const unresolvedCanonicalProfile = POWER_PLANNER_SYSTEM_PROFILES["DGX B300"];
+const unresolvedCanonicalResult = calculatePowerPlanner({
+  ...base.inputs,
+  storageRacks: 1,
+  avgKwPerSystem: unresolvedCanonicalProfile.avgKwPerSystem,
+  designKwPerSystem: unresolvedCanonicalProfile.designKwPerSystem,
+  systemsPerRack: unresolvedCanonicalProfile.systemsPerRack,
+});
+assert.equal(validatePowerPlannerInputs(unresolvedCanonicalResult).valid, false, "canonical fleet entries without verified numeric evidence must require explicit user inputs before acceptance");
+assert.ok(validatePowerPlannerInputs(unresolvedCanonicalResult).errors.some((x) => x.includes("Energy-planning kW")));
+assert.ok(validatePowerPlannerInputs(unresolvedCanonicalResult).errors.some((x) => x.includes("Design / max kW")));
 
 const blankPue = calculatePowerPlanner({ ...base.inputs, storageRacks: 1, pue: "" });
 assert.equal(blankPue.inputs.pueProvided, false, "blank PUE must remain distinguishable from an explicit 1.0");
