@@ -1,12 +1,14 @@
 import { getRtxProServerConfigByGpuCount } from "./rtxProServerRegistry.js";
 
-export const RTX_PRO_TCO_DEFAULTS_VERSION = "2026-10-09.v1";
+export const RTX_PRO_TCO_DEFAULTS_VERSION = "2026-10-10.v2";
 
 const NVIDIA_AI_ENTERPRISE_PER_GPU_ANNUAL_USD = 4500;
 const US_COMMERCIAL_ELECTRICITY_USD_PER_KWH = 0.1453;
 const INDUSTRY_AVERAGE_PUE = 1.52;
 const COLO_PLANNING_USD_PER_KW_MONTH = 300;
 const ADMIN_PLANNING_ANNUAL_USD = 15000;
+const SUPERMICRO_RTX_PRO_6000_CARD_USD = 15334.10;
+const SUPERMICRO_RTX_PRO_CARD_SOURCE = "https://store.supermicro.com/us_en/server-accessories/graphics-cards.html";
 
 const SERVER_POWER_PLANNING_KW = Object.freeze({
   2: 1.8,
@@ -18,12 +20,50 @@ function rounded(value) {
   return Math.round(Number(value) || 0);
 }
 
-export function buildRtxProTcoPlanningDefaults(gpuCount) {
+export function getRtxProPlanningHardwareBasis(gpuCount) {
   const count = Number(gpuCount);
   const config = getRtxProServerConfigByGpuCount(count);
-  const hardware = Number.isFinite(config?.configuredSystemPriceUSD) ? config.configuredSystemPriceUSD : null;
+  if (!config) return null;
+
+  if (Number.isFinite(config.configuredSystemPriceUSD)) {
+    return Object.freeze({
+      amountUSD: config.configuredSystemPriceUSD,
+      source: "LISTED",
+      derivation: "DIRECT",
+      label: "Public configured-system price",
+      quoteRequired: false,
+      basis: config.pricingSource,
+      sourceUrl: config.pricingSourceUrl,
+      asOf: config.priceAsOf,
+    });
+  }
+
+  if (count === 8) {
+    const fourGpu = getRtxProServerConfigByGpuCount(4);
+    const amountUSD = rounded(Number(fourGpu?.configuredSystemPriceUSD) + (4 * SUPERMICRO_RTX_PRO_6000_CARD_USD));
+    return Object.freeze({
+      amountUSD,
+      source: "EST",
+      derivation: "CALCULATED_FROM_LISTED_COMPONENTS",
+      label: "Public-price planning estimate",
+      quoteRequired: true,
+      basis: `Planning estimate = listed 4-GPU configured Supermicro server (${fourGpu?.configuredSystemPriceUSD}) + 4 × listed Supermicro RTX PRO 6000 Server Edition cards (${SUPERMICRO_RTX_PRO_6000_CARD_USD} each). This is not a configured 8-GPU OEM quote and may omit configuration-specific chassis, CPU, memory, networking, storage, integration, discounting, or availability effects.`,
+      sourceUrl: SUPERMICRO_RTX_PRO_CARD_SOURCE,
+      secondarySourceUrl: fourGpu?.pricingSourceUrl,
+      asOf: "2026-10-10",
+    });
+  }
+
+  return null;
+}
+
+export function buildRtxProTcoPlanningDefaults(gpuCount) {
+  const count = Number(gpuCount);
+  const hardwareBasis = getRtxProPlanningHardwareBasis(count);
+  const hardware = Number.isFinite(hardwareBasis?.amountUSD) ? hardwareBasis.amountUSD : null;
 
   return Object.freeze({
+    hardwareUSD: hardware,
     nvidiaSoftwareUSD: NVIDIA_AI_ENTERPRISE_PER_GPU_ANNUAL_USD * count,
     supportUSD: hardware == null ? null : rounded(hardware * 0.10),
     professionalServicesUSD: hardware == null ? null : rounded(hardware * 0.10),
@@ -35,6 +75,7 @@ export function buildRtxProTcoPlanningDefaults(gpuCount) {
     pue: INDUSTRY_AVERAGE_PUE,
     coloRatePerKwMonth: COLO_PLANNING_USD_PER_KW_MONTH,
     provenance: Object.freeze({
+      hardwareUSD: hardwareBasis,
       nvidiaSoftwareUSD: Object.freeze({
         source: "LISTED",
         derivation: "DIRECT",
