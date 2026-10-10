@@ -6,6 +6,8 @@ on:
       - "src/rtxProTcoPolicy.js"
       - "src/rtxProLifecycleTco.js"
       - "src/rtxProServerRegistry.js"
+      - "src/rtxProCloudRegistry.js"
+      - "src/rtxProCloudComparison.js"
       - "src/rtxProGpuSizing.js"
       - "src/rtxProInferenceEconomicsConnector.js"
       - "src/inferenceEconomicsThroughput.js"
@@ -16,6 +18,8 @@ on:
       - "src/App.jsx"
       - "scripts/validate_rtx_pro_tco_policy.mjs"
       - "scripts/validate_rtx_pro_lifecycle_tco.mjs"
+      - "scripts/validate_rtx_pro_cloud_registry.mjs"
+      - "scripts/validate_rtx_pro_cloud_comparison.mjs"
       - "scripts/validate_rtx_pro_tco_handoff_ui.mjs"
       - "scripts/validate_rtx_pro_ie_handoff.mjs"
       - "scripts/validate_rtx_pro_final_adversarial_regression.mjs"
@@ -28,6 +32,8 @@ on:
       - "src/rtxProTcoPolicy.js"
       - "src/rtxProLifecycleTco.js"
       - "src/rtxProServerRegistry.js"
+      - "src/rtxProCloudRegistry.js"
+      - "src/rtxProCloudComparison.js"
       - "src/rtxProGpuSizing.js"
       - "src/rtxProInferenceEconomicsConnector.js"
       - "src/inferenceEconomicsThroughput.js"
@@ -38,6 +44,8 @@ on:
       - "src/App.jsx"
       - "scripts/validate_rtx_pro_tco_policy.mjs"
       - "scripts/validate_rtx_pro_lifecycle_tco.mjs"
+      - "scripts/validate_rtx_pro_cloud_registry.mjs"
+      - "scripts/validate_rtx_pro_cloud_comparison.mjs"
       - "scripts/validate_rtx_pro_tco_handoff_ui.mjs"
       - "scripts/validate_rtx_pro_ie_handoff.mjs"
       - "scripts/validate_rtx_pro_final_adversarial_regression.mjs"
@@ -65,6 +73,10 @@ jobs:
         run: node scripts/validate_rtx_pro_tco_policy.mjs
       - name: Validate RTX lifecycle TCO math
         run: node scripts/validate_rtx_pro_lifecycle_tco.mjs
+      - name: Validate RTX cloud evidence registry
+        run: node scripts/validate_rtx_pro_cloud_registry.mjs
+      - name: Validate RTX cloud comparison and crossover math
+        run: node scripts/validate_rtx_pro_cloud_comparison.mjs
       - name: Validate GPU Sizing to TCO handoff UI
         run: node scripts/validate_rtx_pro_tco_handoff_ui.mjs
       - name: Validate RTX TCO to Inference Economics handoff
