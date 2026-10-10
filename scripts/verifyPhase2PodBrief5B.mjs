@@ -162,6 +162,32 @@ const stale = evaluateAcceptedPodBrief(accepted, { dependencies: { ...dependenci
 assert.equal(stale.state, POD_BRIEF_STATUS.STALE);
 assert.match(stale.staleReason, /changed/i);
 
+const staleWithoutFingerprintChange = evaluateAcceptedPodBrief(accepted, {
+  dependencies: {
+    ...dependencies,
+    fabricBundle: {
+      ...fabricBundle,
+      stale: true,
+      staleReason: "Local Fabric inputs changed",
+      requirements: { ...fabricBundle.requirements, stale: true, staleReason: "Local Fabric inputs changed" },
+    },
+  },
+  phase1Snapshot,
+});
+assert.equal(staleWithoutFingerprintChange.state, POD_BRIEF_STATUS.STALE, "Accepted Pod Brief must stale when dependency state changes even if accepted fingerprint/acceptedAt are unchanged");
+
+const staleOverrideWithoutFingerprintChange = evaluateAcceptedPodBrief(accepted, {
+  dependencies: {
+    ...dependencies,
+    powerBundle: {
+      ...powerBundle,
+      overrides: powerBundle.overrides.map((item, index) => index === 0 ? { ...item, state: PHASE2_STATE.STALE, staleReason: "Power input changed" } : item),
+    },
+  },
+  phase1Snapshot,
+});
+assert.equal(staleOverrideWithoutFingerprintChange.state, POD_BRIEF_STATUS.STALE, "Accepted Pod Brief must stale when an accepted override state changes");
+
 const changedTco = { ...phase1Snapshot, updated_at: "2026-10-08T11:00:00Z", summary: { ...phase1Snapshot.summary, onPremCost: 2100000 } };
 assert.equal(evaluateAcceptedPodBrief(accepted, { dependencies, phase1Snapshot: changedTco }).state, POD_BRIEF_STATUS.STALE);
 
