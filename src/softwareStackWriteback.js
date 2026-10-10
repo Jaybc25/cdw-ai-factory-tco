@@ -10,6 +10,10 @@ import {
 import { makeFleetIdentity } from "./phase2Fleet.js";
 import { LICENSE_MODE, SOFTWARE_TCO_TREATMENT, validateSoftwareStackInputs } from "./softwareStackEngine.js";
 
+function normalizePriceSource(source) {
+  return Object.values(PHASE2_SOURCE).includes(source) ? source : PHASE2_SOURCE.EST;
+}
+
 function normalizedComponent(row) {
   return {
     id: row.id,
@@ -23,7 +27,7 @@ function normalizedComponent(row) {
     annualOpsCost: row.annualOpsCost,
     oneTimeCost: row.oneTimeCost,
     entitlementNotes: row.entitlementNotes || "",
-    priceSource: row.priceSource || PHASE2_SOURCE.EST,
+    priceSource: normalizePriceSource(row.priceSource),
     tcoTreatment: row.tcoTreatment || SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED,
   };
 }
@@ -42,6 +46,22 @@ function softwareOverrideTreatment() {
     phase1LineFamily: null,
     note: "Only software components explicitly classified as additive after Phase 1 overlap review contribute to this override. Components classified as included in Phase 1 are excluded; review-required components block the bundle before overrides are created.",
   });
+}
+
+function contributingRows(result) {
+  return result.rows.filter((row) => row.tcoTreatment === SOFTWARE_TCO_TREATMENT.ADDITIVE && Number(row.total) > 0);
+}
+
+function aggregateSoftwareProvenance(result) {
+  const sources = [...new Set(contributingRows(result).map((row) => normalizePriceSource(row.priceSource)))].sort();
+  if (sources.length === 1) {
+    return { source: sources[0], sources, mixed: false };
+  }
+  // The shared Phase 2 provenance contract intentionally has no MIXED enum.
+  // For a composite total, fail conservatively to EST while retaining the exact
+  // component-source list in the label/requirements instead of falsely claiming
+  // the total is wholly QUOTE, CUSTOMER, or LISTED sourced.
+  return { source: PHASE2_SOURCE.EST, sources, mixed: sources.length > 1 };
 }
 
 export function softwareStackFingerprint(result) {
@@ -68,6 +88,7 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
   const overlapResolved = unresolvedOverlap.length === 0;
   const costResolved = pricingResolved && overlapResolved;
   const tcoTreatment = softwareOverrideTreatment();
+  const aggregateProvenance = aggregateSoftwareProvenance(result);
   const dependencies = {
     softwareStackFingerprint: fingerprint,
     fleet,
@@ -84,9 +105,11 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
     unit: "USD/year",
     sourceTool: "software-stack",
     provenance: makeProvenance({
-      source: PHASE2_SOURCE.EST,
+      source: aggregateProvenance.source,
       derivation: PHASE2_DERIVATION.CALCULATED,
-      label: `Itemized Year ${year.year} incremental software total after Phase 1 overlap treatment`,
+      label: aggregateProvenance.mixed
+        ? `Itemized Year ${year.year} incremental software total after Phase 1 overlap treatment; contributing component sources are mixed (${aggregateProvenance.sources.join(", ")}), represented conservatively as EST at the aggregate override while row-level provenance is retained`
+        : `Itemized Year ${year.year} incremental software total after Phase 1 overlap treatment; contributing source ${aggregateProvenance.source}`,
     }),
     dependencies,
     referenceValue: null,
@@ -99,7 +122,7 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
     total: row.total,
     warnings: row.warnings,
     provenance: {
-      source: row.priceSource || PHASE2_SOURCE.EST,
+      source: normalizePriceSource(row.priceSource),
       derivation: row.mode === LICENSE_MODE.COMMERCIAL ? PHASE2_DERIVATION.CALCULATED : PHASE2_DERIVATION.DIRECT,
     },
   }));
@@ -132,7 +155,9 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
     costResolved,
     pricingResolved,
     phase1OverlapResolved: overlapResolved,
-    costStatus: costResolved ? "EST" : "UNRESOLVED",
+    costStatus: costResolved ? aggregateProvenance.source : "UNRESOLVED",
+    aggregatePricingSources: aggregateProvenance.sources,
+    aggregatePricingMixed: aggregateProvenance.mixed,
     unresolvedCommercialComponents: unresolvedCommercial.map((row) => row.name),
     unresolvedPhase1OverlapComponents: unresolvedOverlap.map((row) => row.name),
     overlapSummary,
@@ -146,6 +171,8 @@ export function buildSoftwareStackWritebackBundle(result, inputs) {
       tcoEligibleYearlyTotals,
       totals: result.totals,
       overlapSummary,
+      aggregatePricingSources: aggregateProvenance.sources,
+      aggregatePricingMixed: aggregateProvenance.mixed,
       tcoTreatment,
       validationWarnings: validation.warnings,
       modelWarnings: result.warnings,
