@@ -14,7 +14,11 @@ function money(value) {
   return `$${Math.round(Number(value || 0)).toLocaleString()}`;
 }
 
-function makeComponent(id, category, name, mode, unit, quantity, annualUnitPrice, annualOpsCost, oneTimeCost = 0, supportPct = 0, priceSource = PHASE2_SOURCE.EST, tcoTreatment = SOFTWARE_TCO_TREATMENT.ADDITIVE) {
+function numericInputValue(raw) {
+  return raw === "" ? "" : Number(raw);
+}
+
+function makeComponent(id, category, name, mode, unit, quantity, annualUnitPrice, annualOpsCost, oneTimeCost = 0, supportPct = 0, priceSource = PHASE2_SOURCE.EST, tcoTreatment = SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED) {
   return { id, category, name, mode, unit, quantity, annualUnitPrice, annualOpsCost, oneTimeCost, supportPct, entitlementNotes: "", priceSource, tcoTreatment };
 }
 
@@ -23,10 +27,10 @@ export default function SoftwareStackPreview() {
   const [annualEscalationPct, setAnnualEscalationPct] = useState(3);
   const [acceptance, setAcceptance] = useState(null);
   const [components, setComponents] = useState([
-    makeComponent("orchestration", "orchestration", "Cluster orchestration", LICENSE_MODE.OPEN_SOURCE, "GPU", 16, 0, 18000, 12000, 0, PHASE2_SOURCE.EST, SOFTWARE_TCO_TREATMENT.ADDITIVE),
-    makeComponent("platform", "platform", "AI enterprise platform", LICENSE_MODE.COMMERCIAL, "GPU", 16, 2500, 6000, 8000, 15, PHASE2_SOURCE.EST, SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED),
-    makeComponent("mlops", "mlops", "MLOps / model operations", LICENSE_MODE.OPEN_SOURCE, "node", 4, 0, 12000, 6000, 0, PHASE2_SOURCE.EST, SOFTWARE_TCO_TREATMENT.ADDITIVE),
-    makeComponent("observability", "observability", "Monitoring / observability", LICENSE_MODE.OPEN_SOURCE, "node", 4, 0, 8000, 4000, 0, PHASE2_SOURCE.EST, SOFTWARE_TCO_TREATMENT.ADDITIVE),
+    makeComponent("orchestration", "orchestration", "Cluster orchestration", LICENSE_MODE.OPEN_SOURCE, "GPU", 16, 0, 18000, 12000),
+    makeComponent("platform", "platform", "AI enterprise platform", LICENSE_MODE.COMMERCIAL, "GPU", 16, 2500, 6000, 8000, 15),
+    makeComponent("mlops", "mlops", "MLOps / model operations", LICENSE_MODE.OPEN_SOURCE, "node", 4, 0, 12000, 6000),
+    makeComponent("observability", "observability", "Monitoring / observability", LICENSE_MODE.OPEN_SOURCE, "node", 4, 0, 8000, 4000),
   ]);
 
   function resetAcceptance() { setAcceptance(null); }
@@ -38,7 +42,7 @@ export default function SoftwareStackPreview() {
 
   function addComponent() {
     const id = `custom-${Date.now()}`;
-    setComponents((current) => [...current, makeComponent(id, "platform", "Additional software component", LICENSE_MODE.COMMERCIAL, "unit", 1, 0, 0, 0, 0, PHASE2_SOURCE.EST, SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED)]);
+    setComponents((current) => [...current, makeComponent(id, "platform", "Additional software component", LICENSE_MODE.COMMERCIAL, "unit", 1, 0, 0)]);
     resetAcceptance();
   }
 
@@ -76,8 +80,8 @@ export default function SoftwareStackPreview() {
         <section style={{ ...card, marginBottom: 18 }}>
           <h2 style={{ marginTop: 0 }}>1. Planning horizon</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
-            <label style={field}><span style={label}>Planning horizon (years)</span><input style={input} type="number" min="1" max="7" value={horizonYears} onChange={(e) => { setHorizonYears(Number(e.target.value)); resetAcceptance(); }} /></label>
-            <label style={field}><span style={label}>Annual escalation (%)</span><input style={input} type="number" step="0.5" value={annualEscalationPct} onChange={(e) => { setAnnualEscalationPct(Number(e.target.value)); resetAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Planning horizon (years)</span><input style={input} type="number" min="1" max="7" value={horizonYears} onChange={(e) => { setHorizonYears(numericInputValue(e.target.value)); resetAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Annual escalation (%)</span><input style={input} type="number" step="0.5" value={annualEscalationPct} onChange={(e) => { setAnnualEscalationPct(numericInputValue(e.target.value)); resetAcceptance(); }} /></label>
           </div>
         </section>
 
@@ -94,7 +98,7 @@ export default function SoftwareStackPreview() {
 
         <section style={{ ...card, marginBottom: 18 }}>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-            <div><h2 style={{ margin: 0 }}>2. Stack components</h2><p style={{ color: "#666", marginBottom: 0 }}>Every component carries both a price source and a Phase 1 overlap treatment. Platform software defaults to review required so a bundled DGX/OEM entitlement is never silently counted twice.</p></div>
+            <div><h2 style={{ margin: 0 }}>2. Stack components</h2><p style={{ color: "#666", marginBottom: 0 }}>Every component defaults to <strong>Review required</strong> for Phase 1 overlap. Mark it incremental only after confirming that the cost is not already represented in Phase 1.</p></div>
             <button type="button" onClick={addComponent} style={primaryButton}>Add component</button>
           </div>
         </section>
@@ -114,11 +118,11 @@ export default function SoftwareStackPreview() {
                 <label style={field}><span style={label}>Phase 1 TCO treatment</span><select style={input} value={component.tcoTreatment} onChange={(e) => updateComponent(component.id, "tcoTreatment", e.target.value)}><option value={SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED}>Review required</option><option value={SOFTWARE_TCO_TREATMENT.ADDITIVE}>Incremental to Phase 1</option><option value={SOFTWARE_TCO_TREATMENT.INCLUDED_IN_PHASE1}>Already included in Phase 1</option></select></label>
                 <label style={field}><span style={label}>Price source</span><select style={input} value={component.priceSource} onChange={(e) => updateComponent(component.id, "priceSource", e.target.value)}><option value={PHASE2_SOURCE.EST}>Estimate</option><option value={PHASE2_SOURCE.LISTED}>Listed</option><option value={PHASE2_SOURCE.CUSTOMER}>Customer</option><option value={PHASE2_SOURCE.QUOTE}>Quote</option></select></label>
                 <label style={field}><span style={label}>Unit</span><input style={input} value={component.unit} onChange={(e) => updateComponent(component.id, "unit", e.target.value)} /></label>
-                <label style={field}><span style={label}>Quantity</span><input style={input} type="number" min="0" value={component.quantity} onChange={(e) => updateComponent(component.id, "quantity", Number(e.target.value))} /></label>
-                <label style={field}><span style={label}>Annual unit price</span><input style={input} type="number" min="0" value={component.annualUnitPrice} onChange={(e) => updateComponent(component.id, "annualUnitPrice", Number(e.target.value))} /></label>
-                <label style={field}><span style={label}>Support (% of license)</span><input style={input} type="number" min="0" value={component.supportPct} onChange={(e) => updateComponent(component.id, "supportPct", Number(e.target.value))} /></label>
-                <label style={field}><span style={label}>Annual ops / admin cost</span><input style={input} type="number" min="0" value={component.annualOpsCost} onChange={(e) => updateComponent(component.id, "annualOpsCost", Number(e.target.value))} /></label>
-                <label style={field}><span style={label}>One-time implementation</span><input style={input} type="number" min="0" value={component.oneTimeCost} onChange={(e) => updateComponent(component.id, "oneTimeCost", Number(e.target.value))} /></label>
+                <label style={field}><span style={label}>Quantity</span><input style={input} type="number" min="0" value={component.quantity} onChange={(e) => updateComponent(component.id, "quantity", numericInputValue(e.target.value))} /></label>
+                <label style={field}><span style={label}>Annual unit price</span><input style={input} type="number" min="0" value={component.annualUnitPrice} onChange={(e) => updateComponent(component.id, "annualUnitPrice", numericInputValue(e.target.value))} /></label>
+                <label style={field}><span style={label}>Support (% of license)</span><input style={input} type="number" min="0" value={component.supportPct} onChange={(e) => updateComponent(component.id, "supportPct", numericInputValue(e.target.value))} /></label>
+                <label style={field}><span style={label}>Annual ops / admin cost</span><input style={input} type="number" min="0" value={component.annualOpsCost} onChange={(e) => updateComponent(component.id, "annualOpsCost", numericInputValue(e.target.value))} /></label>
+                <label style={field}><span style={label}>One-time implementation</span><input style={input} type="number" min="0" value={component.oneTimeCost} onChange={(e) => updateComponent(component.id, "oneTimeCost", numericInputValue(e.target.value))} /></label>
               </div>
               <label style={{ ...field, marginTop: 12 }}><span style={label}>Entitlement / scope notes</span><input style={input} value={component.entitlementNotes} onChange={(e) => updateComponent(component.id, "entitlementNotes", e.target.value)} placeholder="Term, edition, support level, bundled entitlement, renewal condition..." /></label>
               <div style={{ marginTop: 14, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: 10 }}>
