@@ -1,26 +1,9 @@
 // RTX PRO 6000 Blackwell Server Edition cloud comparison evidence.
 //
-// Phase 4A establishes normalized, auditable provider shapes and public-rate snapshots
-// for engineering comparison. It still does NOT wire these values into customer-facing
-// TCO recommendation math. Phase 4B must explicitly activate only providers whose
-// region / OS / purchase-option / billing basis is acceptable for client-facing use.
-//
-// Normalization baseline:
-// - Currency: USD
-// - Purchase option: public On-Demand / Pay-As-You-Go
-// - OS: Linux / no paid OS license where applicable
-// - Hours/month convention: 730
-// - Target deployment: match the selected 2/4/8 RTX PRO GPU count. Multi-VM composition
-//   is allowed only when the provider does not publish a single shape at the target count.
-//
-// Evidence policy:
-// - FIRST_PARTY_SHAPE: GPU count / SKU comes from the provider's own documentation.
-// - FIRST_PARTY_RATE: hourly rate comes directly from a provider pricing page/list.
-// - SECONDARY_RATE_SNAPSHOT: current public rate was independently cross-checked on a
-//   pricing catalog that tracks provider public pricing, but must still be re-verified
-//   against the provider before customer-facing activation.
-// - RATE_CONFLICT: current public sources disagree materially; no normalized rate is
-//   admitted until the provider billing basis is resolved.
+// Phase 4A established normalized 2/4/8-GPU provider shapes. Phase 4B admits only
+// first-party, region-normalized public rates into customer-facing recommendation math.
+// Secondary public-rate snapshots remain engineering-only until the provider's own
+// price API/page is independently verified on the exact same commercial basis.
 
 export const RTX_PRO_CLOUD_EVIDENCE_AS_OF = "2026-10-10";
 export const RTX_PRO_CLOUD_HOURS_PER_MONTH = 730;
@@ -46,8 +29,8 @@ export const RTX_PRO_CLOUD_PROVIDERS = Object.freeze({
     rateSource: "Public EC2 pricing catalogs cross-checking AWS us-east-1 Linux On-Demand",
     rateSourceUrl: "https://aws-pricing.com/g7e.2xlarge.html",
     rateAsOf: "2026-10-10",
-    activationBlocker: "Re-verify exact us-east-1 Linux On-Demand rates against AWS Price List API before client-facing activation.",
-    note: "G7e is GA and publishes direct 1/2/4/8 RTX PRO 6000 shapes. Current public rate catalogs agree on the normalized us-east-1 Linux On-Demand rates below. These rates are admitted for engineering comparison only until first-party AWS price-list verification is completed.",
+    activationBlocker: "Re-verify exact us-east-1 Linux On-Demand rates against AWS Price List API before customer-facing activation.",
+    note: "Direct 1/2/4/8 RTX PRO shapes are first-party verified. Current rates are engineering-only until AWS first-party price verification is completed.",
     shapes: Object.freeze({
       1: freezeShape({ sku: "g7e.2xlarge", gpuCount: 1, hourlyUsd: 3.3631, rateEvidence: "SECONDARY_RATE_SNAPSHOT" }),
       2: freezeShape({ sku: "g7e.12xlarge", gpuCount: 2, hourlyUsd: 8.2861, rateEvidence: "SECONDARY_RATE_SNAPSHOT" }),
@@ -74,8 +57,8 @@ export const RTX_PRO_CLOUD_PROVIDERS = Object.freeze({
     rateSource: "Public Azure pricing catalogs cross-checking East US Linux Pay-As-You-Go",
     rateSourceUrl: "https://www.azurespeed.com/AzureVmPricing/Standard_NC144ds_xl_RTXPRO6000BSE_v6",
     rateAsOf: "2026-10-10",
-    activationBlocker: "Re-verify exact East US Linux Pay-As-You-Go rates against Azure Retail Prices API before client-facing activation.",
-    note: "Azure publishes 1-GPU and 2-GPU GA shapes in the NC RTX PRO 6000 BSE v6 series. The normalized 2/4/8 comparison uses the 2-GPU VM as the building block: one VM for 2 GPUs, two VMs for 4 GPUs, and four VMs for 8 GPUs. Multi-VM composition is explicit and must not be presented as a single Azure scale-up node.",
+    activationBlocker: "Re-verify exact East US Linux Pay-As-You-Go rates against Azure Retail Prices API before customer-facing activation.",
+    note: "Azure has direct 1/2-GPU shapes. The 4/8-GPU engineering comparison composes two/four 2-GPU VMs and never presents them as one scale-up node.",
     shapes: Object.freeze({
       1: freezeShape({ sku: "Standard_NC144ds_xl_RTXPRO6000BSE_v6", gpuCount: 1, hourlyUsd: 6.38, rateEvidence: "SECONDARY_RATE_SNAPSHOT" }),
       2: freezeShape({ sku: "Standard_NC288ds_xl_RTXPRO6000BSE_v6", gpuCount: 2, hourlyUsd: 11.0, rateEvidence: "SECONDARY_RATE_SNAPSHOT" }),
@@ -92,7 +75,7 @@ export const RTX_PRO_CLOUD_PROVIDERS = Object.freeze({
     normalizedOs: "Linux / no paid OS license",
     normalizedPurchaseOption: "On-Demand",
     billingBasis: "WHOLE_VM_PER_HOUR",
-    customerFacingRateReady: false,
+    customerFacingRateReady: true,
     engineeringComparisonReady: true,
     confidence: "FIRST_PARTY_SHAPE / FIRST_PARTY_RATE",
     shapeSource: "Google Cloud G4 machine-series documentation and accelerator-optimized pricing",
@@ -100,8 +83,8 @@ export const RTX_PRO_CLOUD_PROVIDERS = Object.freeze({
     rateSource: "Google Cloud accelerator-optimized VM pricing",
     rateSourceUrl: "https://cloud.google.com/products/compute/pricing/accelerator-optimized",
     rateAsOf: "2026-10-10",
-    activationBlocker: "Confirm the production comparison will use us-central1 and the same Linux/no-paid-license basis before client-facing activation.",
-    note: "Google publishes direct whole-VM On-Demand prices for 1/2/4/8-GPU G4 Standard shapes. These are the strongest rate records in Phase 4A because both the shape and rate are first-party evidence.",
+    activationBlocker: null,
+    note: "Google publishes direct 1/2/4/8-GPU G4 Standard whole-VM default rates in USD for Iowa (us-central1); this is admitted to customer-facing comparison math.",
     shapes: Object.freeze({
       1: freezeShape({ sku: "g4-standard-48", gpuCount: 1, hourlyUsd: 4.49993, rateEvidence: "FIRST_PARTY_RATE" }),
       2: freezeShape({ sku: "g4-standard-96", gpuCount: 2, hourlyUsd: 8.99986, rateEvidence: "FIRST_PARTY_RATE" }),
@@ -115,23 +98,23 @@ export const RTX_PRO_CLOUD_PROVIDERS = Object.freeze({
     productFamily: "BM.GPU.RTXPro.8",
     gpuModel: "NVIDIA RTX PRO 6000 Blackwell Server Edition",
     availableGpuCounts: Object.freeze([8]),
-    normalizedRegion: "us-ashburn-1",
-    normalizedRegionLabel: "Ashburn",
+    normalizedRegion: "public-price-list",
+    normalizedRegionLabel: "Oracle public price list",
     normalizedOs: "Linux / base compute",
     normalizedPurchaseOption: "On-Demand",
-    billingBasis: "UNRESOLVED",
+    billingBasis: "GPU_PER_HOUR_X_GPU_COUNT",
     customerFacingRateReady: false,
-    engineeringComparisonReady: false,
-    confidence: "FIRST_PARTY_SHAPE / RATE_CONFLICT",
-    shapeSource: "Oracle Cloud public compute shape and price-list materials",
+    engineeringComparisonReady: true,
+    confidence: "FIRST_PARTY_SHAPE / FIRST_PARTY_RATE / REGION-CURRENCY-CONFIRMATION-PENDING",
+    shapeSource: "Oracle Cloud public price list",
     shapeSourceUrl: "https://www.oracle.com/cloud/price-list/",
-    rateSource: "Conflicting public Oracle price-list interpretation vs current public pricing catalogs",
+    rateSource: "Oracle Cloud public price list",
     rateSourceUrl: "https://www.oracle.com/cloud/price-list/",
     rateAsOf: "2026-10-10",
-    activationBlocker: "Resolve the current BM.GPU.RTXPro.8 billing basis and authoritative hourly total. Prior evidence implied $5.8977/GPU-hour ($47.1816/8-GPU shape), while current public pricing catalogs report $36.00/hour for the 8-GPU shape. Do not compare until reconciled.",
-    note: "Oracle remains intentionally excluded from normalized comparison math because the current public evidence conflicts materially on billing basis / effective whole-shape rate.",
+    activationBlocker: "Oracle first-party evidence resolves the billing formula ($5.8977 per GPU-hour × 8 GPUs = $47.1816/server-hour), but exact U.S. region/currency normalization must be confirmed before customer-facing activation.",
+    note: "Oracle's own price-list footnote states that server price per hour equals GPU price per hour multiplied by GPU count. The 8-GPU shape is therefore admitted for engineering comparison at $47.1816/hour, but remains customer-facing blocked pending U.S. region/currency normalization.",
     shapes: Object.freeze({
-      8: freezeShape({ sku: "BM.GPU.RTXPro.8", gpuCount: 8, hourlyUsd: null, rateEvidence: "RATE_CONFLICT", priorPerGpuHourlyUsd: 5.8977, priorDerivedShapeHourlyUsd: 47.1816, observedPublicCatalogShapeHourlyUsd: 36.0 }),
+      8: freezeShape({ sku: "BM.GPU.RTXPro.8", gpuCount: 8, hourlyUsd: 47.1816, perGpuHourlyUsd: 5.8977, rateEvidence: "FIRST_PARTY_RATE" }),
     }),
   }),
 });
@@ -145,13 +128,7 @@ export function getRtxProCloudComparisonPlan(providerName, gpuCount) {
   const target = Number(gpuCount);
   if (!provider || ![2, 4, 8].includes(target)) return null;
   if (!provider.engineeringComparisonReady) {
-    return {
-      provider: providerName,
-      gpuCount: target,
-      status: "RATE_NOT_READY",
-      reason: provider.activationBlocker,
-      customerFacingRateReady: false,
-    };
+    return { provider: providerName, gpuCount: target, status: "RATE_NOT_READY", reason: provider.activationBlocker, customerFacingRateReady: false };
   }
 
   let shape = provider.shapes?.[target] || null;
@@ -166,13 +143,7 @@ export function getRtxProCloudComparisonPlan(providerName, gpuCount) {
   }
 
   if (!shape || !Number.isFinite(shape.hourlyUsd)) {
-    return {
-      provider: providerName,
-      gpuCount: target,
-      status: "RATE_NOT_READY",
-      reason: provider.activationBlocker,
-      customerFacingRateReady: false,
-    };
+    return { provider: providerName, gpuCount: target, status: "RATE_NOT_READY", reason: provider.activationBlocker, customerFacingRateReady: false };
   }
 
   const hourlyUsd = shape.hourlyUsd * quantity;
@@ -200,17 +171,14 @@ export function getRtxProCloudComparisonPlan(providerName, gpuCount) {
 }
 
 export function getRtxProCloudCoverage(gpuCount) {
-  return Object.entries(RTX_PRO_CLOUD_PROVIDERS).map(([providerName, provider]) => {
-    const plan = getRtxProCloudComparisonPlan(providerName, gpuCount);
-    return {
-      provider: provider.displayName,
-      productFamily: provider.productFamily,
-      directShape: provider.availableGpuCounts.includes(Number(gpuCount)),
-      shape: provider.shapes?.[gpuCount] || null,
-      normalizedPlan: plan,
-      engineeringComparisonReady: provider.engineeringComparisonReady,
-      customerFacingRateReady: provider.customerFacingRateReady,
-      confidence: provider.confidence,
-    };
-  });
+  return Object.entries(RTX_PRO_CLOUD_PROVIDERS).map(([providerName, provider]) => ({
+    provider: provider.displayName,
+    productFamily: provider.productFamily,
+    directShape: provider.availableGpuCounts.includes(Number(gpuCount)),
+    shape: provider.shapes?.[gpuCount] || null,
+    normalizedPlan: getRtxProCloudComparisonPlan(providerName, gpuCount),
+    engineeringComparisonReady: provider.engineeringComparisonReady,
+    customerFacingRateReady: provider.customerFacingRateReady,
+    confidence: provider.confidence,
+  }));
 }
