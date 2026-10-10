@@ -29,8 +29,10 @@ export function validatePowerPlannerInputs(result) {
   if (!(i.avgKwPerSystem > 0)) errors.push("Energy-planning kW per system must be greater than 0.");
   if (!(i.designKwPerSystem > 0)) errors.push("Design / max kW per system must be greater than 0.");
   if (i.designKwPerSystem < i.avgKwPerSystem) errors.push("Design / max kW per system cannot be lower than energy-planning kW per system.");
-  if (!(i.pue >= 1 && i.pue <= 3)) errors.push("PUE must be between 1.0 and 3.0 for this planning tool.");
-  if (i.utilityRatePerKwh < 0) errors.push("Utility rate cannot be negative.");
+  if (i.pueProvided === false) errors.push("PUE is required; blank PUE cannot fall back to 1.0 for acceptance.");
+  else if (!(i.pue >= 1 && i.pue <= 3)) errors.push("PUE must be between 1.0 and 3.0 for this planning tool.");
+  if (i.utilityRateProvided === false) errors.push("Utility rate is required; blank utility rate cannot create a $0 energy override.");
+  else if (i.utilityRatePerKwh < 0) errors.push("Utility rate cannot be negative.");
 
   if (!result?.networkPower?.acceptedFabricPower && i.provisionalNetworkKw === 0) warnings.push("Network/head-node power is still 0 kW; result remains provisional until Fabric supplies switch power or a planning allowance is entered.");
   if (result?.networkPower?.acceptedFabricPower && result.networkPower.managementHeadNodeKw === 0) warnings.push("Accepted Fabric switch power is included, but management/head-node power is 0 kW. Confirm that management, control-plane, and head-node power is intentionally excluded before client use.");
