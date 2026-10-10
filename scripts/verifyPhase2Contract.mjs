@@ -71,6 +71,32 @@ assert.equal(validatePhase2Override(override).valid, true);
 assert.equal(phase2OverrideCanWriteBack(override), true, "current replacement can participate in Phase 2 planning comparisons");
 assert.equal(phase2OverrideCanApplyToTco(override), false, "replacement must not apply to TCO until exact Phase 1 line mapping exists");
 
+const noTreatmentOverride = createPhase2Override({
+  id: "legacy.current.no-treatment",
+  target: "tco.legacy.monthly",
+  value: 1234,
+  unit: "USD/month",
+  sourceTool: "legacy-phase2-fixture",
+  provenance,
+  dependencies,
+  createdAt: "2026-10-08T12:00:00.000Z",
+});
+assert.equal(phase2OverrideCanWriteBack(noTreatmentOverride), true, "missing treatment may remain visible inside the Phase 2 planning envelope");
+assert.equal(phase2OverrideCanApplyToTco(noTreatmentOverride), false, "missing TCO treatment must fail closed for production application");
+assert.equal(phase2OverrideCanApplyToTco({ ...noTreatmentOverride, tcoTreatment: { mode: "UNKNOWN" } }), false, "invalid TCO treatment must also fail closed");
+
+const additiveOverride = {
+  ...noTreatmentOverride,
+  tcoTreatment: makePhase2TcoTreatment({ mode: PHASE2_TCO_TREATMENT.ADDITIVE }),
+};
+assert.equal(phase2OverrideCanApplyToTco(additiveOverride), true, "explicit additive/current override may apply to TCO");
+
+const comparisonOnlyOverride = {
+  ...noTreatmentOverride,
+  tcoTreatment: makePhase2TcoTreatment({ mode: PHASE2_TCO_TREATMENT.COMPARISON_ONLY }),
+};
+assert.equal(phase2OverrideCanApplyToTco(comparisonOnlyOverride), false, "comparison-only override must never apply to TCO");
+
 const mappedOverride = {
   ...override,
   tcoTreatment: {
