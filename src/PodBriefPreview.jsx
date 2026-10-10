@@ -9,7 +9,7 @@ const card = { border: "1px solid #ddd", borderRadius: 12, padding: 16, backgrou
 const label = { fontSize: 12, fontWeight: 800, color: "#555", textTransform: "uppercase", letterSpacing: ".05em" };
 const button = { border: 0, borderRadius: 8, padding: "10px 14px", fontWeight: 800, cursor: "pointer", background: "#c8102e", color: "#fff" };
 
-function money(v) { return `$${Math.round(Number(v || 0)).toLocaleString()}`; }
+function money(v) { return v == null ? "UNRESOLVED" : `$${Math.round(Number(v)).toLocaleString()}`; }
 function num(v, digits = 1) { return v == null ? "—" : Number(v).toFixed(digits); }
 
 function briefStatusTone(brief) {
@@ -38,7 +38,7 @@ function briefStatusTone(brief) {
 }
 
 export default function PodBriefPreview() {
-  const { session, isLoggedIn, saveSnapshot } = useAuth();
+  const { session, isLoggedIn } = useAuth();
   const storageBundle = useMemo(() => loadSessionState("phase2-storage-writeback"), []);
   const fabricBundle = useMemo(() => loadSessionState("phase2-network-writeback"), []);
   const powerBundle = useMemo(() => loadSessionState("phase2-power-writeback"), []);
@@ -77,30 +77,16 @@ export default function PodBriefPreview() {
   const statusTone = useMemo(() => briefStatusTone(brief), [brief]);
   const reviewItems = useMemo(() => [...new Set([...(brief.unresolved || []), ...(brief.stale || []), ...(brief.fleetIssues || [])])], [brief.unresolved, brief.stale, brief.fleetIssues]);
 
-  async function acceptBrief() {
+  function acceptBrief() {
     const record = createAcceptedPodBriefRecord({ brief, dependencies, phase1Snapshot });
     saveSessionState("phase2-pod-brief", record);
     setAcceptedRecord(record);
-    setAcceptMessage("Pod Brief accepted against the current Phase 2 dependencies and saved for this workspace.");
-    if (isLoggedIn) {
-      await saveSnapshot("phase2-pod-brief", record, {
-        status: brief.status,
-        clientReady: brief.clientReady,
-        engineeringReviewReady: brief.engineeringReviewReady,
-        dependencyFingerprint: record.dependencyFingerprint,
-        systemName: brief.compute.systemName,
-        totalRacks: brief.compute.totalRacks,
-        designItKw: brief.facility?.designItKw ?? null,
-        storageRawTb: brief.storage?.totalRawTb ?? null,
-        fabric: brief.fabric ? `${brief.fabric.technology} ${brief.fabric.linkGbps}G` : null,
-        phase1ComparisonAvailable: Boolean(brief.phase1Comparison),
-        unresolvedCount: brief.unresolved.length,
-        fleetIssueCount: brief.fleetIssues.length,
-      });
-    }
+    setAcceptMessage("Pod Brief accepted against the current Phase 2 dependencies and saved for this browser workspace. It is intentionally not added to the production My Summary snapshot set during Phase 2 preview.");
   }
 
   const acceptedState = evaluatedRecord?.state || null;
+  const powerMonthlyLabel = brief.economics.powerFacilityComplete ? "Power + facility monthly" : "Power energy monthly (facility unresolved)";
+  const powerAnnualLabel = brief.economics.powerFacilityComplete ? "Power + facility annualized" : "Power energy annualized (facility unresolved)";
 
   return (
     <div className="pod-brief-root" style={{ background: "#f5f5f5", minHeight: "100vh", padding: "24px 16px 56px", fontFamily: "Arial, Helvetica, sans-serif" }}>
@@ -206,8 +192,8 @@ export default function PodBriefPreview() {
         <section className="pod-print-card" style={{ ...card, marginBottom: 18, borderLeft: "6px solid #c8102e" }}>
           <h2 style={{ marginTop: 0 }}>5. Phase 2 refined cost lines</h2>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
-            <div><strong>Power + facility monthly</strong><br />{money(brief.economics.powerMonthly)}</div><div><strong>Power + facility annualized</strong><br />{money(brief.economics.powerAnnualized)}</div>
-            <div><strong>Fabric current-fleet CAPEX</strong><br />{money(brief.economics.networkCapex)}</div><div><strong>Software Year 1</strong><br />{money(brief.economics.softwareByYear?.[1] || 0)}</div>
+            <div><strong>{powerMonthlyLabel}</strong><br />{money(brief.economics.powerMonthly)}</div><div><strong>{powerAnnualLabel}</strong><br />{money(brief.economics.powerAnnualized)}</div>
+            <div><strong>Fabric current-fleet CAPEX</strong><br />{money(brief.economics.networkCapex)}</div><div><strong>Software Year 1</strong><br />{money(brief.economics.softwareByYear?.[1])}</div>
           </div>
           <p style={{ color: "#666", marginBottom: 0, marginTop: 12 }}>{brief.economics.note}</p>
         </section>
@@ -218,12 +204,12 @@ export default function PodBriefPreview() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 12 }}>
               <div><strong>Phase 1 on-prem total</strong><br />{money(brief.phase1Comparison.baselineOnPrem)}</div>
               <div><strong>Phase 1 cloud baseline</strong><br />{brief.phase1Comparison.baselineCloud == null ? "—" : money(brief.phase1Comparison.baselineCloud)}</div>
-              <div><strong>Phase 2 power/facility annualized</strong><br />{money(brief.phase1Comparison.phase2RefinedLines.powerFacilityAnnualized)}</div>
+              <div><strong>{brief.economics.powerFacilityComplete ? "Phase 2 power/facility annualized" : "Phase 2 power energy annualized (facility unresolved)"}</strong><br />{money(brief.phase1Comparison.phase2RefinedLines.powerFacilityAnnualized)}</div>
               <div><strong>Phase 2 fabric CAPEX</strong><br />{money(brief.phase1Comparison.phase2RefinedLines.networkCapex)}</div>
               <div><strong>Phase 2 software over Phase 1 horizon</strong><br />{money(brief.phase1Comparison.phase2RefinedLines.softwareHorizon)}</div>
             </div>
             <div style={{ marginTop: 14, padding: 12, borderRadius: 8, background: "#fff7e8", border: "1px solid #e4c679", lineHeight: 1.55 }}>
-              <strong>Not additive.</strong> Phase 1 already includes power, networking, software, and storage economics. These Phase 2 lines refine or replace those assumptions. Adjusted on-prem cost and savings are intentionally not calculated until line-by-line replacement mapping is implemented.
+              <strong>Replacement/additive treatment required.</strong> Phase 1 already contains overlapping power, networking, software, and storage economics. Power and Fabric Phase 2 lines refine/replace Phase 1 assumptions and remain blocked until exact replacement mapping exists; only Software components explicitly classified as incremental are additive. Adjusted on-prem cost and savings remain intentionally suppressed until those mappings are complete.
             </div>
             <p style={{ color: "#666", marginBottom: 0 }}>{brief.phase1Comparison.note}</p>
           </> : <p>No saved Phase 1 TCO account snapshot is available yet. Run/save TCO while signed in to populate comparison context.</p>}
