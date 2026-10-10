@@ -72,8 +72,12 @@ export function calculatePowerPlanner(inputs) {
   const effectiveNetworkKw = acceptedFabricPower
     ? fabricSwitchPowerKw + effectiveManagementHeadNodeKw
     : provisionalNetworkKw;
-  const pue = Math.max(1, n(inputs.pue, 1));
-  const utilityRatePerKwh = Math.max(0, n(inputs.utilityRatePerKwh));
+  const pueInput = optionalNonNegative(inputs.pue);
+  const pueProvided = pueInput != null;
+  const pue = Math.max(1, pueInput ?? 1);
+  const utilityRateInput = optionalNonNegative(inputs.utilityRatePerKwh);
+  const utilityRateProvided = utilityRateInput != null;
+  const utilityRatePerKwh = utilityRateInput ?? 0;
   const availableKwPerRack = optionalNonNegative(inputs.availableKwPerRack);
   const totalFacilityKwAvailable = optionalNonNegative(inputs.totalFacilityKwAvailable);
   const rackPositionsAvailable = inputs.rackPositionsAvailable === "" || inputs.rackPositionsAvailable == null ? null : Math.max(0, Math.floor(n(inputs.rackPositionsAvailable)));
@@ -132,6 +136,8 @@ export function calculatePowerPlanner(inputs) {
   else if (siteInputsProvided > 0 || !rackFootprintComplete) verdict = "partial-check";
 
   const flags = [];
+  if (!pueProvided) flags.push("PUE is blank. Enter an explicit PUE before accepting Power; the displayed calculation uses 1.0 only as a non-accepted placeholder.");
+  if (!utilityRateProvided) flags.push("Utility rate is blank. Enter an explicit $/kWh rate before accepting Power; no zero-dollar energy assumption will be accepted.");
   if (coolingMismatch) flags.push("Selected system requires liquid cooling but the chosen facility cooling type is not liquid-capable.");
   if (rackPowerMismatch) flags.push(`Compute rack design load (${computeRackDesignKw.toFixed(1)} kW/rack) exceeds stated rack capacity (${availableKwPerRack.toFixed(1)} kW/rack).`);
   if (totalPowerMismatch) flags.push(`Facility design demand (${facilityDesignKw.toFixed(1)} kW including PUE) exceeds stated total facility capacity (${totalFacilityKwAvailable.toFixed(1)} kW).`);
@@ -159,7 +165,9 @@ export function calculatePowerPlanner(inputs) {
       managementHeadNodeKw: effectiveManagementHeadNodeKw,
       networkRacks,
       pue,
+      pueProvided,
       utilityRatePerKwh,
+      utilityRateProvided,
       facilityBranch,
       ownedFacilityBurdenPerKwMonth,
       coloMonthlyBundle,
