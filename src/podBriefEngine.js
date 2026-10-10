@@ -2,7 +2,8 @@ import { PHASE2_STATE, phase2OverrideCanWriteBack } from "./phase2Contract.js";
 import { compareFleetIdentity, fleetFromPhase1Snapshot } from "./phase2Fleet.js";
 
 function money(value) {
-  return Math.round(Number(value || 0));
+  if (value == null) return null;
+  return Math.round(Number(value));
 }
 
 function currentOverrides(bundle) {
@@ -14,8 +15,11 @@ function phase1Comparison(phase1Snapshot, { powerAnnualized, networkCapex, softw
   if (!summary || !Number.isFinite(Number(summary.onPremCost))) return null;
 
   const horizonYears = Math.max(1, Number(summary.horizonYears || 3));
-  let softwareHorizon = 0;
-  for (let year = 1; year <= horizonYears; year += 1) softwareHorizon += Number(softwareByYear[year] || 0);
+  const softwareYears = Object.keys(softwareByYear || {});
+  const softwareHorizon = softwareYears.length
+    ? Array.from({ length: horizonYears }, (_, index) => index + 1)
+      .reduce((sum, year) => sum + Number(softwareByYear[year] || 0), 0)
+    : null;
 
   return {
     available: true,
@@ -24,7 +28,7 @@ function phase1Comparison(phase1Snapshot, { powerAnnualized, networkCapex, softw
     baselineCloud: Number.isFinite(Number(summary.cloudCost)) ? money(summary.cloudCost) : null,
     phase2RefinedLines: {
       powerFacilityAnnualized: money(powerAnnualized),
-      powerFacilityHorizon: money(Number(powerAnnualized || 0) * horizonYears),
+      powerFacilityHorizon: powerAnnualized == null ? null : money(Number(powerAnnualized) * horizonYears),
       networkCapex: money(networkCapex),
       softwareHorizon: money(softwareHorizon),
     },
@@ -68,9 +72,10 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
   const softwareOverrides = currentOverrides(softwareBundle);
   const fabricOverrides = currentOverrides(fabricBundle);
 
-  const powerMonthly = powerOverrides
-    .filter((item) => item.unit === "USD/month")
-    .reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const powerMonthlyOverrides = powerOverrides.filter((item) => item.unit === "USD/month");
+  const powerMonthly = powerMonthlyOverrides.length
+    ? powerMonthlyOverrides.reduce((sum, item) => sum + Number(item.value || 0), 0)
+    : null;
 
   const softwareByYear = softwareOverrides.reduce((acc, item) => {
     const match = String(item.id || "").match(/year-(\d+)/);
@@ -79,9 +84,10 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
     return acc;
   }, {});
 
-  const networkCapex = fabricOverrides
-    .filter((item) => item.unit === "USD")
-    .reduce((sum, item) => sum + Number(item.value || 0), 0);
+  const fabricCapexOverrides = fabricOverrides.filter((item) => item.unit === "USD");
+  const networkCapex = fabricCapexOverrides.length
+    ? fabricCapexOverrides.reduce((sum, item) => sum + Number(item.value || 0), 0)
+    : null;
 
   const unresolved = [];
   if (!storageBundle) unresolved.push("Storage requirement has not been accepted.");
@@ -126,12 +132,14 @@ export function buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwa
       ? "PRE-ARCHITECTURE READY"
       : `READY FOR ENGINEERING REVIEW · ${openItemCount} OPEN ITEM${openItemCount === 1 ? "" : "S"}`;
 
+  const facilityEconomicsResolved = powerBundle?.costResolved === true;
   const economics = {
     powerMonthly: money(powerMonthly),
-    powerAnnualized: money(powerMonthly * 12),
+    powerAnnualized: powerMonthly == null ? null : money(powerMonthly * 12),
+    powerFacilityComplete: facilityEconomicsResolved,
     networkCapex: money(networkCapex),
     softwareByYear: Object.fromEntries(Object.entries(softwareByYear).map(([year, value]) => [year, money(value)])),
-    note: "Phase 2 planning envelope only. These lines refine assumptions already present in Phase 1 TCO and must not be added to the Phase 1 total without explicit replacement mapping. Unresolved pricing or overlap is excluded rather than represented as $0.",
+    note: "Phase 2 planning envelope only. These lines refine assumptions already present in Phase 1 TCO and must not be added to the Phase 1 total without explicit replacement mapping. Unresolved pricing or overlap is excluded and remains visibly unresolved rather than represented as $0.",
   };
   const comparison = phase1Comparison(phase1Snapshot, economics);
 
