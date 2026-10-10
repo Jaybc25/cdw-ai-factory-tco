@@ -46,13 +46,20 @@ requireText(intake, "TCO horizon", "RTX TCO UI must expose a 1/3/5-year horizon 
 requireText(intake, "Annual amount", "RTX recurring commercial inputs must support annual basis.");
 requireText(intake, "Total for quoted term", "RTX recurring commercial inputs must support term-total basis.");
 requireText(intake, "Quoted term coverage", "Term-total inputs must carry explicit coverage years.");
-requireText(intake, "Directional lifecycle TCO", "RTX TCO UI must render the validated lifecycle total when ready.");
+requireText(intake, "Directional lifecycle TCO", "RTX TCO UI must render the validated lifecycle total when a configured price is admitted.");
+requireText(intake, "Planning lifecycle TCO", "RTX TCO UI must render a directional planning total when 8-GPU hardware uses an EST basis.");
+requireText(intake, "Planning TCO ready", "RTX TCO readiness must distinguish an estimate-backed result from client-ready configured pricing.");
+requireText(intake, "confirm before client-ready", "8-GPU planning hardware must visibly preserve the quote-confirmation requirement.");
+requireText(intake, "hardwarePlanningUSD: defaults.hardwareUSD", "RTX intake must pass the explicit planning hardware basis into policy rather than inventing it inside lifecycle math.");
 requireText(intake, "lifecycle.totalTcoUSD", "Displayed RTX lifecycle total must come from the tested engine output.");
 requireText(intake, "the tool will not invent renewal pricing", "RTX TCO UI must disclose that renewal pricing is not invented.");
 
 requireText(defaults, "NVIDIA_AI_ENTERPRISE_PER_GPU_ANNUAL_USD = 4500", "NVIDIA AI Enterprise planning default must stay tied to the admitted public-list value.");
 requireText(defaults, "US_COMMERCIAL_ELECTRICITY_USD_PER_KWH = 0.1453", "Owned-DC electricity planning default must remain source-explicit.");
 requireText(defaults, "INDUSTRY_AVERAGE_PUE = 1.52", "Owned-DC PUE planning default must remain source-explicit.");
+requireText(defaults, "SUPERMICRO_RTX_PRO_6000_CARD_USD = 15334.10", "8-GPU hardware estimate must remain tied to the admitted public Supermicro RTX PRO card price.");
+requireText(defaults, "CALCULATED_FROM_LISTED_COMPONENTS", "8-GPU hardware estimate must identify its derivation rather than masquerading as a configured-system list price.");
+requireText(defaults, "quoteRequired: true", "8-GPU estimate must retain explicit quote confirmation before client-ready use.");
 requireText(defaults, 'facilityMode: "owned-dc"', "RTX planning defaults must not silently force colocation economics.");
 requireText(defaults, 'source: "EST"', "Planning allowances must be explicitly marked EST.");
 requireText(defaults, 'source: "LISTED"', "Public evidence defaults must be explicitly marked LISTED.");
@@ -61,6 +68,7 @@ requireText(defaults, "This is not a utility electricity rate", "Colocation allo
 console.log("RTX PRO GPU Sizing → lifecycle TCO UI validation PASS");
 console.log("- single-server evidence-qualified sizing is selectable and continues through the shared RTX PRO TCO handoff");
 console.log("- planning defaults are explicit, source-labeled, and editable");
+console.log("- 8-GPU component-derived hardware estimate produces planning TCO while retaining quote confirmation");
 console.log("- user edits are labeled CUSTOMER");
 console.log("- owned-DC electricity/PUE and colocation $/kW-month are separate facility branches");
 console.log("- recurring commercial term basis and coverage are explicit");
