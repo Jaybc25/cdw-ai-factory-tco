@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { LICENSE_MODE, calculateSoftwareStack, validateSoftwareStackInputs } from "../src/softwareStackEngine.js";
+import { LICENSE_MODE, SOFTWARE_TCO_TREATMENT, calculateSoftwareStack, validateSoftwareStackInputs } from "../src/softwareStackEngine.js";
 import { buildSoftwareStackWritebackBundle } from "../src/softwareStackWriteback.js";
 import { PHASE2_SOURCE } from "../src/phase2Contract.js";
 
@@ -20,6 +20,7 @@ const inputs = {
       supportPct: 15,
       entitlementNotes: "3-year quote",
       priceSource: PHASE2_SOURCE.QUOTE,
+      tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE,
     },
     {
       id: "orchestration",
@@ -34,6 +35,7 @@ const inputs = {
       supportPct: 0,
       entitlementNotes: "community + internal operations",
       priceSource: PHASE2_SOURCE.EST,
+      tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE,
     },
   ],
 };
@@ -55,15 +57,17 @@ assert.ok(openSourceRow.yearly[0].operations > 0, "Open-source operating effort 
 const bundle = buildSoftwareStackWritebackBundle(result, inputs);
 assert.ok(bundle.fingerprint, "Accepted software bundle must carry a fingerprint");
 assert.equal(bundle.costResolved, true);
-assert.equal(bundle.overrides.length, 3, "One annual TCO override is expected per planning year when commercial pricing is resolved");
+assert.equal(bundle.phase1OverlapResolved, true);
+assert.equal(bundle.overrides.length, 3, "One annual TCO override is expected per planning year when commercial pricing and Phase 1 overlap are resolved");
 const platformRow = bundle.requirements.rows.find((row) => row.id === "platform");
 assert.equal(platformRow.priceSource, PHASE2_SOURCE.QUOTE, "Selected source provenance must survive calculation and writeback");
 assert.equal(platformRow.provenance.source, PHASE2_SOURCE.QUOTE);
+assert.equal(platformRow.tcoTreatment, SOFTWARE_TCO_TREATMENT.ADDITIVE);
 
 const unresolvedInputs = {
   horizonYears: 3,
   annualEscalationPct: 0,
-  components: [{ id: "commercial-zero", name: "Unresolved commercial", category: "platform", mode: LICENSE_MODE.COMMERCIAL, unit: "GPU", quantity: 8, annualUnitPrice: 0, annualOpsCost: 0, oneTimeCost: 0, supportPct: 0, priceSource: PHASE2_SOURCE.EST }],
+  components: [{ id: "commercial-zero", name: "Unresolved commercial", category: "platform", mode: LICENSE_MODE.COMMERCIAL, unit: "GPU", quantity: 8, annualUnitPrice: 0, annualOpsCost: 0, oneTimeCost: 0, supportPct: 0, priceSource: PHASE2_SOURCE.EST, tcoTreatment: SOFTWARE_TCO_TREATMENT.ADDITIVE }],
 };
 const unresolved = calculateSoftwareStack(unresolvedInputs);
 assert.ok(unresolved.warnings.some((warning) => warning.includes("$0 unit price")));
