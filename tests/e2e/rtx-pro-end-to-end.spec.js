@@ -51,6 +51,24 @@ test("RTX PRO planning defaults start directional TCO without a blank worksheet"
   await expect(fieldByLabelText(page, "PUE")).toHaveValue("1.52");
 });
 
+test("8-GPU RTX PRO starts with planning TCO while retaining configured-quote confirmation", async ({ page }) => {
+  await page.goto(`/tco/rtx-pro?${rtxParams("8").toString()}`, { waitUntil: "domcontentloaded" });
+  await expect(page.getByText("8 × RTX PRO 6000", { exact: true })).toBeVisible();
+  await expect(page.getByText("$189,009", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("EST · planning estimate", { exact: true })).toBeVisible();
+  await expect(page.getByText("QUOTE · confirm before client-ready", { exact: true })).toBeVisible();
+  await expect(page.getByText("Planning TCO ready", { exact: true })).toBeVisible();
+  await expect(fieldByLabelText(page, "NVIDIA software / support entitlement")).toHaveValue("36000");
+  await expect(fieldByLabelText(page, "OEM / server support")).toHaveValue("18901");
+  await expect(fieldByLabelText(page, "Professional services / implementation")).toHaveValue("18901");
+  await expect(fieldByLabelText(page, "Workload-derived storage")).toHaveValue("0");
+  await expect(page.getByText("Planning lifecycle TCO", { exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Continue to Inference Economics", exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "View my report", exact: true }).click();
+  await expect(page.getByText(/Planning estimate — quote confirmation required/)).toBeVisible();
+});
+
 test("RTX PRO single-server TCO hands exact benchmark and lifecycle TCO into IE", async ({ page }) => {
   await page.goto(`/tco/rtx-pro?${rtxParams().toString()}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByRole("heading", { name: "RTX PRO TCO", exact: true })).toBeVisible();
