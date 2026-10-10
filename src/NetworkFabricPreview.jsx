@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   FABRIC_LINK_MEDIA,
   FABRIC_PORT_SOURCE,
@@ -22,9 +22,15 @@ function money(v) { return `$${Math.round(Number(v || 0)).toLocaleString()}`; }
 function gbps(v) { return `${Math.round(Number(v || 0)).toLocaleString()} Gbps`; }
 function storageAggregateGBps(requirements) { return Number(requirements?.aggregateGBps ?? requirements?.aggregateGbps ?? 0); }
 function storageBandwidthGbps(requirements) { return storageAggregateGBps(requirements) * 8; }
+function numericInputValue(raw) { return raw === "" ? "" : Number(raw); }
+function sameInputs(a, b) { return Boolean(a && b && JSON.stringify(a) === JSON.stringify(b)); }
 
 export default function NetworkFabricPreview() {
   const acceptedStorage = useMemo(() => loadSessionState("phase2-storage-writeback"), []);
+  const savedInputState = useMemo(() => loadSessionState("phase2-network-inputs"), []);
+  const savedValues = savedInputState?.values || {};
+  const [acceptedBundle, setAcceptedBundle] = useState(() => loadSessionState("phase2-network-writeback"));
+  const [acceptedInputs, setAcceptedInputs] = useState(savedInputState?.acceptedInputs || null);
   const storageReq = acceptedStorage?.requirements || null;
   const storageStale = Boolean(
     acceptedStorage?.stale ||
@@ -33,25 +39,27 @@ export default function NetworkFabricPreview() {
   );
   const [acceptance, setAcceptance] = useState(null);
 
-  const [technology, setTechnology] = useState(FABRIC_TECHNOLOGY.INFINIBAND);
-  const [linkGbps, setLinkGbps] = useState(FABRIC_SPEED.G400);
-  const [linkMedia, setLinkMedia] = useState(FABRIC_LINK_MEDIA.OPTICAL);
-  const [priceSource, setPriceSource] = useState(FABRIC_PRICE_SOURCE.EST);
-  const [storageFabricMode, setStorageFabricMode] = useState(STORAGE_FABRIC_MODE.SEPARATE);
-  const [gpuSystems, setGpuSystems] = useState(8);
-  const [fabricPortsPerSystem, setFabricPortsPerSystem] = useState(8);
-  const [fabricPortsPerSystemSource, setFabricPortsPerSystemSource] = useState(FABRIC_PORT_SOURCE.EST);
-  const [fabricPortsPerSystemNote, setFabricPortsPerSystemNote] = useState("");
-  const [storageAggregateGbps, setStorageAggregateGbps] = useState(storageReq ? storageBandwidthGbps(storageReq) : 400);
-  const [storagePorts, setStoragePorts] = useState(storageReq ? Math.max(2, Math.ceil(storageBandwidthGbps(storageReq) / FABRIC_SPEED.G400)) : 2);
-  const [managementPorts, setManagementPorts] = useState(8);
-  const [uplinkPorts, setUplinkPorts] = useState(2);
-  const [switchRadix, setSwitchRadix] = useState(64);
-  const [targetOversubscription, setTargetOversubscription] = useState(1);
-  const [switchPowerKw, setSwitchPowerKw] = useState(1.5);
-  const [switchCost, setSwitchCost] = useState(0);
-  const [cableCost, setCableCost] = useState(0);
-  const [transceiverCost, setTransceiverCost] = useState(0);
+  const defaultStorageBandwidth = storageReq ? storageBandwidthGbps(storageReq) : 400;
+  const defaultStoragePorts = storageReq ? Math.max(2, Math.ceil(defaultStorageBandwidth / FABRIC_SPEED.G400)) : 2;
+  const [technology, setTechnology] = useState(savedValues.technology ?? FABRIC_TECHNOLOGY.INFINIBAND);
+  const [linkGbps, setLinkGbps] = useState(savedValues.linkGbps ?? FABRIC_SPEED.G400);
+  const [linkMedia, setLinkMedia] = useState(savedValues.linkMedia ?? FABRIC_LINK_MEDIA.OPTICAL);
+  const [priceSource, setPriceSource] = useState(savedValues.priceSource ?? FABRIC_PRICE_SOURCE.EST);
+  const [storageFabricMode, setStorageFabricMode] = useState(savedValues.storageFabricMode ?? STORAGE_FABRIC_MODE.SEPARATE);
+  const [gpuSystems, setGpuSystems] = useState(savedValues.gpuSystems ?? 8);
+  const [fabricPortsPerSystem, setFabricPortsPerSystem] = useState(savedValues.fabricPortsPerSystem ?? 8);
+  const [fabricPortsPerSystemSource, setFabricPortsPerSystemSource] = useState(savedValues.fabricPortsPerSystemSource ?? FABRIC_PORT_SOURCE.EST);
+  const [fabricPortsPerSystemNote, setFabricPortsPerSystemNote] = useState(savedValues.fabricPortsPerSystemNote ?? "");
+  const [storageAggregateGbps, setStorageAggregateGbps] = useState(savedValues.storageAggregateGbps ?? defaultStorageBandwidth);
+  const [storagePorts, setStoragePorts] = useState(savedValues.storagePorts ?? defaultStoragePorts);
+  const [managementPorts, setManagementPorts] = useState(savedValues.managementPorts ?? 8);
+  const [uplinkPorts, setUplinkPorts] = useState(savedValues.uplinkPorts ?? 2);
+  const [switchRadix, setSwitchRadix] = useState(savedValues.switchRadix ?? 64);
+  const [targetOversubscription, setTargetOversubscription] = useState(savedValues.targetOversubscription ?? 1);
+  const [switchPowerKw, setSwitchPowerKw] = useState(savedValues.switchPowerKw ?? 1.5);
+  const [switchCost, setSwitchCost] = useState(savedValues.switchCost ?? 0);
+  const [cableCost, setCableCost] = useState(savedValues.cableCost ?? 0);
+  const [transceiverCost, setTransceiverCost] = useState(savedValues.transceiverCost ?? 0);
 
   function clearAcceptance() { setAcceptance(null); }
 
@@ -77,14 +85,19 @@ export default function NetworkFabricPreview() {
     transceiverCost,
   }), [technology, linkGbps, linkMedia, priceSource, storageFabricMode, gpuSystems, fabricPortsPerSystem, fabricPortsPerSystemSource, fabricPortsPerSystemNote, storageAggregateGbps, storagePorts, managementPorts, uplinkPorts, switchRadix, targetOversubscription, switchPowerKw, switchCost, cableCost, transceiverCost]);
 
+  useEffect(() => {
+    saveSessionState("phase2-network-inputs", { values: inputs, acceptedInputs });
+  }, [inputs, acceptedInputs]);
+
   const result = useMemo(() => calculateNetworkFabric(inputs), [inputs]);
   const validation = useMemo(() => validateNetworkFabricInputs(inputs), [inputs]);
+  const acceptedMatchesDisplayed = sameInputs(inputs, acceptedInputs);
 
   function pullStorage() {
     if (!storageReq || storageStale) return;
     const requiredGbps = storageBandwidthGbps(storageReq);
     setStorageAggregateGbps(requiredGbps);
-    setStoragePorts(Math.max(1, Math.ceil(requiredGbps / linkGbps)));
+    setStoragePorts(Math.max(1, Math.ceil(requiredGbps / Number(linkGbps || FABRIC_SPEED.G400))));
     clearAcceptance();
   }
 
@@ -95,6 +108,8 @@ export default function NetworkFabricPreview() {
         upstreamStorageFingerprint: acceptedStorage?.fingerprint || null,
       });
       saveSessionState("phase2-network-writeback", bundle);
+      setAcceptedBundle(bundle);
+      setAcceptedInputs(inputs);
       setAcceptance({
         ok: true,
         fingerprint: bundle.fingerprint,
@@ -120,6 +135,11 @@ export default function NetworkFabricPreview() {
           Size endpoint ports, switch count, leaf/spine topology, storage-facing bandwidth, inter-switch links, media, switch power, and a fleet-size-dependent capital-cost schedule without turning the planning tool into a deployable network design.
         </p>
 
+        {acceptedBundle && <section style={{ ...card, marginBottom: 18, borderLeft: `6px solid ${acceptedMatchesDisplayed ? "#176b31" : "#b7791f"}`, background: acceptedMatchesDisplayed ? "#eaf7ee" : "#fff7e8" }}>
+          <strong>{acceptedMatchesDisplayed ? "Displayed inputs match the accepted Fabric requirement." : "Displayed inputs differ from the accepted Fabric requirement."}</strong>
+          <p style={{ marginBottom: 0, color: "#555" }}>{acceptedMatchesDisplayed ? "Navigation or refresh restored the accepted Fabric scenario inputs." : "Review the restored inputs and accept Fabric again before relying on the displayed scenario downstream."}</p>
+        </section>}
+
         {storageReq && (
           <section style={{ ...card, marginBottom: 18, borderLeft: storageStale ? "6px solid #b7791f" : "6px solid #176b31", background: storageStale ? "#fff7e8" : "#fff" }}>
             <h2 style={{ margin: "0 0 8px" }}>{storageStale ? "STALE Storage dependency" : "Accepted Storage dependency available"}</h2>
@@ -137,16 +157,16 @@ export default function NetworkFabricPreview() {
             <label style={field}><span style={label}>Link speed</span><select style={input} value={linkGbps} onChange={(e) => { setLinkGbps(Number(e.target.value)); clearAcceptance(); }}><option value={200}>200 Gbps</option><option value={400}>400 Gbps</option><option value={800}>800 Gbps</option></select></label>
             <label style={field}><span style={label}>Link media</span><select style={input} value={linkMedia} onChange={(e) => { setLinkMedia(e.target.value); clearAcceptance(); }}><option value={FABRIC_LINK_MEDIA.OPTICAL}>Optical</option><option value={FABRIC_LINK_MEDIA.DAC}>Direct-attach cable (DAC)</option></select></label>
             <label style={field}><span style={label}>Storage network relationship</span><select style={input} value={storageFabricMode} onChange={(e) => { setStorageFabricMode(e.target.value); clearAcceptance(); }}><option value={STORAGE_FABRIC_MODE.SEPARATE}>Separate storage network</option><option value={STORAGE_FABRIC_MODE.CONVERGED}>Converged on this high-speed fabric</option></select></label>
-            <label style={field}><span style={label}>GPU systems</span><input style={input} type="number" min="1" value={gpuSystems} onChange={(e) => { setGpuSystems(Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>High-speed fabric ports / GPU system</span><input style={input} type="number" min="1" value={fabricPortsPerSystem} onChange={(e) => { setFabricPortsPerSystem(Number(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>GPU systems</span><input style={input} type="number" min="1" value={gpuSystems} onChange={(e) => { setGpuSystems(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>High-speed fabric ports / GPU system</span><input style={input} type="number" min="1" value={fabricPortsPerSystem} onChange={(e) => { setFabricPortsPerSystem(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
             <label style={field}><span style={label}>Port-count source</span><select style={input} value={fabricPortsPerSystemSource} onChange={(e) => { setFabricPortsPerSystemSource(e.target.value); clearAcceptance(); }}><option value={FABRIC_PORT_SOURCE.EST}>EST · planning assumption</option><option value={FABRIC_PORT_SOURCE.LISTED}>LISTED · system/OEM documentation</option><option value={FABRIC_PORT_SOURCE.CUSTOMER}>CUSTOMER · customer standard</option><option value={FABRIC_PORT_SOURCE.QUOTE}>QUOTE · partner/OEM quote</option></select></label>
-            <label style={field}><span style={label}>Storage aggregate bandwidth (Gbps)</span><input style={input} type="number" min="0" value={storageAggregateGbps} onChange={(e) => { setStorageAggregateGbps(Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>{storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED ? "Storage-facing high-speed ports" : "Storage ports (reference only)"}</span><input style={input} type="number" min="0" value={storagePorts} onChange={(e) => { setStoragePorts(Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>Management ports (separate scope)</span><input style={input} type="number" min="0" value={managementPorts} onChange={(e) => { setManagementPorts(Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>Campus / external uplink ports</span><input style={input} type="number" min="0" value={uplinkPorts} onChange={(e) => { setUplinkPorts(Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>Switch radix</span><input style={input} type="number" min="8" value={switchRadix} onChange={(e) => { setSwitchRadix(Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>Target oversubscription</span><input style={input} type="number" min="1" step="0.5" value={targetOversubscription} onChange={(e) => { setTargetOversubscription(Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>Switch power (kW)</span><input style={input} type="number" min="0" step="0.1" value={switchPowerKw} onChange={(e) => { setSwitchPowerKw(Number(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Storage aggregate bandwidth (Gbps)</span><input style={input} type="number" min="0" value={storageAggregateGbps} onChange={(e) => { setStorageAggregateGbps(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>{storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED ? "Storage-facing high-speed ports" : "Storage ports (reference only)"}</span><input style={input} type="number" min="0" value={storagePorts} onChange={(e) => { setStoragePorts(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Management ports (separate scope)</span><input style={input} type="number" min="0" value={managementPorts} onChange={(e) => { setManagementPorts(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Campus / external uplink ports</span><input style={input} type="number" min="0" value={uplinkPorts} onChange={(e) => { setUplinkPorts(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Switch radix</span><input style={input} type="number" min="8" value={switchRadix} onChange={(e) => { setSwitchRadix(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Target oversubscription</span><input style={input} type="number" min="1" step="0.5" value={targetOversubscription} onChange={(e) => { setTargetOversubscription(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Switch power (kW)</span><input style={input} type="number" min="0" step="0.1" value={switchPowerKw} onChange={(e) => { setSwitchPowerKw(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
           </div>
           <label style={{ ...field, marginTop: 12 }}><span style={label}>Port-count basis / reference</span><input style={input} value={fabricPortsPerSystemNote} onChange={(e) => { setFabricPortsPerSystemNote(e.target.value); clearAcceptance(); }} placeholder="e.g., system/OEM port map, customer standard, quote line, planning rationale" /></label>
           <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: result.fabricPortBasis.authoritative ? "#eaf7ee" : "#fff7e8", border: result.fabricPortBasis.authoritative ? "1px solid #b8dec3" : "1px solid #edd7a7", lineHeight: 1.5 }}><strong>Fabric port basis:</strong> {result.fabricPortBasis.portsPerGpuSystem} ports/system · {result.fabricPortBasis.source} · {result.fabricPortBasis.status}. {result.fabricPortBasis.authoritative ? "A supporting basis is recorded." : "Treat downstream switch/media/power/CAPEX quantities as planning-level until this assumption is supported."}</div>
@@ -159,9 +179,9 @@ export default function NetworkFabricPreview() {
           <p style={{ color: "#666", lineHeight: 1.5 }}>Choose the source of the entered unit costs. EST is a planning assumption, CUSTOMER is customer-supplied, and QUOTE is partner/OEM quote-based. Unresolved prices never create a zero-dollar TCO override.</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: 14 }}>
             <label style={field}><span style={label}>Pricing source</span><select style={input} value={priceSource} onChange={(e) => { setPriceSource(e.target.value); clearAcceptance(); }}><option value={FABRIC_PRICE_SOURCE.EST}>EST · planning estimate</option><option value={FABRIC_PRICE_SOURCE.CUSTOMER}>CUSTOMER · customer supplied</option><option value={FABRIC_PRICE_SOURCE.QUOTE}>QUOTE · partner/OEM quote</option></select></label>
-            <label style={field}><span style={label}>Switch cost</span><input style={input} type="number" min="0" value={switchCost} onChange={(e) => { setSwitchCost(Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>{linkMedia === FABRIC_LINK_MEDIA.DAC ? "DAC cost / link" : "Cable cost / link"}</span><input style={input} type="number" min="0" value={cableCost} onChange={(e) => { setCableCost(Number(e.target.value)); clearAcceptance(); }} /></label>
-            <label style={field}><span style={label}>Transceiver cost / optic</span><input style={input} type="number" min="0" disabled={linkMedia === FABRIC_LINK_MEDIA.DAC} value={linkMedia === FABRIC_LINK_MEDIA.DAC ? 0 : transceiverCost} onChange={(e) => { setTransceiverCost(Number(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Switch cost</span><input style={input} type="number" min="0" value={switchCost} onChange={(e) => { setSwitchCost(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>{linkMedia === FABRIC_LINK_MEDIA.DAC ? "DAC cost / link" : "Cable cost / link"}</span><input style={input} type="number" min="0" value={cableCost} onChange={(e) => { setCableCost(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
+            <label style={field}><span style={label}>Transceiver cost / optic</span><input style={input} type="number" min="0" disabled={linkMedia === FABRIC_LINK_MEDIA.DAC} value={linkMedia === FABRIC_LINK_MEDIA.DAC ? 0 : transceiverCost} onChange={(e) => { setTransceiverCost(numericInputValue(e.target.value)); clearAcceptance(); }} /></label>
           </div>
         </section>
 
