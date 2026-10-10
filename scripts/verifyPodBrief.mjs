@@ -7,14 +7,17 @@ const canonicalFleet = makeFleetIdentity({ systemClass: "DGX B200", systemCount:
 const storageBundle = {
   fingerprint: "storage-a",
   fleet: makeFleetIdentity({ totalGpus: 64, source: "storage-sizer" }),
-  costResolved: false,
+  economicsScope: "REQUIREMENT-ONLY",
+  pricingIncluded: false,
   requirements: {
     fastUsableTb: 600,
     bulkUsableTb: 400,
     totalRawTb: 1400,
     storageRacks: 3,
     storagePowerKw: 18,
-    aggregateGbps: 42,
+    aggregateGBps: 42,
+    bandwidthUnit: "GB/s",
+    pricingStatus: "OUT-OF-SCOPE",
   },
 };
 
@@ -39,6 +42,7 @@ const fabricBundle = {
 const powerFleet = makeFleetIdentity({ systemClass: "DGX B200", systemCount: 8, source: "power-planner" });
 const powerBundle = {
   fleet: powerFleet,
+  costResolved: true,
   requirements: {
     fleet: powerFleet,
     systemName: "DGX B200",
@@ -57,6 +61,7 @@ const powerBundle = {
 
 const softwareBundle = {
   fleet: makeFleetIdentity({ totalGpus: 64, source: "software-stack" }),
+  costResolved: true,
   requirements: {
     horizonYears: 3,
     rows: [{ name: "Platform", mode: "commercial", priceSource: "QUOTE", unit: "GPU", quantity: 64 }],
@@ -76,19 +81,21 @@ const phase1Snapshot = {
 const brief = buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle, phase1Snapshot });
 assert.deepEqual(brief.canonicalFleet, canonicalFleet);
 assert.equal(brief.engineeringReviewReady, true);
-assert.equal(brief.clientReady, false, "Unresolved Storage pricing must prevent unqualified client-ready status");
-assert.equal(brief.openItemCount, 1);
-assert.match(brief.status, /READY FOR ENGINEERING REVIEW/);
+assert.equal(brief.clientReady, true, "Storage OEM/BOM pricing is outside the sizing contract and must not block client-ready status");
+assert.equal(brief.openItemCount, 0);
+assert.equal(brief.status, "PRE-ARCHITECTURE READY");
 assert.equal(brief.fleetIssues.length, 0);
 assert.equal(brief.compute.totalRacks, 8);
 assert.equal(brief.storage.totalRawTb, 1400);
+assert.equal(brief.storage.pricingStatus, "OUT-OF-SCOPE");
 assert.equal(brief.fabric.switchPowerKw, 4.5);
 assert.equal(brief.facility.facilityDesignKw, 216);
 assert.equal(brief.economics.powerMonthly, 50000);
 assert.equal(brief.economics.powerAnnualized, 600000);
+assert.equal(brief.economics.powerFacilityComplete, true);
 assert.equal(brief.economics.networkCapex, 150000);
 assert.equal(brief.economics.softwareByYear[1], 62000);
-assert.ok(brief.unresolved.some((item) => item.includes("Storage OEM/BOM pricing")));
+assert.equal(brief.unresolved.some((item) => item.includes("Storage OEM/BOM pricing")), false);
 
 const mismatchedSoftware = { ...softwareBundle, fleet: makeFleetIdentity({ totalGpus: 16, source: "software-stack" }) };
 const fleetMismatchBrief = buildPodBrief({ storageBundle, fabricBundle, powerBundle, softwareBundle: mismatchedSoftware, phase1Snapshot });
@@ -110,11 +117,44 @@ const staleBrief = buildPodBrief({ storageBundle, fabricBundle, powerBundle: sta
 assert.equal(staleBrief.clientReady, false);
 assert.equal(staleBrief.engineeringReviewReady, false);
 assert.ok(staleBrief.stale.length > 0);
-assert.equal(staleBrief.economics.powerMonthly, 0);
+assert.equal(staleBrief.economics.powerMonthly, null, "stale Power economics must remain unresolved rather than display as zero");
+assert.equal(staleBrief.economics.powerAnnualized, null);
+
+const unresolvedFabric = buildPodBrief({
+  storageBundle,
+  fabricBundle: { ...fabricBundle, costResolved: false, overrides: [] },
+  powerBundle,
+  softwareBundle,
+  phase1Snapshot,
+});
+assert.equal(unresolvedFabric.economics.networkCapex, null, "unresolved Fabric economics must remain unresolved rather than display as zero");
+assert.equal(unresolvedFabric.phase1Comparison.phase2RefinedLines.networkCapex, null);
+
+const unresolvedSoftware = buildPodBrief({
+  storageBundle,
+  fabricBundle,
+  powerBundle,
+  softwareBundle: { ...softwareBundle, costResolved: false, phase1OverlapResolved: false, overrides: [] },
+  phase1Snapshot,
+});
+assert.equal(unresolvedSoftware.economics.softwareByYear[1], undefined, "unresolved Software economics must not manufacture a zero-dollar Year 1 line");
+assert.equal(unresolvedSoftware.phase1Comparison.phase2RefinedLines.softwareHorizon, null);
+
+const energyOnlyPower = buildPodBrief({
+  storageBundle,
+  fabricBundle,
+  powerBundle: { ...powerBundle, costResolved: false, overrides: [powerBundle.overrides[0]] },
+  softwareBundle,
+  phase1Snapshot,
+});
+assert.equal(energyOnlyPower.economics.powerMonthly, 18000);
+assert.equal(energyOnlyPower.economics.powerFacilityComplete, false, "energy-only Power economics must not be labeled as a complete power+facility line");
 
 const incomplete = buildPodBrief({ storageBundle: null, fabricBundle: null, powerBundle: null, softwareBundle: null });
 assert.equal(incomplete.clientReady, false);
 assert.equal(incomplete.engineeringReviewReady, false);
 assert.equal(incomplete.unresolved.length, 5);
+assert.equal(incomplete.economics.powerMonthly, null);
+assert.equal(incomplete.economics.networkCapex, null);
 
 console.log("Phase 2 Pod Brief verification: PASS");
