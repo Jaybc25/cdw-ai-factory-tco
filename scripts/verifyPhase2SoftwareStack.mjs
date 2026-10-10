@@ -77,4 +77,25 @@ assert.equal(unresolvedBundle.overrides.length, 0, "Unresolved commercial softwa
 assert.deepEqual(unresolvedBundle.unresolvedCommercialComponents, ["Unresolved commercial"]);
 assert.match(unresolvedBundle.requirements.costNote, /no annual TCO overrides are eligible/i);
 
+const implicitOverlapInputs = {
+  horizonYears: 3,
+  annualEscalationPct: 0,
+  components: [{ id: "implicit-overlap", name: "Implicit overlap", category: "orchestration", mode: LICENSE_MODE.OPEN_SOURCE, unit: "GPU", quantity: 8, annualUnitPrice: 0, annualOpsCost: 12000, oneTimeCost: 0, supportPct: 0, priceSource: PHASE2_SOURCE.EST }],
+};
+const implicitOverlapResult = calculateSoftwareStack(implicitOverlapInputs);
+assert.equal(implicitOverlapResult.rows[0].tcoTreatment, SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED, "Missing overlap classification must default to review-required");
+const implicitOverlapBundle = buildSoftwareStackWritebackBundle(implicitOverlapResult, implicitOverlapInputs);
+assert.equal(implicitOverlapBundle.phase1OverlapResolved, false);
+assert.equal(implicitOverlapBundle.overrides.length, 0, "Review-required overlap must block all Software TCO overrides");
+
+const blankValidation = validateSoftwareStackInputs({
+  horizonYears: "",
+  annualEscalationPct: "",
+  components: [{ id: "blank", name: "Blank inputs", category: "platform", mode: LICENSE_MODE.COMMERCIAL, unit: "GPU", quantity: "", annualUnitPrice: "", annualOpsCost: "", oneTimeCost: "", supportPct: "", priceSource: PHASE2_SOURCE.EST, tcoTreatment: SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED }],
+});
+assert.equal(blankValidation.valid, false, "Blank required Software numeric fields must not coerce to zero and pass validation");
+assert.ok(blankValidation.errors.some((error) => error.includes("Planning horizon")));
+assert.ok(blankValidation.errors.some((error) => error.includes("quantity cannot be blank")));
+assert.ok(blankValidation.errors.some((error) => error.includes("unit price cannot be blank")));
+
 console.log("Phase 2 Software Stack verification passed");
