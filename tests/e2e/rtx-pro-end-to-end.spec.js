@@ -124,7 +124,7 @@ test("RTX PRO TCO preserves customer edits and resets a new scenario to planning
   await expect(fieldByLabelText(page, "Full configured-server power draw")).toHaveValue("2.5");
   await expect(fieldByLabelText(page, "Colocation facility rate")).toBeVisible();
   await expect(fieldByLabelText(page, "Colocation facility rate")).toHaveValue("275");
-  await expect(fieldByLabelText(page, "Electricity rate")).toHaveCount(0);
+  await expect(page.getByText("Electricity rate", { exact: true })).toHaveCount(0);
 
   await page.getByRole("button", { name: "View my report", exact: true }).click();
   await expect(page.getByRole("heading", { name: "RTX PRO TCO Report", exact: true })).toBeVisible();
