@@ -38,6 +38,13 @@ function n(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function optionalNumber(value) {
+  if (value == null) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function calculateNetworkFabric(inputs) {
   const technology = Object.values(FABRIC_TECHNOLOGY).includes(inputs.technology) ? inputs.technology : FABRIC_TECHNOLOGY.INFINIBAND;
   const linkGbps = Object.values(FABRIC_SPEED).includes(Number(inputs.linkGbps)) ? Number(inputs.linkGbps) : FABRIC_SPEED.G400;
@@ -225,18 +232,32 @@ export function validateNetworkFabricInputs(inputs) {
   const linkMedia = Object.values(FABRIC_LINK_MEDIA).includes(inputs.linkMedia) ? inputs.linkMedia : FABRIC_LINK_MEDIA.OPTICAL;
   const storageFabricMode = Object.values(STORAGE_FABRIC_MODE).includes(inputs.storageFabricMode) ? inputs.storageFabricMode : STORAGE_FABRIC_MODE.SEPARATE;
   const fabricPortsPerSystemSource = Object.values(FABRIC_PORT_SOURCE).includes(inputs.fabricPortsPerSystemSource) ? inputs.fabricPortsPerSystemSource : FABRIC_PORT_SOURCE.EST;
-  if (n(inputs.gpuSystems) < 1) errors.push("At least one GPU system is required.");
-  if (n(inputs.fabricPortsPerSystem) < 1) errors.push("Fabric ports per system must be at least 1.");
+  const gpuSystems = optionalNumber(inputs.gpuSystems);
+  const fabricPortsPerSystem = optionalNumber(inputs.fabricPortsPerSystem);
+  const switchRadix = optionalNumber(inputs.switchRadix);
+  const targetOversubscription = optionalNumber(inputs.targetOversubscription);
+  const switchPowerKw = optionalNumber(inputs.switchPowerKw);
+  const storageAggregateGbps = optionalNumber(inputs.storageAggregateGbps);
+  const storagePorts = optionalNumber(inputs.storagePorts);
+  const managementPorts = optionalNumber(inputs.managementPorts);
+  const switchCost = optionalNumber(inputs.switchCost);
+  const cableCost = optionalNumber(inputs.cableCost);
+  const transceiverCost = optionalNumber(inputs.transceiverCost);
+
+  if (!(gpuSystems >= 1)) errors.push("At least one GPU system is required.");
+  if (!(fabricPortsPerSystem >= 1)) errors.push("Fabric ports per system must be at least 1.");
   if (fabricPortsPerSystemSource === FABRIC_PORT_SOURCE.EST) warnings.push("Fabric ports per GPU system is still an EST planning assumption. Confirm the count from a listed system/OEM port map, customer standard, or quote before treating the fabric BOM as authoritative.");
   if (fabricPortsPerSystemSource !== FABRIC_PORT_SOURCE.EST && !String(inputs.fabricPortsPerSystemNote || "").trim()) warnings.push(`Fabric port-count source is ${fabricPortsPerSystemSource}, but its supporting basis/note is blank.`);
-  if (n(inputs.switchRadix) < 8) errors.push("Switch radix must be at least 8 ports.");
-  if (n(inputs.targetOversubscription, 1) < 1) errors.push("Target oversubscription must be 1.0 or greater.");
-  if (storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED && n(inputs.storageAggregateGbps) > 0 && n(inputs.storagePorts) < 1) errors.push("Converged storage bandwidth is non-zero but no storage-facing high-speed fabric ports are defined.");
-  if (storageFabricMode === STORAGE_FABRIC_MODE.SEPARATE && n(inputs.storagePorts) > 0) warnings.push("Storage networking is separate; entered storage-facing port count is retained as a reference but excluded from this high-speed compute-fabric BOM.");
-  if (n(inputs.managementPorts) > 0) warnings.push("Management/control-plane ports are tracked separately and are not included in the high-speed fabric BOM, transceiver count, switch power, or leaf/spine sizing.");
-  if (n(inputs.switchCost) === 0) warnings.push("Switch pricing is unresolved; capital cost is incomplete.");
-  if (n(inputs.cableCost) === 0) warnings.push("Cable/DAC pricing is unresolved; capital cost is incomplete.");
-  if (linkMedia === FABRIC_LINK_MEDIA.OPTICAL && n(inputs.transceiverCost) === 0) warnings.push("Optical media is selected but transceiver pricing is unresolved; capital cost is incomplete.");
+  if (!(switchRadix >= 8)) errors.push("Switch radix must be at least 8 ports.");
+  if (!(targetOversubscription >= 1)) errors.push("Target oversubscription must be 1.0 or greater.");
+  if (!(switchPowerKw > 0)) errors.push("Switch power is required and must be greater than 0 kW.");
+  if (storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED && storageAggregateGbps == null) errors.push("Converged storage bandwidth cannot be blank.");
+  if (storageFabricMode === STORAGE_FABRIC_MODE.CONVERGED && storageAggregateGbps > 0 && !(storagePorts >= 1)) errors.push("Converged storage bandwidth is non-zero but no storage-facing high-speed fabric ports are defined.");
+  if (storageFabricMode === STORAGE_FABRIC_MODE.SEPARATE && storagePorts > 0) warnings.push("Storage networking is separate; entered storage-facing port count is retained as a reference but excluded from this high-speed compute-fabric BOM.");
+  if (managementPorts > 0) warnings.push("Management/control-plane ports are tracked separately and are not included in the high-speed fabric BOM, transceiver count, switch power, or leaf/spine sizing.");
+  if (switchCost == null || switchCost === 0) warnings.push("Switch pricing is unresolved; capital cost is incomplete.");
+  if (cableCost == null || cableCost === 0) warnings.push("Cable/DAC pricing is unresolved; capital cost is incomplete.");
+  if (linkMedia === FABRIC_LINK_MEDIA.OPTICAL && (transceiverCost == null || transceiverCost === 0)) warnings.push("Optical media is selected but transceiver pricing is unresolved; capital cost is incomplete.");
   if (linkMedia === FABRIC_LINK_MEDIA.DAC) warnings.push("DAC media selected. Validate reach and hardware compatibility during engineering review; zero transceiver cost is valid in this mode.");
   return { valid: errors.length === 0, errors, warnings };
 }
