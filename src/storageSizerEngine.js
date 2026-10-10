@@ -52,29 +52,37 @@ function clamp(value, min, max) {
 export function validateStorageSizerInputs(inputs) {
   const errors = [];
   const warnings = [];
-  const baseDatasetTb = n(inputs.baseDatasetTb);
-  const annualGrowthPct = n(inputs.annualGrowthPct);
-  const years = n(inputs.years, 3);
-  const copies = n(inputs.copies, 1);
-  const usableEfficiency = n(inputs.usableEfficiency, 0.75);
-  const gpuCount = n(inputs.gpuCount);
-  const modelParamsBillions = n(inputs.modelParamsBillions, 0);
-  const checkpointBytesPerParam = n(inputs.checkpointBytesPerParam, 16);
-  const checkpointsRetained = n(inputs.checkpointsRetained, 0);
-  const activeWorkingSetPct = n(inputs.activeWorkingSetPct, 0);
+  const baseDatasetTb = optionalNumber(inputs.baseDatasetTb);
+  const annualGrowthPct = optionalNumber(inputs.annualGrowthPct);
+  const years = optionalNumber(inputs.years);
+  const copies = optionalNumber(inputs.copies);
+  const usableEfficiency = optionalNumber(inputs.usableEfficiency);
+  const gpuCount = optionalNumber(inputs.gpuCount);
+  const modelParamsBillions = optionalNumber(inputs.modelParamsBillions);
+  const checkpointBytesPerParam = optionalNumber(inputs.checkpointBytesPerParam);
+  const checkpointsRetained = optionalNumber(inputs.checkpointsRetained);
+  const activeWorkingSetPct = optionalNumber(inputs.activeWorkingSetPct);
   const activeWorkingSetTb = optionalNumber(inputs.activeWorkingSetTb);
+  const fastTierTbPerRack = optionalNumber(inputs.fastTierTbPerRack);
+  const bulkTierTbPerRack = optionalNumber(inputs.bulkTierTbPerRack);
+  const fastTierKwPerRack = optionalNumber(inputs.fastTierKwPerRack);
+  const bulkTierKwPerRack = optionalNumber(inputs.bulkTierKwPerRack);
 
   if (!(baseDatasetTb > 0)) errors.push("Base dataset must be greater than 0 TB.");
   if (!(years >= 1 && years <= 7)) errors.push("Planning horizon must be between 1 and 7 years.");
   if (!(copies >= 1 && copies <= 5)) errors.push("Copies / replicas must be between 1 and 5.");
   if (!(usableEfficiency > 0 && usableEfficiency <= 1)) errors.push("Usable efficiency must be greater than 0 and no more than 1.0.");
-  if (annualGrowthPct < 0 || annualGrowthPct > 300) errors.push("Annual growth must be between 0% and 300%.");
-  if (gpuCount < 0) errors.push("GPU count cannot be negative.");
-  if (modelParamsBillions < 0) errors.push("Model parameters cannot be negative.");
-  if (checkpointBytesPerParam < 0 || checkpointBytesPerParam > 64) errors.push("Checkpoint bytes per parameter must be between 0 and 64.");
-  if (checkpointsRetained < 0 || checkpointsRetained > 100) errors.push("Checkpoints retained must be between 0 and 100.");
-  if (activeWorkingSetPct < 0 || activeWorkingSetPct > 100) errors.push("Active working-set percentage must be between 0% and 100%.");
+  if (annualGrowthPct == null || annualGrowthPct < 0 || annualGrowthPct > 300) errors.push("Annual growth must be between 0% and 300%.");
+  if (gpuCount == null || gpuCount < 0) errors.push("GPU count cannot be blank or negative.");
+  if (modelParamsBillions == null || modelParamsBillions < 0) errors.push("Model parameters cannot be blank or negative.");
+  if (checkpointBytesPerParam == null || checkpointBytesPerParam < 0 || checkpointBytesPerParam > 64) errors.push("Checkpoint bytes per parameter must be between 0 and 64.");
+  if (checkpointsRetained == null || checkpointsRetained < 0 || checkpointsRetained > 100) errors.push("Checkpoints retained must be between 0 and 100.");
+  if (activeWorkingSetPct == null || activeWorkingSetPct <= 0 || activeWorkingSetPct > 100) errors.push("Active working-set percentage must be greater than 0% and no more than 100%.");
   if (activeWorkingSetTb != null && activeWorkingSetTb < 0) errors.push("Active working-set TB cannot be negative.");
+  if (!(fastTierTbPerRack > 0)) errors.push("Fast-tier TB per rack is required and must be greater than 0.");
+  if (!(bulkTierTbPerRack > 0)) errors.push("Bulk-tier TB per rack is required and must be greater than 0.");
+  if (!(fastTierKwPerRack > 0)) errors.push("Fast-tier kW per rack is required and must be greater than 0.");
+  if (!(bulkTierKwPerRack > 0)) errors.push("Bulk-tier kW per rack is required and must be greater than 0.");
 
   if (gpuCount === 0) warnings.push("GPU count is 0, so throughput is workload-only and not GPU-scaled.");
   if (annualGrowthPct > 100) warnings.push("Annual growth above 100% materially dominates the horizon result; confirm this is intentional.");
@@ -119,7 +127,6 @@ export function calculateStorageSizer(inputs) {
   const grownDatasetTb = baseDatasetTb * horizonGrowthFactor;
   const replicatedDatasetTb = grownDatasetTb * copies;
 
-  // Decimal TB: 1B parameters × N bytes/parameter = N GB = N/1000 TB.
   const checkpointTb = (modelParamsBillions * checkpointBytesPerParam * checkpointsRetained) / 1000;
   const indexOverheadTb = replicatedDatasetTb * (indexOverheadPct / 100);
   const logicalTotalTb = replicatedDatasetTb + checkpointTb + indexOverheadTb;
@@ -206,7 +213,6 @@ export function calculateStorageSizer(inputs) {
       requiredReadGBps,
       requiredWriteGBps,
       aggregateGBps,
-      // Backward-compatible aliases retained during preview migration. Values are GB/s, not Gbps.
       gpuDrivenGbps: gpuDrivenGBps,
       requiredReadGbps: requiredReadGBps,
       requiredWriteGbps: requiredWriteGBps,
