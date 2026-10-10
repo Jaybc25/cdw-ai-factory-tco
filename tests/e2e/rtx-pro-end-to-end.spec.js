@@ -38,7 +38,7 @@ function rtxParams(gpuCount = "2") {
 
 test("RTX PRO planning defaults start directional TCO without a blank worksheet", async ({ page }) => {
   await page.goto(`/tco/rtx-pro?${rtxParams().toString()}`, { waitUntil: "domcontentloaded" });
-  await expect(page.getByText("Planning defaults are active", { exact: true })).toBeVisible();
+  await expect(page.getByText("Planning defaults are pre-populated — not hidden assumptions.", { exact: true })).toBeVisible();
   await expect(fieldByLabelText(page, "NVIDIA software / support entitlement")).toHaveValue("9000");
   await expect(fieldByLabelText(page, "OEM / server support")).toHaveValue("6668");
   await expect(fieldByLabelText(page, "Professional services / implementation")).toHaveValue("6668");
@@ -114,7 +114,7 @@ test("RTX PRO TCO preserves customer edits and resets a new scenario to planning
   await fillMoney(page, "Professional services / implementation", 8000);
   await openAdvancedAssumptions(page);
   await fieldByLabelText(page, "Full configured-server power draw").fill("2.5");
-  await page.getByLabel("Colocation").check();
+  await page.getByRole("button", { name: "Colocation", exact: true }).click();
   await fieldByLabelText(page, "Colocation facility rate").fill("275");
   await expect(page.getByText("Directional TCO ready", { exact: true })).toBeVisible();
 
@@ -122,15 +122,16 @@ test("RTX PRO TCO preserves customer edits and resets a new scenario to planning
   await expect(fieldByLabelText(page, "NVIDIA software / support entitlement")).toHaveValue("10000");
   await openAdvancedAssumptions(page);
   await expect(fieldByLabelText(page, "Full configured-server power draw")).toHaveValue("2.5");
-  await expect(page.getByLabel("Colocation")).toBeChecked();
+  await expect(fieldByLabelText(page, "Colocation facility rate")).toBeVisible();
   await expect(fieldByLabelText(page, "Colocation facility rate")).toHaveValue("275");
+  await expect(fieldByLabelText(page, "Electricity rate")).toHaveCount(0);
 
   await page.getByRole("button", { name: "View my report", exact: true }).click();
   await expect(page.getByRole("heading", { name: "RTX PRO TCO Report", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Calculation Methodology & Audit Trail", exact: true }).click();
   await expect(page.getByRole("heading", { name: "RTX PRO TCO Audit Trail", exact: true })).toBeVisible();
   await expect(page.getByText(/CUSTOMER/).first()).toBeVisible();
-  await expect(page.getByText(/Colocation · \$275\/kW-month/)).toBeVisible();
+  await expect(page.getByText(/Colocation · \$275\.00\/kW-month/)).toBeVisible();
 
   await page.goto(`/tco/rtx-pro?${rtxParams("4").toString()}`, { waitUntil: "domcontentloaded" });
   await expect(page.getByText("4 × RTX PRO 6000", { exact: true })).toBeVisible();
@@ -143,10 +144,10 @@ test("RTX PRO TCO preserves customer edits and resets a new scenario to planning
 
 test("RTX PRO TCO surfaces the full Google Cloud Run minimum instance floor, not GPU-only pricing", async ({ page }) => {
   await page.goto(`/tco/rtx-pro?${rtxParams().toString()}`, { waitUntil: "domcontentloaded" });
-  const cloudHeading = page.getByRole("heading", { name: "Google Cloud Run · RTX PRO 6000 Blackwell", exact: true });
-  const cloudRef = page.getByRole("region", { name: "Google Cloud RTX PRO reference" }).filter({ has: cloudHeading });
+  const cloudRef = page.locator('section[role="region"][aria-label="Google Cloud RTX PRO reference"]');
+  await expect(cloudRef).toHaveCount(1);
   await expect(cloudRef).toBeVisible();
-  await expect(cloudHeading).toBeVisible();
+  await expect(cloudRef.getByRole("heading", { name: "Google Cloud Run · RTX PRO 6000 Blackwell", exact: true })).toBeVisible();
   await expect(cloudRef.getByText("$3.186792/hr", { exact: true })).toBeVisible();
   await expect(cloudRef.getByText("Minimum deployable instance floor", { exact: true })).toBeVisible();
   await expect(cloudRef.getByText("$1.314792/hr", { exact: true })).toBeVisible();
