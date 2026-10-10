@@ -6,19 +6,38 @@ export const POD_BRIEF_STATUS = Object.freeze({
   STALE: "STALE",
 });
 
+function bundleStateSignature(bundle) {
+  if (!bundle) return null;
+  return {
+    stale: Boolean(bundle.stale),
+    staleReason: bundle.staleReason || null,
+    requirementStale: Boolean(bundle.requirements?.stale),
+    requirementStaleReason: bundle.requirements?.staleReason || null,
+    overrideStates: (bundle.overrides || []).map((override) => ({
+      id: override?.id || null,
+      state: override?.state || null,
+      staleReason: override?.staleReason || null,
+    })),
+  };
+}
+
 export function podBriefDependencyFingerprint({ storageBundle, fabricBundle, powerBundle, softwareBundle, phase1Snapshot }) {
   return fingerprintInputs({
     canonicalFleet: fleetFromPhase1Snapshot(phase1Snapshot),
     storage: storageBundle?.fingerprint || storageBundle?.acceptedAt || null,
     storageFleet: storageBundle?.fleet || null,
+    storageState: bundleStateSignature(storageBundle),
     fabric: fabricBundle?.fingerprint || fabricBundle?.acceptedAt || null,
     fabricFleet: fabricBundle?.fleet || null,
+    fabricState: bundleStateSignature(fabricBundle),
     power: powerBundle?.requirements?.acceptedAt || powerBundle?.acceptedAt || null,
     powerFleet: powerBundle?.fleet || powerBundle?.requirements?.fleet || null,
     powerStorage: powerBundle?.requirements?.upstreamStorageFingerprint || null,
     powerFabric: powerBundle?.requirements?.upstreamNetworkFingerprint || null,
+    powerState: bundleStateSignature(powerBundle),
     software: softwareBundle?.fingerprint || softwareBundle?.acceptedAt || null,
     softwareFleet: softwareBundle?.fleet || null,
+    softwareState: bundleStateSignature(softwareBundle),
     phase1Tco: phase1Snapshot ? {
       updatedAt: phase1Snapshot.updated_at || null,
       horizonYears: phase1Snapshot.summary?.horizonYears ?? null,
@@ -51,6 +70,6 @@ export function evaluateAcceptedPodBrief(record, { dependencies, phase1Snapshot 
     ...record,
     state: POD_BRIEF_STATUS.STALE,
     currentDependencyFingerprint: currentFingerprint,
-    staleReason: "One or more accepted Phase 2 dependencies, fleet identities, or the Phase 1 TCO snapshot changed after this Pod Brief was accepted.",
+    staleReason: "One or more accepted Phase 2 dependencies, dependency states, fleet identities, or the Phase 1 TCO snapshot changed after this Pod Brief was accepted.",
   };
 }
