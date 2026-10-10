@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { buildRtxProSingleServerTcoPolicy } from "./rtxProTcoPolicy.js";
 import { buildRtxProLifecycleTco } from "./rtxProLifecycleTco.js";
 import { buildRtxProInferenceEconomicsHandoff } from "./rtxProInferenceEconomicsConnector.js";
-import { RTX_PRO_CLOUD_COMPARATOR } from "./rtxProServerRegistry.js";
+import { buildRtxProCloudComparison } from "./rtxProCloudComparison.js";
+import RtxProCloudComparisonPanel from "./RtxProCloudComparisonPanel.jsx";
 import { buildRtxProTcoPlanningDefaults, effectiveFacilityRatePerKwMonth } from "./rtxProTcoPlanningDefaults.js";
 import { loadSessionState, saveSessionState } from "./sessionState.js";
 
@@ -97,27 +98,6 @@ function ViewHeader({ title, subtitle, onBack, onPrint }) {
   );
 }
 
-function GoogleCloudReference() {
-  const row = RTX_PRO_CLOUD_COMPARATOR;
-  return (
-    <section role="region" aria-label="Google Cloud RTX PRO reference" className="rounded-xl border border-gray-200 bg-gray-50 p-5 mb-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-bold" style={{ color: INK }}>Google Cloud Run · RTX PRO 6000 Blackwell</h3>
-          <div className="text-xs text-gray-500 mt-1">Public cloud reference only — not yet a direct cloud TCO or savings comparison.</div>
-        </div>
-        <ProvenanceBadge source={row.priceProvenance} label={row.priceDerivation} />
-      </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-4 text-xs">
-        <div><div className="text-gray-500">Minimum deployable instance floor</div><div className="font-bold">${row.minimumInstanceRatePerHourUSD}/hr</div></div>
-        <div><div className="text-gray-500">GPU component</div><div className="font-bold">${row.gpuRatePerHourUSD}/hr</div></div>
-        <div><div className="text-gray-500">Required 20 vCPU</div><div className="font-bold">Included in floor</div></div>
-        <div><div className="text-gray-500">Required 80 GiB memory</div><div className="font-bold">Included in floor</div></div>
-      </div>
-    </section>
-  );
-}
-
 export default function RtxProTcoIntake() {
   const params = useMemo(initialParams, []);
   const gpuCount = Number(params.get("gpuCount")) || 2;
@@ -195,6 +175,7 @@ export default function RtxProTcoIntake() {
   const clientReady = Boolean(lifecycleReady && policy.clientReady);
   const unresolved = [...new Set([...(policy.requiredInputs || []), ...(lifecycle.requiredInputs || [])])];
   const confirmations = policy.confirmationInputs || [];
+  const cloudComparison = useMemo(() => buildRtxProCloudComparison({ gpuCount, lifecycle: lifecycleReady ? lifecycle : null }), [gpuCount, lifecycleReady, lifecycle]);
   const ieHandoff = useMemo(() => buildRtxProInferenceEconomicsHandoff({ gpuCount, modelId: model, quant: precision, horizonYears, onPremTcoUsd: lifecycleReady ? lifecycle.totalTcoUSD : null, benchmarkId }), [gpuCount, model, precision, horizonYears, lifecycleReady, lifecycle.totalTcoUSD, benchmarkId]);
 
   if (policy.status === "UNSUPPORTED_CONFIGURATION") return <div className="max-w-3xl mx-auto px-6 py-10"><div className="rounded-xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">{policy.reason}</div></div>;
@@ -205,6 +186,7 @@ export default function RtxProTcoIntake() {
         <ViewHeader title="RTX PRO TCO Report" subtitle="Directional single-server lifecycle cost summary with source-labeled planning assumptions." onBack={() => setView("calc")} onPrint={() => window.print()} />
         {!clientReady && <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 mb-5 text-sm text-amber-900"><strong>Planning estimate — quote confirmation required.</strong> The 8-GPU configured-server hardware basis is estimated from public Supermicro pricing and must be replaced with an OEM/CDW quote before client-ready use.</div>}
         <div className="mb-6"><div className="text-xs font-bold uppercase tracking-wide" style={{ color: RED }}>RTX PRO 6000 Blackwell Server Edition</div><div className="text-3xl font-bold mt-1" style={{ color: INK }}>{money(lifecycle.totalTcoUSD)}</div><div className="text-sm text-gray-600">{horizonYears}-year directional lifecycle TCO · {gpuCount} GPUs · {model || "model not supplied"}{precision ? ` · ${precision}` : ""}</div></div>
+        <RtxProCloudComparisonPanel comparison={cloudComparison} horizonYears={horizonYears} compact />
         <div className="grid sm:grid-cols-2 gap-4 mb-6"><div className="rounded-xl border p-4"><div className="text-xs text-gray-500">One-time costs</div><div className="text-xl font-bold">{money(lifecycle.oneTimeCapexUSD)}</div></div><div className="rounded-xl border p-4"><div className="text-xs text-gray-500">Lifecycle recurring costs</div><div className="text-xl font-bold">{money(lifecycle.recurringLifecycleUSD)}</div></div></div>
         <div className="rounded-xl border border-gray-200 p-5 mb-6 text-sm space-y-2"><div className="font-bold mb-3">Cost breakdown</div><div>Configured hardware: <strong>{money(lifecycle.breakdown.hardwareUSD)}</strong> · {policy.hardware.priceProvenance}</div><div>Professional services: <strong>{money(lifecycle.breakdown.professionalServicesUSD)}</strong></div><div>Workload-derived storage: <strong>{money(lifecycle.breakdown.storageUSD)}</strong></div><div>NVIDIA software/support: <strong>{money(lifecycle.breakdown.nvidiaSoftwareLifecycleUSD)}</strong></div><div>OEM/server support: <strong>{money(lifecycle.breakdown.supportLifecycleUSD)}</strong></div><div>Admin/operations labor: <strong>{money(lifecycle.breakdown.adminLifecycleUSD)}</strong></div><div>Facility/power: <strong>{money(lifecycle.breakdown.facilityPowerLifecycleUSD)}</strong></div></div>
         <div className="no-print flex gap-3"><button type="button" onClick={() => setView("audit")} className="px-4 py-2 rounded-lg border text-sm font-semibold">Calculation Methodology & Audit Trail</button></div>
@@ -220,6 +202,7 @@ export default function RtxProTcoIntake() {
         <div className="rounded-xl border border-gray-200 p-5 mb-5 text-sm space-y-2"><div className="font-bold">Architecture evidence</div><div>Deployment: <strong>{gpuCount} × RTX PRO 6000</strong></div><div>Model / precision: <strong>{model || "—"}{precision ? ` · ${precision}` : ""}</strong></div><div>Benchmark ID: <strong>{benchmarkId || "—"}</strong></div><div>Hardware SKU: <strong>{policy.hardware.configuredSystemSku || "configured quote pending"}</strong></div><div>Hardware planning basis: <strong>{money(policy.hardware.configuredSystemPriceUSD)}</strong> · {policy.hardware.priceProvenance} · {policy.hardware.priceDerivation}</div><div>Client-ready hardware confirmation: <strong>{policy.hardware.quoteRequired ? "OEM/CDW configured-system quote required" : "Public configured-system price admitted"}</strong></div></div>
         <div className="rounded-xl border border-gray-200 p-5 mb-5 text-sm space-y-2"><div className="font-bold">Incremental infrastructure assumptions</div><div>Existing server management: <strong>{existingServerManagement ? "Yes · incremental CAPEX $0 EST" : "No · quote/input required"}</strong></div><div>Existing Ethernet sufficient: <strong>{existingEthernet ? "Yes · dedicated AI fabric CAPEX $0 EST" : "No · quote/input required"}</strong></div><div>Existing rack capacity: <strong>{existingRackCapacity ? "Yes · incremental rack CAPEX $0 EST" : "No · quote/input required"}</strong></div></div>
         <div className="rounded-xl border border-gray-200 p-5 mb-5 text-sm space-y-2"><div className="font-bold">Commercial and operating inputs</div><div>NVIDIA software/support: <strong>{money(explicitNumber(nvidiaSoftwareUSD))}</strong> · {provenanceFor("nvidiaSoftwareUSD", nvidiaSoftwareUSD).source}</div><div>OEM/server support: <strong>{money(explicitNumber(supportUSD))}</strong> · {provenanceFor("supportUSD", supportUSD).source}</div><div>Professional services: <strong>{money(explicitNumber(professionalServicesUSD))}</strong> · {provenanceFor("professionalServicesUSD", professionalServicesUSD).source}</div><div>Workload-derived storage: <strong>{money(explicitNumber(storageUSD))}</strong> · {provenanceFor("storageUSD", storageUSD).source}</div><div>Admin/operations labor: <strong>{money(explicitNumber(adminFteAnnualUSD))}</strong> / year · {provenanceFor("adminFteAnnualUSD", adminFteAnnualUSD).source}</div><div>Configured-server power: <strong>{serverPowerKW} kW</strong> · {provenanceFor("serverPowerKW", serverPowerKW).source}</div><div>Facility mode: <strong>{facilityText}</strong></div></div>
+        <div className="rounded-xl border border-gray-200 p-5 mb-5 text-sm space-y-2"><div className="font-bold">Cloud comparison methodology</div><div>Verified recommendation provider: <strong>{cloudComparison.verifiedRecommendation?.cloudProvider || "none"}</strong></div><div>Cloud runtime basis: <strong>{cloudComparison.activeHoursPerMonth} hours/month</strong></div><div>Evidence rule: <strong>engineering-only cloud rates cannot drive the preferred-path recommendation</strong></div></div>
         <div className="rounded-xl border border-gray-200 p-5 text-sm space-y-2"><div className="font-bold">Lifecycle method</div><div>Horizon: <strong>{horizonYears} years</strong></div><div>Facility/power formula: <strong>server kW × effective $/kW-month × 12 × horizon</strong></div><div>Annual commercial amounts: <strong>annual amount × horizon</strong></div><div>Term-total commercial amounts: <strong>counted once only when quoted coverage spans the full horizon</strong></div><div>Total reconciliation: <strong>{money(lifecycle.oneTimeCapexUSD)} one-time + {money(lifecycle.recurringLifecycleUSD)} recurring = {money(lifecycle.totalTcoUSD)}</strong></div></div>
       </div>
     );
@@ -247,7 +230,7 @@ export default function RtxProTcoIntake() {
 
       {lifecycleReady && <div className={`rounded-xl border p-5 mb-5 ${clientReady ? "border-green-300 bg-green-50" : "border-blue-300 bg-blue-50"}`}><div className="flex flex-wrap items-end justify-between gap-3 mb-4"><div><div className={`text-xs font-bold uppercase tracking-wide ${clientReady ? "text-green-800" : "text-blue-800"}`}>{clientReady ? "Directional lifecycle TCO" : "Planning lifecycle TCO"}</div><div className={`text-3xl font-bold ${clientReady ? "text-green-950" : "text-blue-950"}`}>{money(lifecycle.totalTcoUSD)}</div><div className={`text-xs ${clientReady ? "text-green-900" : "text-blue-900"}`}>{horizonYears}-year single-server planning basis</div></div><div className={`text-xs text-right ${clientReady ? "text-green-900" : "text-blue-900"}`}><div>One-time costs: <strong>{money(lifecycle.oneTimeCapexUSD)}</strong></div><div>Lifecycle recurring costs: <strong>{money(lifecycle.recurringLifecycleUSD)}</strong></div></div></div><div className={`grid sm:grid-cols-2 gap-x-6 gap-y-2 text-xs ${clientReady ? "text-green-950" : "text-blue-950"}`}><div>Configured hardware: <strong>{money(lifecycle.breakdown.hardwareUSD)}</strong> · {policy.hardware.priceProvenance}</div><div>Professional services: <strong>{money(lifecycle.breakdown.professionalServicesUSD)}</strong></div><div>Workload-derived storage: <strong>{money(lifecycle.breakdown.storageUSD)}</strong></div><div>NVIDIA software/support: <strong>{money(lifecycle.breakdown.nvidiaSoftwareLifecycleUSD)}</strong> lifecycle</div><div>OEM/server support: <strong>{money(lifecycle.breakdown.supportLifecycleUSD)}</strong> lifecycle</div><div>Admin/operations labor: <strong>{money(lifecycle.breakdown.adminLifecycleUSD)}</strong> lifecycle</div><div>Facility/power: <strong>{money(lifecycle.breakdown.facilityPowerLifecycleUSD)}</strong> lifecycle</div><div>Annual facility/power basis: <strong>{money(lifecycle.annualFacilityPowerUSD)}</strong></div></div><p className={`text-xs mt-4 ${clientReady ? "text-green-900" : "text-blue-900"}`}>{clientReady ? "Planning estimates remain visible in the audit trail. Replace EST values with customer/quote inputs before treating the result as client-ready." : "This is a directional planning result using an EST 8-GPU hardware basis. Replace the hardware estimate with an OEM/CDW configured-system quote before treating the result as client-ready."}</p><div className="flex flex-wrap gap-2 mt-4 no-print"><button type="button" onClick={() => setView("report")} className="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-400 text-gray-900 bg-white">View my report</button><button type="button" onClick={() => setView("audit")} className="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-400 text-gray-900 bg-white">Calculation Methodology & Audit Trail</button></div></div>}
 
-      <GoogleCloudReference />
+      {lifecycleReady && <RtxProCloudComparisonPanel comparison={cloudComparison} horizonYears={horizonYears} />}
       <div className="flex flex-wrap gap-3 no-print"><a href="/gpu-sizing" className="text-sm font-semibold px-4 py-2 rounded-lg border border-gray-300 text-gray-700 bg-white">Back to GPU Sizing</a>{lifecycleReady && ieHandoff.eligible && <a href={ieHandoff.href} className="text-sm font-semibold px-4 py-2 rounded-lg text-white" style={{ background: RED }}>Continue to Inference Economics</a>}</div>
     </div>
   );

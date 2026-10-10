@@ -160,16 +160,16 @@ test("RTX PRO TCO preserves customer edits and resets a new scenario to planning
   await expect(page.getByText("Directional TCO ready", { exact: true })).toBeVisible();
 });
 
-test("RTX PRO TCO surfaces the full Google Cloud Run minimum instance floor, not GPU-only pricing", async ({ page }) => {
+test("RTX PRO TCO shows verified cloud comparison, preferred path, and crossover UX", async ({ page }) => {
   await page.goto(`/tco/rtx-pro?${rtxParams().toString()}`, { waitUntil: "domcontentloaded" });
-  const cloudRef = page.locator('section[role="region"][aria-label="Google Cloud RTX PRO reference"]');
-  await expect(cloudRef).toHaveCount(1);
-  await expect(cloudRef).toBeVisible();
-  await expect(cloudRef.getByRole("heading", { name: "Google Cloud Run · RTX PRO 6000 Blackwell", exact: true })).toBeVisible();
-  await expect(cloudRef.getByText("$3.186792/hr", { exact: true })).toBeVisible();
-  await expect(cloudRef.getByText("Minimum deployable instance floor", { exact: true })).toBeVisible();
-  await expect(cloudRef.getByText("$1.314792/hr", { exact: true })).toBeVisible();
-  await expect(cloudRef.getByText("Required 20 vCPU", { exact: true })).toBeVisible();
-  await expect(cloudRef.getByText("Required 80 GiB memory", { exact: true })).toBeVisible();
-  await expect(cloudRef.getByText(/not yet a direct cloud TCO or savings comparison/i)).toBeVisible();
+  const panel = page.getByTestId("rtx-cloud-comparison-panel");
+  await expect(panel).toBeVisible();
+  await expect(panel.getByText("Cloud vs on-prem decision", { exact: true })).toBeVisible();
+  await expect(panel.getByText(/Preferred path:/).first()).toBeVisible();
+  await expect(panel.getByText("Google Cloud", { exact: true }).first()).toBeVisible();
+  await expect(panel.getByText("VERIFIED PUBLIC RATE", { exact: true }).first()).toBeVisible();
+  await expect(panel.getByTestId("rtx-preferred-path-summary")).toBeVisible();
+  await expect(panel.getByText("Crossover", { exact: true })).toBeVisible();
+  await expect(panel.getByTestId("rtx-cloud-crossover-chart")).toBeVisible();
+  await expect(panel.getByText(/ENGINEERING RATE · VERIFY BEFORE CLIENT USE/).first()).toBeVisible();
 });
