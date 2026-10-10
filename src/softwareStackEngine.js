@@ -49,6 +49,13 @@ function n(value, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function optionalNumber(value) {
+  if (value == null) return null;
+  if (typeof value === "string" && value.trim() === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function calculateSoftwareStack(inputs) {
   const horizonYears = Math.max(1, Math.min(7, Math.round(n(inputs.horizonYears, 3))));
   const annualEscalationPct = Math.max(-100, n(inputs.annualEscalationPct));
@@ -175,20 +182,27 @@ export function calculateSoftwareStack(inputs) {
 export function validateSoftwareStackInputs(inputs) {
   const errors = [];
   const warnings = [];
-  const horizonYears = n(inputs.horizonYears, 3);
-  if (horizonYears < 1 || horizonYears > 7) errors.push("Planning horizon must be between 1 and 7 years.");
+  const horizonYears = optionalNumber(inputs.horizonYears);
+  const annualEscalationPct = optionalNumber(inputs.annualEscalationPct);
+  if (!(horizonYears >= 1 && horizonYears <= 7)) errors.push("Planning horizon must be between 1 and 7 years.");
+  if (annualEscalationPct == null || annualEscalationPct < -100) errors.push("Annual escalation cannot be blank and must be -100% or greater.");
   const components = Array.isArray(inputs.components) ? inputs.components : [];
   components.forEach((component, index) => {
     const name = component.name || `Component ${index + 1}`;
+    const quantity = optionalNumber(component.quantity);
+    const annualUnitPrice = optionalNumber(component.annualUnitPrice);
+    const oneTimeCost = optionalNumber(component.oneTimeCost);
+    const annualOpsCost = optionalNumber(component.annualOpsCost);
+    const supportPct = optionalNumber(component.supportPct);
     if (!Object.values(LICENSE_MODE).includes(component.mode)) errors.push(`${name}: invalid license mode.`);
     if (component.tcoTreatment != null && !Object.values(SOFTWARE_TCO_TREATMENT).includes(component.tcoTreatment)) errors.push(`${name}: invalid Phase 1 TCO treatment.`);
-    if (n(component.quantity) < 0) errors.push(`${name}: quantity cannot be negative.`);
-    if (n(component.annualUnitPrice) < 0) errors.push(`${name}: unit price cannot be negative.`);
-    if (n(component.oneTimeCost) < 0) errors.push(`${name}: one-time cost cannot be negative.`);
-    if (n(component.annualOpsCost) < 0) errors.push(`${name}: annual operating cost cannot be negative.`);
-    if (n(component.supportPct) < 0) errors.push(`${name}: support percentage cannot be negative.`);
-    if (component.mode === LICENSE_MODE.COMMERCIAL && n(component.annualUnitPrice) === 0) warnings.push(`${name}: commercial price is unresolved.`);
-    if ((n(component.annualUnitPrice) > 0 || n(component.annualOpsCost) > 0 || n(component.oneTimeCost) > 0) && (!component.tcoTreatment || component.tcoTreatment === SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED)) warnings.push(`${name}: Phase 1 overlap must be resolved before TCO write-back.`);
+    if (quantity == null || quantity < 0) errors.push(`${name}: quantity cannot be blank or negative.`);
+    if (annualUnitPrice == null || annualUnitPrice < 0) errors.push(`${name}: unit price cannot be blank or negative.`);
+    if (oneTimeCost == null || oneTimeCost < 0) errors.push(`${name}: one-time cost cannot be blank or negative.`);
+    if (annualOpsCost == null || annualOpsCost < 0) errors.push(`${name}: annual operating cost cannot be blank or negative.`);
+    if (supportPct == null || supportPct < 0) errors.push(`${name}: support percentage cannot be blank or negative.`);
+    if (component.mode === LICENSE_MODE.COMMERCIAL && annualUnitPrice === 0) warnings.push(`${name}: commercial price is unresolved.`);
+    if (((annualUnitPrice || 0) > 0 || (annualOpsCost || 0) > 0 || (oneTimeCost || 0) > 0) && (!component.tcoTreatment || component.tcoTreatment === SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED)) warnings.push(`${name}: Phase 1 overlap must be resolved before TCO write-back.`);
   });
   return { valid: errors.length === 0, errors, warnings };
 }
