@@ -2,8 +2,6 @@ import React, { useEffect, useRef } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigationType } from "react-router-dom";
 import LandingPage from "./LandingPage.jsx";
 import TcoCalculator from "./TcoCalculator.jsx";
-import RtxProTcoIntake from "./RtxProTcoIntake.jsx";
-import RtxProCloudComparatorCard from "./RtxProCloudComparatorCard.jsx";
 import GpuSizingCalculator from "./GpuSizingCalculator.jsx";
 import ModelAdvisor from "./ModelAdvisor.jsx";
 import UseCaseExplorer from "./UseCaseExplorer.jsx";
@@ -28,11 +26,6 @@ import "./mobile-overrides.css";
 
 const E2E_AUTH_BYPASS = import.meta.env.VITE_E2E_AUTH_BYPASS === "true";
 
-// GPU Sizing and TCO use slightly different names for NVL rack classes.
-// TCO already normalizes most handoff names internally; this small route-level
-// bridge covers GB300 NVL72 so a fresh handoff cannot fall back to the stale
-// saved/default H100 rental class before TCO persists the new workload state.
-// Explicit user overrides still win, matching TCO's ownership rules.
 function normalizeTcoHandoffCloudClass() {
   if (typeof window === "undefined") return;
   const params = new URLSearchParams(window.location.search);
@@ -92,20 +85,6 @@ function TcoRoute() {
   );
 }
 
-function RtxProTcoRoute() {
-  return (
-    <SharedToolShell
-      title="RTX PRO Single-Server TCO"
-      backHref="/gpu-sizing"
-      backLabel="GPU Sizing"
-      toolKey="tco"
-    >
-      <RtxProTcoIntake />
-      <RtxProCloudComparatorCard />
-    </SharedToolShell>
-  );
-}
-
 function Phase2TcoRoute() {
   normalizeTcoHandoffCloudClass();
   return (
@@ -129,23 +108,17 @@ function LegacyInferenceEconomicsRedirect({ guided = false }) {
 
 function InferenceEconomicsRoute() {
   const location = useLocation();
-  const params = new URLSearchParams(location.search);
-  const source = params.get("source");
-  const isRtxTco = source === "tco" && params.get("rtx") === "1";
-  const backHref = isRtxTco
-    ? "/tco/rtx-pro"
-    : source === "tco"
-      ? "/tco"
-      : source === "gpu-sizing"
-        ? "/gpu-sizing"
-        : "/";
-  const backLabel = isRtxTco
-    ? "Adjust RTX PRO TCO inputs"
-    : source === "tco"
-      ? "Adjust TCO assumptions"
-      : source === "gpu-sizing"
-        ? "Back to GPU Sizing"
-        : "All tools";
+  const source = new URLSearchParams(location.search).get("source");
+  const backHref = source === "tco"
+    ? "/tco"
+    : source === "gpu-sizing"
+      ? "/gpu-sizing"
+      : "/";
+  const backLabel = source === "tco"
+    ? "Adjust TCO assumptions"
+    : source === "gpu-sizing"
+      ? "Back to GPU Sizing"
+      : "All tools";
 
   return (
     <SharedToolShell
@@ -164,7 +137,6 @@ function ToolRoutes() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/tco" element={<TcoRoute />} />
-      <Route path="/tco/rtx-pro" element={<RtxProTcoRoute />} />
       <Route path="/inference-economics" element={<InferenceEconomicsRoute />} />
       <Route path="/tco/inference-economics-preview" element={<LegacyInferenceEconomicsRedirect />} />
       <Route path="/tco/inference-economics-preview-guided" element={<LegacyInferenceEconomicsRedirect guided />} />
@@ -255,7 +227,7 @@ function ToolRoutes() {
           </SharedToolShell>
         )}
       />
-      {E2E_AUTH_BYPASS && <Route path="/__test/hybrid-sequence-state" element={<HybridSequenceStateTestRoute />} />}
+      {E2E_AUTH_BYPASS && <Route path="/__e2e/hybrid-sequence-state" element={<HybridSequenceStateTestRoute />} />}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
