@@ -29,6 +29,8 @@ export function validatePowerPlannerInputs(result) {
   if (!(i.avgKwPerSystem > 0)) errors.push("Energy-planning kW per system must be greater than 0.");
   if (!(i.designKwPerSystem > 0)) errors.push("Design / max kW per system must be greater than 0.");
   if (i.designKwPerSystem < i.avgKwPerSystem) errors.push("Design / max kW per system cannot be lower than energy-planning kW per system.");
+  if (i.systemsPerRackProvided === false) errors.push("Systems per rack is required; blank rack density cannot fall back to 1 for acceptance.");
+  else if (!(i.systemsPerRack >= 1)) errors.push("Systems per rack must be at least 1.");
   if (i.pueProvided === false) errors.push("PUE is required; blank PUE cannot fall back to 1.0 for acceptance.");
   else if (!(i.pue >= 1 && i.pue <= 3)) errors.push("PUE must be between 1.0 and 3.0 for this planning tool.");
   if (i.utilityRateProvided === false) errors.push("Utility rate is required; blank utility rate cannot create a $0 energy override.");
