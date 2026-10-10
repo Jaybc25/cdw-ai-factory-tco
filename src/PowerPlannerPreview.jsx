@@ -29,9 +29,15 @@ function bundleIsStale(bundle) {
   );
 }
 
+function sameInputs(a, b) {
+  return Boolean(a && b && JSON.stringify(a) === JSON.stringify(b));
+}
+
 export default function PowerPlannerPreview() {
   const acceptedStorage = useMemo(() => loadSessionState("phase2-storage-writeback"), []);
   const acceptedNetwork = useMemo(() => loadSessionState("phase2-network-writeback"), []);
+  const savedInputState = useMemo(() => loadSessionState("phase2-power-inputs"), []);
+  const savedValues = savedInputState?.values || {};
   const storageDependencyStale = bundleIsStale(acceptedStorage);
   const networkDependencyStale = bundleIsStale(acceptedNetwork);
   const networkEngineeringReview = Boolean(
@@ -39,31 +45,62 @@ export default function PowerPlannerPreview() {
     acceptedNetwork?.requirements?.topologyFeasibility?.twoTierFeasible === false
   );
   const [savedPower, setSavedPower] = useState(() => loadSessionState("phase2-power-writeback"));
-  const [useAcceptedStorage, setUseAcceptedStorage] = useState(Boolean(acceptedStorage?.requirements) && !storageDependencyStale);
-  const [useAcceptedNetwork, setUseAcceptedNetwork] = useState(Boolean(acceptedNetwork?.requirements) && !networkDependencyStale && !networkEngineeringReview);
-  const [systemName, setSystemName] = useState("DGX B200");
-  const profile = POWER_PLANNER_SYSTEM_PROFILES[systemName];
-  const [systemCount, setSystemCount] = useState(8);
-  const [avgKwPerSystem, setAvgKwPerSystem] = useState(profile.avgKwPerSystem);
-  const [designKwPerSystem, setDesignKwPerSystem] = useState(profile.designKwPerSystem);
-  const [systemsPerRack, setSystemsPerRack] = useState(profile.systemsPerRack);
-  const [storagePb, setStoragePb] = useState(1);
-  const [provisionalNetworkKw, setProvisionalNetworkKw] = useState(12);
-  const [managementHeadNodeKw, setManagementHeadNodeKw] = useState("");
-  const [networkRacks, setNetworkRacks] = useState("");
-  const [pue, setPue] = useState(1.35);
-  const [utilityRatePerKwh, setUtilityRatePerKwh] = useState(0.11);
-  const [utilityRateSource, setUtilityRateSource] = useState(PHASE2_SOURCE.EST);
-  const [facilityBranch, setFacilityBranch] = useState("owned-dc");
-  const [ownedFacilityBurdenPerKwMonth, setOwnedFacilityBurdenPerKwMonth] = useState("");
-  const [coloMonthlyBundle, setColoMonthlyBundle] = useState("");
-  const [coloBundleIncludesPower, setColoBundleIncludesPower] = useState(false);
-  const [facilityCostSource, setFacilityCostSource] = useState(PHASE2_SOURCE.CUSTOMER);
-  const [coolingType, setCoolingType] = useState("air-containment");
-  const [availableKwPerRack, setAvailableKwPerRack] = useState("");
-  const [totalFacilityKwAvailable, setTotalFacilityKwAvailable] = useState("");
-  const [rackPositionsAvailable, setRackPositionsAvailable] = useState("");
+  const [acceptedInputs, setAcceptedInputs] = useState(savedInputState?.acceptedInputs || null);
+  const [useAcceptedStorage, setUseAcceptedStorage] = useState(savedValues.useAcceptedStorage ?? (Boolean(acceptedStorage?.requirements) && !storageDependencyStale));
+  const [useAcceptedNetwork, setUseAcceptedNetwork] = useState(savedValues.useAcceptedNetwork ?? (Boolean(acceptedNetwork?.requirements) && !networkDependencyStale && !networkEngineeringReview));
+  const [systemName, setSystemName] = useState(savedValues.systemName ?? "DGX B200");
+  const profile = POWER_PLANNER_SYSTEM_PROFILES[systemName] || POWER_PLANNER_SYSTEM_PROFILES["DGX B200"];
+  const [systemCount, setSystemCount] = useState(savedValues.systemCount ?? 8);
+  const [avgKwPerSystem, setAvgKwPerSystem] = useState(savedValues.avgKwPerSystem ?? profile.avgKwPerSystem);
+  const [designKwPerSystem, setDesignKwPerSystem] = useState(savedValues.designKwPerSystem ?? profile.designKwPerSystem);
+  const [systemsPerRack, setSystemsPerRack] = useState(savedValues.systemsPerRack ?? profile.systemsPerRack);
+  const [storagePb, setStoragePb] = useState(savedValues.storagePb ?? 1);
+  const [provisionalNetworkKw, setProvisionalNetworkKw] = useState(savedValues.provisionalNetworkKw ?? 12);
+  const [managementHeadNodeKw, setManagementHeadNodeKw] = useState(savedValues.managementHeadNodeKw ?? "");
+  const [networkRacks, setNetworkRacks] = useState(savedValues.networkRacks ?? "");
+  const [pue, setPue] = useState(savedValues.pue ?? 1.35);
+  const [utilityRatePerKwh, setUtilityRatePerKwh] = useState(savedValues.utilityRatePerKwh ?? 0.11);
+  const [utilityRateSource, setUtilityRateSource] = useState(savedValues.utilityRateSource ?? PHASE2_SOURCE.EST);
+  const [facilityBranch, setFacilityBranch] = useState(savedValues.facilityBranch ?? "owned-dc");
+  const [ownedFacilityBurdenPerKwMonth, setOwnedFacilityBurdenPerKwMonth] = useState(savedValues.ownedFacilityBurdenPerKwMonth ?? "");
+  const [coloMonthlyBundle, setColoMonthlyBundle] = useState(savedValues.coloMonthlyBundle ?? "");
+  const [coloBundleIncludesPower, setColoBundleIncludesPower] = useState(savedValues.coloBundleIncludesPower ?? false);
+  const [facilityCostSource, setFacilityCostSource] = useState(savedValues.facilityCostSource ?? PHASE2_SOURCE.CUSTOMER);
+  const [coolingType, setCoolingType] = useState(savedValues.coolingType ?? "air-containment");
+  const [availableKwPerRack, setAvailableKwPerRack] = useState(savedValues.availableKwPerRack ?? "");
+  const [totalFacilityKwAvailable, setTotalFacilityKwAvailable] = useState(savedValues.totalFacilityKwAvailable ?? "");
+  const [rackPositionsAvailable, setRackPositionsAvailable] = useState(savedValues.rackPositionsAvailable ?? "");
   const [acceptance, setAcceptance] = useState(null);
+
+  const persistedInputs = useMemo(() => ({
+    useAcceptedStorage,
+    useAcceptedNetwork,
+    systemName,
+    systemCount,
+    avgKwPerSystem,
+    designKwPerSystem,
+    systemsPerRack,
+    storagePb,
+    provisionalNetworkKw,
+    managementHeadNodeKw,
+    networkRacks,
+    pue,
+    utilityRatePerKwh,
+    utilityRateSource,
+    facilityBranch,
+    ownedFacilityBurdenPerKwMonth,
+    coloMonthlyBundle,
+    coloBundleIncludesPower,
+    facilityCostSource,
+    coolingType,
+    availableKwPerRack,
+    totalFacilityKwAvailable,
+    rackPositionsAvailable,
+  }), [useAcceptedStorage, useAcceptedNetwork, systemName, systemCount, avgKwPerSystem, designKwPerSystem, systemsPerRack, storagePb, provisionalNetworkKw, managementHeadNodeKw, networkRacks, pue, utilityRatePerKwh, utilityRateSource, facilityBranch, ownedFacilityBurdenPerKwMonth, coloMonthlyBundle, coloBundleIncludesPower, facilityCostSource, coolingType, availableKwPerRack, totalFacilityKwAvailable, rackPositionsAvailable]);
+
+  useEffect(() => {
+    saveSessionState("phase2-power-inputs", { values: persistedInputs, acceptedInputs });
+  }, [persistedInputs, acceptedInputs]);
 
   const storageRequirement = useAcceptedStorage ? acceptedStorage?.requirements : null;
   const networkRequirement = useAcceptedNetwork ? acceptedNetwork?.requirements : null;
@@ -117,6 +154,7 @@ export default function PowerPlannerPreview() {
     coolingType, coolingCapability: profile.coolingCapability, availableKwPerRack, totalFacilityKwAvailable, rackPositionsAvailable,
   }), [systemCount, avgKwPerSystem, designKwPerSystem, systemsPerRack, effectiveStoragePb, effectiveStoragePowerKw, effectiveStorageRacks, provisionalNetworkKw, networkRequirement, acceptedFabricSwitchKw, managementHeadNodeKw, networkRacks, pue, utilityRatePerKwh, facilityBranch, ownedFacilityBurdenPerKwMonth, coloMonthlyBundle, coloBundleIncludesPower, coolingType, profile.coolingCapability, availableKwPerRack, totalFacilityKwAvailable, rackPositionsAvailable]);
   const validation = useMemo(() => validatePowerPlannerInputs(result), [result]);
+  const acceptedMatchesDisplayed = sameInputs(persistedInputs, acceptedInputs);
 
   function stageForTco() {
     try {
@@ -128,6 +166,7 @@ export default function PowerPlannerPreview() {
       const bundle = buildPowerPlannerWritebackBundle(result, { systemName, upstreamStorage, upstreamNetwork, utilityRateSource, facilityCostSource });
       saveSessionState("phase2-power-writeback", bundle);
       setSavedPower(bundle);
+      setAcceptedInputs(persistedInputs);
       setAcceptance({ ok: true, costResolved: bundle.costResolved, energyIncludedInFacilityBundle: bundle.energyIncludedInFacilityBundle, utilityRateSource: bundle.utilityRateSource, facilityCostSource: bundle.facilityCostSource });
     } catch (error) { setAcceptance({ ok: false, message: error.message }); }
   }
@@ -137,6 +176,8 @@ export default function PowerPlannerPreview() {
     <h1 style={{ margin: "0 0 8px", fontSize: "clamp(30px, 5vw, 48px)" }}>Power, cooling and rack planner</h1>
     <p style={{ margin: "0 0 10px", color: "#555", fontSize: 17, lineHeight: 1.55 }}>Design power drives capacity checks. Energy-planning power drives energy. Heat rejection tracks IT load rather than PUE-loaded facility demand.</p>
     <p style={{ margin: "0 0 24px", color: "#666", lineHeight: 1.5 }}><strong>{profile.energyBasis}.</strong> Source: {profile.evidenceSource} · reviewed {profile.reviewedAt}. {profile.notes}</p>
+
+    {savedPower && <section style={{ ...card, marginBottom: 18, borderLeft: `6px solid ${acceptedMatchesDisplayed ? "#176b31" : "#b7791f"}`, background: acceptedMatchesDisplayed ? "#eaf7ee" : "#fff7e8" }}><strong>{acceptedMatchesDisplayed ? "Displayed inputs match the accepted Power requirement." : "Displayed inputs differ from the accepted Power requirement."}</strong><p style={{ marginBottom: 0, color: "#555" }}>{acceptedMatchesDisplayed ? "Navigation or refresh restored the accepted Power scenario inputs." : "Review the restored inputs and accept Power again before relying on the displayed scenario downstream."}</p></section>}
 
     {acceptedStorage?.requirements && <section style={{ ...card, marginBottom: 18, borderLeft: storageDependencyStale ? "6px solid #b7791f" : "6px solid #176b31", background: storageDependencyStale ? "#fff7e8" : "#fff" }}><h2 style={{ marginTop: 0 }}>{storageDependencyStale ? "STALE Storage dependency" : "Accepted Storage dependency"}</h2><div>{Math.round(acceptedStorage.requirements.totalRawTb).toLocaleString()} TB raw · {acceptedStorage.requirements.storageRacks} racks · {kw(acceptedStorage.requirements.storagePowerKw)} · {Number(acceptedStorage.requirements.aggregateGBps ?? acceptedStorage.requirements.aggregateGbps ?? 0).toFixed(1)} GB/s</div>{storageDependencyStale && <p style={{ color: "#7a5600", fontWeight: 700 }}>Recompute and accept Storage before using it in Power.</p>}<label><input type="checkbox" disabled={storageDependencyStale} checked={useAcceptedStorage} onChange={(e) => { setUseAcceptedStorage(e.target.checked); clearAcceptance(); }} /> Use accepted Storage requirement</label></section>}
     {acceptedNetwork?.requirements && <section style={{ ...card, marginBottom: 18, borderLeft: networkDependencyStale || networkEngineeringReview ? "6px solid #b7791f" : "6px solid #176b31", background: networkDependencyStale || networkEngineeringReview ? "#fff7e8" : "#fff" }}><h2 style={{ marginTop: 0 }}>{networkDependencyStale ? "STALE Fabric dependency" : networkEngineeringReview ? "Fabric requires engineering review" : "Accepted Fabric dependency"}</h2><div>{acceptedNetwork.requirements.technology} · {acceptedNetwork.requirements.switches?.total ?? "—"} switches · {kw(acceptedNetwork.requirements.switchPowerKw)} switch power · CAPEX {money(acceptedNetwork.requirements.capitalCostCurrentFleet)}</div>{networkDependencyStale && <p style={{ color: "#7a5600", fontWeight: 700 }}>Recompute and accept Fabric before using it in Power.</p>}{networkEngineeringReview && <p style={{ color: "#7a5600", fontWeight: 700 }}>This Fabric result is a lower-bound planning result because the modeled topology needs engineering resolution. Its switch power is not accepted into Power.</p>}<label><input type="checkbox" disabled={networkDependencyStale || networkEngineeringReview} checked={useAcceptedNetwork} onChange={(e) => { setUseAcceptedNetwork(e.target.checked); clearAcceptance(); }} /> Use accepted Fabric switch power</label></section>}
