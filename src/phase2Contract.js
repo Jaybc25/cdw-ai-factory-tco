@@ -200,12 +200,14 @@ export function phase2OverrideCanWriteBack(override) {
   return override?.state === PHASE2_STATE.CURRENT || override?.state === PHASE2_STATE.RECOMPUTED;
 }
 
-// Production-application eligibility is stricter. Replacement values may not be
-// applied to TCO until their exact Phase 1 line-item mapping is explicit.
+// Production-application eligibility is stricter. A monetary override must
+// explicitly declare how it relates to Phase 1. Missing treatment metadata is
+// intentionally fail-closed so legacy/incomplete overrides can never become
+// production-applicable merely because they are CURRENT.
 export function phase2OverrideCanApplyToTco(override) {
   if (!phase2OverrideCanWriteBack(override)) return false;
   const treatment = override?.tcoTreatment;
-  if (!treatment) return true;
+  if (!treatment || !Object.values(PHASE2_TCO_TREATMENT).includes(treatment.mode)) return false;
   if (treatment.mode === PHASE2_TCO_TREATMENT.COMPARISON_ONLY) return false;
   if (treatment.mode === PHASE2_TCO_TREATMENT.REPLACE_PHASE1) {
     return treatment.replacementStatus === PHASE2_REPLACEMENT_STATUS.MAPPED;
