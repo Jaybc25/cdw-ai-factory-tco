@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { LICENSE_MODE, SOFTWARE_STACK_COMPONENTS, SOFTWARE_TCO_TREATMENT, calculateSoftwareStack, validateSoftwareStackInputs } from "./softwareStackEngine.js";
 import { buildSoftwareStackWritebackBundle } from "./softwareStackWriteback.js";
 import { PHASE2_SOURCE } from "./phase2Contract.js";
-import { saveSessionState } from "./sessionState.js";
+import { loadSessionState, saveSessionState } from "./sessionState.js";
 
 const card = { border: "1px solid #ddd", borderRadius: 12, padding: 16, background: "#fff" };
 const field = { display: "grid", gap: 6 };
@@ -18,20 +18,32 @@ function numericInputValue(raw) {
   return raw === "" ? "" : Number(raw);
 }
 
+function sameInputs(a, b) {
+  return Boolean(a && b && JSON.stringify(a) === JSON.stringify(b));
+}
+
 function makeComponent(id, category, name, mode, unit, quantity, annualUnitPrice, annualOpsCost, oneTimeCost = 0, supportPct = 0, priceSource = PHASE2_SOURCE.EST, tcoTreatment = SOFTWARE_TCO_TREATMENT.REVIEW_REQUIRED) {
   return { id, category, name, mode, unit, quantity, annualUnitPrice, annualOpsCost, oneTimeCost, supportPct, entitlementNotes: "", priceSource, tcoTreatment };
 }
 
-export default function SoftwareStackPreview() {
-  const [horizonYears, setHorizonYears] = useState(3);
-  const [annualEscalationPct, setAnnualEscalationPct] = useState(3);
-  const [acceptance, setAcceptance] = useState(null);
-  const [components, setComponents] = useState([
+function defaultComponents() {
+  return [
     makeComponent("orchestration", "orchestration", "Cluster orchestration", LICENSE_MODE.OPEN_SOURCE, "GPU", 16, 0, 18000, 12000),
     makeComponent("platform", "platform", "AI enterprise platform", LICENSE_MODE.COMMERCIAL, "GPU", 16, 2500, 6000, 8000, 15),
     makeComponent("mlops", "mlops", "MLOps / model operations", LICENSE_MODE.OPEN_SOURCE, "node", 4, 0, 12000, 6000),
     makeComponent("observability", "observability", "Monitoring / observability", LICENSE_MODE.OPEN_SOURCE, "node", 4, 0, 8000, 4000),
-  ]);
+  ];
+}
+
+export default function SoftwareStackPreview() {
+  const savedInputState = useMemo(() => loadSessionState("phase2-software-inputs"), []);
+  const savedValues = savedInputState?.values || {};
+  const [acceptedBundle, setAcceptedBundle] = useState(() => loadSessionState("phase2-software-writeback"));
+  const [acceptedInputs, setAcceptedInputs] = useState(savedInputState?.acceptedInputs || null);
+  const [horizonYears, setHorizonYears] = useState(savedValues.horizonYears ?? 3);
+  const [annualEscalationPct, setAnnualEscalationPct] = useState(savedValues.annualEscalationPct ?? 3);
+  const [acceptance, setAcceptance] = useState(null);
+  const [components, setComponents] = useState(Array.isArray(savedValues.components) ? savedValues.components : defaultComponents());
 
   function resetAcceptance() { setAcceptance(null); }
 
@@ -52,13 +64,21 @@ export default function SoftwareStackPreview() {
   }
 
   const inputs = useMemo(() => ({ horizonYears, annualEscalationPct, components }), [horizonYears, annualEscalationPct, components]);
+
+  useEffect(() => {
+    saveSessionState("phase2-software-inputs", { values: inputs, acceptedInputs });
+  }, [inputs, acceptedInputs]);
+
   const result = useMemo(() => calculateSoftwareStack(inputs), [inputs]);
   const validation = useMemo(() => validateSoftwareStackInputs(inputs), [inputs]);
+  const acceptedMatchesDisplayed = sameInputs(inputs, acceptedInputs);
 
   function stageForTco() {
     try {
       const bundle = buildSoftwareStackWritebackBundle(result, inputs);
       saveSessionState("phase2-software-writeback", bundle);
+      setAcceptedBundle(bundle);
+      setAcceptedInputs(inputs);
       setAcceptance({ ok: true, acceptedAt: bundle.acceptedAt, fingerprint: bundle.fingerprint, costResolved: bundle.costResolved, costNote: bundle.requirements.costNote });
     } catch (error) {
       setAcceptance({ ok: false, message: error.message });
@@ -76,6 +96,11 @@ export default function SoftwareStackPreview() {
         <p style={{ margin: "0 0 24px", color: "#555", fontSize: 17, lineHeight: 1.55, maxWidth: 920 }}>
           Build an itemized software economics view across orchestration, AI platform, MLOps, observability, security and support. Commercial subscriptions, included entitlements, open-source software, implementation effort and ongoing operating effort stay separate. Each component must also declare whether it is incremental to Phase 1 or already included there before it can write back to TCO.
         </p>
+
+        {acceptedBundle && <section style={{ ...card, marginBottom: 18, borderLeft: `6px solid ${acceptedMatchesDisplayed ? "#176b31" : "#b7791f"}`, background: acceptedMatchesDisplayed ? "#eaf7ee" : "#fff7e8" }}>
+          <strong>{acceptedMatchesDisplayed ? "Displayed inputs match the accepted Software requirement." : "Displayed inputs differ from the accepted Software requirement."}</strong>
+          <p style={{ marginBottom: 0, color: "#555" }}>{acceptedMatchesDisplayed ? "Navigation or refresh restored the accepted Software scenario inputs." : "Review the restored inputs and accept Software again before relying on the displayed scenario downstream."}</p>
+        </section>}
 
         <section style={{ ...card, marginBottom: 18 }}>
           <h2 style={{ marginTop: 0 }}>1. Planning horizon</h2>
